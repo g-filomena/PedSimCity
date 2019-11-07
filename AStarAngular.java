@@ -29,7 +29,7 @@ public class AStarAngular
     HashMap<Node, dualNodeWrapper> mapWrappers =  new HashMap<Node, dualNodeWrapper>();
 	
     public ArrayList<GeomPlanarGraphDirectedEdge> astarPath(Node originNode, Node destinationNode, pedestrianSimulation state,
-    		List segmentsToAvoid)
+    		List segmentsToAvoid, boolean gl)
     {
     	this.edgesMap = state.edgesMap;
     	this.nodesMap = state.nodesMap;
@@ -99,8 +99,13 @@ public class AStarAngular
 
                 if (closedSet.contains(nextNodeWrapper)) continue; // it has already been considered
                 // otherwise evaluate the cost of this node/edge combo
-
-                double tentativeCost = currentNodeWrapper.gx + angle(lastSegment)*state.fromNormalDistribution();
+                
+                double currentCost = angle(lastSegment) + state.fromNormalDistribution(1, 5);
+                if (gl == false) currentCost = angle(lastSegment) + state.fromNormalDistribution(1, 7);
+                if (currentCost > 180) currentCost = 180;
+                if (currentCost < 0) currentCost = 0;
+                
+                double tentativeCost = currentNodeWrapper.gx + currentCost;
                 boolean better = false;
 
                 if (!openSet.contains(nextNodeWrapper))

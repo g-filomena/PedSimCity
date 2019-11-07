@@ -110,12 +110,12 @@ public class pedestrianSimulation extends SimState
     List<Integer> districts = new ArrayList<Integer>();
     ArrayList<Pair> OD = new ArrayList<Pair>();
 
-    List<Float> distances = new ArrayList<Float>();
+    static List<Float> distances = new ArrayList<Float>();
     
     // landmark routing parameter
     public double t = 300.0;
     boolean singleAgent = false;
-    public int numTripsScenario = 271;
+//    public int numTripsScenario = 271;
 
     public int numAgents;
     
@@ -198,13 +198,6 @@ public class pedestrianSimulation extends SimState
 
     public void start()
     {
-    	for (int i = 0; i <120; i++)
-    	{
-    	    System.out.println(fromNormalDistribution());
-
-    	}
-    	
-    	
     	
     	
         if (districtRouting == true) criteria = criteriaDistricts;
@@ -496,9 +489,9 @@ public class pedestrianSimulation extends SimState
             
         }
    
-    public double fromNormalDistribution()
+    public double fromNormalDistribution(double mean, double sd)
     {
-    	double error = random.nextGaussian()*0.10+1;
+    	double error = random.nextGaussian()*sd+mean;
     	return error;
     }
     
@@ -506,6 +499,7 @@ public class pedestrianSimulation extends SimState
 
     public void populate()
     {
+    	int numTripsScenario = distances.size();
         if (singleAgent == true) numTripsScenario = 2;
     	ArrayList<Node> control = new ArrayList<Node>();
 		
@@ -553,7 +547,7 @@ public class pedestrianSimulation extends SimState
     
     public static void main(String[] args)
     {
-    	int jobs = 20;
+    	int jobs = 50;
     	String directory = "C:/Users/g_filo01/sciebo/Scripts/Image of the City/Outputs/London/intermediate/";
         try 
         {
@@ -606,19 +600,20 @@ public class pedestrianSimulation extends SimState
             URL landmarksFile = pedestrianSimulation.class.getResource("data/London_landmarks.shp");
             ShapeFileImporter.read(landmarksFile, buildings);
 
-            ///// READING DISTANCES
-//          System.out.println("reading distances...");
-//          CSVReader readerDistances = new CSVReader(new FileReader
-//          		("C:/Users/g_filo01/sciebo/Tools/Mason/sim/app/geo/LondonTest/data/London_traj_distances.csv"));
-//          String[] nextLineDistances;
-//          
-//          int ds = 0;
-//          while ((nextLineDistances = readerDistances.readNext()) != null) 
-//          {
-//          	distances.add(Float.parseFloat(nextLineDistances[0]));
-//          	ds = ds+1;
-//          }
-//          readerDistances.close();
+            /// READING DISTANCES
+			System.out.println("reading distances...");
+			CSVReader readerDistances = new CSVReader(new FileReader
+			  		("C:/Users/g_filo01/sciebo/Tools/Mason/sim/app/geo/pedestrianSimulation/data/London_traj_distances.csv"));
+			String[] nextLineDistances;
+			  
+			int ds = 0;
+			while ((nextLineDistances = readerDistances.readNext()) != null) 
+			{
+			  ds += 1;
+			  if (ds == 1) continue;
+			  distances.add(Float.parseFloat(nextLineDistances[2]));
+			}
+			readerDistances.close();
             
             network.createFromGeomField(roads);
             dualNetwork.createFromGeomField(intersectionsDual);          			

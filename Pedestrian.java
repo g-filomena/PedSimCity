@@ -61,13 +61,13 @@ public final class Pedestrian implements Steppable
     boolean reachedDestination = false;
     boolean landmarkRouting = false;
     boolean controlMode = false;
+    boolean gl = false;
     
 	HashMap<Integer, centroidData> centroidsMap;
 	HashMap<Integer, edgeData> edgesMap;
 	HashMap<Integer, nodeData> nodesMap;
     int numTrips = 0;
-    double wL = 0.5;
-    double wG = 0.5;
+
     ArrayList<GeomPlanarGraphDirectedEdge> oldPath;
     Stoppable killAgent;
    
@@ -127,13 +127,10 @@ public final class Pedestrian implements Steppable
     	{
 	        
 	        nodeData dd = nodesMap.get((int) destinationNode.getData());
-//	        List<Integer> anchors = new ArrayList<Integer>();
-//	        anchors = dd.anchors;
-//	        if (anchors == null) 
-//	    	{
-//	        	wG = 0.0;
-//	        	wL = 1.0;
-//	    	}
+	        List<Integer> anchors = new ArrayList<Integer>();
+	        anchors = dd.anchors;
+	        if (anchors == null) gl = false;
+	        else gl = true;
 	    	
 	    	GeomVectorField knownJunctions = landmarkFunctions.relevantNodes(originNode, destinationNode, state);
 	        double wayfindingComplexity = landmarkFunctions.easinessNavigation(originNode, destinationNode, state);
@@ -143,8 +140,6 @@ public final class Pedestrian implements Steppable
 
 		    while (searchRange >  state.t)
 	        {
-//		    	System.out.println("search range  "+ searchRange + " Initial Distance  " + utilities.nodesDistance(originNode, destinationNode) + "  current distance " +
-//		    			utilities.nodesDistance(currentNode, destinationNode));
 	        	Node bestNode = null;
 	        	double attractivness = 0.0;
 	        	if (knownJunctions.getGeometries().size() == 0)
@@ -152,11 +147,9 @@ public final class Pedestrian implements Steppable
 		        	System.out.println(" attention " + knownJunctions.getGeometries().size());
 		        	System.out.println("distance ... "+ utilities.nodesDistance(originNode, destinationNode));
 	        	}
-//	        	System.out.println("number of junctions " + knownJunctions.getGeometries().size());
-	        	
+        	
 	        	for (Object o : knownJunctions.getGeometries())
 		        {
-	        		
 			    	MasonGeometry geoNode = (MasonGeometry) o;
 			    	int nodeID = state.nodesGeometryMap.get(geoNode);
 			    	Node tmpNode = state.nodesMap.get(nodeID).node;
@@ -164,6 +157,7 @@ public final class Pedestrian implements Steppable
 			    	if (Node.getEdgesBetween(tmpNode, currentNode).size() > 0) continue;
 			    	if (utilities.nodesDistance(currentNode, tmpNode) > searchRange) continue; //only nodes in range	
 	        		double localScore = 0.0;
+	        		double globalScore = 0.0;
 	        		
 	        		if (criteria == "angularLand") 
 	        		{
@@ -171,41 +165,25 @@ public final class Pedestrian implements Steppable
 	        			Node dualOrigin = utilities.getDualNode(currentNode, state.dualNetwork);
 	        			AStarAngularNode nodesFinder = new AStarAngularNode();
 	        			
-
-	        			
-	        			HashMap<Node, dualNodeWrapper> nodesAhead = nodesFinder.astarPathNodes(dualOrigin, dualTmpDestination, state);
+	        			HashMap<Node, dualNodeWrapper> nodesAhead = nodesFinder.astarPathNodes(dualOrigin, dualTmpDestination, state, gl);
 	        			localScore = landmarkFunctions.localLandmarknessDualGraph(tmpNode, dualTmpDestination, nodesAhead, state);
+	        			globalScore = landmarkFunctions.globalLandmarknessDualGraph(destinationNode, tmpNode, nodesAhead, state);
 	        		}
 			        else
 			        {
 			        	AStarEuclideanNode nodesFinder = new AStarEuclideanNode();   
-			        	HashMap<Node, nodeWrapper> nodesAhead = nodesFinder.astarPathNodes(currentNode, tmpNode, state);
+			        	HashMap<Node, nodeWrapper> nodesAhead = nodesFinder.astarPathNodes(currentNode, tmpNode, state, gl);
 			        	localScore = landmarkFunctions.localLandmarkness(tmpNode, nodesAhead, state);
+			        	globalScore = landmarkFunctions.globalLandmarkness(destinationNode, tmpNode, nodesAhead, state);
 			        }
-//			        System.out.println("localScore "+localScore);
-//			    	double globalScore = landmarkFunctions.globalLandmarkness(tmpNode, destinationNode, state); 
-			    	double landmarkness = localScore;
-			    	double targetAngle = utilities.angle(currentNode.getCoordinate(), tmpNode.getCoordinate());
-			    	
-//			    	System.out.println("difference angle "+ utilities.angleDiff(targetAngle, destinationAngle));
-//			    	double deviation = 1 - utilities.angleDiff(targetAngle, destinationAngle)/180;
-//			    	double distance = 1 - utilities.nodesDistance(currentNode, tmpNode)/range;
+
 			    	double gain = ((utilities.nodesDistance(currentNode, destinationNode) - 
 			    			utilities.nodesDistance(tmpNode, destinationNode))/utilities.nodesDistance(currentNode, destinationNode));
 			    	
-//			    	double gain = (utilities.nodesDistance(originNode, destinationNode)-utilities.nodesDistance(tmpNode, destinationNode))/
-//			    			utilities.nodesDistance(originNode, destinationNode);
-			    	
-//			    	System.out.println("first distance" + utilities.nodesDistance(currentNode, destinationNode) + " good one  "+ utilities.nodesDistance(tmpNode, destinationNode));
-//			    	System.out.println("difference angle "+ utilities.angleDiff(targetAngle, destinationAngle));
-//			    	System.out.println("deviation" + deviation + " gain  "+  gain);
-//			    	double cognitiveCost = (deviation + gain)/2;
-			    	
-			    	
-			    	if (landmarkness * gain > attractivness) 
+			    	if (localScore * globalScore * gain > attractivness) 
 	    			{
-//			    		System.out.println("node "+ nodeID+ " landmarknes: "+ landmarkness + " distance destination: "+ distanceDestination);
-			    		attractivness = landmarkness * gain;
+
+			    		attractivness = localScore * globalScore * gain;
 			    		bestNode = tmpNode;
 	    			}
 			    	
@@ -220,19 +198,21 @@ public final class Pedestrian implements Steppable
 	            currentNode = bestNode;
 
 	        }
-//		    System.out.println(" distance " + utilities.nodesDistance(originNode, destinationNode)+ " len seq "+sequence.size());
 		    System.out.println(" OD "+(int) originNode.getData()+ " "+ (int) destinationNode.getData()+" "+ criteria +
 		    		" len seq "+sequence.size() + " distance "+  utilities.nodesDistance(originNode, destinationNode) );
     	}
         
         if (criteria == "euclidean" || criteria  == "euclideanLand" )
         {
-//        	System.out.println("sequence"+ sequence);
-        	if (criteria == "euclidean" || sequence.size() == 0)
+        	if (criteria == "euclidean")
         	{
-//            	DijkstraEuclidean pathfinderEuclidean = new DijkstraEuclidean();
         		AStarEuclidean pathfinderEuclidean = new AStarEuclidean();
-                newPath = pathfinderEuclidean.astarPath(originNode, destinationNode, state, null);      
+                newPath = pathfinderEuclidean.astarPath(originNode, destinationNode, state, null, true);      
+        	}
+        	else if(criteria == "euclideanLand" & sequence.size() == 0)
+        	{
+        		AStarEuclidean pathfinderEuclidean = new AStarEuclidean();
+                newPath = pathfinderEuclidean.astarPath(originNode, destinationNode, state, null, false);      
         	}
         	else
             {   
@@ -247,14 +227,14 @@ public final class Pedestrian implements Steppable
             	{
             		if (i == 0) 
             		{
-            			newPath = pathfinderEuclidean.astarPath(tmpNode, sequence.get(i), state, null);
+            			newPath = pathfinderEuclidean.astarPath(tmpNode, sequence.get(i), state, null, gl);
             			Iterator it = newPath.iterator();
             			while (it.hasNext()) segmentsToAvoid.add((int) ((GeomPlanarGraphEdge) 
             					((GeomPlanarGraphDirectedEdge) it.next()).getEdge()).getIntegerAttribute("streetID"));
             		}
             		else
             		{
-            			tmpPath = pathfinderEuclidean.astarPath(tmpNode, sequence.get(i), state, segmentsToAvoid); 
+            			tmpPath = pathfinderEuclidean.astarPath(tmpNode, sequence.get(i), state, segmentsToAvoid, gl); 
             			Iterator it = tmpPath.iterator();
             			while (it.hasNext()) segmentsToAvoid.add((int) ((GeomPlanarGraphEdge) 
             					((GeomPlanarGraphDirectedEdge) it.next()).getEdge()).getIntegerAttribute("streetID"));
@@ -262,7 +242,7 @@ public final class Pedestrian implements Steppable
             		}
                 	tmpNode = sequence.get(i);
             	}
-            	tmpPath = pathfinderEuclidean.astarPath(tmpNode, destinationNode, state, segmentsToAvoid);  
+            	tmpPath = pathfinderEuclidean.astarPath(tmpNode, destinationNode, state, segmentsToAvoid, gl);  
             	newPath.addAll(tmpPath); 
             }
         }
@@ -275,14 +255,23 @@ public final class Pedestrian implements Steppable
         	while (dualDestination == dualOrigin || dualDestination == null) dualDestination = utilities.getDualNode(
         			destinationNode, state.dualNetwork);
 
-        	if (criteria == "angular" || sequence.size() == 0)
+        	if (criteria == "angular")
         	{
 //            	DijkstraAngular pathfinderAngular = new DijkstraAngular();
 //                newPath = pathfinderAngular.dijkstraPath(dualOrigin, dualDestination, state);
         		AStarAngular pathfinderAngular = new AStarAngular();
-                newPath = pathfinderAngular.astarPath(dualOrigin, dualDestination, state, null);
+                newPath = pathfinderAngular.astarPath(dualOrigin, dualDestination, state, null, true);
            
         	}
+        	else if (criteria == "angularLand" & sequence.size() == 0)
+        	{
+//            	DijkstraAngular pathfinderAngular = new DijkstraAngular();
+//                newPath = pathfinderAngular.dijkstraPath(dualOrigin, dualDestination, state);
+        		AStarAngular pathfinderAngular = new AStarAngular();
+                newPath = pathfinderAngular.astarPath(dualOrigin, dualDestination, state, null, false);
+           
+        	}
+        	
         	else 
         	{
         		AStarAngular pathfinderAngular = new AStarAngular();
@@ -296,14 +285,14 @@ public final class Pedestrian implements Steppable
             		Node node = utilities.getDualNode(sequence.get(i), state.dualNetwork);
             		if (i == 0) 
             		{
-            			newPath = pathfinderAngular.astarPath(tmpNode, node, state, centroidsToAvoid); 
+            			newPath = pathfinderAngular.astarPath(tmpNode, node, state, centroidsToAvoid, gl); 
             			Iterator it = newPath.iterator();
             			while (it.hasNext()) centroidsToAvoid.add((int) ((GeomPlanarGraphEdge) 
             					((GeomPlanarGraphDirectedEdge) it.next()).getEdge()).getIntegerAttribute("streetID"));
             		}
             		else
             		{
-            			tmpPath = pathfinderAngular.astarPath(tmpNode, node, state, centroidsToAvoid); 
+            			tmpPath = pathfinderAngular.astarPath(tmpNode, node, state, centroidsToAvoid, gl); 
             			Iterator it = tmpPath.iterator();
             			while (it.hasNext()) centroidsToAvoid.add((int) ((GeomPlanarGraphEdge) 
             					((GeomPlanarGraphDirectedEdge) it.next()).getEdge()).getIntegerAttribute("streetID"));
@@ -312,7 +301,7 @@ public final class Pedestrian implements Steppable
                 	tmpNode = node;
                 	centroidsToAvoid.remove(node.getData());
             	}
-            	tmpPath = pathfinderAngular.astarPath(tmpNode, dualDestination, state, centroidsToAvoid);  
+            	tmpPath = pathfinderAngular.astarPath(tmpNode, dualDestination, state, centroidsToAvoid, gl);  
             	newPath.addAll(tmpPath); 
         	}
 
@@ -340,7 +329,7 @@ public final class Pedestrian implements Steppable
         else
         {
         	DijkstraLand pathfinderLandmarkness = new DijkstraLand();
-            newPath = pathfinderLandmarkness.dijkstraLandmarkPath(originNode, destinationNode, wL, wG, state);
+            newPath = pathfinderLandmarkness.dijkstraLandmarkPath(originNode, destinationNode, 1, 1, state);
         }
               
         // if the path works, lay it in

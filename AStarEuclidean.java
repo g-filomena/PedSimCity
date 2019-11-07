@@ -32,7 +32,7 @@ public class AStarEuclidean
     HashMap<Node, nodeWrapper> mapWrappers =  new HashMap<Node, nodeWrapper>();
 	
     public ArrayList<GeomPlanarGraphDirectedEdge> astarPath(Node originNode, Node destinationNode, pedestrianSimulation state, 
-    		List segmentsToAvoid)
+    		List segmentsToAvoid, boolean gl)
     {
     	this.edgesMap = state.edgesMap;
     	this.nodesMap = state.nodesMap;
@@ -91,7 +91,8 @@ public class AStarEuclidean
 
                 // otherwise evaluate the cost of this node/edge combo
                                        
-                double tentativeCost = currentNodeWrapper.gx + length(lastSegment)*state.fromNormalDistribution();
+                double tentativeCost = currentNodeWrapper.gx + length(lastSegment)*state.fromNormalDistribution(1, 0.10);
+                if (gl == false) tentativeCost = currentNodeWrapper.gx + length(lastSegment)*state.fromNormalDistribution(1, 0.11);
                 boolean better = false;
 
                 if (!openSet.contains(nextNodeWrapper))

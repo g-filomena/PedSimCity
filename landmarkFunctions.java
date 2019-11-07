@@ -18,38 +18,7 @@ import sim.util.geo.MasonGeometry;
 
 public class landmarkFunctions{	
 	
-    static double globalLandmarkness(Node node, Node destination, pedestrianSimulation state) 
-    {   	         
-       Integer nodeID = (Integer) node.getData();
-       nodeData nd = state.nodesMap.get(nodeID);
-       List<Integer> distantLandmarks = new ArrayList<Integer>();
-       distantLandmarks = nd.distantLandmarks;
-       if (distantLandmarks == null) return 0.0;
-    		
-   	   // destination segment: identifying node
-       Node destNode = destination;
-       Integer nodeIDdest = (Integer) destNode.getData();
-       nodeData dd = state.nodesMap.get(nodeIDdest);
-       List<Integer> anchors = new ArrayList<Integer>();
-       anchors = dd.anchors;
-       if (anchors == null) return 0.0;
 
-       double globalScore = 0.0;
-       for (int i = 0; i < distantLandmarks.size(); i++)
-       {
-    	   double tmp = 0.0;
-    	   if (anchors.contains(distantLandmarks.get(i)))
-    	   {
-    		   tmp = nd.distantScores.get(i);
-    		   double distance = dd.distances.get(anchors.lastIndexOf(distantLandmarks.get(i)));
-    		   double distanceWeight = utilities.nodesDistance(node, destination)/distance;
-    		   if (distanceWeight > 1.0) distanceWeight = 1.0;
-    		   tmp = tmp*distanceWeight;
-    	   }
-    	   if (tmp > globalScore) globalScore = tmp;
-       }
-	   return globalScore;
-    }
 	
     
     static double localLandmarkness(Node targetNode, HashMap<Node, nodeWrapper> mapWrappers, pedestrianSimulation state)
@@ -173,41 +142,41 @@ public class landmarkFunctions{
         }
     }
                         
-        static double globalLandmarknessDualGraph(Node targetCentroid, Node destination, pedestrianSimulation state)
-        {   	
-        	// current real segment: identifying node
-        	Integer streetID = (Integer) targetCentroid.getData();
-        	GeomPlanarGraphDirectedEdge streetSegment = (GeomPlanarGraphDirectedEdge) state.edgesMap.get(streetID).planarEdge.getDirEdge(0); 
-        	Node targetNode = streetSegment.getToNode(); // targetNode            
-            	    	
-            Integer nodeID = (Integer) targetNode.getData();
-            nodeData nd = state.nodesMap.get(nodeID);
-            List<Integer> distantLandmarks = new ArrayList<Integer>();
-            	
-            // destination segment: identifying node
-        	Node destNode = destination;       
-            Integer nodeIDdest = (Integer) destNode.getData();
-        	nodeData dd = state.nodesMap.get(nodeIDdest);
-        	List<Integer> anchors = new ArrayList<Integer>();
-        	anchors = dd.anchors;
-        	if (anchors == null) return 0.0;
-        	    
-        	double globalScore = 0.0;
-        	for (int i = 0; i < distantLandmarks.size(); i++)
-        	{
-        		double tmp = 0.0;
-        		if (anchors.contains(distantLandmarks.get(i)))
-        		{
-    				tmp = nd.distantScores.get(i);
-    				double distance = dd.distances.get(anchors.lastIndexOf(distantLandmarks.get(i)));
-    				double distanceWeight = utilities.nodesDistance(targetCentroid, destination)/distance;
-    				if (distanceWeight > 1.0) distanceWeight = 1.0;
-    				tmp = tmp*distanceWeight;
-    			}
-    			if (tmp > globalScore) globalScore = tmp;
-    		}
-    	    return globalScore;
-        }    
+//        static double globalLandmarknessDualGraph(Node targetCentroid, Node destination, pedestrianSimulation state)
+//        {   	
+//        	// current real segment: identifying node
+//        	Integer streetID = (Integer) targetCentroid.getData();
+//        	GeomPlanarGraphDirectedEdge streetSegment = (GeomPlanarGraphDirectedEdge) state.edgesMap.get(streetID).planarEdge.getDirEdge(0); 
+//        	Node targetNode = streetSegment.getToNode(); // targetNode            
+//            	    	
+//            Integer nodeID = (Integer) targetNode.getData();
+//            nodeData nd = state.nodesMap.get(nodeID);
+//            List<Integer> distantLandmarks = new ArrayList<Integer>();
+//            	
+//            // destination segment: identifying node
+//        	Node destNode = destination;       
+//            Integer nodeIDdest = (Integer) destNode.getData();
+//        	nodeData dd = state.nodesMap.get(nodeIDdest);
+//        	List<Integer> anchors = new ArrayList<Integer>();
+//        	anchors = dd.anchors;
+//        	if (anchors == null) return 0.0;
+//        	    
+//        	double globalScore = 0.0;
+//        	for (int i = 0; i < distantLandmarks.size(); i++)
+//        	{
+//        		double tmp = 0.0;
+//        		if (anchors.contains(distantLandmarks.get(i)))
+//        		{
+//    				tmp = nd.distantScores.get(i);
+//    				double distance = dd.distances.get(anchors.lastIndexOf(distantLandmarks.get(i)));
+//    				double distanceWeight = utilities.nodesDistance(targetCentroid, destination)/distance;
+//    				if (distanceWeight > 1.0) distanceWeight = 1.0;
+//    				tmp = tmp*distanceWeight;
+//    			}
+//    			if (tmp > globalScore) globalScore = tmp;
+//    		}
+//    	    return globalScore;
+//        }    
         
         
         public static double easinessNavigation(Node originNode, Node destinationNode, pedestrianSimulation state)
@@ -268,10 +237,96 @@ public class landmarkFunctions{
     	    return knownJunctions;
     	    		
     	}
+    	
+    	
+        static double globalLandmarkness(Node targetNode, Node tmpNode, HashMap<Node, nodeWrapper> mapWrappers, pedestrianSimulation state)
+        {   	
+            Integer destinationID = (Integer) targetNode.getData();
+            nodeData dd = state.nodesMap.get(destinationID);
+            List<Integer> anchors = new ArrayList<Integer>();
+            anchors = dd.anchors;
 
-	
-	
-	
-	
+            double globalScore = 0.0;
+            Iterator it = mapWrappers.entrySet().iterator();
+            while (it.hasNext()) 
+            {
+                Map.Entry pair = (Map.Entry)it.next();
+                Node node = (Node) pair.getKey();
+                Integer nodeID = (Integer) node.getData();
+                nodeData nd = state.nodesMap.get(nodeID);
+                List<Integer> distantLandmarks = new ArrayList<Integer>();
+                distantLandmarks = nd.distantLandmarks;
+                if (distantLandmarks == null) continue;
+                else
+                {
+                    for (int i = 0; i < distantLandmarks.size(); i++)
+                    {
+                 	   double tmp = 0.0;
+                 	   if (anchors.contains(distantLandmarks.get(i)))
+                 	   {
+                 		   tmp = nd.distantScores.get(i);
+                 		   double distanceLandmark = dd.distances.get(anchors.lastIndexOf(distantLandmarks.get(i)));
+                 		   double distanceWeight = utilities.nodesDistance(tmpNode, targetNode)/distanceLandmark;
+                 		   if (distanceWeight > 1.0) distanceWeight = 1.0;
+                 		   tmp = tmp*distanceWeight;   
+                 	   }
+                 	  if (tmp > globalScore) globalScore = tmp;
+                    }
+                }
+            }
+            return globalScore; 
+        }
+            
+            
+            
+        static double globalLandmarknessDualGraph(Node targetNode, Node tmpNode, HashMap<Node, dualNodeWrapper> mapWrappers, pedestrianSimulation state)
+        {   
+            Integer destinationID = (Integer) targetNode.getData();
+            nodeData dd = state.nodesMap.get(destinationID);
+            List<Integer> anchors = new ArrayList<Integer>();
+            anchors = dd.anchors;
+        	
+            double globalScore = 0.0;
+            Iterator it = mapWrappers.entrySet().iterator();
+            Node previous = targetNode;
+            Node throughNode;
+            while (it.hasNext()) 
+            {
+                Map.Entry pair = (Map.Entry)it.next();
+                Node centroid = (Node) pair.getKey();
+                Integer streetIDp = (Integer) centroid.getData();
+            	GeomPlanarGraphDirectedEdge edgeDirP = (GeomPlanarGraphDirectedEdge) state.edgesMap.get(streetIDp).planarEdge.getDirEdge(0); 
+            	Node nToP = edgeDirP.getToNode();
+            	Node nFromP = edgeDirP.getFromNode();
+            	if (previous == nToP)  throughNode = nFromP;
+            	else throughNode = nToP;
+
+                Integer nodeID = (Integer) throughNode.getData();
+                nodeData nd = state.nodesMap.get(nodeID);
+                List<Integer> distantLandmarks = new ArrayList<Integer>();
+                distantLandmarks = nd.distantLandmarks;
+                if (distantLandmarks == null) continue;
+                else
+                {
+                    for (int i = 0; i < distantLandmarks.size(); i++)
+                    {
+                 	   double tmp = 0.0;
+                 	   if (anchors.contains(distantLandmarks.get(i)))
+                 	   {
+                 		   tmp = nd.distantScores.get(i);
+                 		   double distanceLandmark = dd.distances.get(anchors.lastIndexOf(distantLandmarks.get(i)));
+                 		   double distanceWeight = utilities.nodesDistance(tmpNode, targetNode)/distanceLandmark;
+                 		   if (distanceWeight > 1.0) distanceWeight = 1.0;
+                 		   tmp = tmp*distanceWeight;   
+                 	   }
+                 	  if (tmp > globalScore) globalScore = tmp;
+                    }
+                }
+                previous = throughNode;
+            }
+            return globalScore; 
+        }
+
+
 }
     

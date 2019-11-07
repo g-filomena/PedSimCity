@@ -114,7 +114,7 @@ public class districtRouting {
 					AStarAngular pathfinderAngular = new AStarAngular();
 					Node originNodeDual = utilities.getDualNode(originNode, state.dualNetwork);
 					Node destinationNodeDual = utilities.getDualNode(destinationNode, state.dualNetwork);
-					return pathfinderAngular.astarPath(originNodeDual, destinationNodeDual, state, null);
+					return pathfinderAngular.astarPath(originNodeDual, destinationNodeDual, state, null, true);
 				}
 			Map validSorted = utilities.sortByValue(validGates); 
 			Iterator it = validSorted.entrySet().iterator();
@@ -177,7 +177,7 @@ public class districtRouting {
 				destinationT = state.dualNetwork.findNode(connectingEdge.getLine().getCentroid().getCoordinate());
 			}
 			else destinationT = utilities.getDualNode(sequence.get(sequence.size()-1), state.dualNetwork);
-			resultPartial = pathfinderAngular.astarPath(originT, destinationT, state, null);
+			resultPartial = pathfinderAngular.astarPath(originT, destinationT, state, null, true);
 			originT = destinationT;
 			completePath.addAll(resultPartial);
 		}

@@ -27,7 +27,7 @@ public class AStarAngularNode
 	HashMap<Integer, centroidData> centroidsMap;
     HashMap<Node, dualNodeWrapper> mapWrappers =  new HashMap<Node, dualNodeWrapper>();
 	
-    public HashMap<Node, dualNodeWrapper> astarPathNodes(Node originNode, Node destinationNode, pedestrianSimulation state)
+    public HashMap<Node, dualNodeWrapper> astarPathNodes(Node originNode, Node destinationNode, pedestrianSimulation state, boolean gl)
     {
     	this.edgesMap = state.edgesMap;
     	this.nodesMap = state.nodesMap;
@@ -90,7 +90,12 @@ public class AStarAngularNode
                 if (closedSet.contains(nextNodeWrapper)) continue; // it has already been considered
                 // otherwise evaluate the cost of this node/edge combo
 
-                double tentativeCost = currentNodeWrapper.gx + angle(lastSegment)*state.fromNormalDistribution();
+                double currentCost = angle(lastSegment) + state.fromNormalDistribution(1, 5);
+                if (gl == false) currentCost = angle(lastSegment) + state.fromNormalDistribution(1, 7);
+                if (currentCost > 180) currentCost = 180;
+                if (currentCost < 0) currentCost = 0;
+                
+                double tentativeCost = currentNodeWrapper.gx + currentCost;
                 boolean better = false;
 
                 if (!openSet.contains(nextNodeWrapper))
