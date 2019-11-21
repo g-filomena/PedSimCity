@@ -4,7 +4,7 @@ import com.vividsolutions.jts.geom.Polygon;
 import com.vividsolutions.jts.planargraph.Node;
 import sim.util.geo.GeomPlanarGraphEdge;
 
-public class buildingData {
+public class BuildingData {
 	
 	Polygon geometry;
 	double localScore;

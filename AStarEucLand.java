@@ -29,8 +29,8 @@ import sim.util.geo.GeomPlanarGraphEdge;
 public class AStarEucLand
 {
 	
-	HashMap<Integer, edgeData> edgesMap;
-	HashMap<Integer, nodeData> nodesMap;
+	HashMap<Integer, EdgeData> edgesMap;
+	HashMap<Integer, NodeData> nodesMap;
     double wL, wG, t;
     public HashMap<Pair, Double> euclideanDistancesMap = new HashMap<Pair, Double>();
 	
@@ -63,10 +63,10 @@ public class AStarEucLand
 
         // containers for the metainformation about the Nodes relative to the
         // A* search
-        HashMap<Node, nodeWrapper> mapWrappers =  new HashMap<Node, nodeWrapper>();
+        HashMap<Node, NodeWrapper> mapWrappers =  new HashMap<Node, NodeWrapper>();
 
-        nodeWrapper originNodeWrapper = new nodeWrapper(originNode);
-        nodeWrapper destinationNodeWrapper = new nodeWrapper(destinationNode);
+        NodeWrapper originNodeWrapper = new NodeWrapper(originNode);
+        NodeWrapper destinationNodeWrapper = new NodeWrapper(destinationNode);
         mapWrappers.put(originNode, originNodeWrapper);
         mapWrappers.put(destinationNode, destinationNodeWrapper);
 
@@ -75,15 +75,15 @@ public class AStarEucLand
         originNodeWrapper.fx = originNodeWrapper.gx + originNodeWrapper.hx;
         
         // A* containers: nodes to be investigated
-        ArrayList<nodeWrapper> closedSet = new ArrayList<nodeWrapper>();
+        ArrayList<NodeWrapper> closedSet = new ArrayList<NodeWrapper>();
         // nodes that have been investigated
-        ArrayList<nodeWrapper> openSet = new ArrayList<nodeWrapper>();
+        ArrayList<NodeWrapper> openSet = new ArrayList<NodeWrapper>();
         openSet.add(originNodeWrapper); //adding the originNode Wrapper         
        
         while (openSet.size() > 0)
         { // while there are reachable nodes to investigate
         	
-            nodeWrapper currentNodeWrapper = findMin(openSet); // find the shortest path so far
+            NodeWrapper currentNodeWrapper = findMin(openSet); // find the shortest path so far
             if (currentNodeWrapper.node == destinationNode) return reconstructPath(destinationNodeWrapper); 
             // we have found the shortest possible path to the goal! Reconstruct the path and send it back.
             openSet.remove(currentNodeWrapper); // maintain the lists
@@ -98,12 +98,12 @@ public class AStarEucLand
                 Node nextNode = null;
                 nextNode = lastSegment.getToNode();
                 // get the A* meta information about this Node
-                nodeWrapper nextNodeWrapper;
+                NodeWrapper nextNodeWrapper;
 
                 if (mapWrappers.containsKey(nextNode)) nextNodeWrapper =  mapWrappers.get(nextNode);
                 else
                 {
-                	nextNodeWrapper = new nodeWrapper(nextNode);
+                	nextNodeWrapper = new NodeWrapper(nextNode);
                 	mapWrappers.put(nextNode, nextNodeWrapper);
                 }
 
@@ -144,10 +144,10 @@ public class AStarEucLand
      * @return an ArrayList of GeomPlanarGraphDirectedEdges that lead from the
      * given Node to the Node from which the search began
      */
-    ArrayList<GeomPlanarGraphDirectedEdge> reconstructPath(nodeWrapper n)
+    ArrayList<GeomPlanarGraphDirectedEdge> reconstructPath(NodeWrapper n)
     {
         ArrayList<GeomPlanarGraphDirectedEdge> result =  new ArrayList<GeomPlanarGraphDirectedEdge>();
-        nodeWrapper x = n;
+        NodeWrapper x = n;
         
         while (x.cameFrom != null)
         {
@@ -172,11 +172,11 @@ public class AStarEucLand
      * @return
      */
     
-    nodeWrapper findMin(ArrayList<nodeWrapper> set)
+    NodeWrapper findMin(ArrayList<NodeWrapper> set)
     {
         double min = 100000;
-        nodeWrapper minNode = null;
-        for (nodeWrapper n : set)
+        NodeWrapper minNode = null;
+        for (NodeWrapper n : set)
         {
         	
             if (n.fx < min)

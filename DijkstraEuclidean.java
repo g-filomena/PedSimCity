@@ -23,7 +23,7 @@ public class DijkstraEuclidean {
 	private HashMap<Node, Node> predecessors;
 	private HashMap<Node, Double> costsMap = new HashMap<Node, Double>();
     private GeomPlanarGraph network = new GeomPlanarGraph();
-	HashMap<Integer, nodeData> nodesMap;
+	HashMap<Integer, NodeData> nodesMap;
     HashMap<Node, nodeWrapper> mapWrappers =  new HashMap<Node, nodeWrapper>();
     
     public ArrayList<GeomPlanarGraphDirectedEdge> dijkstraPath (Node originNode, Node destinationNode, pedestrianSimulation state)

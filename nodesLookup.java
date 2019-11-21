@@ -5,9 +5,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
+import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.planargraph.Node;
-import sim.app.geo.LondonTest.utilities;
 import sim.field.geo.GeomVectorField;
 import sim.util.Bag;
 import sim.util.geo.MasonGeometry;
@@ -22,16 +24,34 @@ public class nodesLookup {
     	return state.network.findNode(geoNode.geometry.getCoordinate());
     }
 
-    static Node searchNodeWithin(Geometry geo,  GeomVectorField vectorField, List<Float> distances, pedestrianSimulation state)
+    static Node searchNodeWithin(Node originNode, GeomVectorField vectorField, List<Float> distances, pedestrianSimulation state)
     {
+		GeometryFactory fact = new GeometryFactory();
+    	MasonGeometry nodeLocation = new MasonGeometry(fact.createPoint(new Coordinate(originNode.getCoordinate())));
+    	Geometry geo = nodeLocation.geometry;
     	int pD = state.random.nextInt(distances.size());
     	Float distance = distances.get(pD);
- 	  	double lowL = distance - (50);
- 	    double uppL = distance + (50);
- 	  	Bag filter = vectorField.getWithinObjects(geo, lowL, uppL);	  	
- 	  	int c = state.random.nextInt(filter.size());
- 	  	MasonGeometry geoNode = (MasonGeometry) filter.objs[c];
- 	  	return state.network.findNode(geoNode.geometry.getCoordinate());
+    	Node node = null;
+    	Bag filter = null;
+    	double range = 5;
+    	
+    	while(true)
+    	{
+	 	  	double lowL = distance - distance*range;
+	 	    double uppL = distance + distance*range;
+	 	  	filter = vectorField.getWithinObjects(geo, lowL, uppL);	 
+	 	  	if (filter.size() > 1) break;
+	 	  	else range = range + 5;
+    	}
+    	
+    	MasonGeometry geoNode = null;
+    	while (geoNode == null || (node.getData() == originNode.getData()))
+    	{
+	 	  	int c = state.random.nextInt(filter.size());
+	 	  	geoNode = (MasonGeometry) filter.objs[c];
+	 	  	node = state.network.findNode(geoNode.geometry.getCoordinate());
+    	}
+ 	  	return node;
     }
     
     static Node searchNodeWithin(Geometry geo, GeomVectorField vectorField, double lowL, double uppL, pedestrianSimulation state)

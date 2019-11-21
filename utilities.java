@@ -206,6 +206,12 @@ public class utilities {
 	    else return v;
 	}
 	
+	public static class Path {
+		ArrayList<GeomPlanarGraphDirectedEdge> edges;
+		HashMap<Node, DualNodeWrapper> dualMapWrappers;
+		HashMap<Node, NodeWrapper> mapWrappers;
+	}
+	
 	
 //    public static SDN 
 //	    { 

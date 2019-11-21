@@ -29,9 +29,9 @@ import sim.util.geo.GeomPlanarGraphEdge;
 public class AStarTopological
 {
 
-	HashMap<Integer, edgeData> edgesMap;
-	HashMap<Integer, nodeData> nodesMap;
-    HashMap<Node, nodeWrapper> mapWrappers =  new HashMap<Node, nodeWrapper>();
+	HashMap<Integer, EdgeData> edgesMap;
+	HashMap<Integer, NodeData> nodesMap;
+    HashMap<Node, NodeWrapper> mapWrappers =  new HashMap<Node, NodeWrapper>();
 
 	
     public ArrayList<GeomPlanarGraphDirectedEdge> astarPath(Node originNode, Node destinationNode, pedestrianSimulation state)
@@ -45,8 +45,8 @@ public class AStarTopological
 
         // containers for the metainformation about the Nodes relative to the
         // A* search
-        nodeWrapper originNodeWrapper = new nodeWrapper(originNode);
-        nodeWrapper destinationNodeWrapper = new nodeWrapper(destinationNode);
+        NodeWrapper originNodeWrapper = new NodeWrapper(originNode);
+        NodeWrapper destinationNodeWrapper = new NodeWrapper(destinationNode);
         mapWrappers.put(originNode, originNodeWrapper);
         mapWrappers.put(destinationNode, destinationNodeWrapper);
 
@@ -55,9 +55,9 @@ public class AStarTopological
         originNodeWrapper.fx = originNodeWrapper.gx + originNodeWrapper.hx;
 
         // A* containers: nodes to be investigated
-        ArrayList<nodeWrapper> closedSet = new ArrayList<nodeWrapper>();
+        ArrayList<NodeWrapper> closedSet = new ArrayList<NodeWrapper>();
         // nodes that have been investigated
-        ArrayList<nodeWrapper> openSet = new ArrayList<nodeWrapper>();
+        ArrayList<NodeWrapper> openSet = new ArrayList<NodeWrapper>();
         
         
         openSet.add(originNodeWrapper); //adding the originNode Wrapper 
@@ -65,7 +65,7 @@ public class AStarTopological
         while (openSet.size() > 0)
         { // while there are reachable nodes to investigate
         	
-            nodeWrapper currentNodeWrapper = findMin(openSet); // find the shortest path so far
+            NodeWrapper currentNodeWrapper = findMin(openSet); // find the shortest path so far
             
             if (currentNodeWrapper.node == destinationNode) return reconstructPath(destinationNodeWrapper); // we have found the shortest possible path to the goal! Reconstruct the path and send it back.
 
@@ -82,12 +82,12 @@ public class AStarTopological
                 nextNode =  lastSegment.getToNode();
 
                 // get the A* meta information about this Node
-                nodeWrapper nextNodeWrapper;
+                NodeWrapper nextNodeWrapper;
                 
                 if (mapWrappers.containsKey(nextNode)) nextNodeWrapper = mapWrappers.get(nextNode); 
                 else
                 	{
-                    nextNodeWrapper = new nodeWrapper(nextNode);
+                    nextNodeWrapper = new NodeWrapper(nextNode);
                     mapWrappers.put(nextNode, nextNodeWrapper);
                 	}
 
@@ -130,10 +130,10 @@ public class AStarTopological
      * @return an ArrayList of GeomPlanarGraphDirectedEdges that lead from the
      * given Node to the Node from which the serach began
      */
-    ArrayList<GeomPlanarGraphDirectedEdge> reconstructPath(nodeWrapper nodeWrapper)
+    ArrayList<GeomPlanarGraphDirectedEdge> reconstructPath(NodeWrapper nodeWrapper)
     {
         ArrayList<GeomPlanarGraphDirectedEdge> result =  new ArrayList<GeomPlanarGraphDirectedEdge>();
-        nodeWrapper currentWrapper = nodeWrapper;
+        NodeWrapper currentWrapper = nodeWrapper;
         
         while (currentWrapper.nodeFrom != null)
         {
@@ -152,12 +152,12 @@ public class AStarTopological
      * @return
      */
     
-    nodeWrapper findMin(ArrayList<nodeWrapper> set)
+    NodeWrapper findMin(ArrayList<NodeWrapper> set)
     {
         double min = 100000;
-        nodeWrapper minNode = null;
+        NodeWrapper minNode = null;
         
-        for (nodeWrapper n : set)
+        for (NodeWrapper n : set)
         {
             if (n.fx < min)
             {

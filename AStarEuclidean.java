@@ -20,6 +20,7 @@ import java.util.List;
 
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 import sim.util.geo.GeomPlanarGraphEdge;
+import sim.app.geo.pedestrianSimulation.utilities.Path;
 import sim.engine.SimState;
 
 
@@ -27,24 +28,24 @@ import sim.engine.SimState;
 public class AStarEuclidean
 {
 	
-	HashMap<Integer, edgeData> edgesMap;
-	HashMap<Integer, nodeData> nodesMap;
-    HashMap<Node, nodeWrapper> mapWrappers =  new HashMap<Node, nodeWrapper>();
+	HashMap<Integer, EdgeData> edgesMap;
+	HashMap<Integer, NodeData> nodesMap;
+    HashMap<Node, NodeWrapper> mapWrappers =  new HashMap<Node, NodeWrapper>();
 	
-    public ArrayList<GeomPlanarGraphDirectedEdge> astarPath(Node originNode, Node destinationNode, pedestrianSimulation state, 
+    public Path astarPath(Node originNode, Node destinationNode, pedestrianSimulation state, 
     		List segmentsToAvoid, boolean gl)
     {
     	this.edgesMap = state.edgesMap;
     	this.nodesMap = state.nodesMap;
-        // set up the containers for the result
-        ArrayList<GeomPlanarGraphDirectedEdge> result =  new ArrayList<GeomPlanarGraphDirectedEdge>();
+        // set up the containers for the sequenceEdges
+        ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges =  new ArrayList<GeomPlanarGraphDirectedEdge>();
         
         // containers for the metainformation about the Nodes relative to the
         // A* search
 
 
-        nodeWrapper originNodeWrapper = new nodeWrapper(originNode);
-        nodeWrapper destinationNodeWrapper = new nodeWrapper(destinationNode);
+        NodeWrapper originNodeWrapper = new NodeWrapper(originNode);
+        NodeWrapper destinationNodeWrapper = new NodeWrapper(destinationNode);
         mapWrappers.put(originNode, originNodeWrapper);
         mapWrappers.put(destinationNode, destinationNodeWrapper);
 
@@ -53,15 +54,18 @@ public class AStarEuclidean
         originNodeWrapper.fx = originNodeWrapper.gx + originNodeWrapper.hx;
         
         // A* containers: nodes to be investigated
-        ArrayList<nodeWrapper> closedSet = new ArrayList<nodeWrapper>();
+        ArrayList<NodeWrapper> closedSet = new ArrayList<NodeWrapper>();
         // nodes that have been investigated
-        ArrayList<nodeWrapper> openSet = new ArrayList<nodeWrapper>();
+        ArrayList<NodeWrapper> openSet = new ArrayList<NodeWrapper>();
         openSet.add(originNodeWrapper); //adding the originNode Wrapper         
-       
+        int count = 0;
         while (openSet.size() > 0)
-        { // while there are reachable nodes to investigate
-        	
-            nodeWrapper currentNodeWrapper = findMin(openSet); // find the shortest path so far
+        { 
+        	count += 1;
+        	// while there are reachable nodes to investigate
+//        	
+        	if (count > 100000) System.out.println("euclideanPath");
+            NodeWrapper currentNodeWrapper = findMin(openSet); // find the shortest path so far
             if (currentNodeWrapper.node == destinationNode) return reconstructPath(destinationNodeWrapper);
             // we have found the shortest possible path to the goal! Reconstruct the path and send it back.
             openSet.remove(currentNodeWrapper); // maintain the lists
@@ -69,21 +73,25 @@ public class AStarEuclidean
             // check all the edges out from this Node
             DirectedEdgeStar des = currentNodeWrapper.node.getOutEdges();
             
+            boolean found = false;
             for (Object o : des.getEdges().toArray())
             {
                 GeomPlanarGraphDirectedEdge lastSegment = (GeomPlanarGraphDirectedEdge) o;
+                
                 if (segmentsToAvoid == null);
-                else if (segmentsToAvoid.contains(((GeomPlanarGraphEdge) lastSegment.getEdge()).getIntegerAttribute("streetID"))) continue;
+                else if (segmentsToAvoid.contains(((GeomPlanarGraphEdge) lastSegment.getEdge()).getIntegerAttribute("streetID"))) 
+                	continue;
+                
                 Node nextNode = null;
                 nextNode = lastSegment.getToNode();
 
                 // get the A* meta information about this Node
-                nodeWrapper nextNodeWrapper;
+                NodeWrapper nextNodeWrapper;
                 
                 if (mapWrappers.containsKey(nextNode)) nextNodeWrapper =  mapWrappers.get(nextNode);
                 else
                 {
-                	nextNodeWrapper = new nodeWrapper(nextNode);
+                	nextNodeWrapper = new NodeWrapper(nextNode);
                 	mapWrappers.put(nextNode, nextNodeWrapper);
                 }
 
@@ -91,8 +99,9 @@ public class AStarEuclidean
 
                 // otherwise evaluate the cost of this node/edge combo
                                        
-                double tentativeCost = currentNodeWrapper.gx + length(lastSegment)*state.fromNormalDistribution(1, 0.10);
-                if (gl == false) tentativeCost = currentNodeWrapper.gx + length(lastSegment)*state.fromNormalDistribution(1, 0.11);
+                double error = state.fromNormalDistribution(1, 0.10);
+                if (error < 0) error = 0;
+                double tentativeCost = currentNodeWrapper.gx + length(lastSegment)*error;
                 boolean better = false;
 
                 if (!openSet.contains(nextNodeWrapper))
@@ -114,8 +123,10 @@ public class AStarEuclidean
                 }
             }
         }
-
-        return result;
+        Path path = new Path();
+        path.edges = sequenceEdges;
+        path.mapWrappers = mapWrappers;
+        return path;
     }
     
 
@@ -126,17 +137,21 @@ public class AStarEuclidean
      * @return an ArrayList of GeomPlanarGraphDirectedEdges that lead from the
      * given Node to the Node from which the search began
      */
-    ArrayList<GeomPlanarGraphDirectedEdge> reconstructPath(nodeWrapper nodeWrapper)
+    Path reconstructPath(NodeWrapper nodeWrapper)
     {
-        ArrayList<GeomPlanarGraphDirectedEdge> result =  new ArrayList<GeomPlanarGraphDirectedEdge>();
-        nodeWrapper currentWrapper = nodeWrapper;
+        ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges =  new ArrayList<GeomPlanarGraphDirectedEdge>();
+        NodeWrapper currentWrapper = nodeWrapper;
+       
         while (currentWrapper.nodeFrom != null)
         {
-            result.add(0, currentWrapper.edgeFrom); // add this edge to the front of the list
+            sequenceEdges.add(0, currentWrapper.edgeFrom); // add this edge to the front of the list
             currentWrapper = mapWrappers.get(currentWrapper.nodeFrom);
         }
 
-        return result;
+        Path path = new Path();
+        path.edges = sequenceEdges;
+        path.mapWrappers = mapWrappers;
+        return path;
     }
     
     double length(GeomPlanarGraphDirectedEdge lastSegment)
@@ -154,12 +169,12 @@ public class AStarEuclidean
      * @return
      */
     
-    nodeWrapper findMin(ArrayList<nodeWrapper> set)
+    NodeWrapper findMin(ArrayList<NodeWrapper> set)
     {
         double min = 100000;
-        nodeWrapper minNode = null;
+        NodeWrapper minNode = null;
         
-        for (nodeWrapper n : set)
+        for (NodeWrapper n : set)
         {
 
             if (n.fx < min)

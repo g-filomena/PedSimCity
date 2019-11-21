@@ -4,7 +4,7 @@ import java.util.List;
 
 import com.vividsolutions.jts.planargraph.Node;
 
-public class nodeData {
+public class NodeData {
 	
 	Node node;
 	int district;

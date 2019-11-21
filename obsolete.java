@@ -67,19 +67,19 @@ public class obsolete extends SimState
     public static GeomVectorField junctions = new GeomVectorField();
     
     public static GeomPlanarGraph network = new GeomPlanarGraph();
-    public HashMap<Integer, edgeData> edgesMap = new HashMap<Integer, edgeData>();
-    public HashMap<Integer, nodeData> nodesMap = new HashMap<Integer, nodeData>();
+    public HashMap<Integer, EdgeData> edgesMap = new HashMap<Integer, EdgeData>();
+    public HashMap<Integer, NodeData> nodesMap = new HashMap<Integer, NodeData>();
     public HashMap<Integer, Node> startingNodesMap = new HashMap<Integer, Node>();
     public HashMap<MasonGeometry, Integer> nodesGeometryMap = new HashMap<MasonGeometry, Integer>();
-    public HashMap<Integer, buildingData> buildingsMap = new HashMap<Integer, buildingData>();
-    public HashMap<Integer, centroidData> centroidsMap =  new HashMap<Integer, centroidData>();
-    public HashMap<String, criteriaData> criteriaMap = new HashMap<String, criteriaData>();
+    public HashMap<Integer, BuildingData> buildingsMap = new HashMap<Integer, BuildingData>();
+    public HashMap<Integer, CentroidData> centroidsMap =  new HashMap<Integer, CentroidData>();
+    public HashMap<String, CriteriaData> criteriaMap = new HashMap<String, CriteriaData>();
     
     public HashMap<Integer, GeomPlanarGraph> districtMap = new HashMap<Integer, GeomPlanarGraph>();
     public HashMap<Integer, GeomPlanarGraph> districtDualMap = new HashMap<Integer, GeomPlanarGraph>();
     public HashMap<Integer, Integer> edgeDistrictMap = new HashMap<Integer, Integer>();
-    public HashMap<Integer,ArrayList<gatewayData>> exitDistrictsMap = new HashMap<Integer,ArrayList<gatewayData>>();
-    public HashMap<Integer,gatewayData> gatewaysMap = new HashMap<Integer,gatewayData>();
+    public HashMap<Integer,ArrayList<GatewayData>> exitDistrictsMap = new HashMap<Integer,ArrayList<GatewayData>>();
+    public HashMap<Integer,GatewayData> gatewaysMap = new HashMap<Integer,GatewayData>();
     
     public HashMap<Pair, Double> euclideanDistancesMap = new HashMap<Pair, Double>();
     public HashMap<Pair, Double> angularDistancesMap = new HashMap<Pair, Double>();
@@ -166,7 +166,7 @@ public class obsolete extends SimState
 	    for (int i = 0; i < rGeometries.size(); i++) 
 	    {
 	    	MasonGeometry segment = (MasonGeometry) rGeometries.objs[i]; 
-	        edgeData ed = edgesMap.get(segment.getIntegerAttribute("streetID"));
+	        EdgeData ed = edgesMap.get(segment.getIntegerAttribute("streetID"));
 	        CSVUtils.writeLine(writerSegmentsData, Arrays.asList(Integer.toString(segment.getIntegerAttribute("streetID")), Integer.toString(ed.euclidean),
 	        		Integer.toString(ed.angular), Integer.toString(ed.topological), Integer.toString(ed.euclideanLand), Integer.toString(ed.angularLand), 
 	        	    Integer.toString(ed.landmark)));
@@ -330,7 +330,7 @@ public class obsolete extends SimState
             	if (node == null) System.out.println(nodeID);
 
             	node.setData(nodeID);
-            	nodeData nd = new nodeData();
+            	NodeData nd = new NodeData();
             	nd.node = node;
             	
 
@@ -396,7 +396,7 @@ public class obsolete extends SimState
 	
 	                	districtMap.put(district, districtNetwork);
 	                	districtDualMap.put(district, districtDualNetwork);            	
-	                	ArrayList<gatewayData> gateways = new ArrayList<gatewayData>();
+	                	ArrayList<GatewayData> gateways = new ArrayList<GatewayData>();
 	                	exitDistrictsMap.put(district, gateways);
 	            	}
             	}
@@ -456,7 +456,7 @@ public class obsolete extends SimState
 	                   int pr = nodesMap.get(oNodeID).district;
 	                   if (pr == district) continue;
 	
-	                   gatewayData gd = new gatewayData();
+	                   GatewayData gd = new GatewayData();
 	        	       gd.nodeID = nodeID;
 	        	       gd.n = n;
 	        	       gd.edgeID = d.getIntegerAttribute("streetID");
@@ -469,7 +469,7 @@ public class obsolete extends SimState
 	        	       System.out.println("codici "+(int) n.getData()+" "+ (int) oN.getData());
 	        	       gd.entryAngle = utilities.angle(geometryNode.geometry.getCoordinate(), oN.getCoordinate());
 	        	       if (CM == 1) gd.cognitiveMap = true;
-	        	       ArrayList<gatewayData> gateways = exitDistrictsMap.get(district);
+	        	       ArrayList<GatewayData> gateways = exitDistrictsMap.get(district);
 	        	       gateways.add(gd);
 	        	       exitDistrictsMap.put(district, gateways);
 	        	       nodesMap.get(nodeID).gateway = true;
@@ -496,7 +496,7 @@ public class obsolete extends SimState
             	MasonGeometry geometryBuilding = (MasonGeometry) o; 
             	Integer buildingID = geometryBuilding.getIntegerAttribute("buildingID");
 
-            	buildingData bd = new buildingData();
+            	BuildingData bd = new BuildingData();
             	bd.localScore = geometryBuilding.getDoubleAttribute("lScore_sc");
             	bd.globalScore = geometryBuilding.getDoubleAttribute("gScore_sc");
             	buildingsMap.put(buildingID, bd);
@@ -513,7 +513,7 @@ public class obsolete extends SimState
           	    Node cen = dualNetwork.findNode(geometryNode.geometry.getCoordinate());
             	cen.setData(streetID);
             	
-            	centroidData cd = new centroidData();
+            	CentroidData cd = new CentroidData();
             	cd.c = cen;
             	centroidsMap.put(streetID, cd);
             }
@@ -523,7 +523,7 @@ public class obsolete extends SimState
             for (Object o : network.getEdges())
             {
             	GeomPlanarGraphEdge edge = (GeomPlanarGraphEdge) o;
-            	edgeData ed = new edgeData();
+            	EdgeData ed = new EdgeData();
             	int streetID =  edge.getIntegerAttribute("streetID");
             	
             	ed.planarEdge = edge;
@@ -569,7 +569,7 @@ public class obsolete extends SimState
             for (int i = 0; i < criteria.length; i++)
             {
 
-            	criteriaData cd = new criteriaData();
+            	CriteriaData cd = new CriteriaData();
 
             	cd.criteria = criteria[i];   
             	cd.trips = 0;

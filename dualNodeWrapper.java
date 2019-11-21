@@ -4,7 +4,7 @@ import com.vividsolutions.jts.planargraph.Node;
 
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
-public class dualNodeWrapper 
+public class DualNodeWrapper 
 {
     Node node;
     Node nodeFrom;
@@ -12,7 +12,7 @@ public class dualNodeWrapper
     double gx, hx, fx;
     int commonPrimalJunction;
 
-    public dualNodeWrapper(Node n)
+    public DualNodeWrapper(Node n)
     {
         node = n;
         gx = 0;

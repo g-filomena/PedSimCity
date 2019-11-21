@@ -4,14 +4,14 @@ import com.vividsolutions.jts.planargraph.Node;
 
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
-public class nodeWrapper 
+public class NodeWrapper 
 {
     Node node;
     Node nodeFrom;
     GeomPlanarGraphDirectedEdge edgeFrom;
     double gx, hx, fx, landmarkness;
 
-    public nodeWrapper(Node n)
+    public NodeWrapper(Node n)
     {
         node = n;
         gx = 0;

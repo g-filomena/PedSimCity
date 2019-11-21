@@ -24,9 +24,9 @@ public class DijkstraAngular {
 	private HashMap<Node, Double> costsMap = new HashMap<Node, Double>();
     private GeomPlanarGraph dualNetwork = new GeomPlanarGraph();
 	
-	HashMap<Integer, nodeData> nodesMap;
-	HashMap<Integer, edgeData> edgesMap;
-	HashMap<Integer, centroidData> centroidsMap;
+	HashMap<Integer, NodeData> nodesMap;
+	HashMap<Integer, EdgeData> edgesMap;
+	HashMap<Integer, CentroidData> centroidsMap;
 	
     HashMap<Node, nodeWrapper> mapWrappers =  new HashMap<Node, nodeWrapper>();
     

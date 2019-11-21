@@ -24,7 +24,7 @@ public class DijkstraLand {
 	private HashMap<Node, Node> predecessors;
 	private HashMap<Node, Double> costsMap = new HashMap<Node, Double>();
     private GeomPlanarGraph network = new GeomPlanarGraph();
-	HashMap<Integer, nodeData> nodesMap;
+	HashMap<Integer, NodeData> nodesMap;
     HashMap<Node, nodeWrapper> mapWrappers =  new HashMap<Node, nodeWrapper>();
     double wL, wG, t;
     
@@ -169,7 +169,7 @@ public class DijkstraLand {
     {   	
     	Node targetNode =  target;              
         Integer nodeID = (Integer) targetNode.getData();
-        nodeData nd = nodesMap.get(nodeID);
+        NodeData nd = nodesMap.get(nodeID);
         List<Integer> localLandmarks = new ArrayList<Integer>();
         localLandmarks = nd.localLandmarks;
         double localScore = 0.0;
@@ -188,7 +188,7 @@ public class DijkstraLand {
 	            {
 	            	
 	            	Integer nodeIDLoop = (Integer) nodeFrom.getData();
-	                nodeData ndLoop = nodesMap.get(nodeIDLoop);
+	                NodeData ndLoop = nodesMap.get(nodeIDLoop);
 	                List<Integer> visible = new ArrayList<Integer>();
 	                visible = ndLoop.visible2d;
 	                GeomPlanarGraphEdge segment;
@@ -219,7 +219,7 @@ public class DijkstraLand {
     {   	
        Node targetNode =  target;              
        Integer nodeID = (Integer) targetNode.getData();
-       nodeData nd = nodesMap.get(nodeID);
+       NodeData nd = nodesMap.get(nodeID);
        List<Integer> distantLandmarks = new ArrayList<Integer>();
        distantLandmarks = nd.distantLandmarks;
        if (distantLandmarks == null) return 1.0;
@@ -227,7 +227,7 @@ public class DijkstraLand {
    	   // destination segment: identifying node
        Node destNode = destination;
        Integer nodeIDdest = (Integer) destNode.getData();
-       nodeData dd = nodesMap.get(nodeIDdest);
+       NodeData dd = nodesMap.get(nodeIDdest);
        List<Integer> anchors = new ArrayList<Integer>();
        anchors = dd.anchors;
        if (anchors == null) return 1.0;

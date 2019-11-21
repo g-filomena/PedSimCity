@@ -27,9 +27,9 @@ import org.javatuples.Pair;
 public class AStarAngLand
 {
 	
-	HashMap<Integer, nodeData> nodesMap;
-	HashMap<Integer, edgeData> edgesMap;
-	HashMap<Integer, centroidData> centroidsMap;
+	HashMap<Integer, NodeData> nodesMap;
+	HashMap<Integer, EdgeData> edgesMap;
+	HashMap<Integer, CentroidData> centroidsMap;
     double wL, wG, t;
     public HashMap<Pair, Double> angularDistancesMap = new HashMap<Pair, Double>();
     
@@ -131,8 +131,8 @@ public class AStarAngLand
      * @return an ArrayList of GeomPlanarGraphDirectedEdges that lead from the
      * given Node to the Node from which the search began
      */
-    ArrayList<GeomPlanarGraphDirectedEdge> reconstructPath(nodeWrapper n, HashMap<Integer, centroidData> centroidsMap, 
-    		HashMap<Integer, edgeData> edgesMap  )
+    ArrayList<GeomPlanarGraphDirectedEdge> reconstructPath(nodeWrapper n, HashMap<Integer, CentroidData> centroidsMap, 
+    		HashMap<Integer, EdgeData> edgesMap  )
     {
         ArrayList<GeomPlanarGraphDirectedEdge> result =  new ArrayList<GeomPlanarGraphDirectedEdge>();
         nodeWrapper x = n;

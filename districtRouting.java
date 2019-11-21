@@ -26,11 +26,11 @@ public class districtRouting {
 	int targetRegion;
 	boolean found = false;
 	
-	HashMap<Integer,edgeData> edgesMap;
-	HashMap<Integer,nodeData> nodesMap;
-	HashMap<Integer,centroidData> centroidsMap;
-	HashMap<Integer,gatewayData> gatewaysMap;
-	HashMap<Integer,ArrayList<gatewayData>> exitDistrictsMap;
+	HashMap<Integer,EdgeData> edgesMap;
+	HashMap<Integer,NodeData> nodesMap;
+	HashMap<Integer,CentroidData> centroidsMap;
+	HashMap<Integer,GatewayData> gatewaysMap;
+	HashMap<Integer,ArrayList<GatewayData>> exitDistrictsMap;
 	HashMap<Integer,GeomPlanarGraph> districtDualMap;
 	
 
@@ -58,14 +58,14 @@ public class districtRouting {
 		
 		while (found == false)
 		{
-			ArrayList<gatewayData> possibleGates = exitDistrictsMap.get(currentRegion);
+			ArrayList<GatewayData> possibleGates = exitDistrictsMap.get(currentRegion);
 			HashMap<Integer, Double> validGates = new HashMap<Integer, Double> ();
 			HashMap<Integer, Double> otherGates = new HashMap<Integer, Double> ();
 			
 			double destinationAngle = utilities.angle(currentLocation.getCoordinate(), destinationNode.getCoordinate());
 			double distanceTarget = utilities.nodesDistance(currentLocation, destinationNode);
 
-			for (gatewayData gd : possibleGates)
+			for (GatewayData gd : possibleGates)
 				{	
 					if (gd.nodeID == currentLocation.getData()) continue;
 					if (badExits.contains(gd.gatewayID)) continue;
@@ -114,7 +114,7 @@ public class districtRouting {
 					AStarAngular pathfinderAngular = new AStarAngular();
 					Node originNodeDual = utilities.getDualNode(originNode, state.dualNetwork);
 					Node destinationNodeDual = utilities.getDualNode(destinationNode, state.dualNetwork);
-					return pathfinderAngular.astarPath(originNodeDual, destinationNodeDual, state, null, true);
+					return pathfinderAngular.astarPath(originNodeDual, destinationNodeDual, state, null, true).edges;
 				}
 			Map validSorted = utilities.sortByValue(validGates); 
 			Iterator it = validSorted.entrySet().iterator();
@@ -126,7 +126,7 @@ public class districtRouting {
 				Node exitNode = gatewaysMap.get(exitID).n;
 				
 				Integer entryID = gatewaysMap.get(exitID).entryID;
-			  	nodeData nd = nodesMap.get(entryID);
+			  	NodeData nd = nodesMap.get(entryID);
 			  	sequenceGateways.add(exitID);
 			  	sequenceGateways.add(entryID);
 			  	sequenceNodes.add(gatewaysMap.get(exitID).nodeID);
@@ -177,7 +177,7 @@ public class districtRouting {
 				destinationT = state.dualNetwork.findNode(connectingEdge.getLine().getCentroid().getCoordinate());
 			}
 			else destinationT = utilities.getDualNode(sequence.get(sequence.size()-1), state.dualNetwork);
-			resultPartial = pathfinderAngular.astarPath(originT, destinationT, state, null, true);
+			resultPartial = pathfinderAngular.astarPath(originT, destinationT, state, null, true).edges;
 			originT = destinationT;
 			completePath.addAll(resultPartial);
 		}
