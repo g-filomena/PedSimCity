@@ -20,7 +20,6 @@ import sim.util.geo.MasonGeometry;
 public class landmarkFunctions{	
 	
 
-	
     
     static double localLandmarkness(Node targetNode, HashMap<Node, NodeWrapper> mapWrappers, pedestrianSimulation state)
     {   	
@@ -33,20 +32,16 @@ public class landmarkFunctions{
         if (localLandmarks == null) return 0.0;
         else
         {
-        	for (int i = 0; i < localLandmarks.size(); i++)
+        	for (int lL : localLandmarks)
 	        {
 	            Node nodeTo =  targetNode;
 	            Node nodeFrom = null;
-//	            try {nodeFrom = previous.node;}
-//	            catch (java.lang.NullPointerException e) {return 0.0;}
 	            nodeFrom = previous.node;
 	            double distanceTravelled = 0;
 	            double cumulativeAdvanceVis = 0;
-	            int count =0;
+	            
 	            while ((nodeFrom != null) & (distanceTravelled <= state.t))
 	            {
-	            	count +=1;
-	            	if (count >1000) System.out.println("localLandmarkness");
 	            	Integer nodeIDLoop = (Integer) nodeFrom.getData();
 	                NodeData ndLoop = state.nodesMap.get(nodeIDLoop);
 	                List<Integer> visible = new ArrayList<Integer>();
@@ -55,7 +50,7 @@ public class landmarkFunctions{
                 	GeomPlanarGraphEdge segment = (GeomPlanarGraphEdge) nt.edgeFrom.getEdge();
 
 	                distanceTravelled += segment.getDoubleAttribute("length");	                
-	                if (visible.contains(localLandmarks.get(i))) cumulativeAdvanceVis += segment.getDoubleAttribute("length");
+	                if (visible.contains(lL)) cumulativeAdvanceVis += segment.getDoubleAttribute("length");
 
 	                nodeTo = nodeFrom;
 	                NodeWrapper nf = mapWrappers.get(nodeFrom);
@@ -65,7 +60,7 @@ public class landmarkFunctions{
 	              
 	          double aV = cumulativeAdvanceVis/distanceTravelled;
 	          if (aV > 1.0) aV = 1.0;
-	          double tmp = nd.localScores.get(i) * aV;
+	          double tmp = nd.localScores.get(localLandmarks.indexOf(lL)) * aV;
 	          if (tmp > localScore) localScore = tmp;
 	        }
         	return localScore;
@@ -100,7 +95,7 @@ public class landmarkFunctions{
         if (localLandmarks == null) return 0.0;
         else
         {
-        	for (int i = 0; i < localLandmarks.size(); i++)
+        	for (int lL : localLandmarks)
 	        {
 	            Node nodeTo =  targetNode;
 	            Node centroidFrom = previousCentroid;
@@ -108,11 +103,9 @@ public class landmarkFunctions{
 	            double distanceTravelled = 0;
 	            double cumulativeAdvanceVis = 0;
 	            GeomPlanarGraphDirectedEdge currentSegment = streetSegment;
-	            int count =0;
+	            
 	            while ((centroidFrom != null) & (distanceTravelled <= state.t))
 	            {
-	            	count +=1;
-	            	if (count >1000) System.out.println("DuallocalLandmarkness");
 	            	if (currentSegment.getFromNode() == nodeTo) nodeFrom = currentSegment.getToNode();
 	            	else nodeFrom = currentSegment.getToNode();
 	            	
@@ -124,7 +117,7 @@ public class landmarkFunctions{
 	                GeomPlanarGraphEdge segment = (GeomPlanarGraphEdge) currentSegment.getEdge();
 	                distanceTravelled = distanceTravelled + segment.getLine().getLength();
 	                       
-	                if (visible.contains(localLandmarks.get(i))) cumulativeAdvanceVis += segment.getDoubleAttribute("length");
+	                if (visible.contains(lL)) cumulativeAdvanceVis += segment.getDoubleAttribute("length");
 	                nodeTo = nodeFrom;
 	                Integer streetIDLoop = (Integer) centroidFrom.getData();
 	            	currentSegment = (GeomPlanarGraphDirectedEdge) state.edgesMap.get(streetIDLoop).planarEdge.getDirEdge(0);
@@ -132,13 +125,11 @@ public class landmarkFunctions{
 	                try {centroidFrom = cf.nodeFrom;}
 	                catch (java.lang.NullPointerException e) {centroidFrom = null;}
 	            } 
-	            
 	          double aV = cumulativeAdvanceVis/distanceTravelled;
 	          if (aV > 1.0) aV = 1.0;
-	          double tmp = nd.localScores.get(i) * aV;
+	          double tmp = nd.localScores.get(localLandmarks.indexOf(lL)) * aV;
 	          if (tmp > localScore) localScore = tmp;
 	        }
-        	
         	return localScore;
         }
     }
@@ -179,6 +170,115 @@ public class landmarkFunctions{
 //    	    return globalScore;
 //        }    
         
+        
+       
+    	
+        static double globalLandmarkness(Node targetNode, Node tmpNode, HashMap<Node, NodeWrapper> mapWrappers, 
+        		pedestrianSimulation state)
+        {   	
+            Integer destinationID = (Integer) targetNode.getData();
+            NodeData dd = state.nodesMap.get(destinationID);
+//            List<Integer> anchors = new ArrayList<Integer>();
+//            anchors = dd.anchors;
+
+            double globalScore = 0.0;
+            double cumulative = 0.0;
+            Iterator it = mapWrappers.entrySet().iterator();
+            while (it.hasNext()) 
+            {
+                Map.Entry pair = (Map.Entry)it.next();
+                Node node = (Node) pair.getKey();
+                Integer nodeID = (Integer) node.getData();
+                NodeData nd = state.nodesMap.get(nodeID);
+                List<Integer> distantLandmarks = new ArrayList<Integer>();
+                distantLandmarks = nd.distantLandmarks;
+                double tmp = 0.0;
+                double nodeGlobalScore = 0.0;
+                if (distantLandmarks == null) continue;
+                else
+                {
+                    for (int dL : distantLandmarks)
+                    {
+//                 	   double tmp = 0.0;
+                 	   tmp = nd.distantScores.get(distantLandmarks.indexOf(dL));
+//                 	   if (tmp > nodeGlobalScore) nodeGlobalScore = tmp;
+//                 	   if (anchors.contains(distantLandmarks.get(i)))
+//                 	   {
+//                 		   tmp = nd.distantScores.get(i);
+////                 		   double distanceLandmark = dd.distances.get(anchors.lastIndexOf(distantLandmarks.get(i)));
+////                 		   double distanceWeight = utilities.nodesDistance(tmpNode, targetNode)/distanceLandmark;
+////                 		   if (distanceWeight > 1.0) distanceWeight = 1.0;
+////                 		   tmp = tmp*distanceWeight;   
+//                 	   }
+                 	  if (tmp > globalScore) globalScore = tmp;
+                    }
+                }
+//                cumulative += nodeGlobalScore;
+            }
+//            globalScore = cumulative/mapWrappers.size();
+//            globalScore = cumulative/mapWrappers.size();
+            return globalScore; 
+        }
+            
+            
+            
+        static double globalLandmarknessDualGraph(Node targetNode, Node tmpNode, HashMap<Node, DualNodeWrapper> mapWrappers, pedestrianSimulation state)
+        {   
+            Integer destinationID = (Integer) targetNode.getData();
+            NodeData dd = state.nodesMap.get(destinationID);
+            List<Integer> anchors = new ArrayList<Integer>();
+            anchors = dd.anchors;
+        	
+            double globalScore = 0.0;
+            Iterator it = mapWrappers.entrySet().iterator();
+            Node previous = targetNode;
+            Node throughNode;
+//            double cumulative = 0.0;
+            double tmp = 0.0;
+            while (it.hasNext()) 
+            {
+                Map.Entry pair = (Map.Entry)it.next();
+                Node centroid = (Node) pair.getKey();
+                Integer streetIDp = (Integer) centroid.getData();
+            	GeomPlanarGraphDirectedEdge edgeDirP = (GeomPlanarGraphDirectedEdge) 
+            			state.edgesMap.get(streetIDp).planarEdge.getDirEdge(0); 
+            	Node nToP = edgeDirP.getToNode();
+            	Node nFromP = edgeDirP.getFromNode();
+            	if (previous == nToP)  throughNode = nFromP;
+            	else throughNode = nToP;
+
+                Integer nodeID = (Integer) throughNode.getData();
+                NodeData nd = state.nodesMap.get(nodeID);
+                List<Integer> distantLandmarks = new ArrayList<Integer>();
+                distantLandmarks = nd.distantLandmarks;
+                double nodeGlobalScore = 0.0;
+                if (distantLandmarks == null) continue;
+                else
+                {
+                    for (int dL : distantLandmarks)
+                    {
+//                 	   double tmp = 0.0;
+                 	   tmp = nd.distantScores.get(distantLandmarks.indexOf(dL));
+//                 	   if (tmp > nodeGlobalScore) nodeGlobalScore = tmp;
+//                 	   if (anchors.contains(distantLandmarks.get(i)))
+//                 	   {
+//                 		   tmp = nd.distantScores.get(i);
+//                 		   double distanceLandmark = dd.distances.get(anchors.lastIndexOf(distantLandmarks.get(i)));
+////                 		   double distanceWeight = utilities.nodesDistance(tmpNode, targetNode)/distanceLandmark;
+////                 		   if (distanceWeight > 1.0) distanceWeight = 1.0;
+////                 		   tmp = tmp*distanceWeight;   
+//                 	   }
+                 	  if (tmp > globalScore) globalScore = tmp;
+                    }
+                    
+                }
+                previous = throughNode;
+//                cumulative += nodeGlobalScore;
+            }
+//            globalScore = cumulative/mapWrappers.size();
+            return globalScore; 
+        }
+
         
         public static double easinessNavigation(Node originNode, Node destinationNode, pedestrianSimulation state)
         {
@@ -239,108 +339,6 @@ public class landmarkFunctions{
     	    return knownJunctions;		
     	}
     	
-    	
-        static double globalLandmarkness(Node targetNode, Node tmpNode, HashMap<Node, NodeWrapper> mapWrappers, pedestrianSimulation state)
-        {   	
-            Integer destinationID = (Integer) targetNode.getData();
-            NodeData dd = state.nodesMap.get(destinationID);
-//            List<Integer> anchors = new ArrayList<Integer>();
-//            anchors = dd.anchors;
-
-            double globalScore = 0.0;
-            double cumulative = 0.0;
-            Iterator it = mapWrappers.entrySet().iterator();
-            while (it.hasNext()) 
-            {
-                Map.Entry pair = (Map.Entry)it.next();
-                Node node = (Node) pair.getKey();
-                Integer nodeID = (Integer) node.getData();
-                NodeData nd = state.nodesMap.get(nodeID);
-                List<Integer> distantLandmarks = new ArrayList<Integer>();
-                distantLandmarks = nd.distantLandmarks;
-                double nodeGlobalScore = 0.0;
-                if (distantLandmarks == null) continue;
-                else
-                {
-                    for (int i = 0; i < distantLandmarks.size(); i++)
-                    {
-                 	   double tmp = 0.0;
-                 	   tmp = nd.distantScores.get(i);
-                 	   if (tmp > nodeGlobalScore) nodeGlobalScore = tmp;
-//                 	   if (anchors.contains(distantLandmarks.get(i)))
-//                 	   {
-//                 		   tmp = nd.distantScores.get(i);
-////                 		   double distanceLandmark = dd.distances.get(anchors.lastIndexOf(distantLandmarks.get(i)));
-////                 		   double distanceWeight = utilities.nodesDistance(tmpNode, targetNode)/distanceLandmark;
-////                 		   if (distanceWeight > 1.0) distanceWeight = 1.0;
-////                 		   tmp = tmp*distanceWeight;   
-//                 	   }
-//                 	  if (tmp > globalScore) globalScore = tmp;
-                    }
-                }
-                cumulative += nodeGlobalScore;
-            }
-            globalScore = cumulative/mapWrappers.size();
-            return globalScore; 
-        }
-            
-            
-            
-        static double globalLandmarknessDualGraph(Node targetNode, Node tmpNode, HashMap<Node, DualNodeWrapper> mapWrappers, pedestrianSimulation state)
-        {   
-            Integer destinationID = (Integer) targetNode.getData();
-            NodeData dd = state.nodesMap.get(destinationID);
-            List<Integer> anchors = new ArrayList<Integer>();
-            anchors = dd.anchors;
-        	
-            double globalScore = 0.0;
-            Iterator it = mapWrappers.entrySet().iterator();
-            Node previous = targetNode;
-            Node throughNode;
-            double cumulative = 0.0;
-            while (it.hasNext()) 
-            {
-                Map.Entry pair = (Map.Entry)it.next();
-                Node centroid = (Node) pair.getKey();
-                Integer streetIDp = (Integer) centroid.getData();
-            	GeomPlanarGraphDirectedEdge edgeDirP = (GeomPlanarGraphDirectedEdge) state.edgesMap.get(streetIDp).planarEdge.getDirEdge(0); 
-            	Node nToP = edgeDirP.getToNode();
-            	Node nFromP = edgeDirP.getFromNode();
-            	if (previous == nToP)  throughNode = nFromP;
-            	else throughNode = nToP;
-
-                Integer nodeID = (Integer) throughNode.getData();
-                NodeData nd = state.nodesMap.get(nodeID);
-                List<Integer> distantLandmarks = new ArrayList<Integer>();
-                distantLandmarks = nd.distantLandmarks;
-                double nodeGlobalScore = 0.0;
-                if (distantLandmarks == null) continue;
-                else
-                {
-                    for (int i = 0; i < distantLandmarks.size(); i++)
-                    {
-                 	   double tmp = 0.0;
-                 	   tmp = nd.distantScores.get(i);
-                 	   if (tmp > nodeGlobalScore) nodeGlobalScore = tmp;
-//                 	   if (anchors.contains(distantLandmarks.get(i)))
-//                 	   {
-//                 		   tmp = nd.distantScores.get(i);
-//                 		   double distanceLandmark = dd.distances.get(anchors.lastIndexOf(distantLandmarks.get(i)));
-////                 		   double distanceWeight = utilities.nodesDistance(tmpNode, targetNode)/distanceLandmark;
-////                 		   if (distanceWeight > 1.0) distanceWeight = 1.0;
-////                 		   tmp = tmp*distanceWeight;   
-//                 	   }
-//                 	  if (tmp > globalScore) globalScore = tmp;
-                    }
-                    
-                }
-                previous = throughNode;
-                cumulative += nodeGlobalScore;
-            }
-            globalScore = cumulative/mapWrappers.size();
-            return globalScore; 
-        }
-
 
 }
     

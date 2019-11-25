@@ -13,6 +13,8 @@
 package sim.app.geo.pedestrianSimulation;
 import com.vividsolutions.jts.planargraph.DirectedEdgeStar;
 import com.vividsolutions.jts.planargraph.Node;
+
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -57,11 +59,8 @@ public class AStarAngular
         // nodes that have been investigated
         ArrayList<DualNodeWrapper> openSet = new ArrayList<DualNodeWrapper>();
         openSet.add(originNodeWrapper); //adding the startNode Wrapper 
-        int count = 0;
         while (openSet.size() > 0)
         { 
-        	count += 1;
-        	if ( count > 100000) System.out.println("Angular Path" + originNode.getData() +" " +destinationNode.getData());
         	// while there are reachable nodes to investigate
             DualNodeWrapper currentNodeWrapper = findMin(openSet); // find the shortest path so far
             // we have found the shortest possible path to the goal! Reconstruct the path and send it back.
@@ -79,14 +78,15 @@ public class AStarAngular
 
             // check all the edges out from this Node
             DirectedEdgeStar des = currentNodeWrapper.node.getOutEdges();
-            
-            for (Object o : des.getEdges().toArray())
+            Object[] outEdges = des.getEdges().toArray();
+            for (Object o : outEdges)
             {
                 GeomPlanarGraphDirectedEdge lastSegment = (GeomPlanarGraphDirectedEdge) o;
 
                 Node nextNode = null;
                 nextNode = lastSegment.getToNode();
-                if (utilities.commonPrimalJunction(nextNode, currentNodeWrapper.node, state) == currentNodeWrapper.commonPrimalJunction) continue;
+                if (utilities.commonPrimalJunction(nextNode, currentNodeWrapper.node, state) == 
+                		currentNodeWrapper.commonPrimalJunction) continue;
                 // get the A* meta information about this Node
                 DualNodeWrapper nextNodeWrapper;
                 

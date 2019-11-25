@@ -177,7 +177,7 @@ public final class Pedestrian implements Steppable
 	        			HashMap<Node, DualNodeWrapper> nodesAhead = path.dualMapWrappers;
 	        			try 
 	        			{
-//		        			localScore = landmarkFunctions.localLandmarknessDualGraph(tmpNode, dualTmpDestination, nodesAhead, state);
+		        			localScore = landmarkFunctions.localLandmarknessDualGraph(tmpNode, dualTmpDestination, nodesAhead, state);
 		        			globalScore = landmarkFunctions.globalLandmarknessDualGraph(destinationNode, tmpNode, nodesAhead, state);
 	        			}
 	        			catch(java.lang.NullPointerException e) {continue;} //flawed path
@@ -191,7 +191,7 @@ public final class Pedestrian implements Steppable
 			        	
 			        	try 
 			        	{
-//				        	localScore = landmarkFunctions.localLandmarkness(tmpNode, nodesAhead, state);
+				        	localScore = landmarkFunctions.localLandmarkness(tmpNode, nodesAhead, state);
 				        	globalScore = landmarkFunctions.globalLandmarkness(destinationNode, tmpNode, nodesAhead, state);
 			        	}
 			        	catch(java.lang.NullPointerException e) {continue;} //flawed path
@@ -200,10 +200,10 @@ public final class Pedestrian implements Steppable
 			    	double gain = ((utilities.nodesDistance(currentNode, destinationNode) - 
 			    			utilities.nodesDistance(tmpNode, destinationNode))/utilities.nodesDistance(currentNode, destinationNode));
 			    	
-			    	localScore = 1.0;
-			    	if (localScore * globalScore * gain > attractivness) 
+			    	double landmarkness = localScore*0.40 + globalScore*0.40 + gain*0.20;
+			    	if (landmarkness> attractivness) 
 	    			{
-			    		attractivness = localScore * globalScore * gain;
+			    		attractivness = landmarkness;
 			    		bestPath = tmpPath;
 			    		bestNode = tmpNode;
 			    		if (criteria == "angularLand") bestDualNode = dualTmpDestination;

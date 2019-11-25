@@ -73,8 +73,8 @@ public class AStarEuclidean
             // check all the edges out from this Node
             DirectedEdgeStar des = currentNodeWrapper.node.getOutEdges();
             
-            boolean found = false;
-            for (Object o : des.getEdges().toArray())
+            Object[] outEdges = des.getEdges().toArray();
+            for (Object o : outEdges)
             {
                 GeomPlanarGraphDirectedEdge lastSegment = (GeomPlanarGraphDirectedEdge) o;
                 

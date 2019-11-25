@@ -194,7 +194,8 @@ public class pedestrianSimulation extends SimState
 	   	CSVUtils.writeLine(writerDensitiesData, Arrays.asList("streetID", "euclidean", "angular", "euclideanLandmark", "angularLandmark",
 	   			"euclideanDistrict", "angularDistrict"));
 	   	
-	   	for (int i = 0; i < rGeometries.size(); i++) 
+	   	int rGeoSize = rGeometries.size();
+	   	for (int i = 0; i < rGeoSize; i++) 
 	   	{
 	    	MasonGeometry segment = (MasonGeometry) rGeometries.objs[i]; 
 	        EdgeData ed = edgesMap.get(segment.getIntegerAttribute("streetID"));
@@ -604,7 +605,7 @@ public class pedestrianSimulation extends SimState
     public static void main(String[] args)
     {
     	int jobs = 50;
-    	String directory = "C:/Users/g_filo01/sciebo/Scripts/Image of the City/Outputs/London/intermediate/";
+    	String directory = "C:/Users/g_filo01/sciebo/Scripts/Image of the City/Outputs/London/intermediate/for Simulation/";
         try 
         {
         	///// READING PRIMAL GRAPH
@@ -633,8 +634,8 @@ public class pedestrianSimulation extends SimState
 		        junctionsAttributes.add("CM"); 
     		}
             
-	        URL roadsFile = pedestrianSimulation.class.getResource("data/London_edges_simplified.shp");
-	        URL junctionsFile = pedestrianSimulation.class.getResource("data/London_nodes_simplified.shp");
+	        URL roadsFile = pedestrianSimulation.class.getResource("data/London_edges_simplified_BB.shp");
+	        URL junctionsFile = pedestrianSimulation.class.getResource("data/London_nodes_simplified_BB.shp");
             ShapeFileImporter.read(roadsFile, roads);
             ShapeFileImporter.read(junctionsFile, junctions, junctionsAttributes);
             
@@ -642,8 +643,8 @@ public class pedestrianSimulation extends SimState
             System.out.println("reading dual graph...");
             Bag centroidsAttributes = new Bag();
             centroidsAttributes.add("streetID");
-            URL roadsDualFile = pedestrianSimulation.class.getResource("data/London_edgesDual_simplified.shp");
-            URL centroidsFile = pedestrianSimulation.class.getResource("data/London_nodesDual_simplified.shp");            
+            URL roadsDualFile = pedestrianSimulation.class.getResource("data/London_edgesDual_simplified_BB.shp");
+            URL centroidsFile = pedestrianSimulation.class.getResource("data/London_nodesDual_simplified_BB.shp");            
             ShapeFileImporter.read(roadsDualFile, intersectionsDual);
             ShapeFileImporter.read(centroidsFile, centroids, centroidsAttributes);
 
@@ -653,7 +654,7 @@ public class pedestrianSimulation extends SimState
             buildingsAttributes.add("buildingID");  
             buildingsAttributes.add("lScore_sc");  
             buildingsAttributes.add("gScore_sc");  
-            URL landmarksFile = pedestrianSimulation.class.getResource("data/London_landmarks.shp");
+            URL landmarksFile = pedestrianSimulation.class.getResource("data/London_landmarks_noADv.shp");
             ShapeFileImporter.read(landmarksFile, buildings);
 
             /// READING DISTANCES
@@ -677,7 +678,7 @@ public class pedestrianSimulation extends SimState
             
             System.out.println("reading visibility...");
             visibilityMatrix = new String[buildings.getGeometries().size()+1][geometriesNodes.size()+1];
-            CSVReader reader = new CSVReader(new FileReader(directory+"London_visibility_matrix_simplified.csv"));
+            CSVReader reader = new CSVReader(new FileReader(directory+"London_visibility_matrix_simplified_BB.csv"));
             String [] nextLine;
             
             int v = 0;
