@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import org.javatuples.Pair;
 
@@ -15,14 +14,10 @@ import sim.engine.SimState;
 import sim.engine.Steppable;
 import sim.engine.Stoppable;
 import sim.field.geo.GeomVectorField;
-import sim.util.geo.GeomPlanarGraph;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 import sim.util.geo.GeomPlanarGraphEdge;
 import sim.util.geo.MasonGeometry;
 import sim.util.geo.PointMoveTo;
-
-@SuppressWarnings("restriction")
-
 
 public final class Pedestrian implements Steppable
 {
@@ -33,7 +28,6 @@ public final class Pedestrian implements Steppable
     // Initial Attributes
     Node originNode = null;
     Node destinationNode = null;
-	Node dualDestination = null;
     public String criteria;
     public Integer maxDistance;
     
@@ -57,7 +51,8 @@ public final class Pedestrian implements Steppable
     
     double speed = 0; // useful for graph
     ArrayList<GeomPlanarGraphDirectedEdge> path =  new ArrayList<GeomPlanarGraphDirectedEdge>();
-    ArrayList<Pair> OD =  new ArrayList<Pair>();
+    @SuppressWarnings("rawtypes")
+	ArrayList<Pair> OD =  new ArrayList<Pair>();
     int indexOnPath = 0;
     int pathDirection = 1;
     boolean reachedDestination = false;
@@ -77,9 +72,9 @@ public final class Pedestrian implements Steppable
     /** Constructor Function */
     public Pedestrian(pedestrianSimulation state, String criteria, ArrayList<Pair> OD)
     {
-        this.state = state;
     	this.criteria = criteria;
     	this.OD = OD;
+    	this.state = state;
 //    	this.maxDistance = maxDistance;
     	centroidsMap = state.centroidsMap;
     	edgesMap = state.edgesMap;
@@ -104,11 +99,10 @@ public final class Pedestrian implements Steppable
 
     /** Plots a path between the Agent's home Node and its work Node */
     
-    @SuppressWarnings("unchecked")
-	public void findNewAStarPath(pedestrianSimulation state)
+    public void findNewAStarPath(pedestrianSimulation state)
     {
 //    	Node currentJunction;
-//    	if (state.dynamicRouting == true)
+//    	if (state.dynamicRouting)
 //    	{	
 //	        // get the starting and goal Nodes with which this Agent is associated
 //	    	currentJunction = state.network.findNode(agentLocation.geometry.getCoordinate());
@@ -121,33 +115,24 @@ public final class Pedestrian implements Steppable
 //	    	while (currentJunction == destinationNode) destinationNode = nodesLookup.searchRandomNode(state.geometriesNodes, state);
 //    	}
 
-    	
     	ArrayList<GeomPlanarGraphDirectedEdge> newPath = null;
-        ArrayList<Node> sequence =  new ArrayList<Node>();   
-//    	System.out.println("may be stuck at "+originNode.getData()+" "+destinationNode.getData()+ " "+criteria);
-        if (landmarkRouting == true)
+        ArrayList<Node> sequence = new ArrayList<Node>();
+        if (landmarkRouting)
     	{
-	        NodeData dd = nodesMap.get((int) destinationNode.getData());
-	        List<Integer> anchors = new ArrayList<Integer>();
-	        anchors = dd.anchors;
-	        gl = true;
-	    	
 	    	GeomVectorField knownJunctions = landmarkFunctions.relevantNodes(originNode, destinationNode, state);
 	        double wayfindingComplexity = landmarkFunctions.easinessNavigation(originNode, destinationNode, state);
 	        double searchRange = utilities.nodesDistance(originNode, destinationNode) * (wayfindingComplexity);
-	    	double destinationAngle = utilities.angle(originNode.getCoordinate(), destinationNode.getCoordinate());
 	        Node currentNode = originNode;
-	        List segmentsToAvoid = new ArrayList<Integer>();
+//	        ArrayList<Integer> segmentsToAvoid = new ArrayList<Integer>();
 
 		    List<Integer> badNodes = new ArrayList<Integer>();
-		    int count = 0;
         	while (searchRange >  state.t)
 	        {
-        		if (count > 1000) System.out.println("in Landmark loop");
+
 	        	Node bestNode = null;
-	        	Node bestDualNode = null;
-	        	ArrayList<GeomPlanarGraphDirectedEdge> bestPath = null;
-	        	ArrayList<GeomPlanarGraphDirectedEdge> tmpPath = null;
+//	        	Node bestDualNode = null;
+//	        	ArrayList<GeomPlanarGraphDirectedEdge> bestPath = null;
+//	        	ArrayList<GeomPlanarGraphDirectedEdge> tmpPath = null;
 	        	double attractivness = 0.0;
 	        		        	
 	        	for (Object o : knownJunctions.getGeometries())
@@ -155,6 +140,7 @@ public final class Pedestrian implements Steppable
 			    	MasonGeometry geoNode = (MasonGeometry) o;
 			    	int nodeID = state.nodesGeometryMap.get(geoNode);
 			    	Node tmpNode = state.nodesMap.get(nodeID).node;
+			    	
 			    	if (tmpNode == originNode) continue;
 			    	if (Node.getEdgesBetween(tmpNode, currentNode).size() > 0) continue;
 			    	if (utilities.nodesDistance(currentNode, tmpNode) > searchRange)
@@ -163,50 +149,59 @@ public final class Pedestrian implements Steppable
 			    		continue; //only nodes in range	
 			    	}
 	        		double localScore = 0.0;
-	        		double globalScore = 0.0;
-	        		Node dualTmpDestination = null;
-	        		
-	        		if (criteria == "angularLand") 
-	        		{
-	        			Node dualOrigin = utilities.getDualNode(currentNode, state.dualNetwork);
-	        			dualTmpDestination = utilities.getDualNode(tmpNode, state.dualNetwork);
+	        		localScore = landmarkFunctions.localLandmarkness(tmpNode, false, null, state);
+//	        		double globalScore = 0.0;
+//	        		Node dualTmpDestination = null;
 
-	        			AStarAngular pathfinderAngular = new AStarAngular(); 
-	        			Path path = pathfinderAngular.astarPath(dualOrigin, dualTmpDestination, state, segmentsToAvoid, gl);
-	        			tmpPath = path.edges;
-	        			HashMap<Node, DualNodeWrapper> nodesAhead = path.dualMapWrappers;
-	        			try 
-	        			{
-		        			localScore = landmarkFunctions.localLandmarknessDualGraph(tmpNode, dualTmpDestination, nodesAhead, state);
-		        			globalScore = landmarkFunctions.globalLandmarknessDualGraph(destinationNode, tmpNode, nodesAhead, state);
-	        			}
-	        			catch(java.lang.NullPointerException e) {continue;} //flawed path
-	        		}
-			        else
-			        {
-			        	AStarEuclidean pathfinderEuclidean = new AStarEuclidean();   
-			        	Path path = pathfinderEuclidean.astarPath(currentNode, tmpNode, state, segmentsToAvoid, gl);
-			        	tmpPath = path.edges;
-			        	HashMap<Node, NodeWrapper> nodesAhead = path.mapWrappers; 
-			        	
-			        	try 
-			        	{
-				        	localScore = landmarkFunctions.localLandmarkness(tmpNode, nodesAhead, state);
-				        	globalScore = landmarkFunctions.globalLandmarkness(destinationNode, tmpNode, nodesAhead, state);
-			        	}
-			        	catch(java.lang.NullPointerException e) {continue;} //flawed path
-			        }
+//	        		if (criteria == "angularLand") 
+//	        		{
+////	        			Node dualOrigin = utilities.getDualNode(currentNode, pedestrianSimulation.dualNetwork);
+////	        			dualTmpDestination = utilities.getDualNode(tmpNode, pedestrianSimulation.dualNetwork);
+////
+////	        			AStarAngular pathfinderAngular = new AStarAngular(); 
+////	        			Path path = pathfinderAngular.astarPath(dualOrigin, dualTmpDestination, state, segmentsToAvoid, gl);
+////	        			tmpPath = path.edges;
+////	        			HashMap<Node, DualNodeWrapper> nodesAhead = path.dualMapWrappers;
+//	        			try 
+//	        			{
+//		        			
+////		        			localScore = landmarkFunctions.localLandmarknessDualGraph(tmpNode, dualTmpDestination, state);
+////		        			globalScore = landmarkFunctions.globalLandmarknessDualGraph(destinationNode, tmpNode, nodesAhead, state);
+//	        			}
+//	        			catch(java.lang.NullPointerException e) {continue;} //flawed path
+//	        		}
+//			        else
+//			        {
+////			        	AStarEuclidean pathfinderEuclidean = new AStarEuclidean();   
+////			        	Path pathVis = pathfinderEuclidean.astarPath(currentNode, tmpNode, state, segmentsToAvoid, gl);
+////			        	
+////			        	DijkstraGlobalLand globalPath = new DijkstraGlobalLand();   
+////			        	ArrayList<GeomPlanarGraphDirectedEdge> pathG = globalPath.dijkstraLandmarkPath(
+////			        				currentNode, tmpNode, state);
+////			        	
+//////			        	tmpPath = pathVis.edges;
+////			        	tmpPath = pathG;
+////			        	HashMap<Node, NodeWrapper> nodesAhead = pathVis.mapWrappers; 
+//			        	
+//			        	try 
+//			        	{
+//				        	localScore = landmarkFunctions.localLandmarkness(tmpNode,false, null, state);
+////				        	globalScore = landmarkFunctions.globalLandmarkness(destinationNode, tmpNode, nodesAhead, state);
+//			        	}
+//			        	catch(java.lang.NullPointerException e) {continue;} //flawed path
+//			        }
 
 			    	double gain = ((utilities.nodesDistance(currentNode, destinationNode) - 
 			    			utilities.nodesDistance(tmpNode, destinationNode))/utilities.nodesDistance(currentNode, destinationNode));
 			    	
-			    	double landmarkness = localScore*0.40 + globalScore*0.40 + gain*0.20;
-			    	if (landmarkness> attractivness) 
+			    	double landmarkness = localScore*0.60 + gain*0.40;
+			    	if (landmarkness > attractivness) 
 	    			{
 			    		attractivness = landmarkness;
-			    		bestPath = tmpPath;
 			    		bestNode = tmpNode;
-			    		if (criteria == "angularLand") bestDualNode = dualTmpDestination;
+//			    		bestPath = tmpPath;
+
+//			    		if (criteria == "angularLand") bestDualNode = dualTmpDestination;
 	    			}
 		        }
 	        		        	
@@ -221,37 +216,37 @@ public final class Pedestrian implements Steppable
 	        	if (bestNode == null) 
 	        	{
 
-	        		// reconstruct path till the destination
-	        		if (criteria == "angularLand") 
-	        		{
-	        			Node dualOrigin = utilities.getDualNode(currentNode, state.dualNetwork);
-	        			Node dualTmpDestination = utilities.getDualNode(destinationNode, state.dualNetwork);
-	        			
-	        			AStarAngular pathfinderAngular = new AStarAngular(); 
-	        			Path path = pathfinderAngular.astarPath(dualOrigin, dualTmpDestination, state, segmentsToAvoid, gl);
-	        			tmpPath = path.edges;
-	        		}
-			        else
-			        {
-			        	AStarEuclidean pathfinderEuclidean = new AStarEuclidean();   
-			        	Path path = pathfinderEuclidean.astarPath(currentNode, destinationNode, state, segmentsToAvoid, gl);
-			        	tmpPath = path.edges;
-			        }
+//	        		// reconstruct path till the destination
+//	        		if (criteria == "angularLand") 
+//	        		{
+//	        			Node dualOrigin = utilities.getDualNode(currentNode, pedestrianSimulation.dualNetwork);
+//	        			Node dualTmpDestination = utilities.getDualNode(destinationNode, pedestrianSimulation.dualNetwork);
+//	        			
+//	        			AStarAngular pathfinderAngular = new AStarAngular(); 
+//	        			Path path = pathfinderAngular.astarPath(dualOrigin, dualTmpDestination, state, segmentsToAvoid, gl);
+//	        			tmpPath = path.edges;
+//	        		}
+//			        else
+//			        {
+//			        	AStarEuclidean pathfinderEuclidean = new AStarEuclidean();   
+//			        	Path path = pathfinderEuclidean.astarPath(currentNode, destinationNode, state, segmentsToAvoid, gl);
+//			        	tmpPath = path.edges;
+//			        }
 	        		//len sequence == 0
-		    		if (currentNode == originNode) newPath = tmpPath;
+//		    		if (currentNode == originNode) newPath = tmpPath;
 		    		//add to the rest
-		    		else newPath.addAll(tmpPath);
+//		    		else newPath.addAll(tmpPath);
 	        		break;
 	        	}
 	        	
-	    		if (currentNode == originNode) newPath = bestPath;
-	    		//add to the rest
-	    		else newPath.addAll(bestPath);
-	    		Iterator it = bestPath.iterator();
-	    		while (it.hasNext()) segmentsToAvoid.add((int) ((GeomPlanarGraphEdge) 
-    					((GeomPlanarGraphDirectedEdge) it.next()).getEdge()).getIntegerAttribute("streetID"));
+//	    		if (currentNode == originNode) newPath = bestPath;
+//	    		//add to the rest
+//	    		else newPath.addAll(bestPath);
+//	    		Iterator<GeomPlanarGraphDirectedEdge> it = bestPath.iterator();
+//	    		while (it.hasNext()) segmentsToAvoid.add((int) ((GeomPlanarGraphEdge) 
+//    					it.next().getEdge()).getIntegerAttribute("edgeID"));
 	    		
-    			if (criteria == "angularLand") segmentsToAvoid.remove(bestDualNode.getData());
+//    			if (criteria == "angularLand") segmentsToAvoid.remove(bestDualNode.getData());
     			
 	        	sequence.add(bestNode);
 	        	knownJunctions = landmarkFunctions.relevantNodes(bestNode, destinationNode, state);
@@ -265,25 +260,82 @@ public final class Pedestrian implements Steppable
 
 		}
         
-        if ((criteria == "euclidean") | ((criteria == "euclideanLand") & (sequence.size() == 0)))
+        if ((criteria == "euclidean") || ((criteria == "euclideanLand") && (sequence.size() == 0)))
         {
 
     		AStarEuclidean pathfinderEuclidean = new AStarEuclidean();
             Path path = pathfinderEuclidean.astarPath(originNode, destinationNode, state, null, true);    
             newPath = path.edges;
         }
-        else if ((criteria == "angular") | ((criteria == "angularLand") & (sequence.size() == 0)))
+        else if (criteria == "euclideanLand")
         {
-        	Node dualOrigin = utilities.getDualNode(originNode, state.dualNetwork);
-        	dualDestination = null;
+        	{   
+        		DijkstraEucLand pathFinderEucLand = new DijkstraEucLand();  
+        		Node tmpNode = originNode;
+        		ArrayList<GeomPlanarGraphDirectedEdge> tmpPath = null;
+        		            	
+        		for (Node intermediateNode : sequence)
+            	{
+        			if (sequence.indexOf(intermediateNode) == 0) newPath = pathFinderEucLand.dijkstraPath(tmpNode, intermediateNode, state);
+            		else
+            		{
+            			tmpPath = pathFinderEucLand.dijkstraPath(tmpNode, intermediateNode, state); 
+            			newPath.addAll(tmpPath); 
+            		}
+                	tmpNode = intermediateNode;
+            	}
+            	tmpPath = pathFinderEucLand.dijkstraPath(tmpNode, destinationNode, state);  
+            	newPath.addAll(tmpPath); 
+            }
+        	
+        	
+        }
+        
+        else if ((criteria == "angular") || ((criteria == "angularLand") && (sequence.size() == 0)))
+        {
+        	Node dualOrigin = utilities.getDualNode(originNode, pedestrianSimulation.dualNetwork);
+        	Node dualDestination = null;
         	while (dualDestination == dualOrigin || dualDestination == null) dualDestination = utilities.getDualNode(
-        			destinationNode, state.dualNetwork);
+        			destinationNode, pedestrianSimulation.dualNetwork);
 
     		AStarAngular pathfinderAngular = new AStarAngular();
             Path path = pathfinderAngular.astarPath(dualOrigin, dualDestination, state, null, true);
             newPath = path.edges;
         }
         
+        else if (criteria == "angularLand")
+        {
+        	{
+        		Node dualOrigin = utilities.getDualNode(originNode, pedestrianSimulation.dualNetwork);
+        		Node dualDestination = utilities.getDualNode(destinationNode, pedestrianSimulation.dualNetwork);
+        		
+        		DijkstraAngLand pathFinderAngLand = new DijkstraAngLand();  
+        		Node tmpNode = dualOrigin;
+        		ArrayList<GeomPlanarGraphDirectedEdge> tmpPath = null;
+//            	List centroidsToAvoid = new ArrayList<GeomPlanarGraphDirectedEdge>();
+
+            	for (Node intermediateNode : sequence)
+            	{
+//            		System.out.println("originNode" + originNode.getData()+ "interm"+ intermediateNode.getData()+ " destn "+ destinationNode.getData());
+            		Node node = utilities.getDualNode(intermediateNode, pedestrianSimulation.dualNetwork);
+            		if (sequence.indexOf(intermediateNode) == 0) 
+            		{
+            			newPath = pathFinderAngLand.dijkstraPath(tmpNode, node, destinationNode, state); 
+             		}
+            		else
+            		{
+            			tmpPath = pathFinderAngLand.dijkstraPath(tmpNode, node, destinationNode, state);  
+            			newPath.addAll(tmpPath); 
+            		}
+                	tmpNode = node;
+//                	centroidsToAvoid.remove(node.getData());
+            	}
+            	tmpPath = pathFinderAngLand.dijkstraPath(tmpNode, dualDestination, destinationNode, state);  
+            	newPath.addAll(tmpPath); 
+        	}
+        }
+        
+
 //        else if (criteria == "topological")
 //        {
 //        	AStarTopological pathfinderToplogical = new AStarTopological();
@@ -310,50 +362,36 @@ public final class Pedestrian implements Steppable
 //        }
               
         // if the path works, lay it in
-        if (newPath != null && newPath.size() > 0) 
+    	RouteData route = new RouteData();
+    	route.origin = (int) originNode.getData();
+    	route.destination = (int) destinationNode.getData();
+    	route.criteria = criteria;
+    	List<Integer> sequenceEdges = new ArrayList<Integer>();
+
+    	for (GeomPlanarGraphDirectedEdge o  : newPath)
         {
-
-        	RouteData route = new RouteData();
-        	route.origin = (int) originNode.getData();
-        	route.destination = (int) destinationNode.getData();
-        	route.criteria = criteria;
-        	
-        	Iterator pt = newPath.iterator();
-        	List<Integer> sequenceEdges = new ArrayList<Integer>();
-        	while (pt.hasNext()) 
-        	{
-        		int edge = (((GeomPlanarGraphEdge) ((GeomPlanarGraphDirectedEdge) pt.next()).getEdge()).getIntegerAttribute("streetID"));
-        		sequenceEdges.add(edge);
-        	}
-        	route.sequenceEdges = sequenceEdges; 
-        	state.routesData.add(route);
-        	indexOnPath = 0;
-        	path = newPath;
-
-            // set up how to traverse this first link
-            GeomPlanarGraphEdge firstEdge = (GeomPlanarGraphEdge) newPath.get(0).getEdge();
-            setupEdge(firstEdge); //Sets the Agent up to proceed along an Edge
-
-            // update the current position for this link
-            updatePosition(segment.extractPoint(currentIndex));
-
+        	// update edge data
+        	updateEdgeData((GeomPlanarGraphEdge) o.getEdge());
+        	int edge = ((GeomPlanarGraphEdge) o.getEdge()).getIntegerAttribute("edgeID");
+        	sequenceEdges.add(edge);
         }
-        
-    	// update edge data
-        for (GeomPlanarGraphDirectedEdge o  : newPath) updateEdgeData((GeomPlanarGraphEdge) o.getEdge());
+
+    	route.sequenceEdges = sequenceEdges; 
+    	state.routesData.add(route);
+    	indexOnPath = 0;
+    	path = newPath;
+
+        // set up how to traverse this first link
+        GeomPlanarGraphEdge firstEdge = (GeomPlanarGraphEdge) newPath.get(0).getEdge();
+        setupEdge(firstEdge); //Sets the Agent up to proceed along an Edge
+
+        // update the current position for this link
+        updatePosition(segment.extractPoint(currentIndex));
     	numTrips += 1;
     }
 
     double progress(double val)
     {
-    	try 
-    	{
-    		double edgeLength = currentEdge.getLine().getLength();
-    	}
-    	catch(NullPointerException i)
-    	{
-    		System.out.println(criteria);
-    	}
 //        double traffic = world.edgeTraffic.get(currentEdge).size();
 //        double factor = 1000 * edgeLength / (traffic * 5);
     	double edgeLength = currentEdge.getLine().getLength();
@@ -371,9 +409,9 @@ public final class Pedestrian implements Steppable
     {
     	pedestrianSimulation stateSchedule = (pedestrianSimulation) state;
         // check that we've been placed on an Edge  //check that we haven't already reached our destination
-        if (reachedDestination == true || destinationNode == null)
+        if (reachedDestination || destinationNode == null)
         {
-        	if (reachedDestination == true)	reachedDestination = false;
+        	if (reachedDestination)	reachedDestination = false;
         	if (numTrips == OD.size()) 
         	{
         		stateSchedule.agentList.remove(this);
@@ -515,7 +553,7 @@ public final class Pedestrian implements Steppable
       
     void updateEdgeData(GeomPlanarGraphEdge edge)
     {
-		EdgeData ed = state.edgesMap.get(edge.getIntegerAttribute("streetID"));
+		EdgeData ed = state.edgesMap.get(edge.getIntegerAttribute("edgeID"));
 		if (criteria == "euclidean") ed.euclidean += 1;
 		else if (criteria == "angular") ed.angular += 1;
 		else if (criteria == "topological") ed.topological += 1;
@@ -529,7 +567,7 @@ public final class Pedestrian implements Steppable
     
     public void repositionAgent() 
     {
-        Node new_start = nodesLookup.searchRandomNode(state.geometriesNodes, state);
+        Node new_start = nodesLookup.searchRandomNode(pedestrianSimulation.nodesGeometries, state);
         Coordinate startCoord = new_start.getCoordinate();
         updatePosition(startCoord); 
     }

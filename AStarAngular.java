@@ -14,7 +14,6 @@ package sim.app.geo.pedestrianSimulation;
 import com.vividsolutions.jts.planargraph.DirectedEdgeStar;
 import com.vividsolutions.jts.planargraph.Node;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -148,9 +147,9 @@ public class AStarAngular
 
         while (currentWrapper.nodeFrom != null)
         {
-        	int streetID = (int) currentWrapper.node.getData(); //extract streetID
-        	//extract edge from streetID   ("e" is the edge in the edgeData structure)
-         	GeomPlanarGraphDirectedEdge edge = (GeomPlanarGraphDirectedEdge) edgesMap.get(streetID).planarEdge.getDirEdge(0); 
+        	int edgeID = (int) currentWrapper.node.getData(); //extract edgeID
+        	//extract edge from edgeID   ("e" is the edge in the edgeData structure)
+         	GeomPlanarGraphDirectedEdge edge = (GeomPlanarGraphDirectedEdge) edgesMap.get(edgeID).planarEdge.getDirEdge(0); 
          	sequenceEdges.add(0, edge); // add this edge to the front of the list
             currentWrapper = mapWrappers.get(currentWrapper.nodeFrom);
         }

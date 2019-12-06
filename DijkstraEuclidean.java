@@ -119,6 +119,13 @@ public class DijkstraEuclidean {
 //            for (Object o : edgesBetween) d = (GeomPlanarGraphEdge) o;
 //            GeomPlanarGraphDirectedEdge dd = (GeomPlanarGraphDirectedEdge) d.getDirEdge(0);
 	        }
+		
+		if (path.size() == 0) 
+		{
+		System.out.println("problems with Euclidean Dijstra "+originNode.getData()+ " "+destinationNode.getData());
+		System.out.println("map "+ mapWrappers.size()+ " unvis "+unvisitedNodes.size()+" visited " +visitedNodes.size());
+		
+		}
 	    return path;
 	    }
 

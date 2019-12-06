@@ -70,8 +70,8 @@ public class districtRouting {
 					if (gd.nodeID == currentLocation.getData()) continue;
 					if (badExits.contains(gd.gatewayID)) continue;
 					if (visited.contains(gd.regionTo)) continue;
-					double gateAngle = utilities.angle(currentLocation.getCoordinate(), gd.n.getCoordinate());
-					if ((utilities.nodesDistance(gd.n, destinationNode) > distanceTarget) ||
+					double gateAngle = utilities.angle(currentLocation.getCoordinate(), gd.node.getCoordinate());
+					if ((utilities.nodesDistance(gd.node, destinationNode) > distanceTarget) ||
 						(utilities.inDirection(destinationAngle, gateAngle, 140) == false) || 
 						(utilities.inDirection(destinationAngle, gd.entryAngle, 140) == false))
 					{
@@ -123,7 +123,7 @@ public class districtRouting {
 			{
 				Map.Entry<Integer, Double> pair = (Map.Entry<Integer, Double>)it.next();
 				Integer exitID = pair.getKey();
-				Node exitNode = gatewaysMap.get(exitID).n;
+				Node exitNode = gatewaysMap.get(exitID).node;
 				
 				Integer entryID = gatewaysMap.get(exitID).entryID;
 			  	NodeData nd = nodesMap.get(entryID);

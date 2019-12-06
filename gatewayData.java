@@ -5,7 +5,7 @@ import com.vividsolutions.jts.planargraph.Node;
 
 public class GatewayData {
 	
-	Node n;
+	Node node;
 	Integer gatewayID;
 	Integer nodeID;
 	Integer district;

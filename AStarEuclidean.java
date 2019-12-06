@@ -79,7 +79,7 @@ public class AStarEuclidean
                 GeomPlanarGraphDirectedEdge lastSegment = (GeomPlanarGraphDirectedEdge) o;
                 
                 if (segmentsToAvoid == null);
-                else if (segmentsToAvoid.contains(((GeomPlanarGraphEdge) lastSegment.getEdge()).getIntegerAttribute("streetID"))) 
+                else if (segmentsToAvoid.contains(((GeomPlanarGraphEdge) lastSegment.getEdge()).getIntegerAttribute("edgeID"))) 
                 	continue;
                 
                 Node nextNode = null;
@@ -100,7 +100,7 @@ public class AStarEuclidean
                 // otherwise evaluate the cost of this node/edge combo
                                        
                 double error = state.fromNormalDistribution(1, 0.10);
-                if (error < 0) error = 0;
+                if (error < 0) error = 0.10;
                 double tentativeCost = currentNodeWrapper.gx + length(lastSegment)*error;
                 boolean better = false;
 

@@ -36,7 +36,6 @@ public class DijkstraAngular {
     	this.edgesMap = state.edgesMap;
     	this.nodesMap = state.nodesMap;
     	this.centroidsMap = state.centroidsMap;
-		this.dualNetwork = state.dualNetwork;
 
 		visitedNodes = new ArrayList<Node>();
 		unvisitedNodes = new ArrayList<Node>();
@@ -50,7 +49,6 @@ public class DijkstraAngular {
 		while (unvisitedNodes.size() > 0) 
 		{
 			Node node = getClosest(unvisitedNodes); // at the beginning it takes originNode
-//			node.setVisited(true);
 			visitedNodes.add(node);
 			unvisitedNodes.remove(node);
 			findMinDistances(node);
@@ -114,8 +112,8 @@ public class DijkstraAngular {
 		Node step = destinationNode;
 		while (step != null)
 	    	{
-				int streetID = (int)step.getData(); //extract streetID
-				GeomPlanarGraphDirectedEdge dd = (GeomPlanarGraphDirectedEdge) edgesMap.get(streetID).planarEdge.getDirEdge(0);
+				int edgeID = (int)step.getData(); //extract edgeID
+				GeomPlanarGraphDirectedEdge dd = (GeomPlanarGraphDirectedEdge) edgesMap.get(edgeID).planarEdge.getDirEdge(0);
 	        	step = predecessors.get(step);
 	            path.add(0, dd);
 	        }

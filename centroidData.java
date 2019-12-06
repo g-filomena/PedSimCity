@@ -7,7 +7,7 @@ import sim.util.geo.GeomPlanarGraphEdge;
 public class CentroidData {
 	
 	Node c;
-	int streetID;
+	int edgeID;
 	
 
 }

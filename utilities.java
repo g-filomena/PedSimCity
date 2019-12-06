@@ -1,12 +1,8 @@
 package sim.app.geo.pedestrianSimulation;
 
-import java.io.IOException;
-import java.io.Writer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -19,7 +15,6 @@ import com.vividsolutions.jts.planargraph.DirectedEdgeStar;
 import com.vividsolutions.jts.planargraph.Node;
 import com.vividsolutions.jts.planargraph.Subgraph;
 
-import sim.field.geo.GeomVectorField;
 import sim.util.Bag;
 import sim.util.geo.GeomPlanarGraph;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
@@ -146,12 +141,11 @@ public class utilities {
 	 	return dualNode;
     }	
     
-    public static ArrayList<Node> getAdjacentNodes(Node node, GeomPlanarGraph primalNetwork)
+    public static ArrayList<Node> getAdjacentNodes(Node node)
     {	
 
 		DirectedEdgeStar startingEdges =  node.getOutEdges();
 		ArrayList<Node> adjacentNodes = new ArrayList<Node>();
-		
 	 	for (Object o : startingEdges.getEdges())
 	 	{
 	 		GeomPlanarGraphDirectedEdge dEdge = (GeomPlanarGraphDirectedEdge) o;
@@ -195,12 +189,12 @@ public class utilities {
 	public static int commonPrimalJunction(Node cen, Node otherCen, pedestrianSimulation state)
 	{
 
-	    int streetID = (int) cen.getData();
-	    int otherStreetID = (int) otherCen.getData();
-	    int u = state.edgesMap.get(streetID).fromNode;
-	    int v = state.edgesMap.get(streetID).toNode;
-	    int uC = state.edgesMap.get(otherStreetID).fromNode;
-	    int vC = state.edgesMap.get(otherStreetID).toNode;
+	    int edgeID = (int) cen.getData();
+	    int otherEdgeID = (int) otherCen.getData();
+	    int u = state.edgesMap.get(edgeID).fromNode;
+	    int v = state.edgesMap.get(edgeID).toNode;
+	    int uC = state.edgesMap.get(otherEdgeID).fromNode;
+	    int vC = state.edgesMap.get(otherEdgeID).toNode;
 	    
 	    if ((u == uC) | (u == vC)) return u;
 	    else return v;

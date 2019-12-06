@@ -11,6 +11,8 @@ public class DualNodeWrapper
     GeomPlanarGraphDirectedEdge edgeFrom;
     double gx, hx, fx;
     int commonPrimalJunction;
+    int nodesSoFar;
+    double pathCost, nodeLandmarkness, pathLandmarkness;
 
     public DualNodeWrapper(Node n)
     {
@@ -21,6 +23,9 @@ public class DualNodeWrapper
         nodeFrom = null;
         edgeFrom = null;
         commonPrimalJunction = Integer.MAX_VALUE;
+        pathCost = 0.0;
+        nodeLandmarkness = 0.0;
+        pathLandmarkness = 0.0;
     }
     
 }
