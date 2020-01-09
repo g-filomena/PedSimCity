@@ -48,7 +48,7 @@ import org.supercsv.prefs.CsvPreference;
  */
 
 
-public class pedestrianSimulation extends SimState
+public class PedestrianSimulation extends SimState
 {
     private static final long serialVersionUID = 1L;
     
@@ -76,8 +76,8 @@ public class pedestrianSimulation extends SimState
     public HashMap<Integer,ArrayList<GatewayData>> exitDistrictsMap = new HashMap<Integer,ArrayList<GatewayData>>();
     public HashMap<Integer,GatewayData> gatewaysMap = new HashMap<Integer,GatewayData>();
     
-    public HashMap<Pair, Double> euclideanDistancesMap = new HashMap<Pair, Double>();
-    public HashMap<Pair, Double> angularDistancesMap = new HashMap<Pair, Double>();
+    public HashMap<Pair<Node, Node>, Double> euclideanDistancesMap = new HashMap<Pair<Node, Node>, Double>();
+    public HashMap<Pair<Node, Node>, Double> angularDistancesMap = new HashMap<Pair<Node, Node>, Double>();
        
     //dual graph
     public static GeomVectorField intersectionsDual = new GeomVectorField();
@@ -100,7 +100,7 @@ public class pedestrianSimulation extends SimState
     
     ArrayList<Pedestrian> agentList = new ArrayList<Pedestrian>();
     List<Integer> districts = new ArrayList<Integer>();
-    ArrayList<Pair> OD = new ArrayList<Pair>();
+    ArrayList<Pair<Node, Node>> OD = new ArrayList<Pair<Node, Node>>();
 
     static List<Float> distances = new ArrayList<Float>();
     
@@ -110,12 +110,12 @@ public class pedestrianSimulation extends SimState
 
     public int numAgents;
     
-	boolean visibility = false;
+	static boolean visibility = false;
 	boolean dynamicRouting = false;
 	static boolean districtRouting = false;
 	
 	String criteria[];
-    String criteriaLandmarks[] = {"euclidean", "angular", "euclideanLand", "angularLand"};
+    String criteriaLandmarks[] = {"euclidean", "angular", "euclideanLand", "angularLand", "localLandmarks", "globalLandmarks"};
     String criteriaDistricts[] = {"euclidean", "angular", "topological",  "district"};
 
     
@@ -124,7 +124,7 @@ public class pedestrianSimulation extends SimState
 	
     /** Constructor */
 	
-    public pedestrianSimulation(long seed, int job)
+    public PedestrianSimulation(long seed, int job)
     {
         super(seed);
     	this.current_job = job;
@@ -159,8 +159,8 @@ public class pedestrianSimulation extends SimState
 		else csvSegments = csvSegmentsLandmarks;
 
 	   	FileWriter writerDensitiesData = new FileWriter(csvSegments);
-	   	CSVUtils.writeLine(writerDensitiesData, Arrays.asList("edgeID", "euclidean", "angular", "euclideanLandmark", "angularLandmark",
-	   			"euclideanDistrict", "angularDistrict"));
+	   	CSVUtils.writeLine(writerDensitiesData, Arrays.asList("edgeID", "euclidean", "angular", "topological", "euclideanLandmark", "angularLandmark",
+	   			"localLandmarks", "globalLandmarks", "euclideanDistrict", "angularDistrict"));
 	   	
 	   	int rGeoSize = rGeometries.size();
 	   	for (int i = 0; i < rGeoSize; i++) 
@@ -168,7 +168,8 @@ public class pedestrianSimulation extends SimState
 	    	MasonGeometry segment = (MasonGeometry) rGeometries.objs[i]; 
 	        EdgeData ed = edgesMap.get(segment.getIntegerAttribute("edgeID"));
 	        CSVUtils.writeLine(writerDensitiesData, Arrays.asList(Integer.toString(segment.getIntegerAttribute("edgeID")), Integer.toString(ed.euclidean),
-	        		Integer.toString(ed.angular), Integer.toString(ed.euclideanLand), Integer.toString(ed.angularLand), 
+	        		Integer.toString(ed.angular), Integer.toString(ed.topological), Integer.toString(ed.euclideanLand), Integer.toString(ed.angularLand),
+	        		Integer.toString(ed.localLandmarks), Integer.toString(ed.globalLandmarks),
 	        	    Integer.toString(ed.districtRoutingEuclidean),Integer.toString(ed.districtRoutingAngular)));
 	    }
 
@@ -447,6 +448,7 @@ public class pedestrianSimulation extends SimState
         	GeomPlanarGraphEdge edge = (GeomPlanarGraphEdge) o;
         	EdgeData ed = new EdgeData();
         	int edgeID =  edge.getIntegerAttribute("edgeID");
+        	edge.setData(edgeID);
         	
         	ed.planarEdge = edge;
         	ed.distanceScaled = edge.getDoubleAttribute("length_sc");  
@@ -521,25 +523,22 @@ public class pedestrianSimulation extends SimState
 
     public void populate()
     {
-    	int numTripsScenario = distances.size();
-    	ArrayList<Node> control = new ArrayList<Node>();
-		
-//    	Node originNode = nodesMap.get(719).node;
-//    	Node destinationNode = nodesMap.get(3983).node;
-//    	Pair<Node, Node> pair = new Pair<Node, Node> (originNode, destinationNode);
-//	    OD.add(pair);
+//    	int numTripsScenario = distances.size();
+    	int numTripsScenario = 1;
+    	Node originNode = nodesMap.get(20583).node;
+    	Node destinationNode = nodesMap.get(23008).node;
+    	Pair<Node, Node> pair = new Pair<Node, Node> (originNode, destinationNode);
+	    OD.add(pair);
     	
-    	for (int i = 0; i < numTripsScenario; i++)
-    	{
-    		Node originNode = null;
-//    		while ((originNode == null) | (control.contains(originNode))) originNode = nodesLookup.searchRandomNode(nodesGeometries, this);
-    		while (originNode == null) originNode = nodesLookup.searchRandomNode(nodesGeometries, this);
-//    		control.add(originNode);
-
-    		Node destinationNode = nodesLookup.searchNodeWithin(originNode, junctions, distances, this);
-    		Pair<Node, Node> pair = new Pair<Node, Node> (originNode, destinationNode);
-    	    OD.add(pair);  
-    	}
+//    	for (int i = 0; i < numTripsScenario; i++)
+//    	{
+//    		Node originNode = null;
+//    		while (originNode == null) originNode = nodesLookup.searchRandomNode(nodesGeometries, this);
+//    		Node destinationNode = nodesLookup.searchNodeWithin(originNode, junctions, distances, this);
+//    		
+//    		Pair<Node, Node> pair = new Pair<Node, Node> (originNode, destinationNode);
+//    	    OD.add(pair);  
+//    	}
     	
     	System.out.println("populating"  + OD.size());
     	for (int i = 1; i <= numAgents; i++)
@@ -547,10 +546,11 @@ public class pedestrianSimulation extends SimState
         	String routeCriteria = null;
         	if (i == 1) routeCriteria = "euclidean";
         	else if (i == 2) routeCriteria = "angular";
-//////        	else if (i == 3) routeCriteria = "topological";
+//        	else if (i == 3) routeCriteria = "topological";
         	else if (i == 3) routeCriteria = "euclideanLand";
-        	else routeCriteria = "angularLand";
-
+        	else if (i == 4) routeCriteria = "angularLand";
+        	else if (i == 5) routeCriteria = "localLandmarks";
+        	else if (i == 6) routeCriteria = "globalLandmarks";
         	       	
         	Pedestrian a = new Pedestrian(this, routeCriteria, OD); //, goalEdge )
 	        MasonGeometry newGeometry = a.getGeometry();
@@ -568,7 +568,7 @@ public class pedestrianSimulation extends SimState
     
     public static void main(String[] args)
     {
-    	int jobs = 50;
+    	int jobs = 1;
     	String directory = "C:/Users/g_filo01/sciebo/Scripts/Image of the City/Outputs/London/intermediate/for Simulation/";
         try 
         {
@@ -598,8 +598,8 @@ public class pedestrianSimulation extends SimState
 		        junctionsAttributes.add("CM"); 
     		}
             
-	        URL roadsFile = pedestrianSimulation.class.getResource("data/London_edges_simplified_BB.shp");
-	        URL junctionsFile = pedestrianSimulation.class.getResource("data/London_nodes_simplified_BB.shp");
+	        URL roadsFile = PedestrianSimulation.class.getResource("data/London_edges_simplified_BB.shp");
+	        URL junctionsFile = PedestrianSimulation.class.getResource("data/London_nodes_simplified_BB.shp");
             ShapeFileImporter.read(roadsFile, roads);
             ShapeFileImporter.read(junctionsFile, junctions, junctionsAttributes);
             
@@ -607,8 +607,8 @@ public class pedestrianSimulation extends SimState
             System.out.println("reading dual graph...");
             Bag centroidsAttributes = new Bag();
             centroidsAttributes.add("edgeID");
-            URL roadsDualFile = pedestrianSimulation.class.getResource("data/London_edgesDual_simplified_BB.shp");
-            URL centroidsFile = pedestrianSimulation.class.getResource("data/London_nodesDual_simplified_BB.shp");            
+            URL roadsDualFile = PedestrianSimulation.class.getResource("data/London_edgesDual_simplified_BB.shp");
+            URL centroidsFile = PedestrianSimulation.class.getResource("data/London_nodesDual_simplified_BB.shp");            
             ShapeFileImporter.read(roadsDualFile, intersectionsDual);
             ShapeFileImporter.read(centroidsFile, centroids, centroidsAttributes);
 
@@ -619,7 +619,7 @@ public class pedestrianSimulation extends SimState
             buildingsAttributes.add("lScore_sc");  
             buildingsAttributes.add("gScore_sc");  
 //            URL landmarksFile = pedestrianSimulation.class.getResource("data/London_landmarks_noADv.shp");
-            URL landmarksFile = pedestrianSimulation.class.getResource("data/London_landmarks.shp");
+            URL landmarksFile = PedestrianSimulation.class.getResource("data/London_landmarks.shp");
             ShapeFileImporter.read(landmarksFile, buildings);
 
             /// READING DISTANCES
@@ -641,28 +641,31 @@ public class pedestrianSimulation extends SimState
             dualNetwork.createFromGeomField(intersectionsDual);          			
             nodesGeometries = junctions.getGeometries();
             centroidsGeometries = centroids.getGeometries();
-//            System.out.println("reading visibility...");
-//            visibilityMatrix = new String[buildings.getGeometries().size()+1][nodesGeometries.size()+1];
-//            CSVReader reader = new CSVReader(new FileReader(directory+"London_visibility_matrix_simplified_BB.csv"));
-//            String [] nextLine;
-//            
-//            int v = 0;
-//            while ((nextLine = reader.readNext()) != null) 
-//            {
-//            	visibilityMatrix[v] = nextLine;
-//            	v = v+1;
-//            }
-//            reader.close();
+            
+            if (visibility)
+            {
+	            System.out.println("reading visibility...");
+	            visibilityMatrix = new String[buildings.getGeometries().size()+1][nodesGeometries.size()+1];
+	            CSVReader reader = new CSVReader(new FileReader(directory+"London_visibility_matrix_simplified_BB.csv"));
+	            String [] nextLine;
+	            
+	            int v = 0;
+	            while ((nextLine = reader.readNext()) != null) 
+	            {
+	            	visibilityMatrix[v] = nextLine;
+	            	v = v+1;
+	            }
+	            reader.close();
+            }
             System.out.println("files imported successfully");
 	        
 	    	for (int i = 0; i < jobs; i++)
 	    	{
 		    	System.out.println("Run nr.. "+i);
-		    	SimState state = new pedestrianSimulation(System.currentTimeMillis(), i); 
+		    	SimState state = new PedestrianSimulation(System.currentTimeMillis(), i); 
 		    	state.start(); 
 		    	while (state.schedule.step(state)) {}
 	    	}
-	
 		} 
         catch (IOException e)
         {

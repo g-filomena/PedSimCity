@@ -19,7 +19,7 @@ import sim.util.geo.MasonGeometry;
 public class landmarkFunctions{	
 	
 
-    static double localLandmarkness(Node node, boolean advanceVis, HashMap<Node, NodeWrapper> mapWrappers, pedestrianSimulation state)
+    static double localLandmarkness(Node node, boolean advanceVis, HashMap<Node, NodeWrapper> mapWrappers, PedestrianSimulation state)
     {   	
         Integer nodeID = (Integer) node.getData();
         NodeData nd = state.nodesMap.get(nodeID);
@@ -27,6 +27,7 @@ public class landmarkFunctions{
         localLandmarks = nd.localLandmarks;
         double localScore = 0.0;
         if (localLandmarks == null) return 0.0;
+        
         if (!advanceVis) return Collections.max(nd.localScores);
         else
         {
@@ -68,7 +69,7 @@ public class landmarkFunctions{
         
 
     static double localLandmarknessDualGraph(Node centroid, Node node, boolean advanceVis, HashMap<Node, DualNodeWrapper> mapWrappers,
-    		pedestrianSimulation state)
+    		PedestrianSimulation state)
     {
     	// current real segment
     	Integer edgeID = (Integer) centroid.getData();
@@ -128,7 +129,7 @@ public class landmarkFunctions{
 
     }
     
-    static double globalLandmarknessNode(Node node, Node destinationNode, boolean useAnchors, pedestrianSimulation state) 
+    static double globalLandmarknessNode(Node node, Node destinationNode, boolean useAnchors, PedestrianSimulation state) 
     {   	
             
        Integer nodeID = (Integer) node.getData();
@@ -161,47 +162,47 @@ public class landmarkFunctions{
     }
        
 
-    static double globalLandmarknessDualNode(Node centroid, Node destinationNode, boolean useAnchors, pedestrianSimulation state) 
+    static double globalLandmarknessDualNode(Node centroid, Node primalDestinationNode, boolean useAnchors, PedestrianSimulation state) 
     {   	
 		// current real segment: identifying node
 		Integer edgeID = (Integer) centroid.getData();
 		GeomPlanarGraphDirectedEdge streetSegment = (GeomPlanarGraphDirectedEdge) state.edgesMap.get(edgeID).planarEdge.getDirEdge(0); 
 		Node targetNode = streetSegment.getToNode(); // targetNode            
-    	    	
-    	Integer nodeID = (Integer) targetNode.getData();
-    	NodeData nd = state.nodesMap.get(nodeID);
-    	List<Integer> distantLandmarks = new ArrayList<Integer>();
-    	distantLandmarks = nd.distantLandmarks;
-        if (distantLandmarks == null) return 0.0;
-        if (!useAnchors) return Collections.max(nd.distantScores);	
-        
-    	// destination segment: identifying node
-    	Integer destinationID = (Integer) destinationNode.getData();
-	    NodeData dd = state.nodesMap.get(destinationID);
-	    List<Integer> anchors = new ArrayList<Integer>();
-	    anchors = dd.anchors;
-       if (useAnchors & anchors == null) return 0.0;
-       double nodeGlobalScore = 0.0;
+		    	
+		Integer nodeID = (Integer) targetNode.getData();
+		NodeData nd = state.nodesMap.get(nodeID);
+		List<Integer> distantLandmarks = new ArrayList<Integer>();
+		distantLandmarks = nd.distantLandmarks;
+		if (distantLandmarks == null) return 0.0;
+		if (!useAnchors) return Collections.max(nd.distantScores);	
+		
+		// destination segment: identifying node
+		Integer destinationID = (Integer) primalDestinationNode.getData();
+		NodeData dd = state.nodesMap.get(destinationID);
+		List<Integer> anchors = new ArrayList<Integer>();
+		anchors = dd.anchors;
+		if (useAnchors & anchors == null) return 0.0;
+		double nodeGlobalScore = 0.0;
 
-       for (int dL : distantLandmarks)
-	    {
+		for (int dL : distantLandmarks)
+		{
 			double tmp = 0.0;
 			if (anchors.contains(dL))
 			{
 				tmp = nd.distantScores.get(distantLandmarks.indexOf(dL));
 				double distanceLandmark = dd.distances.get(anchors.indexOf(dL));
-				double distanceWeight = utilities.nodesDistance(centroid, destinationNode)/distanceLandmark;
+				double distanceWeight = utilities.nodesDistance(centroid, primalDestinationNode)/distanceLandmark;
 				if (distanceWeight > 1.0) distanceWeight = 1.0;
 				tmp = tmp*distanceWeight;
 			}
-	    	if (tmp > nodeGlobalScore) nodeGlobalScore = tmp;
+			if (tmp > nodeGlobalScore) nodeGlobalScore = tmp;
 		}
-	    return nodeGlobalScore;
+		return nodeGlobalScore;
 	}
     
                         
     static double globalLandmarknessPaths(Node destinationNode, Node tmpNode, HashMap<Node, NodeWrapper> mapWrappers, boolean useAnchors,
-    		String method, pedestrianSimulation state)
+    		String method, PedestrianSimulation state)
     {   	
         Integer destinationID = (Integer) destinationNode.getData();
         NodeData dd = state.nodesMap.get(destinationID);
@@ -274,7 +275,7 @@ public class landmarkFunctions{
         
         
     static double globalLandmarknessDualPath(Node dualDestinationNode, Node tmpNode, Node destinationNode, HashMap<Node, DualNodeWrapper> mapWrappers,
-    		boolean useAnchors, String method, pedestrianSimulation state)
+    		boolean useAnchors, String method, PedestrianSimulation state)
     {   
         Integer destinationID = (Integer) destinationNode.getData();
         NodeData dd = state.nodesMap.get(destinationID);
@@ -366,11 +367,11 @@ public class landmarkFunctions{
     }
 
         
-    public static double easinessNavigation(Node originNode, Node destinationNode, pedestrianSimulation state)
+    public static double easinessNavigation(Node originNode, Node destinationNode, PedestrianSimulation state)
     {
         Geometry smallestCircle = utilities.smallestEnclosingCircle(originNode, destinationNode);
-        double distanceComplexity = utilities.nodesDistance(originNode, destinationNode)/Collections.max(pedestrianSimulation.distances);
-        Bag filterBuildings = pedestrianSimulation.buildings.getContainedObjects(smallestCircle);
+        double distanceComplexity = utilities.nodesDistance(originNode, destinationNode)/Collections.max(PedestrianSimulation.distances);
+        Bag filterBuildings = PedestrianSimulation.buildings.getContainedObjects(smallestCircle);
         HashMap<MasonGeometry, Double> buildingsMap =  utilities.filterMap(state.buildingsLS, filterBuildings);
         
         int count = 0;
@@ -389,10 +390,10 @@ public class landmarkFunctions{
         return easiness;
     }
 	
-	public static GeomVectorField relevantNodes(Node originNode, Node destinationNode, pedestrianSimulation state)
+	public static GeomVectorField relevantNodes(Node originNode, Node destinationNode, PedestrianSimulation state)
 	{
 	    Geometry smallestCircle = utilities.smallestEnclosingCircle(originNode, destinationNode);
-	    Bag filter = pedestrianSimulation.junctions.getContainedObjects(smallestCircle);      	    
+	    Bag filter = PedestrianSimulation.junctions.getContainedObjects(smallestCircle);      	    
 	    HashMap<MasonGeometry, Double> nodesMap =  utilities.filterMap(state.nodesBc, filter);
 
 	    Map<MasonGeometry, Double> orderedMap = utilities.sortByValue(nodesMap);

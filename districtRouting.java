@@ -4,15 +4,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 
-import com.vividsolutions.jts.planargraph.DirectedEdgeStar;
 import com.vividsolutions.jts.planargraph.Node;
-import com.vividsolutions.jts.planargraph.Subgraph;
 import sim.util.geo.GeomPlanarGraph;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 import sim.util.geo.GeomPlanarGraphEdge;
 
-public class districtRouting {
+public class DistrictRouting {
 	ArrayList<Integer> visited = new ArrayList<Integer>();
 	ArrayList<Node> sequence = new ArrayList<Node>();
 	ArrayList<Integer> sequenceGateways = new ArrayList<Integer>();
@@ -34,7 +33,7 @@ public class districtRouting {
 	HashMap<Integer,GeomPlanarGraph> districtDualMap;
 	
 
-	public ArrayList<GeomPlanarGraphDirectedEdge> pathfinderDistrict(Node originNode, Node destinationNode, pedestrianSimulation state)
+	public ArrayList<GeomPlanarGraphDirectedEdge> pathFinderDistrict(Node originNode, Node destinationNode, PedestrianSimulation state)
 	{	
 		
 		this.edgesMap = state.edgesMap;
@@ -109,15 +108,14 @@ public class districtRouting {
 					
 //					System.out.println("CHECK HERE " + sequenceNodes);
 					for (int i : badExits) System.out.println(gatewaysMap.get(i).nodeID);
-//					System.out.println(" --------- lastLocation "+ currentLocation.getData()); 
-//					System.out.println("route  "+ originNode.getData() + "  "+ destinationNode.getData());
-					AStarAngular pathfinderAngular = new AStarAngular();
-					Node originNodeDual = utilities.getDualNode(originNode, state.dualNetwork);
-					Node destinationNodeDual = utilities.getDualNode(destinationNode, state.dualNetwork);
-					return pathfinderAngular.astarPath(originNodeDual, destinationNodeDual, state, null, true).edges;
+
+					DijkstraAngularChange pathFinder = new DijkstraAngularChange();
+					Node originNodeDual = utilities.getDualNode(originNode, PedestrianSimulation.dualNetwork);
+					Node destinationNodeDual = utilities.getDualNode(destinationNode, PedestrianSimulation.dualNetwork);
+					return pathFinder.dijkstraPath(originNodeDual, destinationNodeDual,null, state).edges;
 				}
-			Map validSorted = utilities.sortByValue(validGates); 
-			Iterator it = validSorted.entrySet().iterator();
+			Map<Integer, Double> validSorted = utilities.sortByValue(validGates); 
+			Iterator<Entry<Integer, Double>> it = validSorted.entrySet().iterator();
 	//		Map.Entry<String,String> entry = map.entrySet().iterator().next();
 			while (it.hasNext())
 			{
@@ -159,25 +157,24 @@ public class districtRouting {
 			
 			if (i%2 != 0) continue;
 			ArrayList<GeomPlanarGraphDirectedEdge> resultPartial =  new ArrayList<GeomPlanarGraphDirectedEdge>();
-			GeomPlanarGraph districtNetwork;
 			Node originPrimal = null;
 
 			if (i == 0) 
 			{
 				originPrimal = sequence.get(0);
-				originT = utilities.getDualNode(originPrimal, state.dualNetwork);
+				originT = utilities.getDualNode(originPrimal, PedestrianSimulation.dualNetwork);
 			}
 			
-			AStarAngular pathfinderAngular = new AStarAngular();
+			DijkstraAngularChange pathFinder = new DijkstraAngularChange();
 			if (i < sequence.size()-2)
 			{
 				int exitID = (int) sequenceGateways.get(i+1);
 				int connectingEdgeID = gatewaysMap.get(exitID).edgeID;
 				GeomPlanarGraphEdge connectingEdge = edgesMap.get(connectingEdgeID).planarEdge;
-				destinationT = state.dualNetwork.findNode(connectingEdge.getLine().getCentroid().getCoordinate());
+				destinationT = PedestrianSimulation.dualNetwork.findNode(connectingEdge.getLine().getCentroid().getCoordinate());
 			}
-			else destinationT = utilities.getDualNode(sequence.get(sequence.size()-1), state.dualNetwork);
-			resultPartial = pathfinderAngular.astarPath(originT, destinationT, state, null, true).edges;
+			else destinationT = utilities.getDualNode(sequence.get(sequence.size()-1), PedestrianSimulation.dualNetwork);
+			resultPartial = pathFinder.dijkstraPath(originT, destinationT, null, state).edges;
 			originT = destinationT;
 			completePath.addAll(resultPartial);
 		}

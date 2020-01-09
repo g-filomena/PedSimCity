@@ -186,7 +186,7 @@ public class utilities {
 		return mapFiltered;
 	}
 	
-	public static int commonPrimalJunction(Node cen, Node otherCen, pedestrianSimulation state)
+	public static int commonPrimalJunction(Node cen, Node otherCen, PedestrianSimulation state)
 	{
 
 	    int edgeID = (int) cen.getData();

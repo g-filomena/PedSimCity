@@ -17,14 +17,14 @@ import sim.util.geo.MasonGeometry;
 public class nodesLookup {
 	
     
-    static Node searchRandomNode(Bag geometriesNodes, pedestrianSimulation state)
+    static Node searchRandomNode(Bag geometriesNodes, PedestrianSimulation state)
     {
     	int c = state.random.nextInt(geometriesNodes.size());  	
     	MasonGeometry geoNode = (MasonGeometry) geometriesNodes.objs[c]; 
     	return state.network.findNode(geoNode.geometry.getCoordinate());
     }
 
-    static Node searchNodeWithin(Node originNode, GeomVectorField vectorField, List<Float> distances, pedestrianSimulation state)
+    static Node searchNodeWithin(Node originNode, GeomVectorField vectorField, List<Float> distances, PedestrianSimulation state)
     {
 		GeometryFactory fact = new GeometryFactory();
     	MasonGeometry nodeLocation = new MasonGeometry(fact.createPoint(new Coordinate(originNode.getCoordinate())));
@@ -54,7 +54,7 @@ public class nodesLookup {
  	  	return node;
     }
     
-    static Node searchNodeWithin(Geometry geo, GeomVectorField vectorField, double lowL, double uppL, pedestrianSimulation state)
+    static Node searchNodeWithin(Geometry geo, GeomVectorField vectorField, double lowL, double uppL, PedestrianSimulation state)
     {	    
  	  	Bag filter = vectorField.getWithinObjects(geo, lowL, uppL);	  	
  	  	int c = state.random.nextInt(filter.size());
@@ -63,7 +63,7 @@ public class nodesLookup {
     }
     
     static Node searchNodeDistributionWithin(Geometry geo, GeomVectorField vectorField,  
-    		HashMap<MasonGeometry, Double> nodesMap, double lowL, double uppL, pedestrianSimulation state)
+    		HashMap<MasonGeometry, Double> nodesMap, double lowL, double uppL, PedestrianSimulation state)
     {
 		double p = state.random.nextFloat();
 	  	MasonGeometry  randomNode = null;
@@ -104,7 +104,7 @@ public class nodesLookup {
     }
     
    
-    Node searchNodeDistribution(pedestrianSimulation state, HashMap<MasonGeometry, Double> nodesMap)
+    Node searchNodeDistribution(PedestrianSimulation state, HashMap<MasonGeometry, Double> nodesMap)
     {
     	double p = state.random.nextFloat();
     	double cumulative = 0.00;

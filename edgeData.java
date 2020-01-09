@@ -15,10 +15,8 @@ public class EdgeData {
     int topological;
     int euclideanLand;
 	int angularLand;
-    int topologicalLand;
-    int landmark;
-    int landmarkL;
-    int landmarkG;
+    int localLandmarks;
+    int globalLandmarks;
     int districtRoutingEuclidean;
     int districtRoutingAngular;
     
