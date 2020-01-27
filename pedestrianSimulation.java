@@ -115,7 +115,8 @@ public class PedestrianSimulation extends SimState
 	static boolean districtRouting = false;
 	
 	String criteria[];
-    String criteriaLandmarks[] = {"euclidean", "angular", "euclideanLand", "angularLand", "localLandmarks", "globalLandmarks"};
+    String criteriaLandmarks[] = {"road_distance", "angular_change", "road_distance_landmarks", "angular_change_landmarks", 
+    		"local_landmarks", "global_landmarks"};
     String criteriaDistricts[] = {"euclidean", "angular", "topological",  "district"};
 
     
@@ -525,8 +526,8 @@ public class PedestrianSimulation extends SimState
     {
 //    	int numTripsScenario = distances.size();
     	int numTripsScenario = 1;
-    	Node originNode = nodesMap.get(20583).node;
-    	Node destinationNode = nodesMap.get(23008).node;
+    	Node originNode = nodesMap.get(10024).node;
+    	Node destinationNode = nodesMap.get(3999).node;
     	Pair<Node, Node> pair = new Pair<Node, Node> (originNode, destinationNode);
 	    OD.add(pair);
     	
