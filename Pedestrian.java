@@ -75,8 +75,8 @@ public final class Pedestrian implements Steppable
     	edgesMap = state.edgesMap;
     	nodesMap = state.nodesMap;
     	
-    	if (criteria == "euclideanLand" || criteria == "angularLand" || 
-    			criteria == "landmark" || criteria == "landmark_G" || criteria == "landmark_L") landmarkRouting = true;
+    	if (criteria == "roadDistanceLandmark" || criteria == "angularChangeLandmark" || 
+    	criteria == "landmark_G" || criteria == "landmark_L") landmarkRouting = true;
     	     
         Node originNode = (Node) OD.get(numTrips).getValue(0);
         GeometryFactory fact = new GeometryFactory();
@@ -114,12 +114,12 @@ public final class Pedestrian implements Steppable
         ArrayList<Node> sequence = new ArrayList<Node>();
         
          
-        if (criteria == "euclidean")
+        if (criteria == "roadDistance")
         {
         	newPath = routePlanning.routeDistanceShortestPath(originNode, destinationNode, null, state, "dijkstra").edges;
         }
         
-        else if (criteria == "angular")
+        else if (criteria == "angularChange")
         {
         	newPath = routePlanning.angularChangeShortestPath(originNode, destinationNode, null, state, "dijkstra").edges;
         }
@@ -129,14 +129,14 @@ public final class Pedestrian implements Steppable
         	newPath = routePlanning.topologicalShortestPath(originNode, destinationNode, null, state).edges;
         }
 
-        else if (criteria == "euclideanLand")
+        else if (criteria == "roadDistanceLandmark")
         {
         	sequence = routePlanning.findSequenceIntermediateNodes(originNode, destinationNode, state);
         	if (sequence.size() == 0) newPath = routePlanning.routeDistanceShortestPath(originNode, destinationNode, null, state, "astar").edges;
         	else newPath = routePlanning.RoadDistanceLandmarksPath(originNode,destinationNode, sequence, state);
         }
         
-        else if (criteria == "angularLand")
+        else if (criteria == "angularChangeLandmark")
         {
         	sequence = routePlanning.findSequenceIntermediateNodes(originNode, destinationNode, state);
         	if (sequence.size() == 0) newPath = routePlanning.angularChangeShortestPath(originNode, destinationNode, null, state, "dijkstra").edges;
@@ -337,11 +337,11 @@ public final class Pedestrian implements Steppable
     void updateEdgeData(GeomPlanarGraphEdge edge)
     {
 		EdgeData ed = state.edgesMap.get(edge.getIntegerAttribute("edgeID"));
-		if (criteria == "euclidean") ed.euclidean += 1;
-		else if (criteria == "angular") ed.angular += 1;
+		if (criteria == "roadDistance") ed.roadDistance += 1;
+		else if (criteria == "angularChange") ed.angularChange += 1;
 		else if (criteria == "topological") ed.topological += 1;
-		else if (criteria == "euclideanLand") ed.euclideanLand += 1;
-		else if (criteria == "angularLand") ed.angularLand += 1;
+		else if (criteria == "roadDistanceLandmark") ed.roadDistanceLandmark += 1;
+		else if (criteria == "angularChangeLandmark") ed.angularChangeLandmark += 1;
 		else if (criteria == "localLandmarks") ed.localLandmarks += 1;
 		else if (criteria == "globalLandmarks") ed.globalLandmarks += 1;
     }

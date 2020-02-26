@@ -10,20 +10,57 @@ import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.planargraph.Node;
+
 import sim.field.geo.GeomVectorField;
 import sim.util.Bag;
 import sim.util.geo.MasonGeometry;
 
 public class nodesLookup {
 	
-    
+	// random node from whole set of nodes
     static Node searchRandomNode(Bag geometriesNodes, PedestrianSimulation state)
     {
     	int c = state.random.nextInt(geometriesNodes.size());  	
     	MasonGeometry geoNode = (MasonGeometry) geometriesNodes.objs[c]; 
-    	return state.network.findNode(geoNode.geometry.getCoordinate());
+    	return PedestrianSimulation.network.findNode(geoNode.geometry.getCoordinate());
     }
-
+    
+    // look for a random node outside a given district, within a certain radius from a given node.
+    static Node searchNodeOutsideDistrict(Node originNode, double radius, int district, PedestrianSimulation state)
+    {
+    	
+    	GeomVectorField junctionsWithin = new GeomVectorField();
+    	GeometryFactory fact = new GeometryFactory();
+    	MasonGeometry nodeLocation = new MasonGeometry(fact.createPoint(new Coordinate(originNode.getCoordinate())));
+    	Bag filterSpatial = null;
+    	Bag filterByDistrict = null;
+    	while ((filterByDistrict.size() < 1) || (filterByDistrict == null))
+    	{
+    		
+    		filterSpatial = PedestrianSimulation.junctions.getObjectsWithinDistance(nodeLocation, radius);
+    		if (filterSpatial.size() < 1) continue;
+     	  	for (Object o : filterSpatial)
+     	    {
+     	    	MasonGeometry geoNode = (MasonGeometry) o;
+     	    	junctionsWithin.addGeometry(geoNode);
+     	    }
+    		
+    		filterByDistrict = junctionsWithin.filter("district", district, "different");
+    		radius = radius *1.10;
+    	}
+ 	  	
+ 	  	Node n = null;
+ 	  	while (n == null)
+ 	  	{ 	  	
+	 	  	int c = state.random.nextInt(filterByDistrict.size());
+	 	  	MasonGeometry geoNode = (MasonGeometry) filterByDistrict.objs[c];
+	 	  	n = PedestrianSimulation.network.findNode(geoNode.geometry.getCoordinate());
+	 	  	if (PedestrianSimulation.startingNodesMap.get(n.getData()) == null) n = null; 	  	
+ 	  	}
+ 	  	return n;
+    }
+       
+    
     static Node searchNodeWithin(Node originNode, GeomVectorField vectorField, List<Float> distances, PedestrianSimulation state)
     {
 		GeometryFactory fact = new GeometryFactory();
@@ -49,7 +86,7 @@ public class nodesLookup {
     	{
 	 	  	int c = state.random.nextInt(filter.size());
 	 	  	geoNode = (MasonGeometry) filter.objs[c];
-	 	  	node = state.network.findNode(geoNode.geometry.getCoordinate());
+	 	  	node = PedestrianSimulation.network.findNode(geoNode.geometry.getCoordinate());
     	}
  	  	return node;
     }
@@ -59,7 +96,7 @@ public class nodesLookup {
  	  	Bag filter = vectorField.getWithinObjects(geo, lowL, uppL);	  	
  	  	int c = state.random.nextInt(filter.size());
  	  	MasonGeometry geoNode = (MasonGeometry) filter.objs[c];
- 	  	return state.network.findNode(geoNode.geometry.getCoordinate());
+ 	  	return PedestrianSimulation.network.findNode(geoNode.geometry.getCoordinate());
     }
     
     static Node searchNodeDistributionWithin(Geometry geo, GeomVectorField vectorField,  
@@ -100,7 +137,7 @@ public class nodesLookup {
 	        	break;
         	}
  	    }
- 	  	return state.network.findNode(randomNode.geometry.getCoordinate());
+ 	  	return PedestrianSimulation.network.findNode(randomNode.geometry.getCoordinate());
     }
     
    
@@ -114,9 +151,9 @@ public class nodesLookup {
 
  	  	while (it.hasNext()) 
  	  	{
- 	       Map.Entry<MasonGeometry, Double> entry = (Map.Entry<MasonGeometry, Double>) it.next();
- 	       double probNode = entry.getValue();
- 	       cumulative += probNode;
+ 	  		Map.Entry<MasonGeometry, Double> entry = (Map.Entry<MasonGeometry, Double>) it.next();
+ 	  		double probNode = entry.getValue();
+ 	  		cumulative += probNode;
  	        if (cumulative < p) continue;
  	        if (cumulative >= p) 
  	        {
@@ -124,7 +161,7 @@ public class nodesLookup {
  	        	break;
  	        }
  	    }
- 	  	return state.network.findNode(randomNode.geometry.getCoordinate());
+ 	  	return PedestrianSimulation.network.findNode(randomNode.geometry.getCoordinate());
     }
 
 }

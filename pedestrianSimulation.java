@@ -56,6 +56,7 @@ public class PedestrianSimulation extends SimState
     public static GeomVectorField roads = new GeomVectorField();
     public static GeomVectorField buildings = new GeomVectorField();
     public static GeomVectorField junctions = new GeomVectorField();
+    public static GeomVectorField barriers = new GeomVectorField();
     public static GeomPlanarGraph network = new GeomPlanarGraph();
     public static Bag centroidsGeometries;
     public static Bag nodesGeometries;
@@ -63,7 +64,7 @@ public class PedestrianSimulation extends SimState
     
     public HashMap<Integer, EdgeData> edgesMap = new HashMap<Integer, EdgeData>();
     public HashMap<Integer, NodeData> nodesMap = new HashMap<Integer, NodeData>();
-    public HashMap<Integer, Node> startingNodesMap = new HashMap<Integer, Node>();
+    public static HashMap<Integer, Node> startingNodesMap = new HashMap<Integer, Node>();
     public HashMap<MasonGeometry, Integer> nodesGeometryMap = new HashMap<MasonGeometry, Integer>();
     public HashMap<Integer, BuildingData> buildingsMap = new HashMap<Integer, BuildingData>();
     public HashMap<Integer, CentroidData> centroidsMap =  new HashMap<Integer, CentroidData>();
@@ -72,7 +73,7 @@ public class PedestrianSimulation extends SimState
     
     public HashMap<Integer, GeomPlanarGraph> districtMap = new HashMap<Integer, GeomPlanarGraph>();
     public HashMap<Integer, GeomPlanarGraph> districtDualMap = new HashMap<Integer, GeomPlanarGraph>();
-    public HashMap<Integer, Integer> edgeDistrictMap = new HashMap<Integer, Integer>();
+    public HashMap<Integer, Integer> edgesDistrictMap = new HashMap<Integer, Integer>();
     public HashMap<Integer,ArrayList<GatewayData>> exitDistrictsMap = new HashMap<Integer,ArrayList<GatewayData>>();
     public HashMap<Integer,GatewayData> gatewaysMap = new HashMap<Integer,GatewayData>();
     
@@ -113,11 +114,13 @@ public class PedestrianSimulation extends SimState
 	static boolean visibility = false;
 	boolean dynamicRouting = false;
 	static boolean districtRouting = false;
+	static boolean landmarkRouting = false;
+	boolean usingBarriers = true;
 	
 	String criteria[];
-    String criteriaLandmarks[] = {"road_distance", "angular_change", "road_distance_landmarks", "angular_change_landmarks", 
-    		"local_landmarks", "global_landmarks"};
-    String criteriaDistricts[] = {"euclidean", "angular", "topological",  "district"};
+    String criteriaLandmarks[] = {"roadDistance", "angularChange", "roadDistanceLandmarks", "angularChangeLandmarks", 
+    		"localLandmarks", "globalLandmarks"};
+    String criteriaDistricts[] = {"roadDistance", "angularChange", "topological",  "district"};
 
     
 	double height, width, ratio;
@@ -151,27 +154,30 @@ public class PedestrianSimulation extends SimState
         System.out.println("saving Densities");
 		Bag rGeometries = roads.getGeometries();
 	   	
-		String csvSegments;
+		String csvSegments = null;
 	   	String csvSegmentsLandmarks = "C:/Users/g_filo01/sciebo/GIS Data/Simulation/landmarks/PedSim_landmarks_"+current_job+".csv";
 	   	String csvSegmentsDistricts = "C:/Users/g_filo01/sciebo/GIS Data/Simulation/districtRouting/PedSim_districts_SR.csv";
 
 		
 		if (districtRouting) csvSegments = csvSegmentsDistricts;
-		else csvSegments = csvSegmentsLandmarks;
+		else if (landmarkRouting) csvSegments = csvSegmentsLandmarks;
 
 	   	FileWriter writerDensitiesData = new FileWriter(csvSegments);
-	   	CSVUtils.writeLine(writerDensitiesData, Arrays.asList("edgeID", "euclidean", "angular", "topological", "euclideanLandmark", "angularLandmark",
-	   			"localLandmarks", "globalLandmarks", "euclideanDistrict", "angularDistrict"));
+	   	CSVUtils.writeLine(writerDensitiesData, Arrays.asList("edgeID", "roadDistance", "angularChange", 
+	   			"topological", "roadDistance", "angularChangeLandmark",
+	   			"localLandmarks", "globalLandmarks", "regionalRoutingRoadDistance",
+	   			"regionalRoutingAngularChange"));
 	   	
 	   	int rGeoSize = rGeometries.size();
 	   	for (int i = 0; i < rGeoSize; i++) 
 	   	{
 	    	MasonGeometry segment = (MasonGeometry) rGeometries.objs[i]; 
 	        EdgeData ed = edgesMap.get(segment.getIntegerAttribute("edgeID"));
-	        CSVUtils.writeLine(writerDensitiesData, Arrays.asList(Integer.toString(segment.getIntegerAttribute("edgeID")), Integer.toString(ed.euclidean),
-	        		Integer.toString(ed.angular), Integer.toString(ed.topological), Integer.toString(ed.euclideanLand), Integer.toString(ed.angularLand),
-	        		Integer.toString(ed.localLandmarks), Integer.toString(ed.globalLandmarks),
-	        	    Integer.toString(ed.districtRoutingEuclidean),Integer.toString(ed.districtRoutingAngular)));
+	        CSVUtils.writeLine(writerDensitiesData, Arrays.asList(Integer.toString(segment.getIntegerAttribute("edgeID")), 
+	        		Integer.toString(ed.roadDistance),	Integer.toString(ed.angularChange), Integer.toString(ed.topological), 
+	        		Integer.toString(ed.roadDistanceLandmark), Integer.toString(ed.angularChangeLandmark), Integer.toString(ed.localLandmarks), 
+	        		Integer.toString(ed.globalLandmarks), Integer.toString(ed.regionalRoutingRoadDistance),
+	        		Integer.toString(ed.regionalRoutingAngularChange)));
 	    }
 
 	   	writerDensitiesData.flush();
@@ -241,7 +247,7 @@ public class PedestrianSimulation extends SimState
         roads.setMBR(MBR);
     	int counterGateways = 0;   
     	
-        ///// NODES - assigning scores to nodes and probabilities
+        ///// NODES - assigning scores to nodes and probabilities ///////////////////////////////////////////
         for (Object nG : nodesGeometries) //street junctions and betweenness centrality
         {
         	MasonGeometry nodeGeometry = (MasonGeometry) nG; 
@@ -359,11 +365,11 @@ public class PedestrianSimulation extends SimState
         	///// GATEWAYS
 	        if (districtRouting)
 	        {
-            	String regionsToSt = nodeGeometry.getStringAttribute("regionsTo");
+            	String regionsToString = nodeGeometry.getStringAttribute("regionsTo");
             	Integer CM = nodeGeometry.getIntegerAttribute("CM");
             	Integer district = nodeGeometry.getIntegerAttribute("district");
 	            	
-            	if (regionsToSt.equals("None"))
+            	if (regionsToString.equals("None")) //nodes which are not gateways
             	{
             		startingNodesMap.put(nodeID, node);
             		continue;
@@ -413,7 +419,7 @@ public class PedestrianSimulation extends SimState
 //        orderedNodesBc = utilities.sortByValue(nodesBc);
 //        orderedNodesBc600 = utilities.sortByValue(nodesBc600);
         
-        //
+        //// BUILDINGS ///////////////////////////////////////////
         for (Object o : buildings.getGeometries())
         {
         	MasonGeometry geometryBuilding = (MasonGeometry) o; 
@@ -442,7 +448,7 @@ public class PedestrianSimulation extends SimState
         }
         
 
-        ///// ASSIGNING DATA TO STREET SEGMENTS
+        ///// ASSIGNING DATA TO STREET SEGMENTS ///////////////////////////////////////////
         ArrayList <GeomPlanarGraphDirectedEdge> processed = new ArrayList <GeomPlanarGraphDirectedEdge>();
         for (Object o : network.getEdges())
         {
@@ -462,8 +468,31 @@ public class PedestrianSimulation extends SimState
             
             if (districtRouting)
             {
+            	String pBarriersString = edge.getStringAttribute("pos_barriers");
+            	String nBarriersString = edge.getStringAttribute("neg_barriers");
+
+            	List<Integer> positiveBarriers = new ArrayList<Integer>();
+            	List<Integer> negativeBarriers = new ArrayList<Integer>();
+	
+            	///// ASSIGNING TO EACH NODE LANDMARKS AT THE JUNCTION
+            	if (!pBarriersString.equals("[]"))
+            	{
+            		String p = pBarriersString.replaceAll("[^-?0-9]+", " ");
+                	for(String t : (Arrays.asList(p.trim().split(" ")))) positiveBarriers.add(Integer.valueOf(t));
+                	ed.positiveBarriers = positiveBarriers;
+            	}
+            	else ed.positiveBarriers = null;
+            	
+            	if (!pBarriersString.equals("[]"))
+            	{
+            		String n = nBarriersString.replaceAll("[^-?0-9]+", " ");
+                	for(String t : (Arrays.asList(n.trim().split(" ")))) negativeBarriers.add(Integer.valueOf(t));
+                	ed.negativeBarriers = negativeBarriers;
+            	}
+            	else ed.negativeBarriers = null;
+            	
             	int district =  edge.getIntegerAttribute("district");
-                edgeDistrictMap.put(edgeID, district);
+            	edgesDistrictMap.put(edgeID, district);
 	            GeomPlanarGraph districtNetwork = districtMap.get(district);
 	////        Object data = e.getData();
 	//          Map<String, AttributeValue> data = new HashMap<String, AttributeValue>();
@@ -524,22 +553,36 @@ public class PedestrianSimulation extends SimState
 
     public void populate()
     {
+    	
 //    	int numTripsScenario = distances.size();
     	int numTripsScenario = 1;
-    	Node originNode = nodesMap.get(10024).node;
-    	Node destinationNode = nodesMap.get(3999).node;
-    	Pair<Node, Node> pair = new Pair<Node, Node> (originNode, destinationNode);
-	    OD.add(pair);
+//    	Pair<Node, Node> pair = new Pair<Node, Node> (originNode, destinationNode);
+//	    OD.add(pair);
+    	if (landmarkRouting)
+    	{
+	    	for (int i = 0; i < numTripsScenario; i++)
+	    	{
+	    		Node originNode = null;
+	    		while (originNode == null) originNode = nodesLookup.searchRandomNode(nodesGeometries, this);
+	    		Node destinationNode = nodesLookup.searchNodeWithin(originNode, junctions, distances, this);
+	    		Pair<Node, Node> pair = new Pair<Node, Node> (originNode, destinationNode);
+	    	    OD.add(pair);  
+	    	}
+    	}
+    	else if (districtRouting)
+    	{
+    	for (int i = 0; i < numTripsScenario; i++)
+	    	{
+	    		Node originNode = null;
+	    		while (originNode == null) originNode = nodesLookup.searchRandomNode(nodesGeometries, this);
+	    		double radius = random.nextInt(1000);
+	    		int startingDistrict = nodesMap.get(originNode.getData()).district;		
+	    		Node destinationNode = nodesLookup.searchNodeOutsideDistrict(originNode, radius, startingDistrict, this);
+	    		Pair<Node, Node> pair = new Pair<Node, Node> (originNode, destinationNode);
+	    	    OD.add(pair);  
+	    	}
+    	}
     	
-//    	for (int i = 0; i < numTripsScenario; i++)
-//    	{
-//    		Node originNode = null;
-//    		while (originNode == null) originNode = nodesLookup.searchRandomNode(nodesGeometries, this);
-//    		Node destinationNode = nodesLookup.searchNodeWithin(originNode, junctions, distances, this);
-//    		
-//    		Pair<Node, Node> pair = new Pair<Node, Node> (originNode, destinationNode);
-//    	    OD.add(pair);  
-//    	}
     	
     	System.out.println("populating"  + OD.size());
     	for (int i = 1; i <= numAgents; i++)
@@ -578,6 +621,7 @@ public class PedestrianSimulation extends SimState
 
             Bag junctionsAttributes = new Bag();
             Bag buildingsAttributes = new Bag();
+            Bag barriersAttributes = new Bag();
    
             junctionsAttributes.add("nodeID"); 
             junctionsAttributes.add("loc_land"); 
@@ -622,6 +666,14 @@ public class PedestrianSimulation extends SimState
 //            URL landmarksFile = pedestrianSimulation.class.getResource("data/London_landmarks_noADv.shp");
             URL landmarksFile = PedestrianSimulation.class.getResource("data/London_landmarks.shp");
             ShapeFileImporter.read(landmarksFile, buildings);
+            
+            ///// READING BARRIERS
+            System.out.println("reading barriers layer...");
+            barriersAttributes.add("barrierID");  
+            barriersAttributes.add("barrier_type");  
+            URL barriersFile = PedestrianSimulation.class.getResource("dataDistricts/London_barriers.shp");
+            ShapeFileImporter.read(barriersFile, barriers);
+            
 
             /// READING DISTANCES
 			System.out.println("reading distances...");
