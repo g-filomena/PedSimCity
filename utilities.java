@@ -3,12 +3,14 @@ package sim.app.geo.pedestrianSimulation;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.LineString;
@@ -16,7 +18,6 @@ import com.vividsolutions.jts.geom.Point;
 import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory;
 import com.vividsolutions.jts.planargraph.DirectedEdgeStar;
 import com.vividsolutions.jts.planargraph.Node;
-import com.vividsolutions.jts.planargraph.Subgraph;
 
 import sim.field.geo.GeomVectorField;
 import sim.util.Bag;
@@ -168,11 +169,6 @@ public class utilities {
 		return line;
 	}
     
-    public static MasonGeometry MasonGeometryFromGeometry(Geometry g)
-    {
-    	MasonGeometry mg = (MasonGeometry) PreparedGeometryFactory.prepare(g);
-    	return mg;	
-	}
     
 	public static Geometry smallestEnclosingCircle(Node nodeA, Node nodeB)
 	{			

@@ -17,12 +17,14 @@ public class EdgeData {
     int roadDistance;
 	int angularChange;
     int topological;
-    int roadDistanceLandmark;
-	int angularChangeLandmark;
+    int roadDistanceLandmarks;
+	int angularChangeLandmarks;
     int localLandmarks;
     int globalLandmarks;
-    int regionalRoutingRoadDistance;
-    int regionalRoutingAngularChange;
+    int roadDistanceRegions;
+    int angularChangeRegions;
+    int roadDistanceRegionsBarriers;
+    int angularChangeRegionsBarriers;
     
     int toNode;
     int fromNode;

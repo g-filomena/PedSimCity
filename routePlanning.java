@@ -445,41 +445,8 @@ public class routePlanning {
     			}
 	        }
         		        	
-        	if (bestNode == null) 
-        	{
+        	if (bestNode == null) break;
 
-//        		// reconstruct path till the destination
-//        		if (criteria == "angularLand") 
-//        		{
-//        			Node dualOrigin = utilities.getDualNode(currentNode, pedestrianSimulation.dualNetwork);
-//        			Node dualTmpDestination = utilities.getDualNode(destinationNode, pedestrianSimulation.dualNetwork);
-//        			
-//        			AStarAngular pathfinderAngular = new AStarAngular(); 
-//        			Path path = pathfinderAngular.astarPath(dualOrigin, dualTmpDestination, state, segmentsToAvoid, gl);
-//        			tmpPath = path.edges;
-//        		}
-//		        else
-//		        {
-//		        	AStarEuclidean pathfinderEuclidean = new AStarEuclidean();   
-//		        	Path path = pathfinderEuclidean.astarPath(currentNode, destinationNode, state, segmentsToAvoid, gl);
-//		        	tmpPath = path.edges;
-//		        }
-        		//len sequence == 0
-//	    		if (currentNode == originNode) newPath = tmpPath;
-	    		//add to the rest
-//	    		else newPath.addAll(tmpPath);
-        		break;
-        	}
-        	
-//    		if (currentNode == originNode) newPath = bestPath;
-//    		//add to the rest
-//    		else newPath.addAll(bestPath);
-//    		Iterator<GeomPlanarGraphDirectedEdge> it = bestPath.iterator();
-//	        ArrayList<Integer> segmentsToAvoid = new ArrayList<Integer>();
-//    		while (it.hasNext()) segmentsToAvoid.add((int) ((GeomPlanarGraphEdge) 
-//					it.next().getEdge()).getIntegerAttribute("edgeID"));
-    		
-//			if (criteria == "angularLand") segmentsToAvoid.remove(bestDualNode.getData());
 			if (bestNode == destinationNode) break;
         	sequence.add(bestNode);
         	knownJunctions = landmarkFunctions.relevantNodes(bestNode, destinationNode, state);
@@ -499,6 +466,21 @@ public class routePlanning {
 		return state.nodesMap.get(utilities.commonPrimalJunction(lastCen, otherCen, state)).node;
 	}
 
+
+	
+	static ArrayList<GeomPlanarGraphDirectedEdge> regionsBarriersPath (Node originNode, Node destinationNode, 
+			String criteria, PedestrianSimulation state)
+	{
+		String localHeuristic = "angularChange";
+		if ((criteria == "roadDistanceRegionsBarriers") || (criteria == "roadDistanceRegions")) localHeuristic = "roadDistance";
+		boolean usingBarriers = false;
+		if ((criteria == "roadDistanceRegionsBarriers") || (criteria == "angularChabngeRegionsBarriers")) 
+			{usingBarriers = true;}
+		
+		RegionalRouting regionsPath = new RegionalRouting();
+		return regionsPath.pathFinderRegions(originNode, destinationNode, localHeuristic, usingBarriers, state);
+	}
+	
 	static ArrayList<GeomPlanarGraphDirectedEdge> controlPath(Node destinationNode, ArrayList <GeomPlanarGraphDirectedEdge> path)
 	{
 
@@ -543,6 +525,5 @@ public class routePlanning {
 		}
 		return null;
 	}
-	
 }
 

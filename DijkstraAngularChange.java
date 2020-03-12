@@ -135,6 +135,7 @@ public class DijkstraAngularChange {
 		catch(java.lang.NullPointerException e)  {return path;}
         path.edges = sequenceEdges;
         path.dualMapWrappers = mapTraversedWrappers;
+
 	    return path;
 	 }
 }

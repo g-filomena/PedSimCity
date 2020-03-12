@@ -1,6 +1,7 @@
 package sim.app.geo.pedestrianSimulation;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -9,10 +10,8 @@ import java.util.Map.Entry;
 
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
-import com.vividsolutions.jts.geom.GeometryFactory;
+
 import com.vividsolutions.jts.geom.LineString;
-import com.vividsolutions.jts.geom.prep.PreparedGeometry;
-import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory;
 import com.vividsolutions.jts.planargraph.Node;
 
 import sim.field.geo.GeomVectorField;
@@ -35,7 +34,6 @@ public class RegionalRouting {
 	int currentRegion;
 	int targetRegion;
 	boolean found = false;
-	boolean usingBarriers;
 	
 	HashMap<Integer,EdgeData> edgesMap;
 	HashMap<Integer,NodeData> nodesMap;
@@ -46,7 +44,7 @@ public class RegionalRouting {
 	
 
 	public ArrayList<GeomPlanarGraphDirectedEdge> pathFinderRegions(Node originNode, 
-			Node destinationNode, String localHeuristic, PedestrianSimulation state)
+			Node destinationNode, String localHeuristic, boolean usingBarriers, PedestrianSimulation state)
 	{	
 		
 		this.edgesMap = state.edgesMap;
@@ -58,7 +56,7 @@ public class RegionalRouting {
 		
 		this.originNode = originNode;
 	    this.destinationNode = destinationNode;
-	    this.usingBarriers = state.usingBarriers;
+	    
 		currentLocation = originNode;
 		currentRegion =  nodesMap.get(currentLocation.getData()).district;
 		targetRegion = nodesMap.get(destinationNode.getData()).district;
@@ -68,7 +66,6 @@ public class RegionalRouting {
 		sequenceNodes.add((Integer) currentLocation.getData());
 		badExits.clear();
 		previousLocation = null;
-		
 		
 		// rough plan
 		while (found == false)
@@ -128,14 +125,13 @@ public class RegionalRouting {
 			        
 		        else if (localHeuristic == "angularChange")
 		        {
-		        	Node originNodeDual = utilities.getDualNode(originNode, PedestrianSimulation.dualNetwork);
-					Node destinationNodeDual = utilities.getDualNode(destinationNode, PedestrianSimulation.dualNetwork);
-		        	return routePlanning.angularChangeShortestPath(originNodeDual, destinationNodeDual, null, 
+		        	ArrayList<GeomPlanarGraphDirectedEdge> completePath =  new ArrayList<GeomPlanarGraphDirectedEdge>();
+		        	completePath = routePlanning.angularChangeShortestPath(originNode, destinationNode, null, 
 		        			state, "dijkstra").edges;
+		        	return completePath;
 		        }
 					
-			}
-			
+			}			
 			Map<Integer, Double> validSorted = utilities.sortByValue(validGates); 
 			Iterator<Entry<Integer, Double>> it = validSorted.entrySet().iterator();
 			
@@ -168,26 +164,27 @@ public class RegionalRouting {
 				sequence.add(destinationNode);
 				sequenceGateways.add(null);
 				break;
-			}
+			}		
 		}
 		
-		//sub-goals and barriers - navigation
 		
-		ArrayList<Node> newSequence = new ArrayList<Node>();
-		newSequence = sequence;
 		ArrayList<GeomPlanarGraphDirectedEdge> completePath =  new ArrayList<GeomPlanarGraphDirectedEdge>();
+		//sub-goals and barriers - navigation
+		ArrayList<Node> newSequence = new ArrayList<Node>();
 		
-		for (Node g: sequence)
+		
+		if (usingBarriers)
 		{
-			int indexOf = sequence.indexOf(g);
-			if ((!usingBarriers) || (indexOf%2 != 0)) continue; //entry gateway,
-			
-			if (usingBarriers)
-			{ 
+			for (Node g: sequence)
+			{
+				int indexOf = sequence.indexOf(g);
+				newSequence.add(g);
+				if ((indexOf > 0) & (indexOf%2 != 0)) continue; //entry gateway,
+				
 				//check if there are good barriers in line of movement
 				LineString l = utilities.LineStringBetweenNodes(g, destinationNode);			
-				GeomVectorField rivers = utilities.filterGeomVectorField(PedestrianSimulation.barriers, "barrier_type", "waterways", "equal");
-				Bag intersectingRivers = rivers.getTouchingObjects(utilities.MasonGeometryFromGeometry ((Geometry) l)); 
+				GeomVectorField rivers = utilities.filterGeomVectorField(PedestrianSimulation.barriers, "type", "waterways", "equal");
+				Bag intersectingRivers = rivers.getTouchingObjects(l); 
 				
 				MasonGeometry farthest = null;
 				Node subGoal = null;
@@ -212,7 +209,7 @@ public class RegionalRouting {
 						}
 					}
 				}
-				
+			
 				if (farthest != null)
 				{
 					int barrierID = farthest.getIntegerAttribute("barrierID");
@@ -230,6 +227,7 @@ public class RegionalRouting {
 						if (distanceEdge < distance) edgeGoal = edgesMap.get(edgeID);
 					}
 				}
+				
 				if (edgeGoal == null) continue;
 				else
 				{
@@ -239,41 +237,47 @@ public class RegionalRouting {
 							(utilities.nodesDistance(nodesMap.get(g).node, toNode))) subGoal = fromNode;
 					else subGoal = toNode;
 				}
-				newSequence.add(indexOf+1, subGoal);
+				newSequence.add(subGoal);
 			}
-			
+		}
+		if (newSequence.size() == 0) newSequence = sequence;
+		Node primalOrigin = null;
+		Node primalDestination = null;
+		
+		for (Node g: newSequence)
+		{
+			int indexOf = newSequence.indexOf(g);	
 			ArrayList<GeomPlanarGraphDirectedEdge> resultPartial =  new ArrayList<GeomPlanarGraphDirectedEdge>();
-			Node primalOrigin = null;
-			Node primalDestination = null;
-			Node dualOrigin = null;
-			Node dualDestination = null;
-
+			
 			if (indexOf == 0) //start
 			{
 				primalOrigin = g;
-				dualOrigin = utilities.getDualNode(primalOrigin, PedestrianSimulation.dualNetwork);
+				continue;
 			}
+			else primalDestination = g; // actual final destination
 			
-			if (indexOf < sequence.size()-2)
+			Collection connectingEdge = Node.getEdgesBetween(primalOrigin, primalDestination);
+			GeomPlanarGraphEdge edge = null;
+			if (connectingEdge.size() > 0)
 			{
-				int exitID = (int) sequenceGateways.get(indexOf+1);
-				int connectingEdgeID = gatewaysMap.get(exitID).edgeID;
-				primalDestination = g;
-				GeomPlanarGraphEdge connectingEdge = edgesMap.get(connectingEdgeID).planarEdge;
-				dualDestination = PedestrianSimulation.dualNetwork.findNode(connectingEdge.getLine().getCentroid().
-				getCoordinate());
-			}
+				for (Object o : connectingEdge) edge = (GeomPlanarGraphEdge) o;	
+				if (!completePath.contains(((GeomPlanarGraphDirectedEdge) edge.getDirEdge(0))))
+				{
+					completePath.add((GeomPlanarGraphDirectedEdge) edge.getDirEdge(0));
+					primalOrigin = primalDestination;
+					continue;
+				}
+			}	
+			if (localHeuristic == "roadDistance") 
+				{resultPartial = routePlanning.routeDistanceShortestPath(primalOrigin, primalDestination, null, 
+						state, "dijkstra").edges;}
 			else 
-			{
-				primalDestination = g; // actual final destination
-				dualDestination = utilities.getDualNode(sequence.get(sequence.size()-1), PedestrianSimulation.dualNetwork);
-			}
-			if (localHeuristic == "roadDistance") resultPartial = routePlanning.routeDistanceShortestPath(primalOrigin,
-					primalDestination, null, state, "dijkstra").edges;
-			else	resultPartial = routePlanning.angularChangeShortestPath(dualOrigin, dualDestination, null, state, "dijkstra").edges;
-			
+				{
+				resultPartial = routePlanning.angularChangeShortestPath(primalOrigin, primalDestination, null,
+						state, "dijkstra").edges;
+				}
+
 			primalOrigin = primalDestination;
-			dualOrigin = dualDestination;
 			completePath.addAll(resultPartial);
 		}
 		return completePath;	

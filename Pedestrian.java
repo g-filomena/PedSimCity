@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import org.javatuples.Pair;
 
+import sim.app.geo.LondonDistricts.districtRouting;
 import sim.engine.SimState;
 import sim.engine.Steppable;
 import sim.engine.Stoppable;
@@ -109,10 +110,9 @@ public final class Pedestrian implements Steppable
 //		   	}
 //	    	while (currentJunction == destinationNode) destinationNode = nodesLookup.searchRandomNode(state.geometriesNodes, state);
 //    	}
-
     	ArrayList<GeomPlanarGraphDirectedEdge> newPath = null;
         ArrayList<Node> sequence = new ArrayList<Node>();
-        
+        System.out.println("trip "+criteria+" OD "+originNode.getData()+" "+destinationNode.getData());
          
         if (criteria == "roadDistance")
         {
@@ -154,6 +154,11 @@ public final class Pedestrian implements Steppable
         {
         	newPath = routePlanning.globalLandmarksPath(originNode,destinationNode, null, "road_distance", state).edges;
         }
+        
+        else //regional approaches
+    	{
+        	newPath = routePlanning.regionsBarriersPath(originNode,destinationNode, criteria, state);
+    	}	
              
     	RouteData route = new RouteData();
     	route.origin = (int) originNode.getData();
@@ -340,10 +345,14 @@ public final class Pedestrian implements Steppable
 		if (criteria == "roadDistance") ed.roadDistance += 1;
 		else if (criteria == "angularChange") ed.angularChange += 1;
 		else if (criteria == "topological") ed.topological += 1;
-		else if (criteria == "roadDistanceLandmark") ed.roadDistanceLandmark += 1;
-		else if (criteria == "angularChangeLandmark") ed.angularChangeLandmark += 1;
+		else if (criteria == "roadDistanceLandmarks") ed.roadDistanceLandmarks += 1;
+		else if (criteria == "angularChangeLandmarks") ed.angularChangeLandmarks += 1;
 		else if (criteria == "localLandmarks") ed.localLandmarks += 1;
 		else if (criteria == "globalLandmarks") ed.globalLandmarks += 1;
+		else if (criteria == "roadDistanceRegions") ed.roadDistanceRegions += 1;
+		else if (criteria == "angularChangeRegions") ed.angularChangeRegions += 1;
+		else if (criteria == "roadDistanceRegionsBarriers") ed.roadDistanceRegionsBarriers += 1;
+		else if (criteria == "angularChangeRegionsBarriers") ed.angularChangeRegionsBarriers += 1;
     }
     
     public void setStoppable(Stoppable a) {killAgent = a;}

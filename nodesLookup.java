@@ -34,28 +34,41 @@ public class nodesLookup {
     	MasonGeometry nodeLocation = new MasonGeometry(fact.createPoint(new Coordinate(originNode.getCoordinate())));
     	Bag filterSpatial = null;
     	Bag filterByDistrict = null;
-    	while ((filterByDistrict.size() < 1) || (filterByDistrict == null))
+    	Node n = null;
+    	double expanding_radius = radius;
+    	while (n == null)
     	{
-    		
-    		filterSpatial = PedestrianSimulation.junctions.getObjectsWithinDistance(nodeLocation, radius);
-    		if (filterSpatial.size() < 1) continue;
-     	  	for (Object o : filterSpatial)
+    		if (expanding_radius >= radius * 2.00) return null;
+    		filterSpatial = PedestrianSimulation.junctions.getObjectsWithinDistance(nodeLocation, expanding_radius);
+    		if (filterSpatial.size() < 1) 
+    		{
+    			expanding_radius = expanding_radius *1.10;	
+    			continue;
+     	  	
+    		}
+    		for (Object o : filterSpatial)
      	    {
      	    	MasonGeometry geoNode = (MasonGeometry) o;
      	    	junctionsWithin.addGeometry(geoNode);
      	    }
-    		
+     	  	
+    		if (junctionsWithin.getGeometries().size() == 0)
+			{
+    			expanding_radius = expanding_radius *1.10;	
+    			continue;
+			}
+     	  	
     		filterByDistrict = junctionsWithin.filter("district", district, "different");
-    		radius = radius *1.10;
-    	}
- 	  	
- 	  	Node n = null;
- 	  	while (n == null)
- 	  	{ 	  	
+    		if (filterByDistrict.size() == 0)
+			{
+    			expanding_radius = expanding_radius *1.10;	
+    			continue;
+			}
 	 	  	int c = state.random.nextInt(filterByDistrict.size());
 	 	  	MasonGeometry geoNode = (MasonGeometry) filterByDistrict.objs[c];
 	 	  	n = PedestrianSimulation.network.findNode(geoNode.geometry.getCoordinate());
-	 	  	if (PedestrianSimulation.startingNodesMap.get(n.getData()) == null) n = null; 	  	
+	 	  	if (PedestrianSimulation.startingNodesMap.get(n.getData()) == null) n = null;
+	 	  	expanding_radius = expanding_radius *1.10;
  	  	}
  	  	return n;
     }
