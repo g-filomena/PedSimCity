@@ -1,18 +1,16 @@
 package sim.app.geo.pedestrianSimulation;
+
 import com.vividsolutions.jts.geom.*;
 import com.vividsolutions.jts.linearref.LengthIndexedLine;
-import com.vividsolutions.jts.planargraph.Node;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import org.javatuples.Pair;
 
-import sim.app.geo.LondonDistricts.districtRouting;
 import sim.engine.SimState;
 import sim.engine.Steppable;
 import sim.engine.Stoppable;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
-import sim.util.geo.GeomPlanarGraphEdge;
 import sim.util.geo.MasonGeometry;
 import sim.util.geo.PointMoveTo;
 
@@ -23,10 +21,11 @@ public final class Pedestrian implements Steppable
     PedestrianSimulation state;
    
     // Initial Attributes
-    Node originNode = null;
-    Node destinationNode = null;
-    public String criteria;
+    NodeGraph originNode = null;
+    NodeGraph destinationNode = null;
     public Integer maxDistance;
+    ArrayList<GeomPlanarGraphDirectedEdge> path =  new ArrayList<GeomPlanarGraphDirectedEdge>();
+	ArrayList<Pair<NodeGraph, NodeGraph>> OD =  new ArrayList<Pair<NodeGraph, NodeGraph>>();
     
     // point that denotes agent's position
     // private Point location;
@@ -38,48 +37,45 @@ public final class Pedestrian implements Steppable
     
     // Used by agent to walk along line segment
     private LengthIndexedLine segment = null;
-    
     double startIndex = 0.0; // start position of current line
     double endIndex = 0.0; // end position of current line
     double currentIndex = 0.0; // current location along line
-    GeomPlanarGraphEdge currentEdge = null;
-    GeomPlanarGraphEdge destinationEdge;
+    EdgeGraph currentEdge = null;
     int linkDirection = 1;
-    
-    double speed = 0; // useful for graph
-    ArrayList<GeomPlanarGraphDirectedEdge> path =  new ArrayList<GeomPlanarGraphDirectedEdge>();
-	ArrayList<Pair<Node, Node>> OD =  new ArrayList<Pair<Node, Node>>();
+    double speed = 0;
     int indexOnPath = 0;
     int pathDirection = 1;
-    boolean reachedDestination = false;
-    boolean landmarkRouting = false;
-    boolean controlMode = false;
-    boolean gl = false;
     
-	HashMap<Integer, CentroidData> centroidsMap;
-	HashMap<Integer, EdgeData> edgesMap;
-	HashMap<Integer, NodeData> nodesMap;
-    int numTrips = 0;
+    public String criteria;
+    boolean landmarkRouting = false;
+    boolean barrierRouting = false;
+    boolean regionalRouting = true;
 
-    ArrayList<GeomPlanarGraphDirectedEdge> oldPath;
+    boolean reachedDestination = false;
+    int numTrips = 0;
+    
+	HashMap<Integer, NodeGraph> nodesMap;
+	HashMap<Integer, EdgeGraph> edgesMap;
+	HashMap<Integer, NodeGraph> centroidsMap;
     Stoppable killAgent;
    
-    
     /** Constructor Function */
-    public Pedestrian(PedestrianSimulation state, String criteria, ArrayList<Pair<Node, Node>> OD)
+    public Pedestrian(PedestrianSimulation state, String criteria, ArrayList<Pair<NodeGraph, NodeGraph>> OD)
     {
     	this.criteria = criteria;
     	this.OD = OD;
     	this.state = state;
 //    	this.maxDistance = maxDistance;
-    	centroidsMap = state.centroidsMap;
-    	edgesMap = state.edgesMap;
-    	nodesMap = state.nodesMap;
     	
-    	if (criteria == "roadDistanceLandmark" || criteria == "angularChangeLandmark" || 
-    	criteria == "landmark_G" || criteria == "landmark_L") landmarkRouting = true;
-    	     
-        Node originNode = (Node) OD.get(numTrips).getValue(0);
+    	nodesMap = state.nodesMap;
+    	edgesMap = state.edgesMap;
+    	centroidsMap = state.centroidsMap;
+    	
+    	if (criteria.contains("Landmarks")) landmarkRouting = true;
+    	if (criteria.contains("Barriers")) barrierRouting = true; 
+    	if (criteria.contains("Regions")) barrierRouting = true; 
+    	
+    	NodeGraph originNode = (NodeGraph) OD.get(numTrips).getValue(0);
         GeometryFactory fact = new GeometryFactory();
         agentLocation = new MasonGeometry(fact.createPoint(new Coordinate(10, 10)));
         Coordinate startCoord = null;
@@ -87,13 +83,6 @@ public final class Pedestrian implements Steppable
         updatePosition(startCoord);   
     }
 
-
-    /** Initialization of an Agent: find an A* path to work!
-     * @param state
-     * @return whether or not the agent successfully found a path to work
-     */
-
-    /** Plots a path between the Agent's home Node and its work Node */
     
     public void findNewAStarPath(PedestrianSimulation state)
     {
@@ -110,50 +99,61 @@ public final class Pedestrian implements Steppable
 //		   	}
 //	    	while (currentJunction == destinationNode) destinationNode = nodesLookup.searchRandomNode(state.geometriesNodes, state);
 //    	}
+    	int barrierID = 999999;
     	ArrayList<GeomPlanarGraphDirectedEdge> newPath = null;
-        ArrayList<Node> sequence = new ArrayList<Node>();
-        System.out.println("trip "+criteria+" OD "+originNode.getData()+" "+destinationNode.getData());
+        ArrayList<NodeGraph> sequence = new ArrayList<NodeGraph>();
+        System.out.println("trip "+criteria+" OD "+originNode.getID()+" "+destinationNode.getID());
          
         if (criteria == "roadDistance")
         {
-        	newPath = routePlanning.routeDistanceShortestPath(originNode, destinationNode, null, state, "dijkstra").edges;
+        	newPath = routePlanning.roadDistance(originNode, destinationNode, null, 
+        			regionalRouting, barrierID, "dijkstra", state).edges;
         }
         
         else if (criteria == "angularChange")
         {
-        	newPath = routePlanning.angularChangeShortestPath(originNode, destinationNode, null, state, "dijkstra").edges;
+        	newPath = routePlanning.angularChange(originNode, destinationNode, null, null,
+        			regionalRouting, barrierID, "dijkstra",  state).edges;
         }
         
-        else if (criteria == "topological")
-        {
-        	newPath = routePlanning.topologicalShortestPath(originNode, destinationNode, null, state).edges;
-        }
+//        else if (criteria == "topological")
+//        {
+//        	newPath = routePlanning.topological(originNode, destinationNode, null, 
+//        			regionalRouting, barrierID, state).edges;
+//        }
 
         else if (criteria == "roadDistanceLandmark")
         {
-        	sequence = routePlanning.findSequenceIntermediateNodes(originNode, destinationNode, state);
-        	if (sequence.size() == 0) newPath = routePlanning.routeDistanceShortestPath(originNode, destinationNode, null, state, "astar").edges;
+        	sequence = routePlanning.findSequenceSubGoals(originNode, destinationNode, state);
+        	if (sequence.size() == 0) newPath = routePlanning.roadDistance(originNode, 
+        			destinationNode, null, regionalRouting, barrierID, "astar", state).edges;
         	else newPath = routePlanning.RoadDistanceLandmarksPath(originNode,destinationNode, sequence, state);
         }
         
         else if (criteria == "angularChangeLandmark")
         {
-        	sequence = routePlanning.findSequenceIntermediateNodes(originNode, destinationNode, state);
-        	if (sequence.size() == 0) newPath = routePlanning.angularChangeShortestPath(originNode, destinationNode, null, state, "dijkstra").edges;
+        	sequence = routePlanning.findSequenceSubGoals(originNode, destinationNode, state);
+        	if (sequence.size() == 0) newPath = routePlanning.angularChange(originNode, destinationNode, null,null, 
+        			regionalRouting, barrierID, "dijkstra",  state).edges;
         	else newPath = routePlanning.AngularChangeLandmarksPath(originNode,destinationNode, sequence, state);
         }
         
         else if (criteria == "localLandmarks")
         {
-        	sequence = routePlanning.findSequenceIntermediateNodes(originNode, destinationNode, state);
-        	if (sequence.size() == 0) newPath = routePlanning.routeDistanceShortestPath(originNode, destinationNode, null, state, "dijkstra").edges;
-        	else newPath = routePlanning.RoadDistanceLocalLandmarksPath(originNode,destinationNode, sequence, state);
+        	sequence = routePlanning.findSequenceSubGoals(originNode, destinationNode, state);
+        	if (sequence.size() == 0) newPath = routePlanning.roadDistance(originNode, destinationNode, null, 
+        			regionalRouting, barrierID, "dijkstra", state).edges;
+        	else newPath = routePlanning.RoadDistanceLocalLandmarks(originNode, destinationNode, sequence, state);
         }
         
         else if (criteria == "globalLandmarks")
         {
         	newPath = routePlanning.globalLandmarksPath(originNode,destinationNode, null, "road_distance", state).edges;
         }
+        else if (criteria == "roadDistanceBarriers" || criteria == "angularChangeBarriers") //regional approaches
+    	{
+        	newPath = routePlanning.barriersPath(originNode,destinationNode, criteria, state);
+    	}	
         
         else //regional approaches
     	{
@@ -161,17 +161,17 @@ public final class Pedestrian implements Steppable
     	}	
              
     	RouteData route = new RouteData();
-    	route.origin = (int) originNode.getData();
-    	route.destination = (int) destinationNode.getData();
+    	route.origin = originNode.getID();
+    	route.destination = destinationNode.getID();
     	route.criteria = criteria;
     	List<Integer> sequenceEdges = new ArrayList<Integer>();
 
-    	for (GeomPlanarGraphDirectedEdge o  : newPath)
+    	for (GeomPlanarGraphDirectedEdge o : newPath)
         {
         	// update edge data
-        	updateEdgeData((GeomPlanarGraphEdge) o.getEdge());
-        	int edge = ((GeomPlanarGraphEdge) o.getEdge()).getIntegerAttribute("edgeID");
-        	sequenceEdges.add(edge);
+        	updateEdgeData((EdgeGraph) o.getEdge());
+        	int edgeID = ((EdgeGraph) o.getEdge()).getID();
+        	sequenceEdges.add(edgeID);
         }
 
     	route.sequenceEdges = sequenceEdges; 
@@ -180,7 +180,7 @@ public final class Pedestrian implements Steppable
     	path = newPath;
 
         // set up how to traverse this first link
-        GeomPlanarGraphEdge firstEdge = (GeomPlanarGraphEdge) newPath.get(0).getEdge();
+    	EdgeGraph firstEdge = (EdgeGraph) newPath.get(0).getEdge();
         setupEdge(firstEdge); //Sets the Agent up to proceed along an Edge
 
         // update the current position for this link
@@ -222,9 +222,9 @@ public final class Pedestrian implements Steppable
             	return;
         	}
 //        	repositionAgent();
-        	originNode = (Node) OD.get(numTrips).getValue(0);	
+        	originNode = (NodeGraph) OD.get(numTrips).getValue(0);	
         	updatePosition(originNode.getCoordinate());
-        	destinationNode = (Node) OD.get(numTrips).getValue(1);		
+        	destinationNode = (NodeGraph) OD.get(numTrips).getValue(1);		
         	findNewAStarPath(stateSchedule);
         	return;
         }       
@@ -272,7 +272,7 @@ public final class Pedestrian implements Steppable
         }
 
         // move to the next edge in the path
-        GeomPlanarGraphEdge edge = (GeomPlanarGraphEdge) path.get(indexOnPath).getEdge();
+        EdgeGraph edge = (EdgeGraph) path.get(indexOnPath).getEdge();
         setupEdge(edge);
         speed = progress(residualMove);
         currentIndex += speed;
@@ -287,7 +287,7 @@ public final class Pedestrian implements Steppable
     /** Sets the Agent up to proceed along an Edge
      * @param edge the GeomPlanarGraphEdge to traverse next
      * */
-    void setupEdge(GeomPlanarGraphEdge edge)
+    void setupEdge(EdgeGraph edge)
     {
         // storing data about number of pedestrians
             	
@@ -339,20 +339,22 @@ public final class Pedestrian implements Steppable
         state.agents.setGeometryLocation(agentLocation, pointMoveTo);
     }
      
-    void updateEdgeData(GeomPlanarGraphEdge edge)
+    void updateEdgeData(EdgeGraph edge)
     {
-		EdgeData ed = state.edgesMap.get(edge.getIntegerAttribute("edgeID"));
-		if (criteria == "roadDistance") ed.roadDistance += 1;
-		else if (criteria == "angularChange") ed.angularChange += 1;
-		else if (criteria == "topological") ed.topological += 1;
-		else if (criteria == "roadDistanceLandmarks") ed.roadDistanceLandmarks += 1;
-		else if (criteria == "angularChangeLandmarks") ed.angularChangeLandmarks += 1;
-		else if (criteria == "localLandmarks") ed.localLandmarks += 1;
-		else if (criteria == "globalLandmarks") ed.globalLandmarks += 1;
-		else if (criteria == "roadDistanceRegions") ed.roadDistanceRegions += 1;
-		else if (criteria == "angularChangeRegions") ed.angularChangeRegions += 1;
-		else if (criteria == "roadDistanceRegionsBarriers") ed.roadDistanceRegionsBarriers += 1;
-		else if (criteria == "angularChangeRegionsBarriers") ed.angularChangeRegionsBarriers += 1;
+
+		if (criteria == "roadDistance") edge.roadDistance += 1;
+		else if (criteria == "angularChange") edge.angularChange += 1;
+		else if (criteria == "topological") edge.topological += 1;
+		else if (criteria == "roadDistanceLandmarks") edge.roadDistanceLandmarks += 1;
+		else if (criteria == "angularChangeLandmarks") edge.angularChangeLandmarks += 1;
+		else if (criteria == "localLandmarks") edge.localLandmarks += 1;
+		else if (criteria == "globalLandmarks") edge.globalLandmarks += 1;
+		else if (criteria == "roadDistanceRegions") edge.roadDistanceRegions += 1;
+		else if (criteria == "angularChangeRegions") edge.angularChangeRegions += 1;
+		else if (criteria == "roadDistanceBarriers") edge.roadDistanceBarriers += 1;
+		else if (criteria == "angularChangeBarriers") edge.angularChangeBarriers += 1;
+		else if (criteria == "roadDistanceRegionsBarriers") edge.roadDistanceRegionsBarriers += 1;
+		else if (criteria == "angularChangeRegionsBarriers") edge.angularChangeRegionsBarriers += 1;
     }
     
     public void setStoppable(Stoppable a) {killAgent = a;}
@@ -360,7 +362,7 @@ public final class Pedestrian implements Steppable
     
     public void repositionAgent() 
     {
-        Node new_start = nodesLookup.searchRandomNode(PedestrianSimulation.nodesGeometries, state);
+        NodeGraph new_start = nodesLookup.searchRandomNode(PedestrianSimulation.nodesGeometries, state);
         Coordinate startCoord = new_start.getCoordinate();
         updatePosition(startCoord); 
     }

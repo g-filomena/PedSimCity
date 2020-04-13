@@ -1,89 +1,74 @@
 package sim.app.geo.pedestrianSimulation;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 
-import com.vividsolutions.jts.geom.Coordinate;
-import com.vividsolutions.jts.geom.Geometry;
-
-import com.vividsolutions.jts.geom.LineString;
-import com.vividsolutions.jts.planargraph.Node;
-
+import com.vividsolutions.jts.geom.*;
 import sim.field.geo.GeomVectorField;
 import sim.util.Bag;
-import sim.util.geo.GeomPlanarGraph;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
-import sim.util.geo.GeomPlanarGraphEdge;
 import sim.util.geo.MasonGeometry;
 
 public class RegionalRouting {
+	
 	ArrayList<Integer> visited = new ArrayList<Integer>();
-	ArrayList<Node> sequence = new ArrayList<Node>();
+	ArrayList<NodeGraph> sequence = new ArrayList<NodeGraph>();
 	ArrayList<Integer> sequenceGateways = new ArrayList<Integer>();
-	ArrayList<Integer> sequenceNodes = new ArrayList<Integer>();
 	ArrayList<Integer> badExits = new ArrayList<Integer>();
-	Node originNode;
-	Node destinationNode;
-	Node currentLocation;
-	Node previousLocation;
+	NodeGraph originNode;
+	NodeGraph destinationNode;
+	NodeGraph currentLocation;
+	NodeGraph previousLocation;
 	int currentRegion;
 	int targetRegion;
 	boolean found = false;
 	
-	HashMap<Integer,EdgeData> edgesMap;
-	HashMap<Integer,NodeData> nodesMap;
-	HashMap<Integer,CentroidData> centroidsMap;
-	HashMap<Integer,GatewayData> gatewaysMap;
-	HashMap<Integer,ArrayList<GatewayData>> exitDistrictsMap;
-	HashMap<Integer,GeomPlanarGraph> districtDualMap;
+	HashMap<Integer,EdgeGraph> edgesMap;
+	HashMap<Integer, GatewayData> gatewaysMap;
 	
 
-	public ArrayList<GeomPlanarGraphDirectedEdge> pathFinderRegions(Node originNode, 
-			Node destinationNode, String localHeuristic, boolean usingBarriers, PedestrianSimulation state)
+	public ArrayList<GeomPlanarGraphDirectedEdge> pathFinderRegions(NodeGraph originNode, 
+			NodeGraph destinationNode, String localHeuristic, boolean usingBarriers, PedestrianSimulation state)
 	{	
 		
 		this.edgesMap = state.edgesMap;
-		this.nodesMap = state.nodesMap;
 		this.gatewaysMap = state.gatewaysMap;
-		this.exitDistrictsMap = state.exitDistrictsMap;
-		this.districtDualMap = state.districtDualMap;
-		this.centroidsMap = state.centroidsMap;
 		
 		this.originNode = originNode;
 	    this.destinationNode = destinationNode;
 	    
 		currentLocation = originNode;
-		currentRegion =  nodesMap.get(currentLocation.getData()).district;
-		targetRegion = nodesMap.get(destinationNode.getData()).district;
+		currentRegion = currentLocation.district;
+		targetRegion = destinationNode.district;
 		visited.add(currentRegion);
 		sequence.add(currentLocation);
-		sequenceGateways.add((Integer) currentLocation.getData());
-		sequenceNodes.add((Integer) currentLocation.getData());
+		sequenceGateways.add(currentLocation.getID());
 		badExits.clear();
 		previousLocation = null;
 		
 		// rough plan
 		while (found == false)
 		{
-			ArrayList<GatewayData> possibleGates = exitDistrictsMap.get(currentRegion);
+			ArrayList<GatewayData> possibleGates = state.districtsMap.get(currentRegion).gateways;
 			HashMap<Integer, Double> validGates = new HashMap<Integer, Double> ();
 			HashMap<Integer, Double> otherGates = new HashMap<Integer, Double> ();
 			
 			double destinationAngle = utilities.angle(currentLocation.getCoordinate(), destinationNode.getCoordinate());
 			double distanceTarget = utilities.nodesDistance(currentLocation, destinationNode);
-
+			if (usingBarriers & landmarkFunctions.intersectingBarriers(currentLocation, destinationNode, 
+					"separating").size()>0) distanceTarget = distanceTarget*1.10;
+			
 			for (GatewayData gd : possibleGates)
 			{	
-				if (gd.nodeID == currentLocation.getData()) continue;
+				if (gd.node == currentLocation) continue;
 				if (badExits.contains(gd.gatewayID)) continue;
 				if (visited.contains(gd.regionTo)) continue;
 				double gateAngle = utilities.angle(currentLocation.getCoordinate(), gd.node.getCoordinate());
-				if ((utilities.nodesDistance(gd.node, destinationNode) > distanceTarget) ||
+				double distanceFromGate = utilities.nodesDistance(gd.node, destinationNode);
+				if (usingBarriers & landmarkFunctions.intersectingBarriers(gd.node, destinationNode, "separating").size()>0)
+					distanceFromGate = distanceFromGate*1.10;
+				
+				if ((distanceFromGate > distanceTarget) ||
 					(utilities.isInDirection(destinationAngle, gateAngle, 140) == false) || 
 					(utilities.isInDirection(destinationAngle, gd.entryAngle, 140) == false))
 					{
@@ -105,13 +90,11 @@ public class RegionalRouting {
 					{
 						badExits.add(sequenceGateways.get(sequenceGateways.size()-2));
 						currentLocation = previousLocation;
-						currentRegion = nodesMap.get(previousLocation.getData()).district;
+						currentRegion = previousLocation.district;
 						sequence.remove(sequence.size() - 1);
 						sequence.remove(sequence.size() - 1);
 						sequenceGateways.remove(sequenceGateways.size()-1);
 						sequenceGateways.remove(sequenceGateways.size()-1);
-						sequenceNodes.remove(sequenceNodes.size()-1);
-						sequenceNodes.remove(sequenceNodes.size()-1);
 						visited.remove(visited.size()-1);
 						previousLocation = null;
 						continue;
@@ -119,42 +102,38 @@ public class RegionalRouting {
 					
 		        if (localHeuristic == "roadDistance")
 		        {
-		        	return routePlanning.routeDistanceShortestPath(originNode, destinationNode, null, 
-		        			state, "dijkstra").edges;
+		        	return routePlanning.roadDistance(originNode, destinationNode, null, 
+		        			false, 999999, "dijkstra", state).edges;
 		        }
 			        
 		        else if (localHeuristic == "angularChange")
 		        {
 		        	ArrayList<GeomPlanarGraphDirectedEdge> completePath =  new ArrayList<GeomPlanarGraphDirectedEdge>();
-		        	completePath = routePlanning.angularChangeShortestPath(originNode, destinationNode, null, 
-		        			state, "dijkstra").edges;
+		        	completePath = routePlanning.angularChange(originNode, destinationNode, null, null, 
+		        			false, 999999, "dijkstra", state).edges;
 		        	return completePath;
 		        }
 					
 			}			
 			Map<Integer, Double> validSorted = utilities.sortByValue(validGates); 
 			Iterator<Entry<Integer, Double>> it = validSorted.entrySet().iterator();
-			
 			// sequence formulation
 			
 			while (it.hasNext())
 			{
 				Map.Entry<Integer, Double> pair = (Map.Entry<Integer, Double>)it.next();
 				Integer exitID = pair.getKey();
-				Node exitNode = gatewaysMap.get(exitID).node;
-				
-				Integer entryID = gatewaysMap.get(exitID).entryID;
-			  	NodeData nd = nodesMap.get(entryID);
+				NodeGraph exitNode = gatewaysMap.get(exitID).node;
+			  	NodeGraph entryNode = gatewaysMap.get(exitID).entry;
 			  	sequenceGateways.add(exitID);
-			  	sequenceGateways.add(entryID);
-			  	sequenceNodes.add(gatewaysMap.get(exitID).nodeID);
-			  	sequenceNodes.add(entryID);
-	  			visited.add(nd.district);
+			  	sequenceGateways.add(entryNode.getID());
+			  	
+	  			visited.add(entryNode.district);
 	  			previousLocation = currentLocation;
-	  			currentLocation = nd.node;
-	  			currentRegion = nd.district;
+	  			currentLocation = entryNode;
+	  			currentRegion = entryNode.district;
 	  			sequence.add(exitNode);
-	  			sequence.add(nd.node);
+	  			sequence.add(entryNode);
 	  			break;
 			}
 			
@@ -166,42 +145,44 @@ public class RegionalRouting {
 				break;
 			}		
 		}
-		
-		
+
 		ArrayList<GeomPlanarGraphDirectedEdge> completePath =  new ArrayList<GeomPlanarGraphDirectedEdge>();
 		//sub-goals and barriers - navigation
-		ArrayList<Node> newSequence = new ArrayList<Node>();
-		
-		
+		ArrayList<NodeGraph> newSequence = new ArrayList<NodeGraph>();
+		HashMap<NodeGraph, Integer> barrierSubGoals = new HashMap<NodeGraph, Integer>();
+
 		if (usingBarriers)
 		{
-			for (Node g: sequence)
+			for (NodeGraph gateway: sequence)
 			{
-				int indexOf = sequence.indexOf(g);
-				newSequence.add(g);
+				int indexOf = sequence.indexOf(gateway);
+				newSequence.add(gateway);
+				if (indexOf == sequence.size()-1) break;
 				if ((indexOf > 0) & (indexOf%2 != 0)) continue; //entry gateway,
 				
 				//check if there are good barriers in line of movement
-				LineString l = utilities.LineStringBetweenNodes(g, destinationNode);			
-				GeomVectorField rivers = utilities.filterGeomVectorField(PedestrianSimulation.barriers, "type", "waterways", "equal");
-				Bag intersectingRivers = rivers.getTouchingObjects(l); 
+				Bag intersectingBarriers = landmarkFunctions.intersectingBarriers(gateway,
+						destinationNode, "positive");
 				
 				MasonGeometry farthest = null;
-				Node subGoal = null;
-				EdgeData edgeGoal = null;
+				NodeGraph subGoal = null;
+				EdgeGraph edgeGoal = null;
 				
-				if (intersectingRivers.size() >= 1)
+				if (intersectingBarriers.size() >= 1)
 				{
 					//look for orienting barriers
-					Node nextExit = sequence.get(indexOf+1);
+					NodeGraph nextExit = sequence.get(indexOf+1);
 					double distance = 0.0;
 					
-					for (Object i:intersectingRivers)
+					for (Object i:intersectingBarriers)
 					{
 						MasonGeometry geoBarrier = (MasonGeometry) i;
+						LineString l = utilities.LineStringBetweenNodes(originNode, destinationNode);
 						Coordinate intersection = l.intersection(geoBarrier.getGeometry()).getCoordinate();
-						double distanceIntersection = utilities.euclideanDistance(g.getCoordinate(), intersection);
-						if (distanceIntersection > utilities.euclideanDistance(g.getCoordinate(), nextExit.getCoordinate())) continue;
+						double distanceIntersection = utilities.euclideanDistance(gateway.getCoordinate(), 
+								intersection);
+						if (distanceIntersection > utilities.euclideanDistance(gateway.getCoordinate(), 
+								nextExit.getCoordinate())) continue;
 						else if(distanceIntersection > distance)
 						{
 							farthest = geoBarrier;	
@@ -209,75 +190,82 @@ public class RegionalRouting {
 						}
 					}
 				}
-			
 				if (farthest != null)
 				{
 					int barrierID = farthest.getIntegerAttribute("barrierID");
-					GeomVectorField filteryByDistricts = utilities.filterGeomVectorField(PedestrianSimulation.roads, "district",
-							nodesMap.get(g).district, "equal");
-
+					GeomVectorField filteryByDistricts = utilities.filterGeomVectorField(
+							PedestrianSimulation.roads, "district",	gateway.district, "equal");
+					
+					Bag possibleRoads = filteryByDistricts.getGeometries();
 					double distance = Double.MAX_VALUE;
-					for (Object p: filteryByDistricts.getGeometries())
+					for (Object road: possibleRoads)
 					{
-						MasonGeometry ed = (MasonGeometry) p;
-						Integer edgeID = ed.getIntegerAttribute("edgeID");
+						MasonGeometry eg = (MasonGeometry) road;
+						Integer edgeID = eg.getIntegerAttribute("edgeID");
 						List<Integer> positiveBarriers = edgesMap.get(edgeID).positiveBarriers;
 						if ((positiveBarriers == null) || (positiveBarriers.contains(barrierID))) continue;
-						double distanceEdge = utilities.euclideanDistance(g.getCoordinate(), ed.geometry.getCentroid().getCoordinate());
+						double distanceEdge = utilities.euclideanDistance(gateway.getCoordinate(), 
+								eg.geometry.getCentroid().getCoordinate());
 						if (distanceEdge < distance) edgeGoal = edgesMap.get(edgeID);
 					}
 				}
-				
 				if (edgeGoal == null) continue;
 				else
 				{
-					Node fromNode = nodesMap.get(edgeGoal.fromNode).node;
-					Node toNode = nodesMap.get(edgeGoal.toNode).node;
-					if ((utilities.nodesDistance(nodesMap.get(g).node, fromNode)) < 
-							(utilities.nodesDistance(nodesMap.get(g).node, toNode))) subGoal = fromNode;
-					else subGoal = toNode;
+					NodeGraph u = edgeGoal.u;
+					NodeGraph v = edgeGoal.v;
+					if ((utilities.nodesDistance(gateway, u)) < (utilities.nodesDistance(gateway, v))) 
+						subGoal = u;
+					else subGoal = v;
 				}
 				newSequence.add(subGoal);
+				barrierSubGoals.put(subGoal, farthest.getIntegerAttribute("barrierID"));
 			}
 		}
-		if (newSequence.size() == 0) newSequence = sequence;
-		Node primalOrigin = null;
-		Node primalDestination = null;
+		else newSequence = sequence;
 		
-		for (Node g: newSequence)
+		NodeGraph tmpOrigin = null;
+		NodeGraph tmpDestination = null;
+		
+		for (NodeGraph subGoal : newSequence)
 		{
-			int indexOf = newSequence.indexOf(g);	
+			int indexOf = newSequence.indexOf(subGoal);	
 			ArrayList<GeomPlanarGraphDirectedEdge> resultPartial =  new ArrayList<GeomPlanarGraphDirectedEdge>();
 			
 			if (indexOf == 0) //start
 			{
-				primalOrigin = g;
+				tmpOrigin = subGoal;
 				continue;
 			}
-			else primalDestination = g; // actual final destination
-			
-			Collection connectingEdge = Node.getEdgesBetween(primalOrigin, primalDestination);
-			GeomPlanarGraphEdge edge = null;
-			if (connectingEdge.size() > 0)
+			else tmpDestination = subGoal; // actual tmp destination
+			EdgeGraph edge = Graph.getEdgeBetween(tmpOrigin, tmpDestination);
+			if (edge != null)
 			{
-				for (Object o : connectingEdge) edge = (GeomPlanarGraphEdge) o;	
 				if (!completePath.contains(((GeomPlanarGraphDirectedEdge) edge.getDirEdge(0))))
-				{
 					completePath.add((GeomPlanarGraphDirectedEdge) edge.getDirEdge(0));
-					primalOrigin = primalDestination;
-					continue;
-				}
+				tmpOrigin = tmpDestination;
+				continue;
 			}	
+			int barrierID = 999999;
+			if (barrierSubGoals.get(subGoal)!= null)
+			{
+				barrierID = barrierSubGoals.get(subGoal);
+			}
+			
+			
 			if (localHeuristic == "roadDistance") 
-				{resultPartial = routePlanning.routeDistanceShortestPath(primalOrigin, primalDestination, null, 
-						state, "dijkstra").edges;}
+				{resultPartial = routePlanning.roadDistance(tmpOrigin, tmpDestination, null, 
+						true, barrierID, "dijkstra", state).edges;}
 			else 
-				{
-				resultPartial = routePlanning.angularChangeShortestPath(primalOrigin, primalDestination, null,
-						state, "dijkstra").edges;
-				}
+			{
+				ArrayList<NodeGraph> centroidsToAvoid = utilities.centroidsFromPath(completePath);
+				NodeGraph pJ = null;
+				if (completePath.size() >1) pJ = utilities.previousJunction(completePath, state); 
+				resultPartial = routePlanning.angularChange(tmpOrigin, tmpDestination, centroidsToAvoid, pJ, true,
+						barrierID, "dijkstra", state).edges;
+			}
 
-			primalOrigin = primalDestination;
+			tmpOrigin = tmpDestination;
 			completePath.addAll(resultPartial);
 		}
 		return completePath;	

@@ -12,36 +12,35 @@
  **/
 package sim.app.geo.pedestrianSimulation;
 import com.vividsolutions.jts.planargraph.DirectedEdgeStar;
-import com.vividsolutions.jts.planargraph.Node;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
-
 import sim.app.geo.pedestrianSimulation.utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
-import sim.util.geo.GeomPlanarGraphEdge;
 
 public class AStarAngularChange
 {
 	
-	HashMap<Integer, NodeData> nodesMap;
-	HashMap<Integer, EdgeData> edgesMap;
-	HashMap<Integer, CentroidData> centroidsMap;
-    HashMap<Node, DualNodeWrapper> mapWrappers =  new HashMap<Node, DualNodeWrapper>();
+	HashMap<Integer, NodeGraph> nodesMap;
+	HashMap<Integer, EdgeGraph> edgesMap;
+	HashMap<Integer, NodeGraph> centroidsMap;
+    HashMap<NodeGraph, DualNodeWrapper> mapWrappers =  new HashMap<NodeGraph, DualNodeWrapper>();
+	NodeGraph previousJunction;
+	int barrierID;
 	
-    public Path astarPath(Node originNode, Node destinationNode, ArrayList<Node> centroidsToAvoid, PedestrianSimulation state)
+    public Path astarPath(NodeGraph originNode, NodeGraph destinationNode, 
+    		ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, boolean regionalRouting, int barrierID,
+    		PedestrianSimulation state)
     {
-    	this.edgesMap = state.edgesMap;
     	this.nodesMap = state.nodesMap;
-    	this.centroidsMap = state.centroidsMap;
-
+    	this.edgesMap = state.edgesMap;
         // set up the containers for the sequenceEdges
         ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges =  new ArrayList<GeomPlanarGraphDirectedEdge>();
 
         // containers for the metainformation about the Nodes relative to the
         // A* search
         DualNodeWrapper originNodeWrapper = new DualNodeWrapper(originNode);
+		if (previousJunction != null) originNodeWrapper.commonPrimalJunction = previousJunction;
         DualNodeWrapper goalNodeWrapper = new DualNodeWrapper(destinationNode);
         mapWrappers.put(originNode, originNodeWrapper);
         mapWrappers.put(destinationNode, goalNodeWrapper);
@@ -60,7 +59,7 @@ public class AStarAngularChange
         	// while there are reachable nodes to investigate
             DualNodeWrapper currentNodeWrapper = findMin(openSet); // find the shortest path so far
             // we have found the shortest possible path to the goal! Reconstruct the path and send it back.
-            if (currentNodeWrapper.node == destinationNode)  return reconstructPath(goalNodeWrapper, centroidsMap, edgesMap);
+            if (currentNodeWrapper.node == destinationNode)  return reconstructPath(goalNodeWrapper);
             if (centroidsToAvoid == null);
             else if (centroidsToAvoid.contains(currentNodeWrapper.node))
             { 
@@ -79,14 +78,14 @@ public class AStarAngularChange
             {
                 GeomPlanarGraphDirectedEdge lastSegment = (GeomPlanarGraphDirectedEdge) o;
 
-                Node nextNode = null;
-                nextNode = lastSegment.getToNode();
-                if (utilities.commonPrimalJunction(nextNode, currentNodeWrapper.node, state) == 
+                NodeGraph nextNode = null;
+                nextNode = (NodeGraph) lastSegment.getToNode();
+                if (utilities.commonPrimalJunction(nextNode, currentNodeWrapper.node) == 
                 		currentNodeWrapper.commonPrimalJunction) continue;
                 // get the A* meta information about this Node
                 DualNodeWrapper nextNodeWrapper;
                 
-                if (mapWrappers.containsKey(nextNode)) nextNodeWrapper =  mapWrappers.get(nextNode);
+                if (mapWrappers.containsKey(nextNode)) nextNodeWrapper = mapWrappers.get(nextNode);
                 else
                 {
                    nextNodeWrapper = new DualNodeWrapper(nextNode);
@@ -118,7 +117,8 @@ public class AStarAngularChange
                     nextNodeWrapper.edgeFrom = lastSegment;
                     nextNodeWrapper.gx = tentativeCost;
                     nextNodeWrapper.fx = nextNodeWrapper.gx + nextNodeWrapper.hx;
-                    nextNodeWrapper.commonPrimalJunction = utilities.commonPrimalJunction(nextNodeWrapper.node, currentNodeWrapper.node, state);
+                    nextNodeWrapper.commonPrimalJunction = utilities.commonPrimalJunction(nextNodeWrapper.node, 
+                    		currentNodeWrapper.node);
                 }
             }
         }
@@ -136,17 +136,15 @@ public class AStarAngularChange
      * @return an ArrayList of GeomPlanarGraphDirectedEdges that lead from the
      * given Node to the Node from which the search began
      */
-    Path reconstructPath(DualNodeWrapper nodeWrapper, HashMap<Integer, CentroidData> centroidsMap, 
-    		HashMap<Integer, EdgeData> edgesMap  )
+    Path reconstructPath(DualNodeWrapper nodeWrapper)
     {
         ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges =  new ArrayList<GeomPlanarGraphDirectedEdge>();
         DualNodeWrapper currentWrapper = nodeWrapper;
 
         while (currentWrapper.nodeFrom != null)
         {
-        	int edgeID = (int) currentWrapper.node.getData(); //extract edgeID
-        	//extract edge from edgeID   ("e" is the edge in the edgeData structure)
-         	GeomPlanarGraphDirectedEdge edge = (GeomPlanarGraphDirectedEdge) edgesMap.get(edgeID).planarEdge.getDirEdge(0); 
+         	GeomPlanarGraphDirectedEdge edge = (GeomPlanarGraphDirectedEdge) 
+         			currentWrapper.node.primalEdge.getDirEdge(0); 
          	sequenceEdges.add(0, edge); // add this edge to the front of the list
             currentWrapper = mapWrappers.get(currentWrapper.nodeFrom);
         }
@@ -156,12 +154,10 @@ public class AStarAngularChange
         return path;
     }
 
-       
-    
     double angle(GeomPlanarGraphDirectedEdge lastIntersection)
     {
-    	GeomPlanarGraphEdge d = (GeomPlanarGraphEdge) lastIntersection.getEdge();
-    	return d.getDoubleAttribute("deg");
+    	EdgeGraph d = (EdgeGraph) lastIntersection.getEdge();
+    	return d.getDeflectionAngle();
     }
 
     /**

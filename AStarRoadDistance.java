@@ -12,37 +12,27 @@
  **/
 package sim.app.geo.pedestrianSimulation;
 import com.vividsolutions.jts.planargraph.DirectedEdgeStar;
-import com.vividsolutions.jts.planargraph.Node;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
-import sim.util.geo.GeomPlanarGraphEdge;
 import sim.app.geo.pedestrianSimulation.utilities.Path;
-import sim.engine.SimState;
 
-
-@SuppressWarnings("restriction")
 public class AStarRoadDistance
 {
+
+    HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 	
-	HashMap<Integer, EdgeData> edgesMap;
-	HashMap<Integer, NodeData> nodesMap;
-    HashMap<Node, NodeWrapper> mapWrappers =  new HashMap<Node, NodeWrapper>();
-	
-    public Path astarPath(Node originNode, Node destinationNode, ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid, PedestrianSimulation state)
+    public Path astarPath(NodeGraph originNode, NodeGraph destinationNode, 
+    		ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid, boolean regionalRouting,
+    		int barrierID, PedestrianSimulation state)
     {
-    	this.edgesMap = state.edgesMap;
-    	this.nodesMap = state.nodesMap;
         // set up the containers for the sequenceEdges
         ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges =  new ArrayList<GeomPlanarGraphDirectedEdge>();
         
         // containers for the metainformation about the Nodes relative to the
         // A* search
-
-
         NodeWrapper originNodeWrapper = new NodeWrapper(originNode);
         NodeWrapper destinationNodeWrapper = new NodeWrapper(destinationNode);
         mapWrappers.put(originNode, originNodeWrapper);
@@ -57,12 +47,10 @@ public class AStarRoadDistance
         // nodes that have been investigated
         ArrayList<NodeWrapper> openSet = new ArrayList<NodeWrapper>();
         openSet.add(originNodeWrapper); //adding the originNode Wrapper         
-        int count = 0;
+
         while (openSet.size() > 0)
         { 
-        	count += 1;
         	// while there are reachable nodes to investigate
-
             NodeWrapper currentNodeWrapper = findMin(openSet); // find the shortest path so far
             if (currentNodeWrapper.node == destinationNode) return reconstructPath(destinationNodeWrapper);
             // we have found the shortest possible path to the goal! Reconstruct the path and send it back.
@@ -75,23 +63,20 @@ public class AStarRoadDistance
             for (Object o : outEdges)
             {
                 GeomPlanarGraphDirectedEdge lastSegment = (GeomPlanarGraphDirectedEdge) o;
-                
                 if (segmentsToAvoid == null);
                 else if (segmentsToAvoid.contains(lastSegment)) continue;
                 
-                Node nextNode = null;
-                nextNode = lastSegment.getToNode();
-
+                NodeGraph nextNode = null;
+                nextNode = (NodeGraph) lastSegment.getToNode();
+               
                 // get the A* meta information about this Node
                 NodeWrapper nextNodeWrapper;
-                
                 if (mapWrappers.containsKey(nextNode)) nextNodeWrapper =  mapWrappers.get(nextNode);
                 else
                 {
                 	nextNodeWrapper = new NodeWrapper(nextNode);
                 	mapWrappers.put(nextNode, nextNodeWrapper);
                 }
-
                 if (closedSet.contains(nextNodeWrapper)) continue; // it has already been considered
 
                 // otherwise evaluate the cost of this node/edge combo
@@ -144,7 +129,6 @@ public class AStarRoadDistance
             sequenceEdges.add(0, currentWrapper.edgeFrom); // add this edge to the front of the list
             currentWrapper = mapWrappers.get(currentWrapper.nodeFrom);
         }
-
         Path path = new Path();
         path.edges = sequenceEdges;
         path.mapWrappers = mapWrappers;
@@ -153,11 +137,9 @@ public class AStarRoadDistance
     
     double length(GeomPlanarGraphDirectedEdge lastSegment)
     {
-    	GeomPlanarGraphEdge d = (GeomPlanarGraphEdge) lastSegment.getEdge();
-    	return d.getLine().getLength();
+    	EdgeGraph d = (EdgeGraph) lastSegment.getEdge();
+    	return d.getLength();
     }
-    
-    
 
     /**
      * 	Considers the list of Nodes open for consideration and returns the node

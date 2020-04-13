@@ -4,71 +4,78 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.vividsolutions.jts.planargraph.Node;
-
 import sim.app.geo.pedestrianSimulation.utilities.Path;
 import sim.field.geo.GeomVectorField;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
-import sim.util.geo.GeomPlanarGraphEdge;
 import sim.util.geo.MasonGeometry;
 
 public class routePlanning {
 	
+	static int barrierID = 999999;
+	static boolean regionalRouting = false;
+	
     /** Road Distance Shortest Path **/
-	public static Path routeDistanceShortestPath (Node originNode, Node destinationNode, ArrayList <GeomPlanarGraphDirectedEdge> 
-			segmentsToAvoid, PedestrianSimulation state,
-			String algorithm)
+	public static Path roadDistance(NodeGraph originNode, NodeGraph destinationNode, 
+			ArrayList <GeomPlanarGraphDirectedEdge> segmentsToAvoid,  boolean regionalRouting, int barrierID,
+			String algorithm, PedestrianSimulation state)
+		
 	{	
 		if (algorithm == "astar")
 		{
 			AStarRoadDistance pathfinder = new AStarRoadDistance();
-		    Path path = pathfinder.astarPath(originNode, destinationNode, segmentsToAvoid, state);    
+		    Path path = pathfinder.astarPath(originNode, destinationNode, segmentsToAvoid, regionalRouting,
+		    		barrierID, state);   
 		    return path;
 		}
 		else
 		{
 			DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
-		    Path path = pathfinder.dijkstraPath(originNode, destinationNode, segmentsToAvoid, state);    
+		    Path path = pathfinder.dijkstraPath(originNode, destinationNode, segmentsToAvoid, regionalRouting,
+		    		barrierID, state);    
 		    return path;
 		}
 
 	}
 	
 	/** Angular Change Shortest Path **/
-	public static Path angularChangeShortestPath (Node originNode, Node destinationNode, ArrayList <Node> centroidsToAvoid, PedestrianSimulation state,
-			String algorithm)
+	public static Path angularChange(NodeGraph originNode, NodeGraph destinationNode, 
+			ArrayList <NodeGraph> centroidsToAvoid, NodeGraph previousJunction, boolean regionalRouting, 
+			int barrierID, String algorithm, PedestrianSimulation state)
+
 	{	
-    	Node dualOrigin = utilities.getDualNode(originNode, PedestrianSimulation.dualNetwork);
-    	Node dualDestination = null;
-    	while (dualDestination == dualOrigin || dualDestination == null) dualDestination = utilities.getDualNode(
-    			destinationNode, PedestrianSimulation.dualNetwork);
 		
+		NodeGraph dualOrigin = utilities.getDualNode(originNode, regionalRouting);
+		NodeGraph dualDestination = null;
+    	while (dualDestination == dualOrigin || dualDestination == null) dualDestination = utilities.getDualNode(
+    			destinationNode, regionalRouting);
 		if (algorithm == "astar")
 		{
 			AStarAngularChange pathfinder = new AStarAngularChange();
-		    Path path = pathfinder.astarPath(dualOrigin, dualDestination, centroidsToAvoid, state);    
-		    if (previousJunction(path.edges, state) == destinationNode) path.edges.remove(path.edges.size()-1);
+		    Path path = pathfinder.astarPath(dualOrigin, dualDestination, centroidsToAvoid, previousJunction, 
+		    		regionalRouting, barrierID,	state);    
+		    if (utilities.previousJunction(path.edges, state) == destinationNode) path.edges.remove(path.edges.size()-1);
 		    return path;
 		}
 		else
 		{
 			DijkstraAngularChange pathfinder = new DijkstraAngularChange();
-		    Path path = pathfinder.dijkstraPath(dualOrigin, dualDestination, centroidsToAvoid, null, state); 
-		    if (previousJunction(path.edges, state) == destinationNode) path.edges.remove(path.edges.size()-1);
+		    Path path = pathfinder.dijkstraPath(dualOrigin, dualDestination, centroidsToAvoid, previousJunction, barrierID, 
+		    		regionalRouting, state); 
+		    if (utilities.previousJunction(path.edges, state) == destinationNode) path.edges.remove(path.edges.size()-1);
 		    return path;
 		}
 	}
 	
 	/**Network Distance Shortest Path **/	
-	public static Path topologicalShortestPath (Node originNode, Node destinationNode, ArrayList <Integer> segmentsToAvoid, PedestrianSimulation state)
+	public static Path topologicalShortestPath (NodeGraph originNode, NodeGraph destinationNode, ArrayList <Integer> segmentsToAvoid, PedestrianSimulation state)
 	{	
 		DijkstraNetworkDistance pathfinder = new DijkstraNetworkDistance();
 	    Path path = pathfinder.dijkstraPath(originNode, destinationNode, segmentsToAvoid, state);    
 	    return path;
 	}
 	
-	/** Global Landmarks Path plus other weights **/
-	public static Path globalLandmarksPath (Node originNode, Node destinationNode, ArrayList <Integer> segmentsToAvoid, String criteria,
+	/** Global Landmarks Path **/
+	public static Path globalLandmarksPath (NodeGraph originNode, NodeGraph destinationNode, ArrayList <Integer> segmentsToAvoid, String criteria,
 			PedestrianSimulation state)
 	{	
 //		if (criteria == "road_distance")
@@ -94,16 +101,16 @@ public class routePlanning {
 	}
 		
 	/** Local and Global Landmarks Path plus Road Distance **/
-	public static ArrayList<GeomPlanarGraphDirectedEdge> RoadDistanceLandmarksPath(Node originNode, Node destinationNode, 
-			ArrayList <Node> sequence, PedestrianSimulation state)
+	public static ArrayList<GeomPlanarGraphDirectedEdge> RoadDistanceLandmarksPath(NodeGraph originNode,
+			NodeGraph destinationNode, ArrayList <NodeGraph> sequence, PedestrianSimulation state)
 	{   
 		ArrayList<GeomPlanarGraphDirectedEdge> newPath = null;
 		DijkstraRoadDistanceLandmarks pathFinder = new DijkstraRoadDistanceLandmarks();  
-		Node tmpNode = originNode;
+		NodeGraph tmpNode = originNode;
 		ArrayList<GeomPlanarGraphDirectedEdge> tmpPath = null;
-        ArrayList<Node> traversedNodes = new ArrayList<Node>();
+        ArrayList<NodeGraph> traversedNodes = new ArrayList<NodeGraph>();
 
-		for (Node intermediateNode : sequence)
+		for (NodeGraph intermediateNode : sequence)
     	{	
 			if ((traversedNodes != null) && (traversedNodes.contains(intermediateNode))) continue;
 			Path tP = null;
@@ -119,8 +126,8 @@ public class routePlanning {
     			while (tP.edges == null)
     			{
     				GeomPlanarGraphDirectedEdge lastSegment = newPath.get(newPath.size()-1);
-    				if (lastSegment.getFromNode() == tmpNode) tmpNode = lastSegment.getToNode();
-    				else tmpNode = lastSegment.getFromNode();
+    				if (lastSegment.getFromNode() == tmpNode) tmpNode = (NodeGraph) lastSegment.getToNode();
+    				else tmpNode = (NodeGraph) lastSegment.getFromNode();
     				newPath.remove(lastSegment);
     				DijkstraRoadDistanceLandmarks loopPathFinder = new DijkstraRoadDistanceLandmarks(); 
     				tP = loopPathFinder.dijkstraPath(tmpNode, intermediateNode, newPath, state);
@@ -131,7 +138,7 @@ public class routePlanning {
 			
     		for (int i = sequence.indexOf(intermediateNode)+1; i < sequence.size(); i++)
     		{
-    			Node next = sequence.get(i);
+    			NodeGraph next = sequence.get(i);
 				if (tP.mapWrappers.containsKey(next)) traversedNodes.add(next);
     		}
         	tmpNode = intermediateNode;
@@ -144,8 +151,8 @@ public class routePlanning {
 		while (tmpPath == null)
 		{
 			GeomPlanarGraphDirectedEdge lastSegment = newPath.get(newPath.size()-1);
-			if (lastSegment.getFromNode() == tmpNode) tmpNode = lastSegment.getToNode();
-			else tmpNode = lastSegment.getFromNode();
+			if (lastSegment.getFromNode() == tmpNode) tmpNode = (NodeGraph) lastSegment.getToNode();
+			else tmpNode = (NodeGraph) lastSegment.getFromNode();
 			newPath.remove(lastSegment);
 			if (tmpNode == destinationNode) return newPath;
 			DijkstraRoadDistanceLandmarks loopPathFinder = new DijkstraRoadDistanceLandmarks(); 
@@ -156,22 +163,23 @@ public class routePlanning {
     }
 	
 	/** Local and Global Landmarks Path plus Angular Change **/
-	public static ArrayList<GeomPlanarGraphDirectedEdge> AngularChangeLandmarksPath(Node originNode, Node destinationNode, 
-			ArrayList <Node> sequence, PedestrianSimulation state)
+	public static ArrayList<GeomPlanarGraphDirectedEdge> AngularChangeLandmarksPath(NodeGraph originNode, 
+			NodeGraph destinationNode, ArrayList <NodeGraph> sequence, PedestrianSimulation state)
 	{
 		ArrayList<GeomPlanarGraphDirectedEdge> newPath = null;
-		Node dualOrigin = utilities.getDualNode(originNode, PedestrianSimulation.dualNetwork);
-		Node dualDestination = utilities.getDualNode(destinationNode, PedestrianSimulation.dualNetwork);
+		NodeGraph dualOrigin = utilities.getDualNode(originNode, regionalRouting);
+		NodeGraph dualDestination = utilities.getDualNode(destinationNode, regionalRouting);
 		DijkstraAngularChangeLandmarks pathFinder = new DijkstraAngularChangeLandmarks();  
-		Node tmpNode = dualOrigin;
+		NodeGraph tmpNode = dualOrigin;
 		ArrayList<GeomPlanarGraphDirectedEdge> tmpPath = null;
-		ArrayList<Node> centroidsToAvoid = new ArrayList<Node>();
-		ArrayList<Node> dualSequence =  new ArrayList<Node>();
-        ArrayList<Node> traversedCentroids = new ArrayList<Node>();
-		Node pJ = null;
+		ArrayList<NodeGraph> centroidsToAvoid = new ArrayList<NodeGraph>();
+		ArrayList<NodeGraph> dualSequence =  new ArrayList<NodeGraph>();
+        ArrayList<NodeGraph> traversedCentroids = new ArrayList<NodeGraph>();
+        NodeGraph pJ = null;
 
-        for (Node intermediateNode : sequence) dualSequence.add(utilities.getDualNode(intermediateNode, PedestrianSimulation.dualNetwork));
-		for (Node dualIntermediateNode : dualSequence)
+        for (NodeGraph intermediateNode : sequence) dualSequence.add(utilities.getDualNode(intermediateNode,
+        		regionalRouting));
+		for (NodeGraph dualIntermediateNode : dualSequence)
     	{
 
     		if ((traversedCentroids != null) && (traversedCentroids.contains(dualIntermediateNode))) continue;
@@ -180,9 +188,9 @@ public class routePlanning {
     		{
     			tP = pathFinder.dijkstraPath(tmpNode, dualIntermediateNode, destinationNode, null, pJ, state);
     			newPath = tP.edges;
-	        	pJ = previousJunction(newPath, state);
+	        	pJ = utilities.previousJunction(newPath, state);
 	        	for (GeomPlanarGraphDirectedEdge e: newPath) centroidsToAvoid.add(
-	        			state.centroidsMap.get(((GeomPlanarGraphEdge) e.getEdge()).getIntegerAttribute("edgeID")).c);
+	        			state.centroidsMap.get(((EdgeGraph) e.getEdge()).getID()));
     		}
     		else
     		{
@@ -191,32 +199,33 @@ public class routePlanning {
 				while (tP.edges == null)
     			{
     				newPath.remove(newPath.size()-1); // remove last one
-    				pJ = previousJunction(newPath, state);
+    				pJ = utilities.previousJunction(newPath, state);
     				GeomPlanarGraphDirectedEdge lastSegment = newPath.get(newPath.size()-1);
-    				int lastSegmentID = ((GeomPlanarGraphEdge) lastSegment.getEdge()).getIntegerAttribute("edgeID");
-    				tmpNode = state.centroidsMap.get(lastSegmentID).c;
+    				int lastSegmentID = ((EdgeGraph) lastSegment.getEdge()).getID();
+    				tmpNode = state.centroidsMap.get(lastSegmentID);
     				centroidsToAvoid.remove(tmpNode);
     				DijkstraAngularChangeLandmarks loopPathFinder = new DijkstraAngularChangeLandmarks(); 
-    				tP = loopPathFinder.dijkstraPath(tmpNode, dualIntermediateNode, destinationNode, centroidsToAvoid, pJ, state);
+    				tP = loopPathFinder.dijkstraPath(tmpNode, dualIntermediateNode, destinationNode, centroidsToAvoid, 
+    						pJ, state);
     			}
 	    		tmpPath = tP.edges; 
 	        	for (GeomPlanarGraphDirectedEdge e: tmpPath) centroidsToAvoid.add(
-	        			state.centroidsMap.get(((GeomPlanarGraphEdge) e.getEdge()).getIntegerAttribute("edgeID")).c);
-            	pJ = previousJunction(tmpPath, state);
+	        			state.centroidsMap.get(((EdgeGraph) e.getEdge()).getID()));
+            	pJ = utilities.previousJunction(tmpPath, state);
     			tmpPath.remove(tmpPath.get(0));
     			newPath.addAll(tmpPath); 
     		}
     		
         	for (int i = sequence.indexOf(dualIntermediateNode)+1; i < sequence.size(); i++)
     		{
-    			 Node next = dualSequence.get(i);
+    			 NodeGraph next = dualSequence.get(i);
     			 if (tP.dualMapWrappers.containsKey(next)) traversedCentroids.add(next);
     		}
         	tmpNode = dualIntermediateNode;
         	centroidsToAvoid.remove(tmpNode);
     	}
     	
-		GeomPlanarGraphDirectedEdge destinationEdge = (GeomPlanarGraphDirectedEdge) state.edgesMap.get((int) dualDestination.getData()).planarEdge.getDirEdge(0);
+		GeomPlanarGraphDirectedEdge destinationEdge = (GeomPlanarGraphDirectedEdge) dualDestination.primalEdge.getDirEdge(0);
 		ArrayList<GeomPlanarGraphDirectedEdge> controlPath = controlDualPath(destinationNode, destinationEdge, newPath, state);
 		if (controlPath != null) return controlPath;
 		
@@ -225,10 +234,10 @@ public class routePlanning {
 		while (tmpPath == null)
 		{
 			newPath.remove(newPath.size()-1); // remove last one
-			pJ = previousJunction(newPath, state);
+			pJ = utilities.previousJunction(newPath, state);
 			GeomPlanarGraphDirectedEdge lastSegment = newPath.get(newPath.size()-1);
-			int lastSegmentID = ((GeomPlanarGraphEdge) lastSegment.getEdge()).getIntegerAttribute("edgeID");
-			tmpNode = state.centroidsMap.get(lastSegmentID).c;
+			int lastSegmentID = ((EdgeGraph) lastSegment.getEdge()).getID();
+			tmpNode = state.centroidsMap.get(lastSegmentID);
 			centroidsToAvoid.remove(tmpNode);
 			DijkstraAngularChangeLandmarks loopPathFinder = new DijkstraAngularChangeLandmarks(); 
 			tmpPath = loopPathFinder.dijkstraPath(tmpNode, dualDestination, destinationNode, centroidsToAvoid, pJ, state).edges;
@@ -236,48 +245,51 @@ public class routePlanning {
 
 		tmpPath.remove(tmpPath.get(0));
     	newPath.addAll(tmpPath); 
-    	if (previousJunction(newPath, state) == destinationNode) newPath.remove(newPath.size()-1);
+    	if (utilities.previousJunction(newPath, state) == destinationNode) newPath.remove(newPath.size()-1);
     	return newPath;
 	}
 	
 	/** Local Landmarks Path plus Road Distance **/
-	public static ArrayList<GeomPlanarGraphDirectedEdge> RoadDistanceLocalLandmarksPath(Node originNode, Node destinationNode, 
-			ArrayList <Node> sequence, PedestrianSimulation state)
+	public static ArrayList<GeomPlanarGraphDirectedEdge> RoadDistanceLocalLandmarks(NodeGraph originNode, 
+			NodeGraph destinationNode, ArrayList <NodeGraph> sequence, PedestrianSimulation state)
 	{
+		
 		ArrayList<GeomPlanarGraphDirectedEdge> newPath = null;
 		DijkstraRoadDistance pathFinder = new DijkstraRoadDistance();  
-		Node tmpNode = originNode;
+		NodeGraph tmpNode = originNode;
 		ArrayList<GeomPlanarGraphDirectedEdge> tmpPath = null;
-        ArrayList<Node> traversedNodes = new ArrayList<Node>();
+        ArrayList<NodeGraph> traversedNodes = new ArrayList<NodeGraph>();
 	        
-		for (Node intermediateNode : sequence)
+		for (NodeGraph intermediateNode : sequence)
     	{	
 			if ((traversedNodes != null) && (traversedNodes.contains(intermediateNode))) continue;
 			Path tP = null;
 			if (sequence.indexOf(intermediateNode) == 0) 
 			{
-				tP = pathFinder.dijkstraPath(tmpNode, intermediateNode, null, state);
+				tP = pathFinder.dijkstraPath(tmpNode, intermediateNode, null, regionalRouting,
+						barrierID, state);
 				newPath = tP.edges;
 			}
     		else
     		{
 				DijkstraRoadDistance tmpPathFinder = new DijkstraRoadDistance(); 
-				tP = tmpPathFinder.dijkstraPath(tmpNode, intermediateNode, newPath, state);
+				tP = tmpPathFinder.dijkstraPath(tmpNode, intermediateNode, newPath, false, barrierID, state);
     			while (tP.edges == null)
     			{
     				GeomPlanarGraphDirectedEdge lastSegment = newPath.get(newPath.size()-1);
-    				if (lastSegment.getFromNode() == tmpNode) tmpNode = lastSegment.getToNode();
-    				else tmpNode = lastSegment.getFromNode();
+    				if (lastSegment.getFromNode() == tmpNode) tmpNode = (NodeGraph) lastSegment.getToNode();
+    				else tmpNode = (NodeGraph) lastSegment.getFromNode();
     				newPath.remove(lastSegment);
 					DijkstraRoadDistance looPathFinder = new DijkstraRoadDistance(); 
-					tP = looPathFinder.dijkstraPath(tmpNode, intermediateNode, newPath, state);
+					tP = looPathFinder.dijkstraPath(tmpNode, intermediateNode, newPath, regionalRouting,
+							barrierID, state);
     			}
     			tmpPath = tP.edges; 
     			newPath.addAll(tmpPath); 
     		}
     		for (int i = sequence.indexOf(intermediateNode)+1; i < sequence.size(); i++)
     		{
-    			Node next = sequence.get(i);
+    			NodeGraph next = sequence.get(i);
     			if (tP.mapWrappers.containsKey(next)) traversedNodes.add(next);
     		}	
     		tmpNode = intermediateNode;
@@ -287,17 +299,19 @@ public class routePlanning {
 		if (controlPath != null) return controlPath;
 		
 		DijkstraRoadDistance tmpPathFinder = new DijkstraRoadDistance(); 
-		tmpPath = tmpPathFinder.dijkstraPath(tmpNode, destinationNode, newPath, state).edges; 
+		tmpPath = tmpPathFinder.dijkstraPath(tmpNode, destinationNode, newPath, regionalRouting, barrierID,
+				state).edges; 
 		while (tmpPath == null)
 		{
 			
 			GeomPlanarGraphDirectedEdge lastSegment = newPath.get(newPath.size()-1);
-			if (lastSegment.getFromNode() == tmpNode) tmpNode = lastSegment.getToNode();
-			else tmpNode = lastSegment.getFromNode();
+			if (lastSegment.getFromNode() == tmpNode) tmpNode = (NodeGraph) lastSegment.getToNode();
+			else tmpNode = (NodeGraph) lastSegment.getFromNode();
 			newPath.remove(lastSegment);
 			if (tmpNode == destinationNode) return newPath;
 			DijkstraRoadDistance loopPathFinder = new DijkstraRoadDistance(); 
-			tmpPath = loopPathFinder.dijkstraPath(tmpNode, destinationNode, newPath, state).edges;
+			tmpPath = loopPathFinder.dijkstraPath(tmpNode, destinationNode, newPath,  regionalRouting, barrierID,
+					state).edges;
 		}
     	newPath.addAll(tmpPath);
 		return newPath; 
@@ -305,60 +319,63 @@ public class routePlanning {
 		
 	/** Local Landmarks Path plus angular change **/
 		
-	public static ArrayList<GeomPlanarGraphDirectedEdge> AngularChangeLocalLandmarksPath(Node originNode, Node destinationNode, 
-			ArrayList <Node> sequence, PedestrianSimulation state)
+	public static ArrayList<GeomPlanarGraphDirectedEdge> AngularChangeLocalLandmarks(NodeGraph originNode, 
+			NodeGraph destinationNode, ArrayList <NodeGraph> sequence, PedestrianSimulation state)
 	{
 		ArrayList<GeomPlanarGraphDirectedEdge> newPath = null;
-		Node dualOrigin = utilities.getDualNode(originNode, PedestrianSimulation.dualNetwork);
-		Node dualDestination = utilities.getDualNode(destinationNode, PedestrianSimulation.dualNetwork);
+		NodeGraph dualOrigin = utilities.getDualNode(originNode, regionalRouting);
+		NodeGraph dualDestination = utilities.getDualNode(destinationNode,regionalRouting);
 				
 		DijkstraAngularChange pathFinder = new DijkstraAngularChange();  
-		Node tmpNode = dualOrigin;
+		NodeGraph tmpNode = dualOrigin;
 		ArrayList<GeomPlanarGraphDirectedEdge> tmpPath = null;
-		ArrayList<Node> centroidsToAvoid = new ArrayList<Node>();
-		ArrayList<Node> dualSequence =  new ArrayList<Node>();
-        ArrayList<Node> traversedCentroids = new ArrayList<Node>();
-		Node pJ = null;
+		ArrayList<NodeGraph> centroidsToAvoid = new ArrayList<NodeGraph>();
+		ArrayList<NodeGraph> dualSequence =  new ArrayList<NodeGraph>();
+        ArrayList<NodeGraph> traversedCentroids = new ArrayList<NodeGraph>();
+		NodeGraph pJ = null;
+		boolean regionalRouting = false;
 		        
-    	for (Node intermediateNode : sequence) dualSequence.add(utilities.getDualNode(intermediateNode, PedestrianSimulation.dualNetwork));
+    	for (NodeGraph intermediateNode : sequence) dualSequence.add(utilities.getDualNode(intermediateNode,
+    			regionalRouting));
     	
-    	for (Node dualIntermediateNode : dualSequence)
+    	for (NodeGraph dualIntermediateNode : dualSequence)
     	{
     		if ((traversedCentroids != null) && (traversedCentroids.contains(dualIntermediateNode))) continue;
     		Path tP = null;
     		
     		if (dualSequence.indexOf(dualIntermediateNode) == 0) 
     		{
-    			tP = pathFinder.dijkstraPath(tmpNode, dualIntermediateNode, null, null, state);
+    			tP = pathFinder.dijkstraPath(tmpNode, dualIntermediateNode, null, null, barrierID, regionalRouting, state);
     			newPath = tP.edges; 
-	        	pJ = previousJunction(newPath, state);
-	        	centroidsToAvoid = (ArrayList<Node>) tP.dualMapWrappers.keySet().stream().collect(Collectors.toList());
+	        	pJ = utilities.previousJunction(newPath, state);
+	        	centroidsToAvoid = (ArrayList<NodeGraph>) tP.dualMapWrappers.keySet().stream().collect(Collectors.toList());
     		}
     		
 			else
     		{
     			DijkstraAngularChange tmpPathFinder = new DijkstraAngularChange(); 
-				tP = tmpPathFinder.dijkstraPath(tmpNode, dualIntermediateNode, centroidsToAvoid, pJ, state);
+				tP = tmpPathFinder.dijkstraPath(tmpNode, dualIntermediateNode, centroidsToAvoid, pJ, barrierID, regionalRouting, state);
 				while (tP.edges == null)
     			{
     				newPath.remove(newPath.size()-1); // remove last one
-    				pJ = previousJunction(newPath, state);
+    				pJ = utilities.previousJunction(newPath, state);
     				GeomPlanarGraphDirectedEdge lastSegment = newPath.get(newPath.size()-1);
-    				int lastSegmentID = ((GeomPlanarGraphEdge) lastSegment.getEdge()).getIntegerAttribute("edgeID");
-    				tmpNode = state.centroidsMap.get(lastSegmentID).c;
+    				int lastSegmentID = ((EdgeGraph) lastSegment.getEdge()).getID();
+    				tmpNode = state.centroidsMap.get(lastSegmentID);
     				centroidsToAvoid.remove(tmpNode);
     				DijkstraAngularChange loopPathFinder = new DijkstraAngularChange(); 
-    				tP = loopPathFinder.dijkstraPath(tmpNode, dualIntermediateNode, centroidsToAvoid, pJ, state);
+    				tP = loopPathFinder.dijkstraPath(tmpNode, dualIntermediateNode, centroidsToAvoid, pJ, 
+    						barrierID, regionalRouting, state);
     			}
     			
-    			for (Node key : tP.dualMapWrappers.keySet()) {centroidsToAvoid.add(key);}
+    			for (NodeGraph key : tP.dualMapWrappers.keySet()) {centroidsToAvoid.add(key);}
 	    		for (int i = sequence.indexOf(dualIntermediateNode)+1; i < sequence.size(); i++)
 	    		{
-	    			 Node next = dualSequence.get(i);
+	    			 NodeGraph next = dualSequence.get(i);
 	    			 if (tP.dualMapWrappers.containsKey(next)) traversedCentroids.add(next);
 	    		}	 
 	    		tmpPath = tP.edges; 
-            	pJ = previousJunction(tmpPath, state);
+            	pJ = utilities.previousJunction(tmpPath, state);
     			tmpPath.remove(tmpPath.get(0));
     			newPath.addAll(tmpPath); 
     		}
@@ -367,68 +384,66 @@ public class routePlanning {
     		
         	for (int i = sequence.indexOf(dualIntermediateNode)+1; i < sequence.size(); i++)
     		{
-    			 Node next = dualSequence.get(i);
+        		 NodeGraph next = dualSequence.get(i);
     			 if (tP.dualMapWrappers.containsKey(next)) traversedCentroids.add(next);
     		}
 		}
-		GeomPlanarGraphDirectedEdge destinationEdge = (GeomPlanarGraphDirectedEdge) state.edgesMap.get((int) dualDestination.getData()).planarEdge.getDirEdge(0);
+		GeomPlanarGraphDirectedEdge destinationEdge = (GeomPlanarGraphDirectedEdge) dualDestination.primalEdge.getDirEdge(0);
 		ArrayList<GeomPlanarGraphDirectedEdge> controlPath = controlDualPath(destinationNode, destinationEdge, newPath, state);
 		if (controlPath != null) return controlPath;
 		
     	DijkstraAngularChange tmpPathFinder = new DijkstraAngularChange(); 
-		tmpPath = tmpPathFinder.dijkstraPath(tmpNode, dualDestination, centroidsToAvoid, pJ, state).edges; 
+		tmpPath = tmpPathFinder.dijkstraPath(tmpNode, dualDestination, centroidsToAvoid, pJ, barrierID, regionalRouting, state).edges; 
 		while (tmpPath == null)
 		{
 			newPath.remove(newPath.size()-1); // remove last one
-			pJ = previousJunction(newPath, state);
+			pJ = utilities.previousJunction(newPath, state);
 			GeomPlanarGraphDirectedEdge lastSegment = newPath.get(newPath.size()-1);
-			int lastSegmentID = ((GeomPlanarGraphEdge) lastSegment.getEdge()).getIntegerAttribute("edgeID");
-			tmpNode = state.centroidsMap.get(lastSegmentID).c;
+			int lastSegmentID = ((EdgeGraph) lastSegment.getEdge()).getID();
+			tmpNode = state.centroidsMap.get(lastSegmentID);
 			centroidsToAvoid.remove(tmpNode);
 			DijkstraAngularChange loopPathFinder = new DijkstraAngularChange(); 
-			tmpPath = loopPathFinder.dijkstraPath(tmpNode, dualDestination, centroidsToAvoid, pJ, state).edges;
+			tmpPath = loopPathFinder.dijkstraPath(tmpNode, dualDestination, centroidsToAvoid, pJ, barrierID, 
+					regionalRouting, state).edges;
 		}
 
 		tmpPath.remove(tmpPath.get(0));
     	newPath.addAll(tmpPath); 
-    	if (previousJunction(newPath, state) == destinationNode) newPath.remove(newPath.size()-1);
+    	if (utilities.previousJunction(newPath, state) == destinationNode) newPath.remove(newPath.size()-1);
     	return newPath;
     }
 	
 	
-	public static ArrayList<Node> findSequenceIntermediateNodes(Node originNode, Node destinationNode, PedestrianSimulation state)
+	public static ArrayList<NodeGraph> findSequenceSubGoals(NodeGraph originNode, NodeGraph destinationNode, 
+			PedestrianSimulation state)
 	{
     	GeomVectorField knownJunctions = landmarkFunctions.relevantNodes(originNode, destinationNode, state);
         double wayfindingComplexity = landmarkFunctions.easinessNavigation(originNode, destinationNode, state);
         double searchRange = utilities.nodesDistance(originNode, destinationNode) * (wayfindingComplexity);
-        Node currentNode = originNode;
-//        ArrayList<Integer> segmentsToAvoid = new ArrayList<Integer>();
-
-	    List<Integer> badNodes = new ArrayList<Integer>();
-	    ArrayList<Node> sequence = new ArrayList<Node>();
+        NodeGraph currentNode = originNode;
+        
+	    List<Integer> badCandidates = new ArrayList<Integer>();
+	    ArrayList<NodeGraph> sequence = new ArrayList<NodeGraph>();
     	while (searchRange >  state.t)
         {
-        	Node bestNode = null;
-//        	Node bestDualNode = null;
-//        	ArrayList<GeomPlanarGraphDirectedEdge> bestPath = null;
-//        	ArrayList<GeomPlanarGraphDirectedEdge> tmpPath = null;
+    		NodeGraph bestNode = null;
         	double attractivness = 0.0;
         		        	
         	for (Object o : knownJunctions.getGeometries())
 	        {
 		    	MasonGeometry geoNode = (MasonGeometry) o;
-		    	int nodeID = state.nodesGeometryMap.get(geoNode);
-		    	Node tmpNode = state.nodesMap.get(nodeID).node;
+		    	int nodeID = (int) geoNode.getIntegerAttribute("nodeID");
+		    	NodeGraph tmpNode = state.nodesMap.get(nodeID);
 		    	
 		    	if (sequence.contains(tmpNode)) continue;
 		    	if (tmpNode == originNode) continue;
-		    	if (Node.getEdgesBetween(tmpNode, currentNode).size() > 0) continue;
-		    	if (Node.getEdgesBetween(tmpNode, destinationNode).size() > 0) continue;
-		    	if (Node.getEdgesBetween(tmpNode, originNode).size() > 0) continue;
+		    	if (Graph.getEdgeBetween(tmpNode, currentNode) != null) continue;
+		    	if (Graph.getEdgeBetween(tmpNode, destinationNode)!= null) continue;
+		    	if (Graph.getEdgeBetween(tmpNode, originNode)!= null) continue;
 		    	
 		    	if (utilities.nodesDistance(currentNode, tmpNode) > searchRange)
 		    	{
-		    		badNodes.add(nodeID);
+		    		badCandidates.add(nodeID);
 		    		continue; //only nodes in range	
 		    	}
         		double localScore = 0.0;
@@ -455,33 +470,31 @@ public class routePlanning {
             currentNode = bestNode;
             bestNode = null;
         }
-    	for (Node i : sequence) System.out.println(i.getData());
     	return sequence;
 	}
 	
-	static Node previousJunction(ArrayList<GeomPlanarGraphDirectedEdge> path, PedestrianSimulation state)
-	{
-		Node lastCen = state.centroidsMap.get(((GeomPlanarGraphEdge) path.get(path.size()-1).getEdge()).getIntegerAttribute("edgeID")).c; 
-		Node otherCen = state.centroidsMap.get(((GeomPlanarGraphEdge) path.get(path.size()-2).getEdge()).getIntegerAttribute("edgeID")).c;
-		return state.nodesMap.get(utilities.commonPrimalJunction(lastCen, otherCen, state)).node;
-	}
-
-
-	
-	static ArrayList<GeomPlanarGraphDirectedEdge> regionsBarriersPath (Node originNode, Node destinationNode, 
+	static ArrayList<GeomPlanarGraphDirectedEdge> regionsBarriersPath (NodeGraph originNode, NodeGraph destinationNode, 
 			String criteria, PedestrianSimulation state)
 	{
 		String localHeuristic = "angularChange";
-		if ((criteria == "roadDistanceRegionsBarriers") || (criteria == "roadDistanceRegions")) localHeuristic = "roadDistance";
+		if (criteria.contains("roadDistance")) localHeuristic = "roadDistance";
 		boolean usingBarriers = false;
-		if ((criteria == "roadDistanceRegionsBarriers") || (criteria == "angularChabngeRegionsBarriers")) 
-			{usingBarriers = true;}
-		
+		if (criteria.contains("Barriers")) usingBarriers = true;		
 		RegionalRouting regionsPath = new RegionalRouting();
 		return regionsPath.pathFinderRegions(originNode, destinationNode, localHeuristic, usingBarriers, state);
 	}
 	
-	static ArrayList<GeomPlanarGraphDirectedEdge> controlPath(Node destinationNode, ArrayList <GeomPlanarGraphDirectedEdge> path)
+	static ArrayList<GeomPlanarGraphDirectedEdge> barriersPath (NodeGraph originNode, NodeGraph destinationNode, 
+			String criteria, PedestrianSimulation state)
+	{
+		String localHeuristic = "angularChange";
+		if (criteria == "roadDistanceBarriers") localHeuristic = "roadDistance";
+		BarriersRouting barriersPath = new BarriersRouting();
+		return barriersPath.pathFinderBarriers(originNode, destinationNode, localHeuristic, state);
+	}
+	
+	static ArrayList<GeomPlanarGraphDirectedEdge> controlPath(NodeGraph destinationNode, 
+			ArrayList <GeomPlanarGraphDirectedEdge> path)
 	{
 
 		for (GeomPlanarGraphDirectedEdge e: path)
@@ -496,21 +509,22 @@ public class routePlanning {
 		return null;
 	}
 	
-	static ArrayList<GeomPlanarGraphDirectedEdge> controlDualPath(Node destinationNode, GeomPlanarGraphDirectedEdge destinationEdge, 
-			ArrayList <GeomPlanarGraphDirectedEdge> path, PedestrianSimulation state)
+	static ArrayList<GeomPlanarGraphDirectedEdge> controlDualPath(NodeGraph destinationNode, 
+			GeomPlanarGraphDirectedEdge destinationEdge, ArrayList <GeomPlanarGraphDirectedEdge> path,
+			PedestrianSimulation state)
 	{
 		while (path.contains(destinationEdge))
 		{
 			if (path.get(path.size()-1) == destinationEdge) 
 			{
-				if (previousJunction(path, state) == destinationNode) path.remove(path.size()-1);
+				if (utilities.previousJunction(path, state) == destinationNode) path.remove(path.size()-1);
 				return path;	
 			}
 			else path.remove(path.size()-1);
 		}
 		
-		Node destinationToNode = destinationEdge.getToNode();
-		Node destinationFromNode = destinationEdge.getFromNode();
+		NodeGraph destinationToNode = (NodeGraph) destinationEdge.getToNode();
+		NodeGraph destinationFromNode = (NodeGraph) destinationEdge.getFromNode();
 		for (GeomPlanarGraphDirectedEdge e: path)
 		{
 			if ((e.getToNode() == destinationToNode) || (e.getToNode() == destinationFromNode) || (e.getFromNode() == destinationFromNode) 
@@ -519,7 +533,7 @@ public class routePlanning {
 					int lastIndex = path.indexOf(e);
 					path = new ArrayList<GeomPlanarGraphDirectedEdge>(path.subList(0, lastIndex+1));
 					path.add(destinationEdge);
-					if (previousJunction(path, state) == destinationNode) path.remove(path.size()-1);
+					if (utilities.previousJunction(path, state) == destinationNode) path.remove(path.size()-1);
 					return path;			
 				}
 		}

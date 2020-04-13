@@ -1,19 +1,17 @@
 package sim.app.geo.pedestrianSimulation;
 
-import com.vividsolutions.jts.planargraph.Node;
-
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class NodeWrapper 
 {
-    Node node;
-    Node nodeFrom;
+	NodeGraph node;
+	NodeGraph nodeFrom;
     GeomPlanarGraphDirectedEdge edgeFrom;
     double gx, hx, fx, landmarkness;
     int nodesSoFar;
     double pathCost, nodeLandmarkness, pathLandmarkness;
     
-    public NodeWrapper(Node n)
+    public NodeWrapper(NodeGraph n)
     {
         node = n;
         gx = 0;

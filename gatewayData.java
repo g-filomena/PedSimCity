@@ -1,16 +1,14 @@
 package sim.app.geo.pedestrianSimulation;
 
-import java.util.List;
-import com.vividsolutions.jts.planargraph.Node;
 
 public class GatewayData {
 	
-	Node node;
+	NodeGraph node;
+	NodeGraph entry;
 	Integer gatewayID;
 	Integer nodeID;
 	Integer district;
 	Integer regionTo;
-	Integer entryID;
 	Integer edgeID;
 	Double distance;
 	boolean cognitiveMap;

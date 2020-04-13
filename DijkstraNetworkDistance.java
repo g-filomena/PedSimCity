@@ -8,32 +8,29 @@
 
 package sim.app.geo.pedestrianSimulation;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map.Entry;
-import com.vividsolutions.jts.planargraph.Node;
 
 import sim.app.geo.pedestrianSimulation.utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
-import sim.util.geo.GeomPlanarGraphEdge;
 
 public class DijkstraNetworkDistance{
     
-	Node destinationNode;
-	ArrayList<Node> visitedNodes;
-	ArrayList<Node> unvisitedNodes;
-	HashMap<Node, NodeWrapper> mapWrappers =  new HashMap<Node, NodeWrapper>();
+	NodeGraph destinationNode;
+	ArrayList<NodeGraph> visitedNodes;
+	ArrayList<NodeGraph> unvisitedNodes;
+	HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
     PedestrianSimulation state;
     ArrayList<Integer> segmentsToAvoid = new ArrayList<Integer>();
     
-    public Path dijkstraPath (Node originNode, Node destinationNode, ArrayList<Integer> segmentsToAvoid, PedestrianSimulation state)
+    public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode, ArrayList<Integer> segmentsToAvoid,
+    		PedestrianSimulation state)
 	{
     	this.segmentsToAvoid = segmentsToAvoid;
     	this.destinationNode = destinationNode;
     	this.state = state;
-		visitedNodes = new ArrayList<Node>();
-		unvisitedNodes = new ArrayList<Node>();
+		visitedNodes = new ArrayList<NodeGraph>();
+		unvisitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes.add(originNode);
         
 		NodeWrapper nodeWrapper = new NodeWrapper(originNode);
@@ -42,7 +39,7 @@ public class DijkstraNetworkDistance{
 
 		while (unvisitedNodes.size() > 0) 
 		{
-			Node node = getClosest(unvisitedNodes); // at the beginning it takes originNode
+			NodeGraph node = getClosest(unvisitedNodes); // at the beginning it takes originNode
 			visitedNodes.add(node);
 			unvisitedNodes.remove(node);
 			findMinDistances(node);
@@ -50,21 +47,20 @@ public class DijkstraNetworkDistance{
 		return reconstructPath(originNode, destinationNode);
 	}
 
-	void findMinDistances(Node node) 
+	void findMinDistances(NodeGraph node) 
 	{
-		ArrayList<Node> adjacentNodes = utilities.getAdjacentNodes(node);   
-	    for (Node target : adjacentNodes) 
+		ArrayList<NodeGraph> adjacentNodes = utilities.getAdjacentNodes(node);   
+	    for (NodeGraph target : adjacentNodes) 
 	    {    
 	    	
 	    	if (visitedNodes.contains(target)) continue;	
-	    	GeomPlanarGraphEdge d = null;
-	    	Collection edgesBetween = Node.getEdgesBetween(node, target); //should be one
-	    	for (Object o : edgesBetween) d = (GeomPlanarGraphEdge) o;
+            EdgeGraph d = null;
+            d = Graph.getEdgeBetween(node, target);
 	    	double segmentCost = 1;
 	    	GeomPlanarGraphDirectedEdge lastSegment = (GeomPlanarGraphDirectedEdge) d.getDirEdge(0);
 
 			if (segmentsToAvoid == null);
-            else if (segmentsToAvoid.contains(((GeomPlanarGraphEdge) lastSegment.getEdge()).getIntegerAttribute("edgeID"))) 
+            else if (segmentsToAvoid.contains(((EdgeGraph) lastSegment.getEdge()).getID())) 
             	continue;
 
         	double tentativeCost = getBest(node) + segmentCost;
@@ -83,10 +79,10 @@ public class DijkstraNetworkDistance{
 	}
 
 
-	Node getClosest(ArrayList<Node> nodes) //amongst unvisited (they have to have been explored)
+	NodeGraph getClosest(ArrayList<NodeGraph> nodes) //amongst unvisited (they have to have been explored)
 	{
-		Node closest = null;
-		for (Node node : nodes) 
+		NodeGraph closest = null;
+		for (NodeGraph node : nodes) 
 		{
 			if (closest == null) closest = node;
 			else 
@@ -97,38 +93,45 @@ public class DijkstraNetworkDistance{
 	    return closest;
 	}
 
-	Double getBest(Node target)
+	Double getBest(NodeGraph target)
 	{
 		if (mapWrappers.get(target) == null) return Double.MAX_VALUE;
 	    else return mapWrappers.get(target).gx;
 	}
 
 
-	Path reconstructPath(Node originNode, Node destinationNode) 
+	Path reconstructPath(NodeGraph originNode, NodeGraph destinationNode) 
 	{
-		HashMap<Node, NodeWrapper> mapTraversedWrappers =  new HashMap<Node, NodeWrapper>();
+    	Path path = new Path();
+		path.edges = null;
+		path.mapWrappers = null;
+		
+		HashMap<NodeGraph, NodeWrapper> mapTraversedWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 		ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges = new ArrayList<GeomPlanarGraphDirectedEdge>();
-		Node step = destinationNode;
+		NodeGraph step = destinationNode;
 		mapTraversedWrappers.put(destinationNode, mapWrappers.get(destinationNode));
 		
-		while (mapWrappers.get(step).nodeFrom != null)
-    	{
-			GeomPlanarGraphDirectedEdge dd = mapWrappers.get(step).edgeFrom;
-			step = mapWrappers.get(step).nodeFrom;
-			sequenceEdges.add(0, dd);
-			mapTraversedWrappers.put(step, mapWrappers.get(step));
-        }
-		if (sequenceEdges.size() == 0)  System.out.println("DE_path hasn't worked "+originNode.getData()+ " "+destinationNode.getData()); 
+		if ((step == null) || (mapWrappers.size() == 1))  return path;
+		try 
+		{
+			while (mapWrappers.get(step).nodeFrom != null)
+			{
+				GeomPlanarGraphDirectedEdge dd = mapWrappers.get(step).edgeFrom;
+				step = mapWrappers.get(step).nodeFrom;
+				sequenceEdges.add(0, dd);
+				mapTraversedWrappers.put(step, mapWrappers.get(step));
+		    }
+		}
+		catch(java.lang.NullPointerException e)	{return path;} //no path
 		
-        Path path = new Path();
         path.edges = sequenceEdges;
         path.mapWrappers = mapTraversedWrappers;
 	    return path;
     }
 	
-	public Node getKeysByValue(HashMap<Node, Node> map, Node node) 
+	public NodeGraph getKeysByValue(HashMap<NodeGraph, NodeGraph> map, NodeGraph node) 
 	{
-        for (Entry<Node, Node> entry : map.entrySet()) 
+        for (Entry<NodeGraph, NodeGraph> entry : map.entrySet()) 
         {
             if (entry.getValue().equals(node)) return entry.getKey();
         }

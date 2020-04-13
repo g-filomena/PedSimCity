@@ -1,31 +1,17 @@
 package sim.app.geo.pedestrianSimulation;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
+import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
-import com.vividsolutions.jts.geom.Coordinate;
-import com.vividsolutions.jts.geom.Envelope;
-import com.vividsolutions.jts.geom.Geometry;
-import com.vividsolutions.jts.geom.GeometryFactory;
-import com.vividsolutions.jts.geom.LineString;
-import com.vividsolutions.jts.geom.Point;
-import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory;
+import com.vividsolutions.jts.geom.*;
 import com.vividsolutions.jts.planargraph.DirectedEdgeStar;
-import com.vividsolutions.jts.planargraph.Node;
 
-import sim.field.geo.GeomVectorField;
 import sim.util.Bag;
 import sim.util.geo.GeomPlanarGraph;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
-import sim.util.geo.GeomPlanarGraphEdge;
 import sim.util.geo.MasonGeometry;
-
+import sim.field.geo.GeomVectorField;
 
 public class utilities {	
 	
@@ -93,7 +79,7 @@ public class utilities {
 	            + Math.pow(originCoord.y - destinationCoord.y, 2));
 	}
     		
-	public static double nodesDistance(Node origin, Node destination)
+	public static double nodesDistance(NodeGraph origin, NodeGraph destination)
     {
         Coordinate originCoord = origin.getCoordinate();
         Coordinate destinationCoord = destination.getCoordinate();
@@ -108,8 +94,8 @@ public class utilities {
     	for (int i = 0; i < route.size(); i++)
     	{
     		GeomPlanarGraphDirectedEdge edge = route.get(i);
-    		GeomPlanarGraphEdge d = (GeomPlanarGraphEdge) edge.getEdge();
-    		distance += d.getDoubleAttribute("length");
+    		EdgeGraph d = (EdgeGraph) edge.getEdge();
+    		distance += d.getLine().getLength();
     	}
 		return distance;
     }
@@ -131,38 +117,38 @@ public class utilities {
         else return false;
     }
     
-    public static Node getDualNode(Node primalNode, GeomPlanarGraph dualNetwork)
+    public static NodeGraph getDualNode(NodeGraph primalNode, boolean regionalRouting)
     {	
-    	Node dualNode = null;
+    	NodeGraph dualNode = null;
 		DirectedEdgeStar startingEdges =  primalNode.getOutEdges();
 		
 	 	for (Object o : startingEdges.getEdges())
 	 	{
 	 		GeomPlanarGraphDirectedEdge dEdge = (GeomPlanarGraphDirectedEdge) o;
-	 		GeomPlanarGraphEdge edge = (GeomPlanarGraphEdge) dEdge.getEdge();
-	 		dualNode = dualNetwork.findNode(edge.getLine().getCentroid().getCoordinate());
+	 		EdgeGraph edge = (EdgeGraph) dEdge.getEdge();
+	 		if (edge.district == 999999 && regionalRouting) continue;
+	 		dualNode = edge.getDual();
 	 		if (dualNode == null) continue;
 	 		else break;
 	 	}
 	 	return dualNode;
     }	
     
-    public static ArrayList<Node> getAdjacentNodes(Node node)
+    public static ArrayList<NodeGraph> getAdjacentNodes(NodeGraph node)
     {	
-
 		DirectedEdgeStar startingEdges =  node.getOutEdges();
-		ArrayList<Node> adjacentNodes = new ArrayList<Node>();
+		ArrayList<NodeGraph> adjacentNodes = new ArrayList<NodeGraph>();
 	 	for (Object o : startingEdges.getEdges())
 	 	{
 	 		GeomPlanarGraphDirectedEdge dEdge = (GeomPlanarGraphDirectedEdge) o;
-	 		GeomPlanarGraphEdge edge = (GeomPlanarGraphEdge) dEdge.getEdge();
-	 		Node otherNode = edge.getOppositeNode(node);
+	 		EdgeGraph edge = (EdgeGraph) dEdge.getEdge();
+	 		NodeGraph otherNode = edge.getOtherNode(node);
 	 		adjacentNodes.add(otherNode);
 	 	}
 	 	return adjacentNodes;
     }	
        
-	public static LineString LineStringBetweenNodes(Node nodeA, Node nodeB)
+	public static LineString LineStringBetweenNodes(NodeGraph nodeA, NodeGraph nodeB)
 	{
 		Coordinate[] coords = {nodeA.getCoordinate(), nodeB.getCoordinate()};
 		LineString line = new GeometryFactory().createLineString(coords);
@@ -170,7 +156,7 @@ public class utilities {
 	}
     
     
-	public static Geometry smallestEnclosingCircle(Node nodeA, Node nodeB)
+	public static Geometry smallestEnclosingCircle(NodeGraph nodeA, NodeGraph nodeB)
 	{			
 		LineString line = LineStringBetweenNodes(nodeA, nodeB);
 		Point centroid = line.getCentroid();
@@ -188,24 +174,19 @@ public class utilities {
 		return mapFiltered;
 	}
 	
-	public static int commonPrimalJunction(Node cen, Node otherCen, PedestrianSimulation state)
+	public static NodeGraph commonPrimalJunction(NodeGraph cen, NodeGraph otherCen)
 	{
-
-	    int edgeID = (int) cen.getData();
-	    int otherEdgeID = (int) otherCen.getData();
-	    int u = state.edgesMap.get(edgeID).fromNode;
-	    int v = state.edgesMap.get(edgeID).toNode;
-	    int uC = state.edgesMap.get(otherEdgeID).fromNode;
-	    int vC = state.edgesMap.get(otherEdgeID).toNode;
-	    
-	    if ((u == uC) | (u == vC)) return u;
-	    else return v;
+	    EdgeGraph edge = cen.primalEdge;
+	    EdgeGraph otherEdge = otherCen.primalEdge;
+	    	    
+	    if ((edge.u == otherEdge.u) | (edge.u == otherEdge.v)) return edge.u;
+	    else return edge.v;
 	}
 	
 	public static class Path {
 		ArrayList<GeomPlanarGraphDirectedEdge> edges;
-		HashMap<Node, DualNodeWrapper> dualMapWrappers;
-		HashMap<Node, NodeWrapper> mapWrappers;
+		HashMap<NodeGraph, DualNodeWrapper> dualMapWrappers;
+		HashMap<NodeGraph, NodeWrapper> mapWrappers;
 	}
 	
 	
@@ -265,6 +246,33 @@ public class utilities {
 	    return tmp;
 	}
 	
+	public static NodeGraph previousJunction(ArrayList<GeomPlanarGraphDirectedEdge> path, PedestrianSimulation state)
+	{
+		// from global graph
+		NodeGraph lastCen = state.centroidsMap.get(((EdgeGraph) path.get(path.size()-1).getEdge()).getID()); 
+		NodeGraph otherCen = state.centroidsMap.get(((EdgeGraph) path.get(path.size()-2).getEdge()).getID());
+		return commonPrimalJunction(lastCen, otherCen);
+	}
+	
+	public static ArrayList<NodeGraph> centroidsFromPath(ArrayList<GeomPlanarGraphDirectedEdge> path)
+	{
+		ArrayList<NodeGraph> centroids = new ArrayList<NodeGraph> ();
+		for (GeomPlanarGraphDirectedEdge e: path) centroids.add(((EdgeGraph) e.getEdge()).getDual());
+		System.out.println("utilities check"+centroids);
+		return centroids;
+	}
+	
+
+	public static <K, V> K getKeyFromValue(Map<K, V> HashMap, V value) {
+	    for (Entry<K, V> entry : HashMap.entrySet()) 
+	    {
+	        if (Objects.equals(value, entry.getValue())) return entry.getKey();
+	    }
+	    return null;
+	}
+	
+
+
 } 
     
     

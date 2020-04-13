@@ -1,20 +1,20 @@
 package sim.app.geo.pedestrianSimulation;
 
-import com.vividsolutions.jts.planargraph.Node;
+
 
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DualNodeWrapper 
 {
-    Node node;
-    Node nodeFrom;
+	NodeGraph node;
+	NodeGraph nodeFrom;
     GeomPlanarGraphDirectedEdge edgeFrom;
     double gx, hx, fx;
-    int commonPrimalJunction;
+    NodeGraph commonPrimalJunction;
     int nodesSoFar;
     double pathCost, nodeLandmarkness, pathLandmarkness;
 
-    public DualNodeWrapper(Node n)
+    public DualNodeWrapper(NodeGraph n)
     {
         node = n;
         gx = 0;
@@ -22,7 +22,7 @@ public class DualNodeWrapper
         fx = 0;
         nodeFrom = null;
         edgeFrom = null;
-        commonPrimalJunction = Integer.MAX_VALUE;
+        commonPrimalJunction = null;
         pathCost = 0.0;
         nodeLandmarkness = 0.0;
         pathLandmarkness = 0.0;
