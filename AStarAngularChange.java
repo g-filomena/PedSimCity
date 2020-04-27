@@ -11,11 +11,13 @@
  ** $Id: AStar.java 842 2012-12-18 01:09:18Z mcoletti $
  **/
 package sim.app.geo.pedestrianSimulation;
-import com.vividsolutions.jts.planargraph.DirectedEdgeStar;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import sim.app.geo.pedestrianSimulation.utilities.Path;
+import java.util.List;
+
+import sim.app.geo.urbanSim.*;
+import sim.app.geo.urbanSim.utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class AStarAngularChange
@@ -24,24 +26,21 @@ public class AStarAngularChange
 	HashMap<Integer, NodeGraph> nodesMap;
 	HashMap<Integer, EdgeGraph> edgesMap;
 	HashMap<Integer, NodeGraph> centroidsMap;
-    HashMap<NodeGraph, DualNodeWrapper> mapWrappers =  new HashMap<NodeGraph, DualNodeWrapper>();
+    HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 	NodeGraph previousJunction;
 	int barrierID;
 	
     public Path astarPath(NodeGraph originNode, NodeGraph destinationNode, 
-    		ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, boolean regionalRouting, int barrierID,
-    		PedestrianSimulation state)
+    		ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, boolean regionalRouting, boolean barriersRouting, int barrierID)
     {
-    	this.nodesMap = state.nodesMap;
-    	this.edgesMap = state.edgesMap;
         // set up the containers for the sequenceEdges
         ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges =  new ArrayList<GeomPlanarGraphDirectedEdge>();
 
         // containers for the metainformation about the Nodes relative to the
         // A* search
-        DualNodeWrapper originNodeWrapper = new DualNodeWrapper(originNode);
+        NodeWrapper originNodeWrapper = new NodeWrapper(originNode);
 		if (previousJunction != null) originNodeWrapper.commonPrimalJunction = previousJunction;
-        DualNodeWrapper goalNodeWrapper = new DualNodeWrapper(destinationNode);
+        NodeWrapper goalNodeWrapper = new NodeWrapper(destinationNode);
         mapWrappers.put(originNode, originNodeWrapper);
         mapWrappers.put(destinationNode, goalNodeWrapper);
 
@@ -50,18 +49,20 @@ public class AStarAngularChange
         originNodeWrapper.fx = originNodeWrapper.gx + originNodeWrapper.hx;
 
         // A* containers: nodes to be investigated
-        ArrayList<DualNodeWrapper> closedSet = new ArrayList<DualNodeWrapper>();
+        ArrayList<NodeWrapper> closedSet = new ArrayList<NodeWrapper>();
         // nodes that have been investigated
-        ArrayList<DualNodeWrapper> openSet = new ArrayList<DualNodeWrapper>();
+        ArrayList<NodeWrapper> openSet = new ArrayList<NodeWrapper>();
         openSet.add(originNodeWrapper); //adding the startNode Wrapper 
+        
         while (openSet.size() > 0)
         { 
         	// while there are reachable nodes to investigate
-            DualNodeWrapper currentNodeWrapper = findMin(openSet); // find the shortest path so far
+            NodeWrapper currentNodeWrapper = findMin(openSet); // find the shortest path so far
             // we have found the shortest possible path to the goal! Reconstruct the path and send it back.
-            if (currentNodeWrapper.node == destinationNode)  return reconstructPath(goalNodeWrapper);
+            NodeGraph currentNode = currentNodeWrapper.node;
+            if (currentNode == destinationNode)  return reconstructPath(goalNodeWrapper);
             if (centroidsToAvoid == null);
-            else if (centroidsToAvoid.contains(currentNodeWrapper.node))
+            else if (centroidsToAvoid.contains(currentNode))
             { 
             	openSet.remove(currentNodeWrapper);
             	closedSet.add(currentNodeWrapper);
@@ -70,36 +71,49 @@ public class AStarAngularChange
 
             openSet.remove(currentNodeWrapper); // maintain the lists
             closedSet.add(currentNodeWrapper);
-
+            
             // check all the edges out from this Node
-            DirectedEdgeStar des = currentNodeWrapper.node.getOutEdges();
-            Object[] outEdges = des.getEdges().toArray();
-            for (Object o : outEdges)
+            ArrayList<EdgeGraph> outEdges = new ArrayList<EdgeGraph> (currentNode.getEdgesNode());
+    		
+            for (EdgeGraph commonEdge : outEdges)
             {
-                GeomPlanarGraphDirectedEdge lastSegment = (GeomPlanarGraphDirectedEdge) o;
-
-                NodeGraph nextNode = null;
-                nextNode = (NodeGraph) lastSegment.getToNode();
-                if (utilities.commonPrimalJunction(nextNode, currentNodeWrapper.node) == 
-                		currentNodeWrapper.commonPrimalJunction) continue;
+                NodeGraph targetNode = null;
+                GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);
+                targetNode = commonEdge.getOtherNode(currentNode);
+                if (utilities.commonPrimalJunction(targetNode, currentNode) == currentNodeWrapper.commonPrimalJunction) continue;
                 // get the A* meta information about this Node
-                DualNodeWrapper nextNodeWrapper;
+                NodeWrapper nextNodeWrapper;
                 
-                if (mapWrappers.containsKey(nextNode)) nextNodeWrapper = mapWrappers.get(nextNode);
+                if (mapWrappers.containsKey(targetNode)) nextNodeWrapper = mapWrappers.get(targetNode);
                 else
                 {
-                   nextNodeWrapper = new DualNodeWrapper(nextNode);
-                   mapWrappers.put(nextNode, nextNodeWrapper);
+                   nextNodeWrapper = new NodeWrapper(targetNode);
+                   mapWrappers.put(targetNode, nextNodeWrapper);
                 }
 
                 if (closedSet.contains(nextNodeWrapper)) continue; // it has already been considered
+                
                 // otherwise evaluate the cost of this node/edge combo
+    	    	double error = 0.0;
+    	    	List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
+    	    	List<Integer> negativeBarriers = targetNode.primalEdge.negativeBarriers;
+    	    	if (barriersRouting) 
+    	    	{
+    	    		if ((barrierID != 999999) && (positiveBarriers != null))
+    	    		{ 
+    	    			if (positiveBarriers.contains(barrierID)) error = utilities.fromNormalDistribution(1, 0.20, "left");
+    	    			else if (negativeBarriers != null) error = utilities.fromNormalDistribution(1, 0.20, "right");
+    	    			else error = utilities.fromNormalDistribution(1, 0.10, null);
+    	    		}
+    	    		else if (negativeBarriers != null) error = utilities.fromNormalDistribution(1, 0.20, "right");
+    	    		else error = utilities.fromNormalDistribution(1, 0.10, null);
+    	    	}
+    	    	else error = utilities.fromNormalDistribution(1, 0.05, null);
+                double edgeCost = commonEdge.getDeflectionAngle() * error;
+                if (edgeCost > 180) edgeCost = 180;
+                if (edgeCost < 0) edgeCost = 0;
                 
-                double currentCost = angle(lastSegment) + state.fromNormalDistribution(0, 5);
-                if (currentCost > 180) currentCost = 180;
-                if (currentCost < 0) currentCost = 0;
-                
-                double tentativeCost = currentNodeWrapper.gx + currentCost;
+                double tentativeCost = currentNodeWrapper.gx + edgeCost;
                 boolean better = false;
 
                 if (!openSet.contains(nextNodeWrapper))
@@ -113,18 +127,17 @@ public class AStarAngularChange
                 // store A* information about this promising candidate node
                 if (better)
                 {
-                    nextNodeWrapper.nodeFrom = currentNodeWrapper.node;
-                    nextNodeWrapper.edgeFrom = lastSegment;
+                    nextNodeWrapper.nodeFrom = currentNode;
+                    nextNodeWrapper.edgeFrom = outEdge;
                     nextNodeWrapper.gx = tentativeCost;
                     nextNodeWrapper.fx = nextNodeWrapper.gx + nextNodeWrapper.hx;
-                    nextNodeWrapper.commonPrimalJunction = utilities.commonPrimalJunction(nextNodeWrapper.node, 
-                    		currentNodeWrapper.node);
+                    nextNodeWrapper.commonPrimalJunction = utilities.commonPrimalJunction(targetNode, currentNode);
                 }
             }
         }
         Path path = new Path();
         path.edges = sequenceEdges;
-        path.dualMapWrappers = mapWrappers;
+        path.mapWrappers = mapWrappers;
         return path;
     }
 
@@ -136,10 +149,10 @@ public class AStarAngularChange
      * @return an ArrayList of GeomPlanarGraphDirectedEdges that lead from the
      * given Node to the Node from which the search began
      */
-    Path reconstructPath(DualNodeWrapper nodeWrapper)
+    Path reconstructPath(NodeWrapper nodeWrapper)
     {
         ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges =  new ArrayList<GeomPlanarGraphDirectedEdge>();
-        DualNodeWrapper currentWrapper = nodeWrapper;
+        NodeWrapper currentWrapper = nodeWrapper;
 
         while (currentWrapper.nodeFrom != null)
         {
@@ -150,15 +163,10 @@ public class AStarAngularChange
         }
         Path path = new Path();
         path.edges = sequenceEdges;
-        path.dualMapWrappers = mapWrappers;
+        path.mapWrappers = mapWrappers;
         return path;
     }
 
-    double angle(GeomPlanarGraphDirectedEdge lastIntersection)
-    {
-    	EdgeGraph d = (EdgeGraph) lastIntersection.getEdge();
-    	return d.getDeflectionAngle();
-    }
 
     /**
      * 	Considers the list of Nodes open for consideration and returns the node
@@ -167,12 +175,12 @@ public class AStarAngularChange
      * @return
      */
     
-    DualNodeWrapper findMin(ArrayList<DualNodeWrapper> set)
+    NodeWrapper findMin(ArrayList<NodeWrapper> set)
     {
         double min = 100000;
-        DualNodeWrapper minNode = null;
+        NodeWrapper minNode = null;
         
-        for (DualNodeWrapper n : set)
+        for (NodeWrapper n : set)
         {
             if (n.fx < min)
             {
@@ -183,8 +191,4 @@ public class AStarAngularChange
         return minNode;
     }
 
-    /**
-     * A wrapper to contain the A* meta information about the Nodes
-     *
-     */
 }

@@ -1,7 +1,9 @@
 package sim.app.geo.pedestrianSimulation;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+
+import sim.app.geo.urbanSim.EdgeGraph;
+import sim.app.geo.urbanSim.SubGraph;
 
 public class DistrictData {
 	

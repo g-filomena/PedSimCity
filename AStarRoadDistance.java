@@ -11,22 +11,22 @@
  ** $Id: AStar.java 842 2012-12-18 01:09:18Z mcoletti $
  **/
 package sim.app.geo.pedestrianSimulation;
-import com.vividsolutions.jts.planargraph.DirectedEdgeStar;
+
 
 import java.util.ArrayList;
 import java.util.HashMap;
-
+import java.util.List;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
-import sim.app.geo.pedestrianSimulation.utilities.Path;
+import sim.app.geo.urbanSim.*;
+import sim.app.geo.urbanSim.utilities.Path;
 
 public class AStarRoadDistance
 {
 
     HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
-	
+
     public Path astarPath(NodeGraph originNode, NodeGraph destinationNode, 
-    		ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid, boolean regionalRouting,
-    		int barrierID, PedestrianSimulation state)
+    		ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid, boolean regionalRouting, boolean barriersRouting, int barrierID)
     {
         // set up the containers for the sequenceEdges
         ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges =  new ArrayList<GeomPlanarGraphDirectedEdge>();
@@ -52,44 +52,55 @@ public class AStarRoadDistance
         { 
         	// while there are reachable nodes to investigate
             NodeWrapper currentNodeWrapper = findMin(openSet); // find the shortest path so far
-            if (currentNodeWrapper.node == destinationNode) return reconstructPath(destinationNodeWrapper);
+            NodeGraph currentNode = currentNodeWrapper.node;
+            if (currentNode == destinationNode) return reconstructPath(destinationNodeWrapper);
             // we have found the shortest possible path to the goal! Reconstruct the path and send it back.
             openSet.remove(currentNodeWrapper); // maintain the lists
             closedSet.add(currentNodeWrapper);
             // check all the edges out from this Node
-            DirectedEdgeStar des = currentNodeWrapper.node.getOutEdges();
-            
-            Object[] outEdges = des.getEdges().toArray();
-            for (Object o : outEdges)
+            ArrayList<EdgeGraph> outEdges = new ArrayList<EdgeGraph> (currentNode.getEdgesNode());
+            		
+            for (EdgeGraph commonEdge : outEdges)
             {
-                GeomPlanarGraphDirectedEdge lastSegment = (GeomPlanarGraphDirectedEdge) o;
+                NodeGraph targetNode = null;
+                GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);
                 if (segmentsToAvoid == null);
-                else if (segmentsToAvoid.contains(lastSegment)) continue;
-                
-                NodeGraph nextNode = null;
-                nextNode = (NodeGraph) lastSegment.getToNode();
-               
+                else if (segmentsToAvoid.contains(outEdge)) continue;
+                targetNode = commonEdge.getOtherNode(currentNode);
+
                 // get the A* meta information about this Node
                 NodeWrapper nextNodeWrapper;
-                if (mapWrappers.containsKey(nextNode)) nextNodeWrapper =  mapWrappers.get(nextNode);
+                if (mapWrappers.containsKey(targetNode)) nextNodeWrapper =  mapWrappers.get(targetNode);
                 else
                 {
-                	nextNodeWrapper = new NodeWrapper(nextNode);
-                	mapWrappers.put(nextNode, nextNodeWrapper);
+                	nextNodeWrapper = new NodeWrapper(targetNode);
+                	mapWrappers.put(targetNode, nextNodeWrapper);
                 }
                 if (closedSet.contains(nextNodeWrapper)) continue; // it has already been considered
 
                 // otherwise evaluate the cost of this node/edge combo
-                                       
-                double error = state.fromNormalDistribution(1, 0.10);
-                if (error < 0) error = 0.10;
-                double tentativeCost = currentNodeWrapper.gx + length(lastSegment)*error;
+                double error = 0.0;
+    	    	List<Integer> positiveBarriers = commonEdge.positiveBarriers;
+    	    	List<Integer> negativeBarriers = commonEdge.negativeBarriers;
+    	    	if (barriersRouting) 
+    	    	{
+    	    		if ((barrierID != 999999) && (positiveBarriers != null))
+    	    		{ 
+    	    			if (positiveBarriers.contains(barrierID)) error = utilities.fromNormalDistribution(1, 0.20, "left");
+    	    			else if (negativeBarriers != null) error = utilities.fromNormalDistribution(1, 0.20, "right");
+    	    			else error = utilities.fromNormalDistribution(1, 0.10, null);
+    	    		}
+    	    		else if (negativeBarriers != null) error = utilities.fromNormalDistribution(1, 0.20, "right");
+    	    		else error = utilities.fromNormalDistribution(1, 0.10, null);
+    	    	}
+    	    	else error = utilities.fromNormalDistribution(1, 0.10, null);             
+                double tentativeCost = currentNodeWrapper.gx + commonEdge.getLength()*error;
                 boolean better = false;
 
                 if (!openSet.contains(nextNodeWrapper))
                 {
                     openSet.add(nextNodeWrapper);
-                    nextNodeWrapper.hx = utilities.nodesDistance(nextNode, destinationNode);
+                    nextNodeWrapper.hx = utilities.nodesDistance(targetNode, destinationNode);
                     better = true;
                 }
                 
@@ -99,7 +110,7 @@ public class AStarRoadDistance
                 if (better)
                 {
                 	nextNodeWrapper.nodeFrom = currentNodeWrapper.node;
-                	nextNodeWrapper.edgeFrom = lastSegment;
+                	nextNodeWrapper.edgeFrom = outEdge;
                 	nextNodeWrapper.gx = tentativeCost;
                 	nextNodeWrapper.fx = nextNodeWrapper.gx + nextNodeWrapper.hx;
                 }
@@ -135,11 +146,6 @@ public class AStarRoadDistance
         return path;
     }
     
-    double length(GeomPlanarGraphDirectedEdge lastSegment)
-    {
-    	EdgeGraph d = (EdgeGraph) lastSegment.getEdge();
-    	return d.getLength();
-    }
 
     /**
      * 	Considers the list of Nodes open for consideration and returns the node

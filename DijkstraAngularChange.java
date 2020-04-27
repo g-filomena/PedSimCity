@@ -4,7 +4,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import sim.app.geo.pedestrianSimulation.utilities.Path;
+import sim.app.geo.urbanSim.*;
+import sim.app.geo.urbanSim.utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraAngularChange {
@@ -14,84 +15,104 @@ public class DijkstraAngularChange {
 	ArrayList<NodeGraph> unvisitedNodes;
 	NodeGraph previousJunction;
 	int barrierID;
+	boolean barriersRouting;
 	SubGraph graph = new SubGraph();
-    HashMap<NodeGraph, DualNodeWrapper> mapWrappers =  new HashMap<NodeGraph, DualNodeWrapper>();
+    HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
     ArrayList<NodeGraph> centroidsToAvoid = new ArrayList<NodeGraph>();
-    PedestrianSimulation state;
     
     public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode, 
-    		ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, int barrierID, 
-    		boolean regionalRouting, PedestrianSimulation state)
+    		ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, boolean regionalRouting, boolean barriersRouting, int barrierID)
 	{
     	this.originNode = originNode;
     	this.destinationNode = destinationNode;
     	this.centroidsToAvoid = centroidsToAvoid;
-    	this.state = state;
 		this.barrierID = barrierID;
+		this.barriersRouting = barriersRouting;
 
     	if ((originNode.district == destinationNode.district) && regionalRouting)
     	{
-    		graph = state.districtsMap.get(originNode.district).dualGraph;
+    		graph = PedestrianSimulation.districtsMap.get(originNode.district).dualGraph;
     		originNode = graph.findNode(originNode.getCoordinate());
     		destinationNode = graph.findNode(destinationNode.getCoordinate());
     		if (centroidsToAvoid != null) centroidsToAvoid = graph.getChildNodes(centroidsToAvoid);
     		// primalJunction is always the same;
-    		System.out.println("after.."+ centroidsToAvoid);
     	}
-
+    	else // create graph from convex hull
+    	{
+    		ArrayList<EdgeGraph> containedEdges = PedestrianSimulation.dualNetwork.edgesWithinSpace(originNode, destinationNode); 
+    		SubGraph graph = new SubGraph(PedestrianSimulation.dualNetwork, containedEdges);
+    		originNode = graph.findNode(originNode.getCoordinate());
+    		destinationNode = graph.findNode(destinationNode.getCoordinate());
+    		if (centroidsToAvoid != null) centroidsToAvoid = graph.getChildNodes(centroidsToAvoid);
+    	}
+  
 		visitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes.add(originNode);
 		
-		DualNodeWrapper dualNodeWrapper = new DualNodeWrapper(originNode);
-		dualNodeWrapper.gx = 0.0;
-		if (previousJunction != null) dualNodeWrapper.commonPrimalJunction = previousJunction;
-        mapWrappers.put(originNode, dualNodeWrapper);
-        
+		NodeWrapper NodeWrapper = new NodeWrapper(originNode);
+		NodeWrapper.gx = 0.0;
+		if (previousJunction != null) NodeWrapper.commonPrimalJunction = previousJunction;
+        mapWrappers.put(originNode, NodeWrapper);
         if (centroidsToAvoid != null) for (NodeGraph c : centroidsToAvoid) visitedNodes.add(c);
 
 		while (unvisitedNodes.size() > 0) 
 		{
-			NodeGraph node = getClosest(unvisitedNodes); // at the beginning it takes originNode
-			visitedNodes.add(node);
-			unvisitedNodes.remove(node);
-			findMinDistances(node);
+			NodeGraph currentNode = getClosest(unvisitedNodes); // at the beginning it takes originNode
+			visitedNodes.add(currentNode);
+			unvisitedNodes.remove(currentNode);
+			findMinDistances(currentNode);
 		}
 		
 		return reconstructPath(originNode, destinationNode);
 	}
 
-	private void findMinDistances(NodeGraph node) 
+	private void findMinDistances(NodeGraph currentNode) 
 	{
-		ArrayList<NodeGraph> adjacentNodes = utilities.getAdjacentNodes(node);        
-	    for (NodeGraph target : adjacentNodes) 
+		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();    
+	    for (NodeGraph targetNode : adjacentNodes) 
 	    {    
-	    	if (visitedNodes.contains(target)) continue;
-            if (utilities.commonPrimalJunction(target, node) == mapWrappers.get(node).commonPrimalJunction) 
+	    	if (visitedNodes.contains(targetNode)) continue;
+            if (utilities.commonPrimalJunction(targetNode, currentNode) == mapWrappers.get(currentNode).commonPrimalJunction) 
             	continue;
 	    	
-            EdgeGraph d = null;
-            d = Graph.getEdgeBetween(node, target);
-	    	double segmentCost = d.getDeflectionAngle() + state.fromNormalDistribution(0, 5);                
-            if (segmentCost > 180) segmentCost = 180;
-            if (segmentCost < 0) segmentCost = 0;
-            List<Integer> positiveBarriers = target.primalEdge.positiveBarriers;
-            if (barrierID != 999999 && positiveBarriers != null && positiveBarriers.contains(barrierID))
-            	segmentCost = segmentCost * 0.90;
-	    	GeomPlanarGraphDirectedEdge lastSegment = (GeomPlanarGraphDirectedEdge) d.getDirEdge(0);
+            EdgeGraph commonEdge = null;
+            commonEdge = currentNode.getEdgeBetween(targetNode);
+	    	
+	    	double error = 0.0;
+	    	List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
+	    	List<Integer> negativeBarriers = targetNode.primalEdge.negativeBarriers;
+	    	if (barriersRouting) 
+	    	{
+	    		if ((barrierID != 999999) && (positiveBarriers != null))
+	    		{ 
+	    			if (positiveBarriers.contains(barrierID)) error = utilities.fromNormalDistribution(1, 0.20, "left");
+	    			else if (negativeBarriers != null) error = utilities.fromNormalDistribution(1, 0.20, "right");
+	    			else error = utilities.fromNormalDistribution(1, 0.10, null);
+	    		}
+	    		if (positiveBarriers != null) error = utilities.fromNormalDistribution(0.80, 0.10, "left");
+	    		else if (negativeBarriers != null) error = utilities.fromNormalDistribution(1.20, 0.10, "right");
+	    		else error = utilities.fromNormalDistribution(1, 0.10, null);
+	    	}
+	    	else error = utilities.fromNormalDistribution(1, 0.10, null);
+
+//	    	double segmentCost = commonEdge.getDeflectionAngle() + utilities.fromNormalDistribution(0, 5); 	
+	    	double edgeCost = commonEdge.getDeflectionAngle() * error; 	
+            if (edgeCost > 180) edgeCost = 180;
+            if (edgeCost < 0) edgeCost = 0;
+	    	GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);
 	   
-        	double nodeCost = segmentCost;
-        	double tentativeCost = getBest(node) + nodeCost;
-	    	if (getBest(target) > tentativeCost)
+        	double tentativeCost = getBest(currentNode) + edgeCost;
+	    	if (getBest(targetNode) > tentativeCost)
     		{
-    			DualNodeWrapper dualNodeWrapper = mapWrappers.get(target);
-                if (dualNodeWrapper == null) dualNodeWrapper = new DualNodeWrapper(target);
-                dualNodeWrapper.nodeFrom = node;
-                dualNodeWrapper.edgeFrom = lastSegment;
-                dualNodeWrapper.commonPrimalJunction = utilities.commonPrimalJunction(node, target);
-                dualNodeWrapper.gx = tentativeCost;
-                mapWrappers.put(target, dualNodeWrapper);
-                unvisitedNodes.add(target);
+    			NodeWrapper NodeWrapper = mapWrappers.get(targetNode);
+                if (NodeWrapper == null) NodeWrapper = new NodeWrapper(targetNode);
+                NodeWrapper.nodeFrom = currentNode;
+                NodeWrapper.edgeFrom = outEdge;
+                NodeWrapper.commonPrimalJunction = utilities.commonPrimalJunction(currentNode, targetNode);
+                NodeWrapper.gx = tentativeCost;
+                mapWrappers.put(targetNode, NodeWrapper);
+                unvisitedNodes.add(targetNode);
     		}
 	     }
 	}
@@ -103,12 +124,9 @@ public class DijkstraAngularChange {
 		for (NodeGraph node : nodes) 
 		{
 			if (closest == null) closest = node;
-			else 
-			{
-				if (getBest(node) < getBest(closest)) closest = node;
-			}
-	     }
-	        return closest;
+			else if (getBest(node) < getBest(closest)) closest = node;
+	    }
+	    return closest;
 	}
 
 	Double getBest(NodeGraph target)
@@ -123,7 +141,7 @@ public class DijkstraAngularChange {
 		path.edges = null;
 		path.mapWrappers = null;
 		
-		HashMap<NodeGraph, DualNodeWrapper> mapTraversedWrappers =  new HashMap<NodeGraph, DualNodeWrapper>();
+		HashMap<NodeGraph, NodeWrapper> mapTraversedWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 		ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges = new ArrayList<GeomPlanarGraphDirectedEdge>();
 		NodeGraph step = destinationNode;
 		mapTraversedWrappers.put(destinationNode, mapWrappers.get(destinationNode));
@@ -147,7 +165,7 @@ public class DijkstraAngularChange {
 		}
 		catch(java.lang.NullPointerException e)  {return path;}
         path.edges = sequenceEdges;
-        path.dualMapWrappers = mapTraversedWrappers;
+        path.mapWrappers = mapTraversedWrappers;
 	    return path;
 	 }
 }

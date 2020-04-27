@@ -2,7 +2,9 @@ package sim.app.geo.pedestrianSimulation;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import sim.app.geo.pedestrianSimulation.utilities.Path;
+
+import sim.app.geo.urbanSim.*;
+import sim.app.geo.urbanSim.utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraAngularChangeLandmarks {
@@ -12,75 +14,71 @@ public class DijkstraAngularChangeLandmarks {
 	ArrayList<NodeGraph> unvisitedNodes;
 	NodeGraph previousJunction = null;
 	NodeGraph safe;
-    HashMap<NodeGraph, DualNodeWrapper> mapWrappers =  new HashMap<NodeGraph, DualNodeWrapper>();
+    HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
     ArrayList<NodeGraph> centroidsToAvoid = new ArrayList<NodeGraph>();
-    PedestrianSimulation state;
     
     public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode, 
-    		NodeGraph primalDestinationNode, ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction,
-    		PedestrianSimulation state)
+    		NodeGraph primalDestinationNode, ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction)
 	{
     	this.originNode = originNode;
     	this.destinationNode = destinationNode;
     	this.primalDestinationNode = primalDestinationNode;		
     	this.centroidsToAvoid = centroidsToAvoid;
     	this.previousJunction = previousJunction;
-    	this.state = state;
 		
 		visitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes.add(originNode);
 		
-		DualNodeWrapper dualNodeWrapper = new DualNodeWrapper(originNode);
-		dualNodeWrapper.gx = 0.0;
-		if (previousJunction != null) dualNodeWrapper.commonPrimalJunction = previousJunction;
-        mapWrappers.put(originNode, dualNodeWrapper);
+		NodeWrapper NodeWrapper = new NodeWrapper(originNode);
+		NodeWrapper.gx = 0.0;
+		if (previousJunction != null) NodeWrapper.commonPrimalJunction = previousJunction;
+        mapWrappers.put(originNode, NodeWrapper);
         
         if (centroidsToAvoid != null) for (NodeGraph c : centroidsToAvoid) visitedNodes.add(c);
 
 		while (unvisitedNodes.size() > 0) 
 		{
-			NodeGraph node = getClosest(unvisitedNodes); // at the beginning it takes originNode
-			visitedNodes.add(node);
-			unvisitedNodes.remove(node);
-			findMinDistances(node);
+			NodeGraph currentNode = getClosest(unvisitedNodes); // at the beginning it takes originNode
+			visitedNodes.add(currentNode);
+			unvisitedNodes.remove(currentNode);
+			findMinDistances(currentNode);
 		}
 		
 		return reconstructPath(originNode, destinationNode);
 	}
 
-	private void findMinDistances(NodeGraph node) 
+	private void findMinDistances(NodeGraph currentNode) 
 	{
-		ArrayList<NodeGraph> adjacentNodes = utilities.getAdjacentNodes(node);        
-	    for (NodeGraph target : adjacentNodes) 
+		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();        
+	    for (NodeGraph targetNode : adjacentNodes) 
 	    {    
-	    	if (visitedNodes.contains(target)) continue;
-            if (utilities.commonPrimalJunction(target, node) ==  mapWrappers.get(node).commonPrimalJunction) 
+	    	if (visitedNodes.contains(targetNode)) continue;
+            if (utilities.commonPrimalJunction(targetNode, currentNode) ==  mapWrappers.get(currentNode).commonPrimalJunction) 
             	continue;
 
-            EdgeGraph d = null;
-            d = Graph.getEdgeBetween(node, target);
-	    	double segmentCost = d.getDeflectionAngle() + state.fromNormalDistribution(0, 5);                
+            EdgeGraph commonEdge = null;
+            commonEdge = currentNode.getEdgeBetween(targetNode);
+	    	double segmentCost = commonEdge.getDeflectionAngle() + utilities.fromNormalDistribution(0, 5, null);                
             if (segmentCost > 180) segmentCost = 180;
             if (segmentCost < 0) segmentCost = 0;
-	    	GeomPlanarGraphDirectedEdge lastSegment = (GeomPlanarGraphDirectedEdge) d.getDirEdge(0);
+	    	GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);
 	    	
-            double globalLandmarkness = landmarkFunctions.globalLandmarknessDualNode(target, primalDestinationNode,
-            		true, state);
+            double globalLandmarkness = LandmarksNavigation.globalLandmarknessDualNode(targetNode, primalDestinationNode, true);
         	double nodeLandmarkness = 1-globalLandmarkness*0.70;
         	double nodeCost = nodeLandmarkness*segmentCost;
-        	double tentativeCost = getBest(node) + nodeCost;
+        	double tentativeCost = getBest(currentNode) + nodeCost;
 	    	
-	    	if (getBest(target) > tentativeCost)
+	    	if (getBest(currentNode) > tentativeCost)
 	    		{
-	    			DualNodeWrapper dualNodeWrapper = mapWrappers.get(target);
-	                if (dualNodeWrapper == null) dualNodeWrapper = new DualNodeWrapper(target);
-	                dualNodeWrapper.nodeFrom = node;
-	                dualNodeWrapper.edgeFrom = lastSegment;
-	                dualNodeWrapper.commonPrimalJunction = utilities.commonPrimalJunction(node, target);
-	                dualNodeWrapper.gx = tentativeCost;
-	                mapWrappers.put(target, dualNodeWrapper);
-	                unvisitedNodes.add(target);
+	    			NodeWrapper NodeWrapper = mapWrappers.get(targetNode);
+	                if (NodeWrapper == null) NodeWrapper = new NodeWrapper(targetNode);
+	                NodeWrapper.nodeFrom = currentNode;
+	                NodeWrapper.edgeFrom = outEdge;
+	                NodeWrapper.commonPrimalJunction = utilities.commonPrimalJunction(currentNode, targetNode);
+	                NodeWrapper.gx = tentativeCost;
+	                mapWrappers.put(targetNode, NodeWrapper);
+	                unvisitedNodes.add(targetNode);
 	    		}    			
 		}
 	}
@@ -92,12 +90,9 @@ public class DijkstraAngularChangeLandmarks {
 		for (NodeGraph node : nodes) 
 		{
 			if (closest == null) closest = node;
-			else 
-			{
-				if (getBest(node) < getBest(closest)) closest = node;
-			}
-	     }
-	        return closest;
+			else if (getBest(node) < getBest(closest)) closest = node;
+	    }
+	    return closest;
 	}
 
 	Double getBest(NodeGraph target)
@@ -112,7 +107,7 @@ public class DijkstraAngularChangeLandmarks {
 		path.edges = null;
 		path.mapWrappers = null;
 		
-		HashMap<NodeGraph, DualNodeWrapper> mapTraversedWrappers =  new HashMap<NodeGraph, DualNodeWrapper>();
+		HashMap<NodeGraph, NodeWrapper> mapTraversedWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 		ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges = new ArrayList<GeomPlanarGraphDirectedEdge>();
 		NodeGraph step = destinationNode;
 		mapTraversedWrappers.put(destinationNode, mapWrappers.get(destinationNode));
@@ -138,7 +133,7 @@ public class DijkstraAngularChangeLandmarks {
 		catch(java.lang.NullPointerException e)  {return path;}
 		
         path.edges = sequenceEdges;
-        path.dualMapWrappers = mapTraversedWrappers;
+        path.mapWrappers = mapTraversedWrappers;
 	    return path;
 	 }
 }

@@ -12,7 +12,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
 
-import sim.app.geo.pedestrianSimulation.utilities.Path;
+import sim.app.geo.urbanSim.*;
+import sim.app.geo.urbanSim.utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 
@@ -22,18 +23,19 @@ public class DijkstraRoadDistance {
 	ArrayList<NodeGraph> visitedNodes;
 	ArrayList<NodeGraph> unvisitedNodes;
 	HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
-    PedestrianSimulation state;
     ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid = new ArrayList<GeomPlanarGraphDirectedEdge>();
 	int barrierID;
+	boolean barriersRouting;
     
     public Path dijkstraPath(NodeGraph originNode, NodeGraph destinationNode,
-    		ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid, boolean regionalRouting,
-    		int barrierID, PedestrianSimulation state)
+    		ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid, boolean regionalRouting, boolean barriersRouting,
+    		int barrierID)
 	{
     	this.segmentsToAvoid = segmentsToAvoid;
     	this.destinationNode = destinationNode;
-    	this.state = state;
+
     	this.barrierID = barrierID;
+    	this.barriersRouting = barriersRouting;
 		visitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes.add(originNode);
@@ -44,44 +46,55 @@ public class DijkstraRoadDistance {
 
 		while (unvisitedNodes.size() > 0) 
 		{
-			NodeGraph node = getClosest(unvisitedNodes); // at the beginning it takes originNode
-			visitedNodes.add(node);
-			unvisitedNodes.remove(node);
-			findMinDistances(node);
+			NodeGraph currentNode = getClosest(unvisitedNodes); // at the beginning it takes originNode
+			visitedNodes.add(currentNode);
+			unvisitedNodes.remove(currentNode);
+			findMinDistances(currentNode);
 		}
 		return reconstructPath(originNode, destinationNode);
 	}
 
-	void findMinDistances(NodeGraph node) 
+	void findMinDistances(NodeGraph currentNode) 
 	{
-		ArrayList<NodeGraph> adjacentNodes = utilities.getAdjacentNodes(node);   
-	    for (NodeGraph target : adjacentNodes) 
+		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();   
+	    for (NodeGraph targetNode : adjacentNodes) 
 	    {    
-	    	if (visitedNodes.contains(target)) continue;	
-            EdgeGraph d = null;
-            d = Graph.getEdgeBetween(node, target);
-            double error = state.fromNormalDistribution(1, 0.10);
-            if (error < 0) error = 0.00;
-	    	double segmentCost = d.getLength()*error;
-            List<Integer> positiveBarriers = d.positiveBarriers;
-            if (barrierID != 999999 && positiveBarriers != null && positiveBarriers.contains(barrierID))
-	        	segmentCost = segmentCost * 0.90;
+	    	if (visitedNodes.contains(targetNode)) continue;	
+            EdgeGraph commonEdge = null;
+            commonEdge = currentNode.getEdgeBetween(targetNode);
+	    	double error = 0.0;
 	    	
-	    	GeomPlanarGraphDirectedEdge lastSegment = (GeomPlanarGraphDirectedEdge) d.getDirEdge(0);
+	    	List<Integer> positiveBarriers = commonEdge.positiveBarriers;
+	    	List<Integer> negativeBarriers = commonEdge.negativeBarriers;
+	    	if (barriersRouting) 
+	    	{
+	    		if ((barrierID != 999999) && (positiveBarriers != null))
+	    		{ 
+	    			if (positiveBarriers.contains(barrierID)) error = utilities.fromNormalDistribution(1, 0.20, "left");
+	    			else if (negativeBarriers != null) error = utilities.fromNormalDistribution(1, 0.20, "right");
+	    			else error = utilities.fromNormalDistribution(1, 0.10, null);
+	    		}
+	    		else if (negativeBarriers != null) error = utilities.fromNormalDistribution(1, 0.20, "right");
+	    		else error = utilities.fromNormalDistribution(1, 0.10, null);
+	    	}
+	    	else error = utilities.fromNormalDistribution(1, 0.10, null);
+	    	
+	    	double edgeCost = commonEdge.getLength()*error;
+	    	GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);
 
 			if (segmentsToAvoid == null);
-            else if (segmentsToAvoid.contains(lastSegment)) continue;
+            else if (segmentsToAvoid.contains(outEdge)) continue;
 
-        	double tentativeCost = getBest(node) + segmentCost;
-	    	if (getBest(target) > tentativeCost)
+        	double tentativeCost = getBest(currentNode) + edgeCost;
+	    	if (getBest(targetNode) > tentativeCost)
 	    	{
-	    		NodeWrapper nodeWrapper = mapWrappers.get(target);
-                if (nodeWrapper == null) nodeWrapper = new NodeWrapper(target);
-                nodeWrapper.nodeFrom = node;
-                nodeWrapper.edgeFrom = lastSegment;
+	    		NodeWrapper nodeWrapper = mapWrappers.get(targetNode);
+                if (nodeWrapper == null) nodeWrapper = new NodeWrapper(targetNode);
+                nodeWrapper.nodeFrom = currentNode;
+                nodeWrapper.edgeFrom = outEdge;
                 nodeWrapper.gx = tentativeCost;
-                mapWrappers.put(target, nodeWrapper);
-                unvisitedNodes.add(target);
+                mapWrappers.put(targetNode, nodeWrapper);
+                unvisitedNodes.add(targetNode);
 	    	}
 	     }
 	}
@@ -93,18 +106,15 @@ public class DijkstraRoadDistance {
 		for (NodeGraph node : nodes) 
 		{
 			if (closest == null) closest = node;
-			else 
-			{
-				if (getBest(node) < getBest(closest)) closest = node;
-			}
+			else if (getBest(node) < getBest(closest)) closest = node;
 	     }
 	    return closest;
 	}
 
-	Double getBest(NodeGraph target)
+	Double getBest(NodeGraph targetNode)
 	{
-		if (mapWrappers.get(target) == null) return Double.MAX_VALUE;
-	    else return mapWrappers.get(target).gx;
+		if (mapWrappers.get(targetNode) == null) return Double.MAX_VALUE;
+	    else return mapWrappers.get(targetNode).gx;
 	}
 
 

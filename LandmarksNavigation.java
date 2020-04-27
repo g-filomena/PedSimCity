@@ -4,16 +4,70 @@ import java.util.*;
 import java.util.Map.Entry;
 
 import com.vividsolutions.jts.geom.*;
-import sim.field.geo.GeomVectorField;
+
+import sim.app.geo.urbanSim.*;
 import sim.util.Bag;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 import sim.util.geo.MasonGeometry;
 
-public class landmarkFunctions{	
+public class LandmarksNavigation
+{	
 	
+	public static ArrayList<NodeGraph> findSequenceSubGoals(NodeGraph originNode, NodeGraph destinationNode)
+	{
 
-    static double localLandmarkness(NodeGraph node, boolean advanceVis, HashMap<NodeGraph, NodeWrapper> 
-    			mapWrappers, PedestrianSimulation state)
+    	ArrayList<NodeGraph> knownJunctions = PedestrianSimulation.network.salientNodes(originNode, destinationNode, 0, 0.80, "local");
+        double wayfindingComplexity = easinessNavigation(originNode, destinationNode);
+        double searchRange = utilities.nodesDistance(originNode, destinationNode) * (wayfindingComplexity);
+        NodeGraph currentNode = originNode;
+        
+	    List<Integer> badCandidates = new ArrayList<Integer>();
+	    ArrayList<NodeGraph> sequence = new ArrayList<NodeGraph>();
+    	while (searchRange >  PedestrianSimulation.t)
+        {
+    		NodeGraph bestNode = null;
+        	double attractivness = 0.0;
+        		        	
+        	for (NodeGraph tmpNode : knownJunctions)
+	        {	    	
+		    	if (sequence.contains(tmpNode)) continue;
+		    	if (tmpNode == originNode) continue;
+		    	if (tmpNode.getEdgeBetween(currentNode) != null) continue;
+		    	if (tmpNode.getEdgeBetween(destinationNode)!= null) continue;
+		    	if (tmpNode.getEdgeBetween(originNode)!= null) continue;
+		    	
+		    	if (utilities.nodesDistance(currentNode, tmpNode) > searchRange)
+		    	{
+		    		badCandidates.add(tmpNode.getID());
+		    		continue; //only nodes in range	
+		    	}
+        		double localScore = 0.0;
+        		localScore = localLandmarkness(tmpNode, false, null);
+
+		    	double gain = ((utilities.nodesDistance(currentNode, destinationNode) - 
+		    			utilities.nodesDistance(tmpNode, destinationNode))/utilities.nodesDistance(currentNode, destinationNode));
+		    	
+		    	double landmarkness = localScore*0.60 + gain*0.40;
+		    	if (landmarkness > attractivness) 
+    			{
+		    		attractivness = landmarkness;
+		    		bestNode = tmpNode;
+    			}
+	        }
+        		        	
+        	if (bestNode == null) break;
+			if (bestNode == destinationNode) break;
+        	sequence.add(bestNode);
+        	knownJunctions = PedestrianSimulation.network.salientNodes(bestNode, destinationNode,0, 0.80, "local");
+        	wayfindingComplexity = easinessNavigation(bestNode, destinationNode);
+        	searchRange = utilities.nodesDistance(bestNode, destinationNode) * wayfindingComplexity;
+            currentNode = bestNode;
+            bestNode = null;
+        }
+    	return sequence;
+	}
+
+    static double localLandmarkness(NodeGraph node, boolean advanceVis, HashMap<NodeGraph, NodeWrapper>	mapWrappers)
     {   	
         List<Integer> localLandmarks = new ArrayList<Integer>();
         localLandmarks = node.localLandmarks;
@@ -32,7 +86,7 @@ public class landmarkFunctions{
 	            double distanceTravelled = 0;
 	            double cumulativeAdvanceVis = 0;
 	            
-	            while ((nodeFrom != null) & (distanceTravelled <= state.t))
+	            while ((nodeFrom != null) & (distanceTravelled <= PedestrianSimulation.t))
 	            {
 	                List<Integer> visible = new ArrayList<Integer>();
 	                visible = nodeFrom.visible2d;
@@ -58,15 +112,12 @@ public class landmarkFunctions{
         
 
     static double localLandmarknessDualGraph(NodeGraph centroid, NodeGraph node, boolean advanceVis, 
-    		HashMap<NodeGraph, DualNodeWrapper> mapWrappers,
-    		PedestrianSimulation state)
+    		HashMap<NodeGraph, NodeWrapper> mapWrappers)
     {
     	// current real segment
-    	GeomPlanarGraphDirectedEdge streetSegment = (GeomPlanarGraphDirectedEdge) 
-    			centroid.primalEdge.getDirEdge(0); 
+    	GeomPlanarGraphDirectedEdge streetSegment = (GeomPlanarGraphDirectedEdge) centroid.primalEdge.getDirEdge(0); 
     	
     	//real node
-	
         List<Integer> localLandmarks = new ArrayList<Integer>();
         double localScore = 0.0;
         localLandmarks = node.localLandmarks;
@@ -85,7 +136,7 @@ public class landmarkFunctions{
 	            double cumulativeAdvanceVis = 0;
 	            GeomPlanarGraphDirectedEdge currentSegment = streetSegment;
 	            
-	            while ((centroidFrom != null) & (distanceTravelled <= state.t))
+	            while ((centroidFrom != null) & (distanceTravelled <= PedestrianSimulation.t))
 	            {
 	            	if (currentSegment.getFromNode() == nodeTo) nodeFrom = (NodeGraph) currentSegment.getToNode();
 	            	else nodeFrom = (NodeGraph) currentSegment.getToNode();
@@ -98,7 +149,7 @@ public class landmarkFunctions{
 	                if (visible.contains(lL)) cumulativeAdvanceVis += segment.getLine().getLength();
 	                nodeTo = nodeFrom;
 	            	currentSegment = (GeomPlanarGraphDirectedEdge) centroidFrom.primalEdge.getDirEdge(0);
-	                DualNodeWrapper cf = mapWrappers.get(centroidFrom);
+	                NodeWrapper cf = mapWrappers.get(centroidFrom);
 	                try {centroidFrom = cf.nodeFrom;}
 	                catch (java.lang.NullPointerException e) {centroidFrom = null;}
 	            } 
@@ -112,8 +163,7 @@ public class landmarkFunctions{
 
     }
     
-    static double globalLandmarknessNode(NodeGraph node, NodeGraph destinationNode, boolean useAnchors, 
-    		PedestrianSimulation state) 
+    static double globalLandmarknessNode(NodeGraph node, NodeGraph destinationNode, boolean useAnchors) 
     {   	
             
        List<Integer> distantLandmarks = new ArrayList<Integer>();
@@ -141,8 +191,7 @@ public class landmarkFunctions{
        return nodeGlobalScore;
     }
        
-    static double globalLandmarknessDualNode(NodeGraph centroid, NodeGraph destinationNode, 
-    		boolean useAnchors, PedestrianSimulation state) 
+    static double globalLandmarknessDualNode(NodeGraph centroid, NodeGraph destinationNode, boolean useAnchors) 
     {   	
 		// current real segment: identifying node
 		GeomPlanarGraphDirectedEdge streetSegment = (GeomPlanarGraphDirectedEdge) centroid.primalEdge.getDirEdge(0); 
@@ -177,20 +226,19 @@ public class landmarkFunctions{
     
                         
     static double globalLandmarknessPaths(NodeGraph destinationNode, NodeGraph tmpNode, HashMap<NodeGraph, 
-    		NodeWrapper> mapWrappers, boolean useAnchors, String method, PedestrianSimulation state)
+    		NodeWrapper> mapWrappers, boolean useAnchors, String method)
     {   	
         List<Integer> anchors = new ArrayList<Integer>();
         anchors = destinationNode.anchors;
         if (useAnchors & anchors == null) return 0.0;
 
         List<Double> nodeGlobalScores = new ArrayList<Double>();
-        Iterator<Entry<NodeGraph, NodeWrapper>> it = mapWrappers.entrySet().iterator();
+        Set<Entry<NodeGraph, NodeWrapper>> entries = mapWrappers.entrySet();
         
         if (!useAnchors)
         {
-            while (it.hasNext()) 
+            for (Entry<NodeGraph, NodeWrapper> pair : entries)
             {
-                Map.Entry pair = (Map.Entry)it.next();
                 NodeGraph node = (NodeGraph) pair.getKey();
                 List<Integer> distantLandmarks = new ArrayList<Integer>();
                 distantLandmarks = node.distantLandmarks;
@@ -205,10 +253,9 @@ public class landmarkFunctions{
         }
         else
         {
-        	while (it.hasNext()) 
+        	for (Entry<NodeGraph, NodeWrapper> pair : entries) 
             {
-                Map.Entry pair = (Map.Entry)it.next();
-                NodeGraph node = (NodeGraph) pair.getKey();
+        		NodeGraph node = (NodeGraph) pair.getKey();
                 List<Integer> distantLandmarks = new ArrayList<Integer>();
                 distantLandmarks = node.distantLandmarks;
                 double nodeGlobalScore = 0.0;
@@ -245,8 +292,8 @@ public class landmarkFunctions{
         
         
     static double globalLandmarknessDualPath(NodeGraph dualDestinationNode, NodeGraph tmpNode, 
-    		NodeGraph destinationNode, HashMap<NodeGraph, DualNodeWrapper> mapWrappers,
-    		boolean useAnchors, String method, PedestrianSimulation state)
+    		NodeGraph destinationNode, HashMap<NodeGraph, NodeWrapper> mapWrappers,
+    		boolean useAnchors, String method)
     {   
 
         List<Integer> anchors = new ArrayList<Integer>();
@@ -254,15 +301,14 @@ public class landmarkFunctions{
         if (useAnchors & anchors == null) return 0.0;
     	
         List<Double> nodeGlobalScores = new ArrayList<Double>();
-        Iterator<Entry<NodeGraph, DualNodeWrapper>> it = mapWrappers.entrySet().iterator();
+        Set<Entry<NodeGraph, NodeWrapper>> entries = mapWrappers.entrySet();
         NodeGraph previous = dualDestinationNode;
         NodeGraph throughNode;
         
         if (!useAnchors)
         {
-            while (it.hasNext()) 
+        	for (Entry<NodeGraph, NodeWrapper> pair : entries) 
             {
-                Map.Entry pair = (Map.Entry)it.next();
                 NodeGraph centroid = (NodeGraph) pair.getKey();
             	GeomPlanarGraphDirectedEdge edgeDirP = (GeomPlanarGraphDirectedEdge) 
             			centroid.primalEdge.getDirEdge(0); 
@@ -285,9 +331,8 @@ public class landmarkFunctions{
         }
         else
         {
-	        while (it.hasNext()) 
-	        {
-	            Map.Entry pair = (Map.Entry)it.next();
+        	for (Entry<NodeGraph, NodeWrapper> pair : entries) 
+            {
 	            NodeGraph centroid = (NodeGraph) pair.getKey();
 	        	GeomPlanarGraphDirectedEdge edgeDirP = (GeomPlanarGraphDirectedEdge) 
 	        			centroid.primalEdge.getDirEdge(0); 
@@ -317,8 +362,8 @@ public class landmarkFunctions{
 							double distanceWeight = utilities.nodesDistance(tmpNode, destinationNode)/distanceLandmark;
 							if (distanceWeight > 1.0) distanceWeight = 1.0;
 							tmp = tmp*distanceWeight;   
-                 	   }
-                 	  if (tmp > nodeGlobalScore) nodeGlobalScore = tmp;
+                 	    }
+                 	    if (tmp > nodeGlobalScore) nodeGlobalScore = tmp;
                     }
                     nodeGlobalScores.add(nodeGlobalScore);
                 }
@@ -329,20 +374,19 @@ public class landmarkFunctions{
         }
     return 0.0;
     }
-
         
-    public static double easinessNavigation(NodeGraph originNode, NodeGraph destinationNode, PedestrianSimulation state)
+    public static double easinessNavigation(NodeGraph originNode, NodeGraph destinationNode)
     {
         Geometry smallestCircle = utilities.smallestEnclosingCircle(originNode, destinationNode);
         double distanceComplexity = utilities.nodesDistance(originNode, destinationNode)/Collections.max(PedestrianSimulation.distances);
         Bag filterBuildings = PedestrianSimulation.buildings.getContainedObjects(smallestCircle);
-        HashMap<MasonGeometry, Double> buildingsMap =  utilities.filterMap(state.buildingsLS, filterBuildings);
+        HashMap<MasonGeometry, Double> buildingsMap =  utilities.filterMap(PedestrianSimulation.buildingsLS, filterBuildings);
         
         int count = 0;
         Iterator<Entry<MasonGeometry, Double>> it = buildingsMap.entrySet().iterator();
         while (it.hasNext()) 
         {
-        	Map.Entry<MasonGeometry, Double> entry = (Map.Entry<MasonGeometry, Double>)it.next();
+        	Map.Entry<MasonGeometry, Double> entry = it.next();
         	if (entry.getValue() > 0.30) count += 1;
         }
         
@@ -354,64 +398,5 @@ public class landmarkFunctions{
         return easiness;
     }
 	
-	public static GeomVectorField relevantNodes(NodeGraph originNode, NodeGraph destinationNode, PedestrianSimulation state)
-	{
-	    Geometry smallestCircle = utilities.smallestEnclosingCircle(originNode, destinationNode);
-	    Bag filter = PedestrianSimulation.junctions.getContainedObjects(smallestCircle);      	    
-	    HashMap<MasonGeometry, Double> nodesMap =  utilities.filterMap(state.nodesBc, filter);
-
-	    Map<MasonGeometry, Double> orderedMap = utilities.sortByValue(nodesMap);
-	    // quantile
-	    int percentile = (int) (orderedMap.size()*0.8);
-	    int count = 0;
-	    double boundary = 0.0;
-	    
-	    Iterator<Entry<MasonGeometry, Double>> it = orderedMap.entrySet().iterator();
-
-        while (it.hasNext()) 
-        {
-        	count += 1;
-        	Map.Entry<MasonGeometry, Double> entry = (Entry<MasonGeometry, Double>) it.next();
-        	
-        	if (count > percentile) 
-        		{
-	        		boundary  = orderedMap.get(entry.getKey());
-	        		break;
-        		}
-        }
-	    
-	    GeomVectorField knownJunctions = new GeomVectorField();
-	    for (Object o : filter)
-	    {    
-	    	MasonGeometry geoNode = (MasonGeometry) o;
-	    	if (orderedMap.get(geoNode) < boundary) continue;
-		   	knownJunctions.addGeometry(geoNode);
-	    }
-	    return knownJunctions;		
-	}
-	
-	public static Bag intersectingBarriers(NodeGraph originNode, NodeGraph destinationNode, String type)
-	{
-			
-		LineString l = utilities.LineStringBetweenNodes(originNode, destinationNode);
-		Bag intersecting = PedestrianSimulation.barriers.getTouchingObjects(l);
-    	GeomVectorField intersectingBarriers = new GeomVectorField();
-
-		for (Object iB:intersecting)
-		{
-			MasonGeometry geoBarrier = (MasonGeometry) iB;
-			String barrierType = geoBarrier.getStringAttribute("type");
-			if (type == "all") intersectingBarriers.addGeometry(geoBarrier);
-			else if (type == "positive" & (barrierType == "park" || barrierType == "river"))
-					intersectingBarriers.addGeometry(geoBarrier);
-			else if (type == "negative" & (barrierType == "railway" || barrierType == "road"))
-				intersectingBarriers.addGeometry(geoBarrier);
-			else if (type == "separating" & barrierType != "parks")	intersectingBarriers.addGeometry(geoBarrier);
-			else if (type == barrierType) intersectingBarriers.addGeometry(geoBarrier);
-		} 
-			
-		return intersectingBarriers.getGeometries();
-		
-	}
 }
     

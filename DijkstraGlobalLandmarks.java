@@ -11,7 +11,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
-import sim.app.geo.pedestrianSimulation.utilities.Path;
+import sim.app.geo.urbanSim.*;
+import sim.app.geo.urbanSim.utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraGlobalLandmarks {
@@ -20,15 +21,13 @@ public class DijkstraGlobalLandmarks {
 	ArrayList<NodeGraph> visitedNodes;
 	ArrayList<NodeGraph> unvisitedNodes;
 	HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
-    PedestrianSimulation state;
     ArrayList<Integer> segmentsToAvoid = new ArrayList<Integer>();
     
-    public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode,
-    		ArrayList<Integer> segmentsToAvoid, PedestrianSimulation state)
+    public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode, ArrayList<Integer> segmentsToAvoid)
 	{
     	this.segmentsToAvoid = segmentsToAvoid;
     	this.destinationNode = destinationNode;
-    	this.state = state;
+
 		visitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes.add(originNode);
@@ -49,20 +48,20 @@ public class DijkstraGlobalLandmarks {
 
 	void findMinDistances(NodeGraph node) 
 	{
-		ArrayList<NodeGraph> adjacentNodes = utilities.getAdjacentNodes(node);   
+		ArrayList<NodeGraph> adjacentNodes = node.getAdjacentNodes();   
 	    for (NodeGraph target : adjacentNodes) 
 	    {    
 	    	
 	    	if (visitedNodes.contains(target)) continue;	
             EdgeGraph d = null;
-            d = Graph.getEdgeBetween(node, target);
+            d = node.getEdgeBetween(target);
 	    	GeomPlanarGraphDirectedEdge lastSegment = (GeomPlanarGraphDirectedEdge) d.getDirEdge(0);
 
 			if (segmentsToAvoid == null);
             else if (segmentsToAvoid.contains(((EdgeGraph) lastSegment.getEdge()).getID())) 
             	continue;
 	    	
-            double globalLandmarkness = landmarkFunctions.globalLandmarknessNode(target, destinationNode, false, state);
+            double globalLandmarkness = LandmarksNavigation.globalLandmarknessNode(target, destinationNode, false);
         	double nodeLandmarkness = (1-globalLandmarkness)/d.getLength();
         	
         	double tentativeCost = getBest(node) + nodeLandmarkness;

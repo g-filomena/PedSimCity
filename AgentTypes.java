@@ -5,10 +5,5 @@ public class AgentTypes {
 	double livingProbability;
 	double workingProbability;
 	double visitProbability;
-	
-	
-	
-	
-	
 
 }

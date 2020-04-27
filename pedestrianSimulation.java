@@ -11,9 +11,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.apache.commons.lang3.ArrayUtils;
 import org.javatuples.Pair;
 
+
 import sim.engine.SimState;
 import sim.engine.Stoppable;
-import sim.field.geo.GeomVectorField;
 import sim.io.geo.ShapeFileImporter;
 import sim.util.Bag;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
@@ -23,7 +23,7 @@ import org.supercsv.io.CsvMapWriter;
 import org.supercsv.io.ICsvMapWriter;
 import org.supercsv.prefs.CsvPreference;
 
-
+import sim.app.geo.urbanSim.*;
 
 /**
  * The  simulation core.
@@ -44,45 +44,36 @@ public class PedestrianSimulation extends SimState
     private static final long serialVersionUID = 1L;
     
     //primal graph
-    public static GeomVectorField roads = new GeomVectorField();
-    public static GeomVectorField buildings = new GeomVectorField();
-    public static GeomVectorField junctions = new GeomVectorField();
-    public static GeomVectorField barriers = new GeomVectorField();
+    public static VectorLayer roads = new VectorLayer();
+    public static VectorLayer buildings = new VectorLayer();
+    public static VectorLayer junctions = new VectorLayer();
+    public static VectorLayer barriers = new VectorLayer();
     public static Graph network = new Graph();
     public static Bag centroidsGeometries;
     public static Bag nodesGeometries;
     public static String [][] visibilityMatrix;
     
-    public HashMap<Integer, EdgeGraph> edgesMap = new HashMap<Integer, EdgeGraph>();
-    public HashMap<Integer, NodeGraph> nodesMap = new HashMap<Integer, NodeGraph>();
+    public static HashMap<Integer, EdgeGraph> edgesMap = new HashMap<Integer, EdgeGraph>();
+    public static HashMap<Integer, NodeGraph> nodesMap = new HashMap<Integer, NodeGraph>();
     public static HashMap<Integer, NodeGraph> startingNodesMap = new HashMap<Integer, NodeGraph>();
-    public HashMap<MasonGeometry, Integer> nodesGeometryMap = new HashMap<MasonGeometry, Integer>();
-    public HashMap<Integer, BuildingData> buildingsMap = new HashMap<Integer, BuildingData>();
-    public HashMap<Integer, NodeGraph> centroidsMap =  new HashMap<Integer, NodeGraph>();
-    public HashMap<String, CriteriaData> criteriaMap = new HashMap<String, CriteriaData>();
-    public ArrayList<RouteData> routesData = new ArrayList<RouteData>();
+    public static HashMap<MasonGeometry, Integer> nodesGeometryMap = new HashMap<MasonGeometry, Integer>();
+    public static HashMap<Integer, BuildingData> buildingsMap = new HashMap<Integer, BuildingData>();
+    public static HashMap<Integer, NodeGraph> centroidsMap =  new HashMap<Integer, NodeGraph>();
+    public static HashMap<String, CriteriaData> criteriaMap = new HashMap<String, CriteriaData>();
+    public static ArrayList<RouteData> routesData = new ArrayList<RouteData>();
     public static Bag startingNodes = new Bag();
-    public HashMap<Integer, DistrictData> districtsMap = new HashMap<Integer, DistrictData>();
-    public HashMap<Integer, GatewayData> gatewaysMap = new HashMap<Integer, GatewayData>();
+    public static HashMap<Integer, DistrictData> districtsMap = new HashMap<Integer, DistrictData>();
+    public static HashMap<Pair<NodeGraph, NodeGraph>, GatewayData> gatewaysMap = new HashMap<Pair<NodeGraph, NodeGraph>, GatewayData>();
        
     //dual graph
-    public static GeomVectorField intersectionsDual = new GeomVectorField();
-    public static GeomVectorField centroids = new GeomVectorField();
+    public static VectorLayer intersectionsDual = new VectorLayer();
+    public static VectorLayer centroids = new VectorLayer();
     public static Graph dualNetwork = new Graph();
     
     HashMap<EdgeGraph, ArrayList<Pedestrian>> edgeTraffic = new HashMap<EdgeGraph, ArrayList<Pedestrian>>();
-    HashMap<MasonGeometry, Double> nodesBc =  new HashMap<MasonGeometry, Double>();
-    HashMap<MasonGeometry, Double> nodesBc600 =  new HashMap<MasonGeometry, Double>();
-    public HashMap<MasonGeometry, Double> buildingsLS = new HashMap<MasonGeometry, Double>();
-    public HashMap<MasonGeometry, Double> buildingsGS = new HashMap<MasonGeometry, Double>();
-//    Map orderedNodesBc;
-//    Map orderedNodesBc600;
-    
-//    HashMap<MasonGeometry, Double> edgesLength =  new HashMap<MasonGeometry, Double>();
-//    HashMap<Double, HashMap<MasonGeometry, Double>> nodesCDF =  new HashMap<Double, HashMap<MasonGeometry, Double>>();
-
-    public GeomVectorField agents = new GeomVectorField();
-    public GeomVectorField newRoads = new GeomVectorField();
+    public static HashMap<MasonGeometry, Double> buildingsLS = new HashMap<MasonGeometry, Double>();
+    public static HashMap<MasonGeometry, Double> buildingsGS = new HashMap<MasonGeometry, Double>();
+    public static VectorLayer agents = new VectorLayer();
     
     ArrayList<Pedestrian> agentList = new ArrayList<Pedestrian>();
     List<Integer> districts = new ArrayList<Integer>();
@@ -91,7 +82,7 @@ public class PedestrianSimulation extends SimState
     static List<Float> distances = new ArrayList<Float>();
     
     // landmark routing parameter
-    public double t = 300.0;
+    public static double t = 300.0;
 //    public int numTripsScenario = 271;
 
     public int numAgents;
@@ -260,7 +251,6 @@ public class PedestrianSimulation extends SimState
         MBR.expandToInclude(buildings.getMBR());    
         MBR.expandToInclude(barriers.getMBR());  
         roads.setMBR(MBR);
-    	int counterGateways = 0;   
     	
         ///// NODES - assigning scores to nodes and probabilities ///////////////////////////////////////////
         for (Object nG : nodesGeometries) //street junctions and betweenness centrality
@@ -271,11 +261,11 @@ public class PedestrianSimulation extends SimState
         	node.setID(nodeID);
         	node.masonGeometry = nodeGeometry;
         	node.primalEdge = null;
+        	node.centrality = nodeGeometry.getDoubleAttribute("Bc_multi");
+
             ///// ASSIGNING TO EACH NODE LANDMARKS AT THE JUNCTION
         	if (landmarksRouting)
         	{
-    		   	double Bc = nodeGeometry.getDoubleAttribute("Bc_E");
-    		    nodesBc.put(nodeGeometry, Bc);
     		    node.setLandmarkness(nodeGeometry);
 	        		        	
 	        	///// ASSIGNING TO EACH NODE LANDMARKS VISIBLE FROM THE JUNCTION
@@ -298,17 +288,16 @@ public class PedestrianSimulation extends SimState
 	            	}
 	        	}
         	}
-        	
+
         	nodesMap.put(nodeID, node);
         }
-
+    	network.generateCentralityMap();
         ///// GATEWAYS
 	    if (regionalRouting)
 	    {
 	    	for (NodeGraph node : nodesMap.values())
         	{
             	node.district = node.masonGeometry.getIntegerAttribute("district");
-
             	if (districtsMap.get(node.district) == null)
             	{
             		DistrictData district = new DistrictData();
@@ -328,11 +317,8 @@ public class PedestrianSimulation extends SimState
 		    		continue;
 		    	}
             	
-		    	DirectedEdgeStar dirEdges = node.getOutEdges();
-		        for (Object dE : dirEdges.getEdges())
+		        for (EdgeGraph bridge : node.getEdgesNode())
 		        {
-		           GeomPlanarGraphDirectedEdge l = (GeomPlanarGraphDirectedEdge) dE;
-		           EdgeGraph bridge = (EdgeGraph) l.getEdge();
 		           NodeGraph oppositeNode = (NodeGraph) bridge.getOppositeNode(node);
 		           int possibleRegion = oppositeNode.district;
 		           if (possibleRegion == district) continue;
@@ -340,20 +326,19 @@ public class PedestrianSimulation extends SimState
 		           GatewayData gd = new GatewayData();
 			       gd.node = node;
 			       gd.edgeID = bridge.getID();
-			       gd.gatewayID = counterGateways;
-			       gd.district = district;
+			       gd.gatewayID = new Pair<NodeGraph, NodeGraph>(node, oppositeNode);
 			       gd.regionTo = possibleRegion;
 			       gd.entry = oppositeNode;
 			       gd.distance = bridge.getLength();
-			       gd.entryAngle = utilities.angle(node.getCoordinate(), oppositeNode.getCoordinate());
+			       gd.entryAngle = Angle.angle(node, oppositeNode);
 			       
 			       DistrictData dd = districtsMap.get(district);
 			       dd.gateways.add(gd);
-			       gatewaysMap.put(counterGateways, gd);
-
+			       gatewaysMap.put(new Pair<NodeGraph, NodeGraph>(node, oppositeNode), gd);
 			       node.gateway = true;
-			       counterGateways += 1;
 		        }
+		        node.adjacentRegions = node.getAdjacentRegion();
+
 	        }
 	    }
 	    
@@ -413,7 +398,9 @@ public class PedestrianSimulation extends SimState
         {
         	MasonGeometry centroidGeometry = (MasonGeometry) cG; 
         	int edgeID = centroidGeometry.getIntegerAttribute("edgeID"); 
+        	
       	    NodeGraph cen = dualNetwork.findNode(centroidGeometry.geometry.getCoordinate());
+      	    cen.masonGeometry = centroidGeometry;
         	cen.setID(edgeID);
         	cen.primalEdge = edgesMap.get(edgeID);
         	edgesMap.get(edgeID).dualNode = cen;
@@ -460,11 +447,7 @@ public class PedestrianSimulation extends SimState
         }
    
 
-	public double fromNormalDistribution(double mean, double sd)
-    {
-    	double error = random.nextGaussian()*sd+mean;
-    	return error;
-    }
+
     
     
 
@@ -472,9 +455,9 @@ public class PedestrianSimulation extends SimState
     {
     	
 //    	int numTripsScenario = distances.size();
-    	int numTripsScenario = 10000;
-//    	NodeGraph originNode = nodesMap.get(19138 );
-//    	NodeGraph destinationNode = nodesMap.get(46179);
+    	int numTripsScenario = 500;
+//    	NodeGraph originNode = nodesMap.get( 19977  );
+//    	NodeGraph destinationNode = nodesMap.get(42331);
 //    	Pair<NodeGraph, NodeGraph> pair = new Pair<NodeGraph, NodeGraph> (originNode, destinationNode);
 //	    OD.add(pair);
     	
@@ -484,8 +467,8 @@ public class PedestrianSimulation extends SimState
 	    	{
 	    		
 	    		NodeGraph originNode = null;
-	    		while (originNode == null) originNode = nodesLookup.searchRandomNode(nodesGeometries, this);
-	    		NodeGraph destinationNode = nodesLookup.searchNodeWithin(originNode, junctions, distances, this);
+	    		while (originNode == null) originNode = nodesLookup.randomNode(nodesGeometries, network);
+	    		NodeGraph destinationNode = nodesLookup.nodeWithin(originNode, junctions, distances, network);
 	    		Pair<NodeGraph, NodeGraph> pair = new Pair<NodeGraph, NodeGraph> (originNode, destinationNode);
 	    	    OD.add(pair);  
 	    	}
@@ -499,12 +482,10 @@ public class PedestrianSimulation extends SimState
 	    		while (destinationNode == null || originNode == destinationNode)
 	    		{
 	    			originNode = null;
-
-	    			while (originNode == null) originNode = nodesLookup.searchRandomNode(startingNodes, this);
-	    			double radius = ThreadLocalRandom.current().nextInt(600, 2000);
-	    			destinationNode = nodesLookup.searchNodeOutsideDistrict(originNode, radius, this);
+	    			while (originNode == null) originNode = nodesLookup.randomNode(startingNodes, network);
+	    			double radius = ThreadLocalRandom.current().nextInt(1000, 4000);
+	    			destinationNode = nodesLookup.outsideDistrictByCentrality(originNode, radius);
 	    		}
-	    		if (originNode.district == destinationNode.district) System.out.println("www");
 	    		Pair<NodeGraph, NodeGraph> pair = new Pair<NodeGraph, NodeGraph> (originNode, destinationNode);
 	    	    OD.add(pair);  
 	    	}
@@ -553,7 +534,7 @@ public class PedestrianSimulation extends SimState
 	            junctionsAttributes.add("anchors");   
 	            junctionsAttributes.add("dist_anch");      
 	            junctionsAttributes.add("distances");  
-	            junctionsAttributes.add("Bc_E"); 
+	            junctionsAttributes.add("Bc_multi"); 
 	            
 	            Bag buildingsAttributes = new Bag();
 	            ///// READING BUILDINGS
@@ -603,6 +584,8 @@ public class PedestrianSimulation extends SimState
 		        junctionsAttributes.add("nodeID"); 
 		        junctionsAttributes.add("district"); 
 		        junctionsAttributes.add("gateway"); 
+	            junctionsAttributes.add("Bc_multi"); 
+	            
 
 	            ///// READING BARRIERS
 	            Bag barriersAttributes = new Bag();
