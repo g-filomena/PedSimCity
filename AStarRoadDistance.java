@@ -18,7 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 import sim.app.geo.urbanSim.*;
-import sim.app.geo.urbanSim.utilities.Path;
+import sim.app.geo.urbanSim.Utilities.Path;
 
 public class AStarRoadDistance
 {
@@ -26,7 +26,7 @@ public class AStarRoadDistance
     HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 
     public Path astarPath(NodeGraph originNode, NodeGraph destinationNode, 
-    		ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid, boolean regionalRouting, boolean barriersRouting, int barrierID)
+    		ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid, boolean regionalRouting, boolean barriersRouting)
     {
         // set up the containers for the sequenceEdges
         ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges =  new ArrayList<GeomPlanarGraphDirectedEdge>();
@@ -58,12 +58,12 @@ public class AStarRoadDistance
             openSet.remove(currentNodeWrapper); // maintain the lists
             closedSet.add(currentNodeWrapper);
             // check all the edges out from this Node
-            ArrayList<EdgeGraph> outEdges = new ArrayList<EdgeGraph> (currentNode.getEdgesNode());
-            		
-            for (EdgeGraph commonEdge : outEdges)
+            ArrayList<GeomPlanarGraphDirectedEdge> outEdges = new ArrayList<GeomPlanarGraphDirectedEdge> (currentNode.getOutDirectedEdges());
+    		
+            for (GeomPlanarGraphDirectedEdge outEdge : outEdges)
             {
                 NodeGraph targetNode = null;
-                GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);
+                EdgeGraph commonEdge = (EdgeGraph) outEdge.getEdge();
                 if (segmentsToAvoid == null);
                 else if (segmentsToAvoid.contains(outEdge)) continue;
                 targetNode = commonEdge.getOtherNode(currentNode);
@@ -80,27 +80,22 @@ public class AStarRoadDistance
 
                 // otherwise evaluate the cost of this node/edge combo
                 double error = 0.0;
-    	    	List<Integer> positiveBarriers = commonEdge.positiveBarriers;
-    	    	List<Integer> negativeBarriers = commonEdge.negativeBarriers;
     	    	if (barriersRouting) 
     	    	{
-    	    		if ((barrierID != 999999) && (positiveBarriers != null))
-    	    		{ 
-    	    			if (positiveBarriers.contains(barrierID)) error = utilities.fromNormalDistribution(1, 0.20, "left");
-    	    			else if (negativeBarriers != null) error = utilities.fromNormalDistribution(1, 0.20, "right");
-    	    			else error = utilities.fromNormalDistribution(1, 0.10, null);
-    	    		}
-    	    		else if (negativeBarriers != null) error = utilities.fromNormalDistribution(1, 0.20, "right");
-    	    		else error = utilities.fromNormalDistribution(1, 0.10, null);
+        	    	List<Integer> positiveBarriers = commonEdge.positiveBarriers;
+        	    	List<Integer> negativeBarriers = commonEdge.negativeBarriers;
+    	    		if (positiveBarriers != null) error = Utilities.fromNormalDistribution(0.70, 0.10, "left");
+   	    			else if (negativeBarriers != null) error = Utilities.fromNormalDistribution(1.30, 0.10, "right");
+    	    		else error = Utilities.fromNormalDistribution(1, 0.10, null);
     	    	}
-    	    	else error = utilities.fromNormalDistribution(1, 0.10, null);             
+    	    	else error = Utilities.fromNormalDistribution(1, 0.10, null);             
                 double tentativeCost = currentNodeWrapper.gx + commonEdge.getLength()*error;
                 boolean better = false;
 
                 if (!openSet.contains(nextNodeWrapper))
                 {
                     openSet.add(nextNodeWrapper);
-                    nextNodeWrapper.hx = utilities.nodesDistance(targetNode, destinationNode);
+                    nextNodeWrapper.hx = Utilities.nodesDistance(targetNode, destinationNode);
                     better = true;
                 }
                 

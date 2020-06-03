@@ -12,12 +12,13 @@ import java.util.HashMap;
 import java.util.Map.Entry;
 
 import sim.app.geo.urbanSim.*;
-import sim.app.geo.urbanSim.utilities.Path;
+import sim.app.geo.urbanSim.Utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 
 public class DijkstraRoadDistanceLandmarks {
     
+	NodeGraph tmpDestinationNode;
 	NodeGraph destinationNode;
 	ArrayList<NodeGraph> visitedNodes;
 	ArrayList<NodeGraph> unvisitedNodes;
@@ -25,11 +26,13 @@ public class DijkstraRoadDistanceLandmarks {
 
     ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid = new ArrayList<GeomPlanarGraphDirectedEdge>();
     
-    public Path dijkstraPath(NodeGraph originNode, NodeGraph destinationNode, ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid)
+    public Path dijkstraPath(NodeGraph originNode, NodeGraph tmpDestinationNode, NodeGraph destinationNode,
+    		ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid)
 	{
     	this.segmentsToAvoid = segmentsToAvoid;
+    	this.tmpDestinationNode = tmpDestinationNode;
     	this.destinationNode = destinationNode;
-
+    	
 		visitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes.add(originNode);
@@ -45,7 +48,7 @@ public class DijkstraRoadDistanceLandmarks {
 			unvisitedNodes.remove(currentNode);
 			findMinDistances(currentNode);
 		}
-		return reconstructPath(originNode, destinationNode);
+		return reconstructPath(originNode, tmpDestinationNode);
 	}
 
 	void findMinDistances(NodeGraph currentNode) 
@@ -58,7 +61,7 @@ public class DijkstraRoadDistanceLandmarks {
 
 	    	EdgeGraph commonEdge = null;
 	    	commonEdge = currentNode.getEdgeBetween(targetNode);
-            double error = utilities.fromNormalDistribution(1, 0.10, null);
+            double error = Utilities.fromNormalDistribution(1, 0.10, null);
             if (error < 0) error = 0.00;
 	    	double segmentCost = commonEdge.getLength()*error;
 
@@ -67,7 +70,7 @@ public class DijkstraRoadDistanceLandmarks {
 			if (segmentsToAvoid == null);
             else if (segmentsToAvoid.contains(outEdge))	continue;
             
-            double globalLandmarkness = LandmarksNavigation.globalLandmarknessNode(targetNode, destinationNode, false);
+            double globalLandmarkness = LandmarksNavigation.globalLandmarknessNode(targetNode, destinationNode, true);
         	double nodeLandmarkness = 1-globalLandmarkness*0.7;
         	double nodeCost = segmentCost*nodeLandmarkness;
         	
@@ -104,7 +107,7 @@ public class DijkstraRoadDistanceLandmarks {
 	}
 
 
-	Path reconstructPath(NodeGraph originNode, NodeGraph destinationNode) 
+	Path reconstructPath(NodeGraph originNode, NodeGraph tmpDestinationNode) 
 	{
 		Path path = new Path();
 		path.edges = null;
@@ -112,8 +115,8 @@ public class DijkstraRoadDistanceLandmarks {
 
 		HashMap<NodeGraph, NodeWrapper> mapTraversedWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 		ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges = new ArrayList<GeomPlanarGraphDirectedEdge>();
-		NodeGraph step = destinationNode;
-		mapTraversedWrappers.put(destinationNode, mapWrappers.get(destinationNode));
+		NodeGraph step = tmpDestinationNode;
+		mapTraversedWrappers.put(tmpDestinationNode, mapWrappers.get(tmpDestinationNode));
 		
 		if ((step == null) || (mapWrappers.size() == 1))  return path;
 		try 

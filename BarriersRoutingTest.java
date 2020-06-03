@@ -8,7 +8,7 @@ import sim.util.geo.GeomPlanarGraphDirectedEdge;
 import sim.util.geo.MasonGeometry;
 import sim.app.geo.urbanSim.*;
 
-public class BarriersRouting {
+public class BarriersRoutingTest {
 
 	NodeGraph currentLocation;
 	HashMap<Integer, EdgeGraph> edgesMap;
@@ -33,15 +33,18 @@ public class BarriersRouting {
 			//check if there are good barriers in line of movement
 			Set<Integer> intersectingBarriers = intersectingBarriers(currentLocation, destinationNode, "all");
 			if (intersectingBarriers.size() == 0) break;
+
 			ArrayList<EdgeGraph> incomingEdges = currentLocation.getEdges();
 			for (EdgeGraph edge : incomingEdges) if (edge.barriers != null) adjacentBarriers.addAll(edge.barriers);
-			
 			Set<Integer> visitedBarriers = new HashSet<Integer>(adjacentBarriers);
 			intersectingBarriers.removeAll(visitedBarriers);
 			if (intersectingBarriers.size() == 0) break;
+
 			NodeGraph subGoal = null;
 			EdgeGraph edgeGoal = null;
+			
 			HashMap<Integer, Double> possibleBarriers = new HashMap<Integer, Double> ();
+			boolean positiveBarriers = false;
 
 			//look for orienting barriers
 			for (int barrierID : intersectingBarriers)
@@ -52,60 +55,58 @@ public class BarriersRouting {
 				double distanceIntersection = Utilities.euclideanDistance(currentLocation.getCoordinate(), intersection);
 				if (distanceIntersection > Utilities.euclideanDistance(currentLocation.getCoordinate(),	destinationNode.getCoordinate())) continue;
 				possibleBarriers.put(barrierID, distanceIntersection);
+				if ((barrierGeometry.getStringAttribute("type").equals("water")) || (barrierGeometry.getStringAttribute("type").equals("park"))) 
+					positiveBarriers = true;
 			}
 			
 			if ((possibleBarriers.size() == 0) || (possibleBarriers == null)) break;
 			
 			//ordered by distance (further away first)
 			LinkedHashMap<Integer, Double> validSorted = (LinkedHashMap<Integer, Double>) Utilities.sortByValue(possibleBarriers, "descending"); 
-			ArrayList<Integer> withinBarriers = new ArrayList<Integer>();
-			ArrayList<EdgeGraph> possibleEdgeGoals = new ArrayList<EdgeGraph>();
+			EdgeGraph replacement = null;
+			int barrier = 999999;
+			int replacementBarrier = 999999;
 			
 			for (int barrierID : validSorted.keySet())
 			{
+
 				MasonGeometry barrierGeometry = PedestrianSimulation.barriersMap.get(barrierID);
 				String type = barrierGeometry.getStringAttribute("type");
-				ArrayList<EdgeGraph> alongEdges = PedestrianSimulation.barriersEdgesMap.get(barrierID);
-				HashMap<EdgeGraph, Double> thisBarrierEdgeGoals = new HashMap<EdgeGraph, Double>();
 				
-				for (EdgeGraph edge : alongEdges)
+				for (EdgeGraph edge : edgesMap.values())
 				{
+					List<Integer> edgeBarriers = edge.barriers;
+					if ((edgeBarriers == null) || (!edgeBarriers.contains(barrierID))) continue;
 					double distanceEdge = Utilities.euclideanDistance(currentLocation.getCoordinate(), edge.getCoordsCentroid());
 					if (distanceEdge > Utilities.euclideanDistance(currentLocation.getCoordinate(), destinationNode.getCoordinate())) continue;
-					thisBarrierEdgeGoals.put(edge, distanceEdge);
-				}
-				if (thisBarrierEdgeGoals.size() == 0) continue; //doensn't have decent edges around
 				
-				LinkedHashMap<EdgeGraph, Double> thisBarrierSubGoalSorted = (LinkedHashMap<EdgeGraph, Double>) 
-						Utilities.sortByValue(thisBarrierEdgeGoals, "ascending");
-				EdgeGraph possibleEdgeGoal = thisBarrierSubGoalSorted.keySet().iterator().next();
-				int waterCounter = 0;
-				int parkCounter = 0;
-				
-				if (type.equals("water"))
-				{
-					withinBarriers.add(waterCounter, barrierID);
-					possibleEdgeGoals.add(waterCounter, possibleEdgeGoal);
-					waterCounter += 1;
-					parkCounter = waterCounter +1;
-				}
-				else if (type.equals("park"))
-				{
-					withinBarriers.add(parkCounter, barrierID);
-					possibleEdgeGoals.add(parkCounter, possibleEdgeGoal);
-					parkCounter += 1;
-				}
-				else
-				{
-					withinBarriers.add(barrierID);
-					possibleEdgeGoals.add(possibleEdgeGoal);
-				}
+					if ((positiveBarriers) && ((type.equals("water")) || (type.equals("park")))) 
+					{
+						barrier = barrierID;
+						edgeGoal = edge;
+						break;
+					}
+					//but this one is not
+					else if ((positiveBarriers) && (replacement == null)) 
+					{
+						replacement = edge;
+						barrier = replacementBarrier;
+					}
+					else if (!positiveBarriers)
+					{
+						barrier = barrierID;
+						edgeGoal = edge;
+						break;
+					}
+					else continue;
+				}	
 			}
 			
-			if (possibleEdgeGoals.size() == 0 || possibleEdgeGoals.get(0) == null ) break;
-			edgeGoal = possibleEdgeGoals.get(0);
-			int barrier = withinBarriers.get(0);
-
+			if (edgeGoal == null) 
+			{
+				edgeGoal = replacement;
+				barrier = replacementBarrier;
+			}
 			if (edgeGoal == null) break;
 			else
 			{

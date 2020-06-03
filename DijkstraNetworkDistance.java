@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.Map.Entry;
 
 import sim.app.geo.urbanSim.*;
-import sim.app.geo.urbanSim.utilities.Path;
+import sim.app.geo.urbanSim.Utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraNetworkDistance{

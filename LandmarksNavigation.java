@@ -15,15 +15,25 @@ public class LandmarksNavigation
 	
 	public static ArrayList<NodeGraph> findSequenceSubGoals(NodeGraph originNode, NodeGraph destinationNode)
 	{
-
-    	ArrayList<NodeGraph> knownJunctions = PedestrianSimulation.network.salientNodes(originNode, destinationNode, 0, 0.80, "local");
+		double percentile = 0.75;
+    	ArrayList<NodeGraph> knownJunctions = PedestrianSimulation.network.salientNodes(originNode, destinationNode, 0,0, percentile, "local");
+    	
+    	while (knownJunctions == null) 
+    	{
+    		System.out.println(originNode.getID() + " no salient junctions "+ destinationNode.getID());
+    		percentile -= 0.05;
+    		if (percentile < 0.50) break;
+    		knownJunctions = PedestrianSimulation.network.salientNodes(originNode, destinationNode, 0,0, percentile, "local");
+    		
+    	}
         double wayfindingComplexity = easinessNavigation(originNode, destinationNode);
-        double searchRange = utilities.nodesDistance(originNode, destinationNode) * (wayfindingComplexity);
+        double searchRange = Utilities.nodesDistance(originNode, destinationNode) * (wayfindingComplexity);
         NodeGraph currentNode = originNode;
         
 	    List<Integer> badCandidates = new ArrayList<Integer>();
 	    ArrayList<NodeGraph> sequence = new ArrayList<NodeGraph>();
-    	while (searchRange >  PedestrianSimulation.t)
+    	
+	    while (searchRange >  PedestrianSimulation.t)
         {
     		NodeGraph bestNode = null;
         	double attractivness = 0.0;
@@ -36,7 +46,7 @@ public class LandmarksNavigation
 		    	if (tmpNode.getEdgeBetween(destinationNode)!= null) continue;
 		    	if (tmpNode.getEdgeBetween(originNode)!= null) continue;
 		    	
-		    	if (utilities.nodesDistance(currentNode, tmpNode) > searchRange)
+		    	if (Utilities.nodesDistance(currentNode, tmpNode) > searchRange)
 		    	{
 		    		badCandidates.add(tmpNode.getID());
 		    		continue; //only nodes in range	
@@ -44,8 +54,8 @@ public class LandmarksNavigation
         		double localScore = 0.0;
         		localScore = localLandmarkness(tmpNode, false, null);
 
-		    	double gain = ((utilities.nodesDistance(currentNode, destinationNode) - 
-		    			utilities.nodesDistance(tmpNode, destinationNode))/utilities.nodesDistance(currentNode, destinationNode));
+		    	double gain = ((Utilities.nodesDistance(currentNode, destinationNode) - 
+		    			Utilities.nodesDistance(tmpNode, destinationNode))/Utilities.nodesDistance(currentNode, destinationNode));
 		    	
 		    	double landmarkness = localScore*0.60 + gain*0.40;
 		    	if (landmarkness > attractivness) 
@@ -58,12 +68,16 @@ public class LandmarksNavigation
         	if (bestNode == null) break;
 			if (bestNode == destinationNode) break;
         	sequence.add(bestNode);
-        	knownJunctions = PedestrianSimulation.network.salientNodes(bestNode, destinationNode,0, 0.80, "local");
+        	knownJunctions = PedestrianSimulation.network.salientNodes(bestNode, destinationNode, 0, 0,  0.75, "local");
+        	if (knownJunctions == null) break;
+
         	wayfindingComplexity = easinessNavigation(bestNode, destinationNode);
-        	searchRange = utilities.nodesDistance(bestNode, destinationNode) * wayfindingComplexity;
+        	searchRange = Utilities.nodesDistance(bestNode, destinationNode) * wayfindingComplexity;
             currentNode = bestNode;
             bestNode = null;
         }
+    	sequence.add(0, originNode);
+    	sequence.add(destinationNode);
     	return sequence;
 	}
 
@@ -182,7 +196,7 @@ public class LandmarksNavigation
     	   	{
 				tmp = node.distantScores.get(distantLandmarks.indexOf(dL));
 				double distanceLandmark = destinationNode.distances.get(anchors.indexOf(dL));
-				double distanceWeight = utilities.nodesDistance(node, destinationNode)/distanceLandmark;
+				double distanceWeight = Utilities.nodesDistance(node, destinationNode)/distanceLandmark;
 				if (distanceWeight > 1.0) distanceWeight = 1.0;
 				tmp = tmp*distanceWeight;   
     	   }
@@ -215,7 +229,7 @@ public class LandmarksNavigation
 			{
 				tmp = targetNode.distantScores.get(distantLandmarks.indexOf(dL));
 				double distanceLandmark = destinationNode.distances.get(anchors.indexOf(dL));
-				double distanceWeight = utilities.nodesDistance(centroid, destinationNode)/distanceLandmark;
+				double distanceWeight = Utilities.nodesDistance(centroid, destinationNode)/distanceLandmark;
 				if (distanceWeight > 1.0) distanceWeight = 1.0;
 				tmp = tmp*distanceWeight;
 			}
@@ -273,7 +287,7 @@ public class LandmarksNavigation
                  	   	{
 							tmp = node.distantScores.get(distantLandmarks.indexOf(dL));
 							double distanceLandmark = destinationNode.distances.get(anchors.indexOf(dL));
-							double distanceWeight = utilities.nodesDistance(tmpNode, destinationNode)/
+							double distanceWeight = Utilities.nodesDistance(tmpNode, destinationNode)/
 									distanceLandmark;
 							if (distanceWeight > 1.0) distanceWeight = 1.0;
 							tmp = tmp*distanceWeight;   
@@ -359,7 +373,7 @@ public class LandmarksNavigation
                  	   	{
 							tmp = throughNode.distantScores.get(distantLandmarks.indexOf(dL));
 							double distanceLandmark = destinationNode.distances.get(anchors.indexOf(dL));
-							double distanceWeight = utilities.nodesDistance(tmpNode, destinationNode)/distanceLandmark;
+							double distanceWeight = Utilities.nodesDistance(tmpNode, destinationNode)/distanceLandmark;
 							if (distanceWeight > 1.0) distanceWeight = 1.0;
 							tmp = tmp*distanceWeight;   
                  	    }
@@ -377,10 +391,10 @@ public class LandmarksNavigation
         
     public static double easinessNavigation(NodeGraph originNode, NodeGraph destinationNode)
     {
-        Geometry smallestCircle = utilities.smallestEnclosingCircle(originNode, destinationNode);
-        double distanceComplexity = utilities.nodesDistance(originNode, destinationNode)/Collections.max(PedestrianSimulation.distances);
+        Geometry smallestCircle = Utilities.smallestEnclosingCircle(originNode, destinationNode);
+        double distanceComplexity = Utilities.nodesDistance(originNode, destinationNode)/Collections.max(PedestrianSimulation.distances);
         Bag filterBuildings = PedestrianSimulation.buildings.getContainedObjects(smallestCircle);
-        HashMap<MasonGeometry, Double> buildingsMap =  utilities.filterMap(PedestrianSimulation.buildingsLS, filterBuildings);
+        HashMap<MasonGeometry, Double> buildingsMap =  Utilities.filterMap(PedestrianSimulation.buildingsLS, filterBuildings);
         
         int count = 0;
         Iterator<Entry<MasonGeometry, Double>> it = buildingsMap.entrySet().iterator();

@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.Map.Entry;
 
 import sim.app.geo.urbanSim.*;
-import sim.app.geo.urbanSim.utilities.Path;
+import sim.app.geo.urbanSim.Utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraGlobalLandmarks {
@@ -61,7 +61,7 @@ public class DijkstraGlobalLandmarks {
             else if (segmentsToAvoid.contains(((EdgeGraph) lastSegment.getEdge()).getID())) 
             	continue;
 	    	
-            double globalLandmarkness = LandmarksNavigation.globalLandmarknessNode(target, destinationNode, false);
+            double globalLandmarkness = LandmarksNavigation.globalLandmarknessNode(target, destinationNode, true);
         	double nodeLandmarkness = (1-globalLandmarkness)/d.getLength();
         	
         	double tentativeCost = getBest(node) + nodeLandmarkness;

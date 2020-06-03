@@ -50,7 +50,7 @@ public final class Pedestrian implements Steppable
     public String criteria;
     boolean landmarksRouting = false;
     boolean barriersRouting = false;
-    boolean regionalRouting = true;
+    boolean regionalRouting = false;
 
     boolean reachedDestination = false;
     int numTrips = 0;
@@ -96,7 +96,6 @@ public final class Pedestrian implements Steppable
 //		   	}
 //	    	while (currentJunction == destinationNode) destinationNode = nodesLookup.searchRandomNode(state.geometriesNodes, state);
 //    	}
-    	int barrierID = 999999;
     	ArrayList<GeomPlanarGraphDirectedEdge> newPath = null;
         ArrayList<NodeGraph> sequence = new ArrayList<NodeGraph>();
         System.out.println("trip "+criteria+" OD "+originNode.getID()+" "+destinationNode.getID());
@@ -104,43 +103,37 @@ public final class Pedestrian implements Steppable
         if (criteria == "roadDistance")
         {
         	newPath = routePlanning.roadDistance(originNode, destinationNode, null, 
-        			regionalRouting, barriersRouting, barrierID, "dijkstra").edges;
+        			regionalRouting, barriersRouting, "dijkstra").edges;
         }
         
         else if (criteria == "angularChange")
         {
         	newPath = routePlanning.angularChange(originNode, destinationNode, null, null,
-        			regionalRouting, barriersRouting, barrierID, "dijkstra").edges;
+        			regionalRouting, barriersRouting, "dijkstra").edges;
         }
         
-//        else if (criteria == "topological")
-//        {
-//        	newPath = routePlanning.topological(originNode, destinationNode, null, 
-//        			regionalRouting, barrierID, state).edges;
-//        }
-
-        else if (criteria == "roadDistanceLandmark")
+        else if (criteria == "roadDistanceLandmarks")
         {
         	sequence = LandmarksNavigation.findSequenceSubGoals(originNode, destinationNode);
         	if (sequence.size() == 0) newPath = routePlanning.roadDistance(originNode, 
-        			destinationNode, null, regionalRouting, barriersRouting, barrierID, "astar").edges;
-        	else newPath = routePlanning.roadDistanceLandmarksPath(originNode, destinationNode, sequence);
+        			destinationNode, null, regionalRouting, barriersRouting, "dijkstra").edges;
+        	else newPath = routePlanning.roadDistanceLandmarks(sequence, regionalRouting, barriersRouting);
         }
         
-        else if (criteria == "angularChangeLandmark")
+        else if (criteria == "angularChangeLandmarks")
         {
         	sequence = LandmarksNavigation.findSequenceSubGoals(originNode, destinationNode);
         	if (sequence.size() == 0) newPath = routePlanning.angularChange(originNode, destinationNode, null,null, 
-        			regionalRouting, barriersRouting, barrierID, "dijkstra").edges;
-        	else newPath = routePlanning.AngularChangeLandmarksPath(originNode,destinationNode, sequence);
+        			regionalRouting, barriersRouting, "dijkstra").edges;
+        	else newPath = routePlanning.angularChangeLandmarks(sequence, regionalRouting, barriersRouting);
         }
         
         else if (criteria == "localLandmarks")
         {
         	sequence = LandmarksNavigation.findSequenceSubGoals(originNode, destinationNode);
         	if (sequence.size() == 0) newPath = routePlanning.roadDistance(originNode, destinationNode, null, 
-        			regionalRouting, barriersRouting, barrierID, "dijkstra").edges;
-        	else newPath = routePlanning.roadDistanceLocalLandmarks(originNode, destinationNode, sequence);
+        			regionalRouting, barriersRouting, "dijkstra").edges;
+        	else newPath = routePlanning.roadDistanceSequence(sequence, regionalRouting, barriersRouting, "dijkstra");
         }
         
         else if (criteria == "globalLandmarks")
@@ -162,6 +155,7 @@ public final class Pedestrian implements Steppable
     	route.destination = destinationNode.getID();
     	route.criteria = criteria;
     	List<Integer> sequenceEdges = new ArrayList<Integer>();
+    	
 
     	for (GeomPlanarGraphDirectedEdge o : newPath)
         {
@@ -352,6 +346,7 @@ public final class Pedestrian implements Steppable
 		else if (criteria == "angularChangeBarriers") edge.angularChangeBarriers += 1;
 		else if (criteria == "roadDistanceRegionsBarriers") edge.roadDistanceRegionsBarriers += 1;
 		else if (criteria == "angularChangeRegionsBarriers") edge.angularChangeRegionsBarriers += 1;
+		else System.out.println(criteria);
     }
     
     public void setStoppable(Stoppable a) {killAgent = a;}

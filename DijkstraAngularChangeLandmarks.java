@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import sim.app.geo.urbanSim.*;
-import sim.app.geo.urbanSim.utilities.Path;
+import sim.app.geo.urbanSim.Utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraAngularChangeLandmarks {
@@ -39,6 +39,7 @@ public class DijkstraAngularChangeLandmarks {
 
 		while (unvisitedNodes.size() > 0) 
 		{
+
 			NodeGraph currentNode = getClosest(unvisitedNodes); // at the beginning it takes originNode
 			visitedNodes.add(currentNode);
 			unvisitedNodes.remove(currentNode);
@@ -50,36 +51,35 @@ public class DijkstraAngularChangeLandmarks {
 
 	private void findMinDistances(NodeGraph currentNode) 
 	{
-		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();        
+		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();  
 	    for (NodeGraph targetNode : adjacentNodes) 
 	    {    
 	    	if (visitedNodes.contains(targetNode)) continue;
-            if (utilities.commonPrimalJunction(targetNode, currentNode) ==  mapWrappers.get(currentNode).commonPrimalJunction) 
-            	continue;
+            if (Utilities.commonPrimalJunction(targetNode, currentNode) ==  mapWrappers.get(currentNode).commonPrimalJunction) continue;
 
             EdgeGraph commonEdge = null;
             commonEdge = currentNode.getEdgeBetween(targetNode);
-	    	double segmentCost = commonEdge.getDeflectionAngle() + utilities.fromNormalDistribution(0, 5, null);                
-            if (segmentCost > 180) segmentCost = 180;
-            if (segmentCost < 0) segmentCost = 0;
+	    	double edgeCost = commonEdge.getDeflectionAngle() + Utilities.fromNormalDistribution(0, 5, null);                
+            if (edgeCost > 180) edgeCost = 180;
+            if (edgeCost < 0) edgeCost = 0;
 	    	GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);
 	    	
             double globalLandmarkness = LandmarksNavigation.globalLandmarknessDualNode(targetNode, primalDestinationNode, true);
         	double nodeLandmarkness = 1-globalLandmarkness*0.70;
-        	double nodeCost = nodeLandmarkness*segmentCost;
+        	double nodeCost = nodeLandmarkness*edgeCost;
         	double tentativeCost = getBest(currentNode) + nodeCost;
 	    	
-	    	if (getBest(currentNode) > tentativeCost)
-	    		{
-	    			NodeWrapper NodeWrapper = mapWrappers.get(targetNode);
-	                if (NodeWrapper == null) NodeWrapper = new NodeWrapper(targetNode);
-	                NodeWrapper.nodeFrom = currentNode;
-	                NodeWrapper.edgeFrom = outEdge;
-	                NodeWrapper.commonPrimalJunction = utilities.commonPrimalJunction(currentNode, targetNode);
-	                NodeWrapper.gx = tentativeCost;
-	                mapWrappers.put(targetNode, NodeWrapper);
-	                unvisitedNodes.add(targetNode);
-	    		}    			
+	    	if (getBest(targetNode) > tentativeCost)
+    		{
+    			NodeWrapper NodeWrapper = mapWrappers.get(targetNode);
+                if (NodeWrapper == null) NodeWrapper = new NodeWrapper(targetNode);
+                NodeWrapper.nodeFrom = currentNode;
+                NodeWrapper.edgeFrom = outEdge;
+                NodeWrapper.commonPrimalJunction = Utilities.commonPrimalJunction(currentNode, targetNode);
+                NodeWrapper.gx = tentativeCost;
+                mapWrappers.put(targetNode, NodeWrapper);
+                unvisitedNodes.add(targetNode);
+    		}    			
 		}
 	}
 
@@ -123,8 +123,7 @@ public class DijkstraAngularChangeLandmarks {
 	        	sequenceEdges.add(0, de); 
 	        	if (step == originNode)
 	        	{
-					GeomPlanarGraphDirectedEdge lastDe = (GeomPlanarGraphDirectedEdge) 
-							step.primalEdge.getDirEdge(0);
+					GeomPlanarGraphDirectedEdge lastDe = (GeomPlanarGraphDirectedEdge) step.primalEdge.getDirEdge(0);
 		        	sequenceEdges.add(0, lastDe); 
 					break;
 	        	}

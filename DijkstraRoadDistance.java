@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map.Entry;
 
 import sim.app.geo.urbanSim.*;
-import sim.app.geo.urbanSim.utilities.Path;
+import sim.app.geo.urbanSim.Utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 
@@ -24,17 +24,13 @@ public class DijkstraRoadDistance {
 	ArrayList<NodeGraph> unvisitedNodes;
 	HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
     ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid = new ArrayList<GeomPlanarGraphDirectedEdge>();
-	int barrierID;
 	boolean barriersRouting;
     
     public Path dijkstraPath(NodeGraph originNode, NodeGraph destinationNode,
-    		ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid, boolean regionalRouting, boolean barriersRouting,
-    		int barrierID)
+    		ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid, boolean regionalRouting, boolean barriersRouting)
 	{
     	this.segmentsToAvoid = segmentsToAvoid;
     	this.destinationNode = destinationNode;
-
-    	this.barrierID = barrierID;
     	this.barriersRouting = barriersRouting;
 		visitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes = new ArrayList<NodeGraph>();
@@ -68,16 +64,11 @@ public class DijkstraRoadDistance {
 	    	List<Integer> negativeBarriers = commonEdge.negativeBarriers;
 	    	if (barriersRouting) 
 	    	{
-	    		if ((barrierID != 999999) && (positiveBarriers != null))
-	    		{ 
-	    			if (positiveBarriers.contains(barrierID)) error = utilities.fromNormalDistribution(1, 0.20, "left");
-	    			else if (negativeBarriers != null) error = utilities.fromNormalDistribution(1, 0.20, "right");
-	    			else error = utilities.fromNormalDistribution(1, 0.10, null);
-	    		}
-	    		else if (negativeBarriers != null) error = utilities.fromNormalDistribution(1, 0.20, "right");
-	    		else error = utilities.fromNormalDistribution(1, 0.10, null);
-	    	}
-	    	else error = utilities.fromNormalDistribution(1, 0.10, null);
+	    		if (positiveBarriers != null) error = Utilities.fromNormalDistribution(0.70, 0.10, "left");
+	    		else if (negativeBarriers != null) error = Utilities.fromNormalDistribution(1.30, 0.10, "right");
+	    		else error = Utilities.fromNormalDistribution(1, 0.10, null);
+    		}
+	    	else error = Utilities.fromNormalDistribution(1, 0.10, null);
 	    	
 	    	double edgeCost = commonEdge.getLength()*error;
 	    	GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);

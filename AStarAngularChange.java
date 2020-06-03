@@ -17,7 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import sim.app.geo.urbanSim.*;
-import sim.app.geo.urbanSim.utilities.Path;
+import sim.app.geo.urbanSim.Utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class AStarAngularChange
@@ -28,10 +28,9 @@ public class AStarAngularChange
 	HashMap<Integer, NodeGraph> centroidsMap;
     HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 	NodeGraph previousJunction;
-	int barrierID;
 	
     public Path astarPath(NodeGraph originNode, NodeGraph destinationNode, 
-    		ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, boolean regionalRouting, boolean barriersRouting, int barrierID)
+    		ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, boolean regionalRouting, boolean barriersRouting)
     {
         // set up the containers for the sequenceEdges
         ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges =  new ArrayList<GeomPlanarGraphDirectedEdge>();
@@ -73,14 +72,14 @@ public class AStarAngularChange
             closedSet.add(currentNodeWrapper);
             
             // check all the edges out from this Node
-            ArrayList<EdgeGraph> outEdges = new ArrayList<EdgeGraph> (currentNode.getEdgesNode());
+            ArrayList<GeomPlanarGraphDirectedEdge> outEdges = new ArrayList<GeomPlanarGraphDirectedEdge> (currentNode.getOutDirectedEdges());
     		
-            for (EdgeGraph commonEdge : outEdges)
+            for (GeomPlanarGraphDirectedEdge outEdge : outEdges)
             {
                 NodeGraph targetNode = null;
-                GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);
+                EdgeGraph commonEdge = (EdgeGraph) outEdge.getEdge();
                 targetNode = commonEdge.getOtherNode(currentNode);
-                if (utilities.commonPrimalJunction(targetNode, currentNode) == currentNodeWrapper.commonPrimalJunction) continue;
+                if (Utilities.commonPrimalJunction(targetNode, currentNode) == currentNodeWrapper.commonPrimalJunction) continue;
                 // get the A* meta information about this Node
                 NodeWrapper nextNodeWrapper;
                 
@@ -99,16 +98,11 @@ public class AStarAngularChange
     	    	List<Integer> negativeBarriers = targetNode.primalEdge.negativeBarriers;
     	    	if (barriersRouting) 
     	    	{
-    	    		if ((barrierID != 999999) && (positiveBarriers != null))
-    	    		{ 
-    	    			if (positiveBarriers.contains(barrierID)) error = utilities.fromNormalDistribution(1, 0.20, "left");
-    	    			else if (negativeBarriers != null) error = utilities.fromNormalDistribution(1, 0.20, "right");
-    	    			else error = utilities.fromNormalDistribution(1, 0.10, null);
-    	    		}
-    	    		else if (negativeBarriers != null) error = utilities.fromNormalDistribution(1, 0.20, "right");
-    	    		else error = utilities.fromNormalDistribution(1, 0.10, null);
+    	    		if (positiveBarriers != null) error = Utilities.fromNormalDistribution(0.70, 0.10, "left");
+    	    		else if (negativeBarriers != null) error = Utilities.fromNormalDistribution(1.30, 0.10, "right");
+    	    		else error = Utilities.fromNormalDistribution(1, 0.10, null);
     	    	}
-    	    	else error = utilities.fromNormalDistribution(1, 0.05, null);
+    	    	else error = Utilities.fromNormalDistribution(1, 0.10, null);
                 double edgeCost = commonEdge.getDeflectionAngle() * error;
                 if (edgeCost > 180) edgeCost = 180;
                 if (edgeCost < 0) edgeCost = 0;
@@ -131,7 +125,7 @@ public class AStarAngularChange
                     nextNodeWrapper.edgeFrom = outEdge;
                     nextNodeWrapper.gx = tentativeCost;
                     nextNodeWrapper.fx = nextNodeWrapper.gx + nextNodeWrapper.hx;
-                    nextNodeWrapper.commonPrimalJunction = utilities.commonPrimalJunction(targetNode, currentNode);
+                    nextNodeWrapper.commonPrimalJunction = Utilities.commonPrimalJunction(targetNode, currentNode);
                 }
             }
         }
