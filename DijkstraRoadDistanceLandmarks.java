@@ -6,7 +6,7 @@
  **
  **/
 
-package sim.app.geo.pedestrianSimulation;
+package sim.app.geo.pedSimCity;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
@@ -18,20 +18,19 @@ import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraRoadDistanceLandmarks {
     
-	NodeGraph tmpDestinationNode;
-	NodeGraph destinationNode;
-	ArrayList<NodeGraph> visitedNodes;
-	ArrayList<NodeGraph> unvisitedNodes;
+	NodeGraph tmpDestinationNode, destinationNode;
+	ArrayList<NodeGraph> visitedNodes, unvisitedNodes;
 	HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
-
     ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid = new ArrayList<GeomPlanarGraphDirectedEdge>();
+    boolean onlyAnchors; 
     
     public Path dijkstraPath(NodeGraph originNode, NodeGraph tmpDestinationNode, NodeGraph destinationNode,
-    		ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid)
+    		ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid, boolean onlyAnchors)
 	{
     	this.segmentsToAvoid = segmentsToAvoid;
     	this.tmpDestinationNode = tmpDestinationNode;
     	this.destinationNode = destinationNode;
+    	this.onlyAnchors = onlyAnchors;
     	
 		visitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes = new ArrayList<NodeGraph>();
@@ -54,24 +53,42 @@ public class DijkstraRoadDistanceLandmarks {
 	void findMinDistances(NodeGraph currentNode) 
 	{
 		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();   
+
 	    for (NodeGraph targetNode : adjacentNodes) 
 	    {    
-	    	
+
 	    	if (visitedNodes.contains(targetNode)) continue;	
 
 	    	EdgeGraph commonEdge = null;
 	    	commonEdge = currentNode.getEdgeBetween(targetNode);
-            double error = Utilities.fromNormalDistribution(1, 0.10, null);
-            if (error < 0) error = 0.00;
-	    	double segmentCost = commonEdge.getLength()*error;
-
 	    	GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);
 
 			if (segmentsToAvoid == null);
             else if (segmentsToAvoid.contains(outEdge))	continue;
-            
-            double globalLandmarkness = LandmarksNavigation.globalLandmarknessNode(targetNode, destinationNode, true);
-        	double nodeLandmarkness = 1-globalLandmarkness*0.7;
+            else
+            {
+            	boolean toContinue = false;
+            	for (GeomPlanarGraphDirectedEdge otherEdge : segmentsToAvoid)
+            	{
+            		EdgeGraph oe = (EdgeGraph) otherEdge.getEdge();
+            		if (oe.getID().equals(commonEdge.getID())) 
+            		{
+            			toContinue = true;
+            			break;
+            		}
+            	}
+            	if (toContinue) continue;
+            }
+
+            double error = Utilities.fromNormalDistribution(1, 0.10, null);
+            if (error < 0) error = 0.00;
+	    	double segmentCost = commonEdge.getLength()*error;
+	    	
+            double globalLandmarkness = 0.0;
+	    	if (onlyAnchors) globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode, destinationNode, true);
+	    	else globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode, destinationNode, false);
+
+        	double nodeLandmarkness = 1-globalLandmarkness*PedSimCity.globalLandmarknessWeight;
         	double nodeCost = segmentCost*nodeLandmarkness;
         	
         	double tentativeCost = getBest(currentNode) + nodeCost;

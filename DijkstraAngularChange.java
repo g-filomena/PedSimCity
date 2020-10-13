@@ -1,4 +1,4 @@
-package sim.app.geo.pedestrianSimulation;
+package sim.app.geo.pedSimCity;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,9 +30,9 @@ public class DijkstraAngularChange {
 		this.previousJunction = previousJunction;
 		this.regionalRouting = regionalRouting;
     	
-		if ((originNode.district == destinationNode.district) && (regionalRouting))
+		if ((originNode.region == destinationNode.region) && (regionalRouting))
     	{
-    		graph = PedestrianSimulation.districtsMap.get(originNode.district).dualGraph;
+    		graph = PedSimCity.regionsMap.get(originNode.region).dualGraph;
     		originNode = graph.findNode(originNode.getCoordinate());
     		destinationNode = graph.findNode(destinationNode.getCoordinate());
     		if (centroidsToAvoid != null) centroidsToAvoid = graph.getChildNodes(centroidsToAvoid);
@@ -40,8 +40,8 @@ public class DijkstraAngularChange {
     	}
     	else if (subGraph == true) // create graph from convex hull
     	{
-    		ArrayList<EdgeGraph> containedEdges = PedestrianSimulation.dualNetwork.edgesWithinSpace(originNode, destinationNode); 
-    		graph = new SubGraph(PedestrianSimulation.dualNetwork, containedEdges);
+    		ArrayList<EdgeGraph> containedEdges = PedSimCity.dualNetwork.edgesWithinSpace(originNode, destinationNode); 
+    		graph = new SubGraph(PedSimCity.dualNetwork, containedEdges);
     		originNode = graph.findNode(originNode.getCoordinate());
     		destinationNode = graph.findNode(destinationNode.getCoordinate());
     		if (centroidsToAvoid != null) centroidsToAvoid = graph.getChildNodes(centroidsToAvoid);
@@ -83,8 +83,8 @@ public class DijkstraAngularChange {
 	    	{
 		    	List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
 		    	List<Integer> negativeBarriers = targetNode.primalEdge.negativeBarriers;
-	    		if (positiveBarriers != null) error = Utilities.fromNormalDistribution(0.60, 0.10, "left");
-	    		else if ((negativeBarriers != null) && (positiveBarriers == null)) error = Utilities.fromNormalDistribution(1.40, 0.10, "right");
+	    		if (positiveBarriers != null) error = Utilities.fromNormalDistribution(0.70, 0.10, "left");
+	    		else if ((negativeBarriers != null) && (positiveBarriers == null)) error = Utilities.fromNormalDistribution(1.30, 0.10, "right");
 	    		else error = Utilities.fromNormalDistribution(1, 0.10, null);
 	    	}
 	    	else error = Utilities.fromNormalDistribution(1, 0.10, null);

@@ -1,4 +1,4 @@
-package sim.app.geo.pedestrianSimulation;
+package sim.app.geo.pedSimCity;
 
 import java.util.*;
 import java.util.Map.Entry;
@@ -10,52 +10,77 @@ import sim.util.Bag;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 import sim.util.geo.MasonGeometry;
 
-public class LandmarksNavigation
+public class LandmarkNavigation
 {	
-	
-	public static ArrayList<NodeGraph> findSequenceSubGoals(NodeGraph originNode, NodeGraph destinationNode)
+	/** 
+	* Sequence intermediate points based on local-landmarkness (identification of decision points).
+	* If regionBasedNavigation is true, look within the region, regardless originNode and destinatioNode
+	* Percentile indicate the percentile above which a node is considered salient, on the basis of local or global betweenness centrality.
+	*/
+
+	public static ArrayList<NodeGraph> findSequenceSubGoals(NodeGraph originNode, NodeGraph destinationNode, boolean regionBasedNavigation)
 	{
-		double percentile = 0.75;
-    	ArrayList<NodeGraph> knownJunctions = PedestrianSimulation.network.salientNodes(originNode, destinationNode, 0,0, percentile, "local");
+		double percentile = PedSimCity.salientNodesPercentile;
+		ArrayList<NodeGraph> knownJunctions;
+		ArrayList<NodeGraph> sequence = new ArrayList<NodeGraph>();
+	    List<Integer> badCandidates = new ArrayList<Integer>();
+		
+		if (!regionBasedNavigation) knownJunctions = PedSimCity.network.salientNodesBewteenSpace(originNode, destinationNode, 
+					0,0, percentile, "local");
+		else 
+		{
+			RegionData region = PedSimCity.regionsMap.get(originNode.region);
+			knownJunctions = region.primalGraph.salientNodesBewteenSpace(originNode, destinationNode, 0,0, percentile,"local");
+		}
     	
+		/**  
+		 * If no salient junctions are found, the tolerance increases till the 0.50 percentile;
+		 * if still no salient junctions are found, the agent continues without landmarks
+		 */
     	while (knownJunctions == null) 
     	{
-    		System.out.println(originNode.getID() + " no salient junctions "+ destinationNode.getID());
     		percentile -= 0.05;
-    		if (percentile < 0.50) break;
-    		knownJunctions = PedestrianSimulation.network.salientNodes(originNode, destinationNode, 0,0, percentile, "local");
-    		
+    		if (percentile < 0.50)
+    		{
+		    	sequence.add(originNode);
+		    	sequence.add(destinationNode);
+		    	return sequence;
+    		}
+    		knownJunctions = PedSimCity.network.salientNodesBewteenSpace(originNode, destinationNode, 0,0, percentile, "local");
     	}
-        double wayfindingComplexity = easinessNavigation(originNode, destinationNode);
-        double searchRange = Utilities.nodesDistance(originNode, destinationNode) * (wayfindingComplexity);
+
+        double wayfindingEasiness = wayfindingEasiness(originNode, destinationNode);
+        double searchDistance = Utilities.nodesDistance(originNode, destinationNode) * (wayfindingEasiness);
         NodeGraph currentNode = originNode;
-        
-	    List<Integer> badCandidates = new ArrayList<Integer>();
-	    ArrayList<NodeGraph> sequence = new ArrayList<NodeGraph>();
-    	
-	    while (searchRange >  PedestrianSimulation.t)
+            
+	    
+		/**  
+		 * While the wayfindingEasiness is lower than the threshold the agent looks for intermediate-points.
+	
+		 */
+    	while (wayfindingEasiness < PedSimCity.wayfindingEasinessThreshold)
         {
+
     		NodeGraph bestNode = null;
         	double attractivness = 0.0;
         		        	
         	for (NodeGraph tmpNode : knownJunctions)
 	        {	    	
-		    	if (sequence.contains(tmpNode)) continue;
-		    	if (tmpNode == originNode) continue;
-		    	if (tmpNode.getEdgeBetween(currentNode) != null) continue;
-		    	if (tmpNode.getEdgeBetween(destinationNode)!= null) continue;
-		    	if (tmpNode.getEdgeBetween(originNode)!= null) continue;
-		    	
-		    	if (Utilities.nodesDistance(currentNode, tmpNode) > searchRange)
+        		
+        		// bad candidates (candidate is destination, or origin, already visited, etc)
+		    	if (sequence.contains(tmpNode) || tmpNode == originNode || tmpNode.getEdgeBetween(currentNode) != null || 
+		    			tmpNode.getEdgeBetween(destinationNode)!= null || tmpNode.getEdgeBetween(originNode)!= null) continue;
+
+		    	if (Utilities.nodesDistance(currentNode, tmpNode) > searchDistance)
 		    	{
 		    		badCandidates.add(tmpNode.getID());
 		    		continue; //only nodes in range	
 		    	}
         		double localScore = 0.0;
         		localScore = localLandmarkness(tmpNode, false, null);
-
-		    	double gain = ((Utilities.nodesDistance(currentNode, destinationNode) - 
-		    			Utilities.nodesDistance(tmpNode, destinationNode))/Utilities.nodesDistance(currentNode, destinationNode));
+        		
+        		double currentDistance = Utilities.nodesDistance(currentNode, destinationNode);
+		    	double gain = (currentDistance - Utilities.nodesDistance(tmpNode, destinationNode))/currentDistance;
 		    	
 		    	double landmarkness = localScore*0.60 + gain*0.40;
 		    	if (landmarkness > attractivness) 
@@ -68,11 +93,27 @@ public class LandmarksNavigation
         	if (bestNode == null) break;
 			if (bestNode == destinationNode) break;
         	sequence.add(bestNode);
-        	knownJunctions = PedestrianSimulation.network.salientNodes(bestNode, destinationNode, 0, 0,  0.75, "local");
-        	if (knownJunctions == null) break;
-
-        	wayfindingComplexity = easinessNavigation(bestNode, destinationNode);
-        	searchRange = Utilities.nodesDistance(bestNode, destinationNode) * wayfindingComplexity;
+        	
+    		/** 
+    		 * While the wayfindingEasiness is lower than the threshold the agent looks for intermediate-points.
+    		 * Second and third parameter not necessary here (i.e. set to 0,0)
+    		 * "local" rescales betweenness centrality within the search space; otherwise uses "global" for the global centrality value.
+    		 */
+        	percentile = PedSimCity.salientNodesPercentile;
+        	knownJunctions = PedSimCity.network.salientNodesBewteenSpace(bestNode, destinationNode, 0, 0,  percentile, "local");
+        	while (knownJunctions == null) 
+        	{
+        		percentile -= 0.05;
+        		if (percentile < 0.50) 
+            	{
+                	sequence.add(0, originNode);
+                	sequence.add(destinationNode);
+                	return sequence;
+                }
+        		knownJunctions = PedSimCity.network.salientNodesBewteenSpace(bestNode, destinationNode, 0,0, percentile, "local");
+        	}
+        	wayfindingEasiness = wayfindingEasiness(bestNode, destinationNode);
+        	searchDistance = Utilities.nodesDistance(bestNode, destinationNode) * wayfindingEasiness;
             currentNode = bestNode;
             bestNode = null;
         }
@@ -82,7 +123,13 @@ public class LandmarksNavigation
 	}
 
     static double localLandmarkness(NodeGraph node, boolean advanceVis, HashMap<NodeGraph, NodeWrapper>	mapWrappers)
-    {   	
+    {   
+		/** 
+		 * While the wayfindingEasiness is lower than the threshold the agent looks for intermediate-points.
+		 * Second and third parameter not necessary here (i.e. set to 0,0)
+		 * "local" rescales betweenness centrality within the search space; otherwise uses "global" for the global centrality value.
+		 */
+    	
         List<Integer> localLandmarks = new ArrayList<Integer>();
         localLandmarks = node.localLandmarks;
         double localScore = 0.0;
@@ -100,7 +147,7 @@ public class LandmarksNavigation
 	            double distanceTravelled = 0;
 	            double cumulativeAdvanceVis = 0;
 	            
-	            while ((nodeFrom != null) & (distanceTravelled <= PedestrianSimulation.t))
+	            while ((nodeFrom != null) & (distanceTravelled <= PedSimCity.visibilityThreshold))
 	            {
 	                List<Integer> visible = new ArrayList<Integer>();
 	                visible = nodeFrom.visible2d;
@@ -124,66 +171,14 @@ public class LandmarksNavigation
         }
     }
         
-
-    static double localLandmarknessDualGraph(NodeGraph centroid, NodeGraph node, boolean advanceVis, 
-    		HashMap<NodeGraph, NodeWrapper> mapWrappers)
-    {
-    	// current real segment
-    	GeomPlanarGraphDirectedEdge streetSegment = (GeomPlanarGraphDirectedEdge) centroid.primalEdge.getDirEdge(0); 
-    	
-    	//real node
-        List<Integer> localLandmarks = new ArrayList<Integer>();
-        double localScore = 0.0;
-        localLandmarks = node.localLandmarks;
-        if (localLandmarks == null) return 0.0;
-        if (!advanceVis) return Collections.max(node.localScores);
-        else
-        {
-        	//previous segment
-        	NodeGraph previousCentroid = mapWrappers.get(centroid).nodeFrom;
-        	for (int lL : localLandmarks)
-	        {
-        		NodeGraph nodeTo =  node;
-        		NodeGraph centroidFrom = previousCentroid;
-        		NodeGraph nodeFrom;
-	            double distanceTravelled = 0;
-	            double cumulativeAdvanceVis = 0;
-	            GeomPlanarGraphDirectedEdge currentSegment = streetSegment;
-	            
-	            while ((centroidFrom != null) & (distanceTravelled <= PedestrianSimulation.t))
-	            {
-	            	if (currentSegment.getFromNode() == nodeTo) nodeFrom = (NodeGraph) currentSegment.getToNode();
-	            	else nodeFrom = (NodeGraph) currentSegment.getToNode();
-	                List<Integer> visible = new ArrayList<Integer>();
-	                visible = nodeFrom.visible2d;
-
-	                EdgeGraph segment = (EdgeGraph) currentSegment.getEdge();
-	                distanceTravelled = distanceTravelled + segment.getLine().getLength();
-	                       
-	                if (visible.contains(lL)) cumulativeAdvanceVis += segment.getLine().getLength();
-	                nodeTo = nodeFrom;
-	            	currentSegment = (GeomPlanarGraphDirectedEdge) centroidFrom.primalEdge.getDirEdge(0);
-	                NodeWrapper cf = mapWrappers.get(centroidFrom);
-	                try {centroidFrom = cf.nodeFrom;}
-	                catch (java.lang.NullPointerException e) {centroidFrom = null;}
-	            } 
-	          double aV = cumulativeAdvanceVis/distanceTravelled;
-	          if (aV > 1.0) aV = 1.0;
-	          double tmp = node.localScores.get(localLandmarks.indexOf(lL)) * aV;
-	          if (tmp > localScore) localScore = tmp;
-	        }
-        	return localScore;
-        }
-
-    }
-    
-    static double globalLandmarknessNode(NodeGraph node, NodeGraph destinationNode, boolean useAnchors) 
+   
+    static double globalLandmarknessNode(NodeGraph targetNode, NodeGraph destinationNode, boolean useAnchors) 
     {   	
             
        List<Integer> distantLandmarks = new ArrayList<Integer>();
-       distantLandmarks = node.distantLandmarks;
+       distantLandmarks = targetNode.distantLandmarks;
        if (distantLandmarks == null) return 1.0;
-       if (!useAnchors) return Collections.max(node.distantScores);	
+       if (!useAnchors) return Collections.max(targetNode.distantScores);	
        
        List<Integer> anchors = new ArrayList<Integer>();
        anchors = destinationNode.anchors;
@@ -194,9 +189,9 @@ public class LandmarksNavigation
    			double tmp = 0.0;
     	   	if (anchors.contains(dL))
     	   	{
-				tmp = node.distantScores.get(distantLandmarks.indexOf(dL));
+				tmp = targetNode.distantScores.get(distantLandmarks.indexOf(dL));
 				double distanceLandmark = destinationNode.distances.get(anchors.indexOf(dL));
-				double distanceWeight = Utilities.nodesDistance(node, destinationNode)/distanceLandmark;
+				double distanceWeight = Utilities.nodesDistance(targetNode, destinationNode)/distanceLandmark;
 				if (distanceWeight > 1.0) distanceWeight = 1.0;
 				tmp = tmp*distanceWeight;   
     	   }
@@ -205,11 +200,12 @@ public class LandmarksNavigation
        return nodeGlobalScore;
     }
        
-    static double globalLandmarknessDualNode(NodeGraph centroid, NodeGraph destinationNode, boolean useAnchors) 
+    static double globalLandmarknessDualNode(NodeGraph centroid, NodeGraph targetCentroid, NodeGraph destinationNode, boolean useAnchors) 
     {   	
 		// current real segment: identifying node
-		GeomPlanarGraphDirectedEdge streetSegment = (GeomPlanarGraphDirectedEdge) centroid.primalEdge.getDirEdge(0); 
-		NodeGraph targetNode = (NodeGraph) streetSegment.getToNode(); // targetNode            
+		GeomPlanarGraphDirectedEdge streetSegment = (GeomPlanarGraphDirectedEdge) targetCentroid.primalEdge.getDirEdge(0); 
+		NodeGraph targetNode = (NodeGraph) streetSegment.getToNode(); // targetNode  
+		if (Utilities.commonPrimalJunction(centroid, targetCentroid) == targetNode) targetNode = (NodeGraph) streetSegment.getFromNode();
 		    	
 		List<Integer> distantLandmarks = new ArrayList<Integer>();
 		distantLandmarks = targetNode.distantLandmarks;
@@ -229,7 +225,7 @@ public class LandmarksNavigation
 			{
 				tmp = targetNode.distantScores.get(distantLandmarks.indexOf(dL));
 				double distanceLandmark = destinationNode.distances.get(anchors.indexOf(dL));
-				double distanceWeight = Utilities.nodesDistance(centroid, destinationNode)/distanceLandmark;
+				double distanceWeight = Utilities.nodesDistance(targetNode, destinationNode)/distanceLandmark;
 				if (distanceWeight > 1.0) distanceWeight = 1.0;
 				tmp = tmp*distanceWeight;
 			}
@@ -389,28 +385,85 @@ public class LandmarksNavigation
     return 0.0;
     }
         
-    public static double easinessNavigation(NodeGraph originNode, NodeGraph destinationNode)
+    public static double wayfindingEasiness(NodeGraph originNode, NodeGraph destinationNode)
     {
-        Geometry smallestCircle = Utilities.smallestEnclosingCircle(originNode, destinationNode);
-        double distanceComplexity = Utilities.nodesDistance(originNode, destinationNode)/Collections.max(PedestrianSimulation.distances);
-        Bag filterBuildings = PedestrianSimulation.buildings.getContainedObjects(smallestCircle);
-        HashMap<MasonGeometry, Double> buildingsMap =  Utilities.filterMap(PedestrianSimulation.buildingsLS, filterBuildings);
-        
-        int count = 0;
-        Iterator<Entry<MasonGeometry, Double>> it = buildingsMap.entrySet().iterator();
-        while (it.hasNext()) 
-        {
-        	Map.Entry<MasonGeometry, Double> entry = it.next();
-        	if (entry.getValue() > 0.30) count += 1;
-        }
-        
-        double buildingsComplexity = 0.0;
-        if (filterBuildings.size() == 0) buildingsComplexity = 0.0;
-        else buildingsComplexity =  (filterBuildings.size() - count) /  filterBuildings.size();
-        double environmentalComplexity = (distanceComplexity + buildingsComplexity)/2;
-        double easiness = 1 - environmentalComplexity;
+    	double distanceComplexity = Utilities.nodesDistance(originNode, destinationNode)/Math.max(PedSimCity.roads.MBR.getHeight(),
+    				PedSimCity.roads.MBR.getWidth());
+               
+    	ArrayList<MasonGeometry> buildings = getBuildings(originNode, destinationNode, originNode.region);
+//    	ArrayList<MasonGeometry> landmarks = getLandmarks(buildings, PedSimCity.localLandmarkThreshold, "local");
+    	ArrayList<MasonGeometry> landmarks = getLandmarks(buildings, PedSimCity.globalLandmarkThreshold, "global");
+    	
+        double buildingsComplexity = 1.0;
+        if (buildings.size() == 0 || buildings == null) buildingsComplexity = 0.0;
+        else buildingsComplexity = buildingsComplexity(buildings, landmarks);
+        double wayfindingComplexity = (distanceComplexity + buildingsComplexity)/2.0;
+        double easiness = 1.0 - wayfindingComplexity;
         return easiness;
     }
+    
+    public static double wayfindingEasinessRegion(NodeGraph originNode, NodeGraph destinationNode, NodeGraph tmpOrigin, NodeGraph tmpDestination)
+    {
+		double intraRegionDistance = Utilities.nodesDistance(tmpOrigin, tmpDestination);
+		double distance = Utilities.nodesDistance(originNode, destinationNode);
+		if (intraRegionDistance/distance < 0.10) return 1;
+		
+		double distanceComplexity = intraRegionDistance/distance;
+		double buildingsComplexity = PedSimCity.regionsMap.get(tmpOrigin.region).buildingsComplexity;
+        double wayfindingComplexity = (distanceComplexity + buildingsComplexity)/2.0;
+        double easiness = 1.0 - wayfindingComplexity;
+        return easiness;
+    }
+    
+    
+    public static double buildingsComplexity(ArrayList<MasonGeometry> buildings, ArrayList<MasonGeometry> landmarks)
+    {
+//    	double areaBuildings = 0.0;
+//        double areaLandmarks = 0.0;
+//    	for (MasonGeometry gB : buildings) areaBuildings += gB.geometry.getArea();
+//        for (MasonGeometry gL : buildings) areaLandmarks += gL.geometry.getArea();
+//    	double complexity = (areaBuildings - areaLandmarks)/ areaBuildings;
+    	
+    	double complexity = ((double)buildings.size()-landmarks.size())/(double) buildings.size();
+		return complexity;
+    }
+    
+    public static ArrayList<MasonGeometry> getBuildings(NodeGraph originNode, NodeGraph destinationNode, int region)
+    {
+      	ArrayList<MasonGeometry> buildings = new ArrayList<MasonGeometry>();
+    	
+    	if (originNode != null)
+    	{
+    		Geometry smallestCircle = Utilities.smallestEnclosingCircle(originNode, destinationNode);
+    		Bag filterBuildings = PedSimCity.buildings.getContainedObjects(smallestCircle);
+    		for (Object o: filterBuildings) buildings.add((MasonGeometry) o);
+    	}
+    	
+    	else
+    	{
+    		VectorLayer regionNetwork = PedSimCity.regionsMap.get(region).regionNetwork;
+    		Geometry convexHull = regionNetwork.getConvexHull().getGeometry();
+    		Bag filterBuildings = PedSimCity.buildings.getContainedObjects(convexHull);
+    		for (Object o: filterBuildings) buildings.add((MasonGeometry) o);
+    	}
+    	return buildings;
+    }
+    
+    public static ArrayList<MasonGeometry> getLandmarks(ArrayList<MasonGeometry> buildings, double threshold, String type)
+	{
+		ArrayList<MasonGeometry> landmarks = new ArrayList<MasonGeometry>();
+		String attribute;
+		if (type == "local") attribute = "lScore_sc";
+		else attribute = "gScore_sc";
+		
+		for (MasonGeometry b: buildings)
+		{
+			 if (b.getDoubleAttribute(attribute) >= threshold) landmarks.add(b);
+		}
+				
+		return landmarks;
+
+	}
 	
 }
     

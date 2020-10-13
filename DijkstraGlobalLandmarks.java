@@ -6,7 +6,7 @@
  **
  **/
 
-package sim.app.geo.pedestrianSimulation;
+package sim.app.geo.pedSimCity;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
@@ -17,17 +17,18 @@ import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraGlobalLandmarks {
     
-	NodeGraph destinationNode;
-	ArrayList<NodeGraph> visitedNodes;
-	ArrayList<NodeGraph> unvisitedNodes;
+	NodeGraph originNode, destinationNode;
+	ArrayList<NodeGraph> visitedNodes, unvisitedNodes;
 	HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
     ArrayList<Integer> segmentsToAvoid = new ArrayList<Integer>();
+    boolean onlyAnchors;
     
-    public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode, ArrayList<Integer> segmentsToAvoid)
+    public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode, ArrayList<Integer> segmentsToAvoid, boolean onlyAnchors)
 	{
-    	this.segmentsToAvoid = segmentsToAvoid;
+    	this.originNode = originNode;
     	this.destinationNode = destinationNode;
-
+    	this.segmentsToAvoid = segmentsToAvoid;
+    	
 		visitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes.add(originNode);
@@ -61,7 +62,10 @@ public class DijkstraGlobalLandmarks {
             else if (segmentsToAvoid.contains(((EdgeGraph) lastSegment.getEdge()).getID())) 
             	continue;
 	    	
-            double globalLandmarkness = LandmarksNavigation.globalLandmarknessNode(target, destinationNode, true);
+			double globalLandmarkness = 0.0;
+			if (onlyAnchors) globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(target, destinationNode, true);
+			else globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(target, destinationNode, false);
+
         	double nodeLandmarkness = (1-globalLandmarkness)/d.getLength();
         	
         	double tentativeCost = getBest(node) + nodeLandmarkness;

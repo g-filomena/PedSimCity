@@ -1,4 +1,4 @@
-package sim.app.geo.pedestrianSimulation;
+package sim.app.geo.pedSimCity;
 
 public class AgentTypes {
 	

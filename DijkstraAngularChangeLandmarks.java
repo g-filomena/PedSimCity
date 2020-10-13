@@ -1,4 +1,4 @@
-package sim.app.geo.pedestrianSimulation;
+package sim.app.geo.pedSimCity;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -10,15 +10,14 @@ import sim.util.geo.GeomPlanarGraphDirectedEdge;
 public class DijkstraAngularChangeLandmarks {
     
 	NodeGraph originNode, destinationNode, primalDestinationNode;
-	ArrayList<NodeGraph> visitedNodes;
-	ArrayList<NodeGraph> unvisitedNodes;
+	ArrayList<NodeGraph> visitedNodes, unvisitedNodes;
 	NodeGraph previousJunction = null;
-	NodeGraph safe;
     HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
     ArrayList<NodeGraph> centroidsToAvoid = new ArrayList<NodeGraph>();
+    boolean onlyAnchors;
     
     public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode, 
-    		NodeGraph primalDestinationNode, ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction)
+    		NodeGraph primalDestinationNode, ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, boolean onlyAnchors)
 	{
     	this.originNode = originNode;
     	this.destinationNode = destinationNode;
@@ -59,13 +58,22 @@ public class DijkstraAngularChangeLandmarks {
 
             EdgeGraph commonEdge = null;
             commonEdge = currentNode.getEdgeBetween(targetNode);
-	    	double edgeCost = commonEdge.getDeflectionAngle() + Utilities.fromNormalDistribution(0, 5, null);                
+//	    	double edgeCost = commonEdge.getDeflectionAngle() + Utilities.fromNormalDistribution(0, 5, null);      
+	    	
+            double error = Utilities.fromNormalDistribution(1, 0.10, null);
+            if (error < 0) error = 0.00;
+	    	double edgeCost = commonEdge.getDeflectionAngle()*error;
+	    	
             if (edgeCost > 180) edgeCost = 180;
             if (edgeCost < 0) edgeCost = 0;
 	    	GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);
 	    	
-            double globalLandmarkness = LandmarksNavigation.globalLandmarknessDualNode(targetNode, primalDestinationNode, true);
-        	double nodeLandmarkness = 1-globalLandmarkness*0.70;
+            double globalLandmarkness = 0.0;
+	    	if (onlyAnchors) globalLandmarkness = LandmarkNavigation.globalLandmarknessDualNode(currentNode, targetNode, 
+	    			primalDestinationNode, true);
+	    	else globalLandmarkness = LandmarkNavigation.globalLandmarknessDualNode(currentNode, targetNode, primalDestinationNode, false);
+	    	
+        	double nodeLandmarkness = 1-globalLandmarkness*PedSimCity.globalLandmarknessWeight;
         	double nodeCost = nodeLandmarkness*edgeCost;
         	double tentativeCost = getBest(currentNode) + nodeCost;
 	    	

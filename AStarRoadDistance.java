@@ -10,7 +10,7 @@
  **
  ** $Id: AStar.java 842 2012-12-18 01:09:18Z mcoletti $
  **/
-package sim.app.geo.pedestrianSimulation;
+package sim.app.geo.pedSimCity;
 
 
 import java.util.ArrayList;

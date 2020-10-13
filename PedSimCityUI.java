@@ -11,7 +11,7 @@
  * $Id: GridlockWithUI.java 842 2012-12-18 01:09:18Z mcoletti $
  **
  **/
-package sim.app.geo.pedestrianSimulation;
+package sim.app.geo.pedSimCity;
 
 import java.awt.Color;
 import java.awt.Font;
@@ -44,7 +44,7 @@ import sim.util.media.chart.TimeSeriesChartGenerator;
 
 
 
-public class PedestrianSimulationUI extends GUIState
+public class PedSimCityUI extends GUIState
 {
 
     public Display2D display;
@@ -60,7 +60,7 @@ public class PedestrianSimulationUI extends GUIState
     XYSeries minSpeed;
     double ratio;
 
-    protected PedestrianSimulationUI(SimState state)
+    protected PedSimCityUI(SimState state)
     {
         super(state);
     }
@@ -91,7 +91,7 @@ public class PedestrianSimulationUI extends GUIState
 	        junctionsAttributes.add("Bc_E"); 
 
 	        
-	        if (PedestrianSimulation.districtRouting)
+	        if (PedSimCity.districtRouting)
 			{
 		        junctionsAttributes.add("Bc_multi");
 		        junctionsAttributes.add("nodeID"); 
@@ -100,19 +100,19 @@ public class PedestrianSimulationUI extends GUIState
 		        junctionsAttributes.add("CM"); 
 			}
 	        
-	        URL roadsFile = PedestrianSimulation.class.getResource("data/London_edges_simplified_BB.shp");
-	        URL junctionsFile = PedestrianSimulation.class.getResource("data/London_nodes_simplified_BB.shp");
-	        ShapeFileImporter.read(roadsFile, PedestrianSimulation.roads);
-	        ShapeFileImporter.read(junctionsFile, PedestrianSimulation.junctions, junctionsAttributes);
+	        URL roadsFile = PedSimCity.class.getResource("data/London_edges_simplified_BB.shp");
+	        URL junctionsFile = PedSimCity.class.getResource("data/London_nodes_simplified_BB.shp");
+	        ShapeFileImporter.read(roadsFile, PedSimCity.roads);
+	        ShapeFileImporter.read(junctionsFile, PedSimCity.junctions, junctionsAttributes);
 	        
 	        ///// READING DUAL GRAPH ------------
 	        System.out.println("reading dual graph...");
 	        Bag centroidsAttributes = new Bag();
 	        centroidsAttributes.add("edgeID");
-	        URL roadsDualFile = PedestrianSimulation.class.getResource("data/London_edgesDual_simplified_BB.shp");
-	        URL centroidsFile = PedestrianSimulation.class.getResource("data/London_nodesDual_simplified_BB.shp");            
-	        ShapeFileImporter.read(roadsDualFile, PedestrianSimulation.intersectionsDual);
-	        ShapeFileImporter.read(centroidsFile, PedestrianSimulation.centroids, centroidsAttributes);
+	        URL roadsDualFile = PedSimCity.class.getResource("data/London_edgesDual_simplified_BB.shp");
+	        URL centroidsFile = PedSimCity.class.getResource("data/London_nodesDual_simplified_BB.shp");            
+	        ShapeFileImporter.read(roadsDualFile, PedSimCity.intersectionsDual);
+	        ShapeFileImporter.read(centroidsFile, PedSimCity.centroids, centroidsAttributes);
 	
 	        
 	        ///// READING BUILDINGS
@@ -120,8 +120,8 @@ public class PedestrianSimulationUI extends GUIState
 	        buildingsAttributes.add("buildingID");  
 	        buildingsAttributes.add("lScore_sc");  
 	        buildingsAttributes.add("gScore_sc");  
-	        URL landmarksFile = PedestrianSimulation.class.getResource("data/London_landmarks.shp");
-	        ShapeFileImporter.read(landmarksFile, PedestrianSimulation.buildings);
+	        URL landmarksFile = PedSimCity.class.getResource("data/London_landmarks.shp");
+	        ShapeFileImporter.read(landmarksFile, PedSimCity.buildings);
 	
 	        /// READING DISTANCES
 			System.out.println("reading distances...");
@@ -134,33 +134,33 @@ public class PedestrianSimulationUI extends GUIState
 			{
 			  ds += 1;
 			  if (ds == 1) continue;
-			  PedestrianSimulation.distances.add(Float.parseFloat(nextLineDistances[2]));
+			  PedSimCity.distances.add(Float.parseFloat(nextLineDistances[2]));
 			}
 			readerDistances.close();
 	        
-			PedestrianSimulation.network.createFromGeomField(PedestrianSimulation.roads);
-			PedestrianSimulation.dualNetwork.createFromGeomField(PedestrianSimulation.intersectionsDual);          			
-			PedestrianSimulation.nodesGeometries = PedestrianSimulation.junctions.getGeometries();
-			PedestrianSimulation.centroidsGeometries = PedestrianSimulation.centroids.getGeometries();
+			PedSimCity.network.createFromGeomField(PedSimCity.roads);
+			PedSimCity.dualNetwork.createFromGeomField(PedSimCity.intersectionsDual);          			
+			PedSimCity.nodesGeometries = PedSimCity.junctions.getGeometries();
+			PedSimCity.centroidsGeometries = PedSimCity.centroids.getGeometries();
 	        
-	        if (PedestrianSimulation.visibility)
+	        if (PedSimCity.visibility)
 	        {
 	            System.out.println("reading visibility...");
-	            PedestrianSimulation.visibilityMatrix = new String[PedestrianSimulation.buildings.getGeometries().size()+1][PedestrianSimulation.nodesGeometries.size()+1];
+	            PedSimCity.visibilityMatrix = new String[PedSimCity.buildings.getGeometries().size()+1][PedSimCity.nodesGeometries.size()+1];
 	            CSVReader reader = new CSVReader(new FileReader(directory+"London_visibility_matrix_simplified_BB.csv"));
 	            String [] nextLine;
 	            
 	            int v = 0;
 	            while ((nextLine = reader.readNext()) != null) 
 	            {
-	            	PedestrianSimulation.visibilityMatrix[v] = nextLine;
+	            	PedSimCity.visibilityMatrix[v] = nextLine;
 	            	v = v+1;
 	            }
 	            reader.close();
 	        }
 	        System.out.println("files imported successfully");
     	
-	        PedestrianSimulationUI simple = new PedestrianSimulationUI(new PedestrianSimulation(System.currentTimeMillis(), 1));
+	        PedSimCityUI simple = new PedSimCityUI(new PedSimCity(System.currentTimeMillis(), 1));
 	        Console c = new Console(simple);
 	        c.setVisible(true);
         }
@@ -202,7 +202,7 @@ public class PedestrianSimulationUI extends GUIState
     public void start()
     {
         super.start();
-        PedestrianSimulation world = (PedestrianSimulation) state;
+        PedSimCity world = (PedSimCity) state;
 
         maxSpeed = new XYSeries("Max Speed");
         avgSpeed = new XYSeries("Average Speed");
@@ -217,7 +217,7 @@ public class PedestrianSimulationUI extends GUIState
 
             public void step(SimState state)
             {
-            	PedestrianSimulation stateSchedule = (PedestrianSimulation) state;
+            	PedSimCity stateSchedule = (PedSimCity) state;
                 double maxS = 0, minS = 10000, avgS = 0, count = 0;
                 for (Pedestrian a : stateSchedule.agentList)
                 {

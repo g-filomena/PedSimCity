@@ -6,7 +6,7 @@
  **
  **/
 
-package sim.app.geo.pedestrianSimulation;
+package sim.app.geo.pedSimCity;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
@@ -17,16 +17,16 @@ import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraNetworkDistance{
     
-	NodeGraph destinationNode;
-	ArrayList<NodeGraph> visitedNodes;
-	ArrayList<NodeGraph> unvisitedNodes;
+	NodeGraph originNode, destinationNode;
+	ArrayList<NodeGraph> visitedNodes, unvisitedNodes;
 	HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
     ArrayList<Integer> segmentsToAvoid = new ArrayList<Integer>();
     
     public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode, ArrayList<Integer> segmentsToAvoid)
 	{
-    	this.segmentsToAvoid = segmentsToAvoid;
+    	this.originNode = originNode;
     	this.destinationNode = destinationNode;
+    	this.segmentsToAvoid = segmentsToAvoid;
 		visitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes.add(originNode);

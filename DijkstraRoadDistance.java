@@ -6,7 +6,7 @@
  **
  **/
 
-package sim.app.geo.pedestrianSimulation;
+package sim.app.geo.pedSimCity;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -58,6 +58,25 @@ public class DijkstraRoadDistance {
 	    	if (visitedNodes.contains(targetNode)) continue;	
             EdgeGraph commonEdge = null;
             commonEdge = currentNode.getEdgeBetween(targetNode);
+            GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);
+
+			if (segmentsToAvoid == null);
+            else if (segmentsToAvoid.contains(outEdge))	continue;
+            else
+            {
+            	boolean toContinue = false;
+            	for (GeomPlanarGraphDirectedEdge otherEdge : segmentsToAvoid)
+            	{
+            		EdgeGraph oe = (EdgeGraph) otherEdge.getEdge();
+            		if (oe.getID().equals(commonEdge.getID())) 
+            		{
+            			toContinue = true;
+            			break;
+            		}
+            	}
+            	if (toContinue) continue;
+            }
+			
 	    	double error = 0.0;
 	    	
 	    	List<Integer> positiveBarriers = commonEdge.positiveBarriers;
@@ -69,12 +88,8 @@ public class DijkstraRoadDistance {
 	    		else error = Utilities.fromNormalDistribution(1, 0.10, null);
     		}
 	    	else error = Utilities.fromNormalDistribution(1, 0.10, null);
-	    	
 	    	double edgeCost = commonEdge.getLength()*error;
-	    	GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);
-
-			if (segmentsToAvoid == null);
-            else if (segmentsToAvoid.contains(outEdge)) continue;
+	    	
 
         	double tentativeCost = getBest(currentNode) + edgeCost;
 	    	if (getBest(targetNode) > tentativeCost)

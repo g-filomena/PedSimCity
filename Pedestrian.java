@@ -1,4 +1,4 @@
-package sim.app.geo.pedestrianSimulation;
+package sim.app.geo.pedSimCity;
 
 import com.vividsolutions.jts.geom.*;
 import com.vividsolutions.jts.linearref.LengthIndexedLine;
@@ -19,7 +19,7 @@ public final class Pedestrian implements Steppable
 {
 
     private static final long serialVersionUID = -1113018274619047013L;
-    PedestrianSimulation state;
+    PedSimCity state;
    
     // Initial Attributes
     NodeGraph originNode = null;
@@ -48,10 +48,13 @@ public final class Pedestrian implements Steppable
     int pathDirection = 1;
     
     public String criteria;
-    boolean landmarksRouting = false;
-    boolean barriersRouting = false;
-    boolean regionalRouting = false;
-
+    boolean landmarkNavigation = false;
+    boolean onlyAnchors = true;
+    boolean barrierBasedNavigation = false;
+    boolean regionBasedNavigation = false;
+    String localHeuristic = "roadDistance";
+    ArrayList<ArrayList<NodeGraph>> listSequences = new ArrayList<ArrayList<NodeGraph>> ();
+    ArrayList<NodeGraph> sequence = new ArrayList<NodeGraph>();
     boolean reachedDestination = false;
     int numTrips = 0;
     
@@ -61,18 +64,23 @@ public final class Pedestrian implements Steppable
     Stoppable killAgent;
    
     /** Constructor Function */
-    public Pedestrian(PedestrianSimulation state, String criteria, ArrayList<Pair<NodeGraph, NodeGraph>> OD)
+    public Pedestrian(PedSimCity state, String criteria, ArrayList<Pair<NodeGraph, NodeGraph>> OD, ArrayList<ArrayList<NodeGraph>> listSequences )
     {
     	this.criteria = criteria;
     	this.OD = OD;
     	this.state = state;
+    	this.listSequences = new ArrayList<ArrayList<NodeGraph>> (listSequences);
 //    	this.maxDistance = maxDistance;
     	    	
-    	if (criteria.contains("Landmarks")) landmarksRouting = true;
-    	if (criteria.contains("Barriers")) barriersRouting = true; 
-    	if (criteria.contains("Regions")) barriersRouting = true; 
+    	if (criteria.contains("Landmarks")) landmarkNavigation = true;
+    	if (criteria.contains("Barriers")) barrierBasedNavigation = true; 
+    	if (criteria.contains("Regions")) regionBasedNavigation = true; 
+    	
+    	if (criteria.contains("roadDistance")) localHeuristic = "roadDistance";
+    	else if (criteria.contains("angularChange")) localHeuristic = "angularChange";
     	
     	NodeGraph originNode = (NodeGraph) OD.get(numTrips).getValue(0);
+    	
         GeometryFactory fact = new GeometryFactory();
         agentLocation = new MasonGeometry(fact.createPoint(new Coordinate(10, 10)));
         Coordinate startCoord = null;
@@ -81,7 +89,7 @@ public final class Pedestrian implements Steppable
     }
 
     
-    public void findNewAStarPath(PedestrianSimulation state)
+    public void findNewAStarPath(PedSimCity state)
     {
 //    	Node currentJunction;
 //    	if (state.dynamicRouting)
@@ -97,57 +105,47 @@ public final class Pedestrian implements Steppable
 //	    	while (currentJunction == destinationNode) destinationNode = nodesLookup.searchRandomNode(state.geometriesNodes, state);
 //    	}
     	ArrayList<GeomPlanarGraphDirectedEdge> newPath = null;
-        ArrayList<NodeGraph> sequence = new ArrayList<NodeGraph>();
-        System.out.println("trip "+criteria+" OD "+originNode.getID()+" "+destinationNode.getID());
-         
-        if (criteria == "roadDistance")
+
+    	this.sequence = listSequences.get(numTrips);
+//        System.out.println("trip "+criteria+" OD "+originNode.getID()+" "+destinationNode.getID());
+    	
+        RoutePlanner planner = new RoutePlanner();
+       
+    	if (criteria == "roadDistance")
         {
-        	newPath = routePlanning.roadDistance(originNode, destinationNode, null, 
-        			regionalRouting, barriersRouting, "dijkstra").edges;
+        	newPath = planner.roadDistance(originNode, destinationNode, null, regionBasedNavigation, barrierBasedNavigation, "dijkstra");
         }
         
         else if (criteria == "angularChange")
         {
-        	newPath = routePlanning.angularChange(originNode, destinationNode, null, null,
-        			regionalRouting, barriersRouting, "dijkstra").edges;
+        	newPath = planner.angularChange(originNode, destinationNode, null, null, regionBasedNavigation, barrierBasedNavigation, "dijkstra");
         }
         
         else if (criteria == "roadDistanceLandmarks")
         {
-        	sequence = LandmarksNavigation.findSequenceSubGoals(originNode, destinationNode);
-        	if (sequence.size() == 0) newPath = routePlanning.roadDistance(originNode, 
-        			destinationNode, null, regionalRouting, barriersRouting, "dijkstra").edges;
-        	else newPath = routePlanning.roadDistanceLandmarks(sequence, regionalRouting, barriersRouting);
+        	newPath = planner.roadDistanceLandmarks(sequence, onlyAnchors, regionBasedNavigation, barrierBasedNavigation);
         }
         
         else if (criteria == "angularChangeLandmarks")
         {
-        	sequence = LandmarksNavigation.findSequenceSubGoals(originNode, destinationNode);
-        	if (sequence.size() == 0) newPath = routePlanning.angularChange(originNode, destinationNode, null,null, 
-        			regionalRouting, barriersRouting, "dijkstra").edges;
-        	else newPath = routePlanning.angularChangeLandmarks(sequence, regionalRouting, barriersRouting);
+        	newPath = planner.angularChangeLandmarks(sequence, onlyAnchors, regionBasedNavigation, barrierBasedNavigation);
         }
         
         else if (criteria == "localLandmarks")
         {
-        	sequence = LandmarksNavigation.findSequenceSubGoals(originNode, destinationNode);
-        	if (sequence.size() == 0) newPath = routePlanning.roadDistance(originNode, destinationNode, null, 
-        			regionalRouting, barriersRouting, "dijkstra").edges;
-        	else newPath = routePlanning.roadDistanceSequence(sequence, regionalRouting, barriersRouting, "dijkstra");
+        	newPath = planner.roadDistanceSequence(sequence, regionBasedNavigation, barrierBasedNavigation, "dijkstra");
         }
         
-        else if (criteria == "globalLandmarks")
-        {
-        	newPath = routePlanning.globalLandmarksPath(originNode,destinationNode, null, "road_distance").edges;
-        }
-        else if (criteria == "roadDistanceBarriers" || criteria == "angularChangeBarriers") //regional approaches
+        else if (criteria == "globalLandmarks") newPath = planner.globalLandmarksPath(originNode, destinationNode, null, onlyAnchors);
+        
+        else if (criteria == "roadDistanceBarriers" || criteria == "angularChangeBarriers")
     	{
-        	newPath = routePlanning.barriersPath(originNode, destinationNode, criteria);
+        	newPath = planner.barrierBasedPath(originNode, destinationNode, localHeuristic);
     	}	
         
         else //regional approaches
     	{
-        	newPath = routePlanning.regionsBarriersPath(originNode,destinationNode, criteria);
+        	newPath = planner.regionBarrierBasedPath(originNode, destinationNode, barrierBasedNavigation, localHeuristic);
     	}	
              
     	RouteData route = new RouteData();
@@ -166,7 +164,7 @@ public final class Pedestrian implements Steppable
         }
 
     	route.sequenceEdges = sequenceEdges; 
-    	PedestrianSimulation.routesData.add(route);
+    	PedSimCity.routesData.add(route);
     	indexOnPath = 0;
     	path = newPath;
 
@@ -196,7 +194,7 @@ public final class Pedestrian implements Steppable
     
     public void step(SimState state)
     {
-    	PedestrianSimulation stateSchedule = (PedestrianSimulation) state;
+    	PedSimCity stateSchedule = (PedSimCity) state;
         // check that we've been placed on an Edge  //check that we haven't already reached our destination
         if (reachedDestination || destinationNode == null)
         {
@@ -215,7 +213,7 @@ public final class Pedestrian implements Steppable
 //        	repositionAgent();
         	originNode = (NodeGraph) OD.get(numTrips).getValue(0);	
         	updatePosition(originNode.getCoordinate());
-        	destinationNode = (NodeGraph) OD.get(numTrips).getValue(1);		
+        	destinationNode = (NodeGraph) OD.get(numTrips).getValue(1);	
         	findNewAStarPath(stateSchedule);
         	return;
         }       
@@ -327,7 +325,7 @@ public final class Pedestrian implements Steppable
     public void updatePosition(Coordinate c)
     {
         pointMoveTo.setCoordinate(c);
-        PedestrianSimulation.agents.setGeometryLocation(agentLocation, pointMoveTo);
+        PedSimCity.agents.setGeometryLocation(agentLocation, pointMoveTo);
     }
      
     void updateEdgeData(EdgeGraph edge)

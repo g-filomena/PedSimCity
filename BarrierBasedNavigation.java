@@ -1,29 +1,25 @@
-package sim.app.geo.pedestrianSimulation;
+package sim.app.geo.pedSimCity;
 
 import java.util.*;
 import com.vividsolutions.jts.geom.*;
 
 import sim.util.Bag;
-import sim.util.geo.GeomPlanarGraphDirectedEdge;
 import sim.util.geo.MasonGeometry;
 import sim.app.geo.urbanSim.*;
 
-public class BarriersRouting {
+public class BarrierBasedNavigation {
 
 	NodeGraph currentLocation;
 	HashMap<Integer, EdgeGraph> edgesMap;
 	
 
-	public ArrayList<GeomPlanarGraphDirectedEdge> pathFinderBarriers(NodeGraph originNode, 
-			NodeGraph destinationNode, String localHeuristic)
+	public ArrayList<NodeGraph> sequenceBarriers(NodeGraph originNode, NodeGraph destinationNode)
 	{	
-		this.edgesMap = PedestrianSimulation.edgesMap;
+		this.edgesMap = PedSimCity.edgesMap;
 		this.currentLocation = originNode;
 
-		ArrayList<GeomPlanarGraphDirectedEdge> completePath =  new ArrayList<GeomPlanarGraphDirectedEdge>();
 		//sub-goals and barriers - navigation
 		ArrayList<NodeGraph> sequence = new ArrayList<NodeGraph>();
-//		HashMap<NodeGraph, Integer> barrierSubGoals = new HashMap<NodeGraph, Integer>();
 		sequence.add(originNode);
 		currentLocation = originNode;
 		ArrayList<Integer> adjacentBarriers = new ArrayList<Integer>();
@@ -46,7 +42,7 @@ public class BarriersRouting {
 			//look for orienting barriers
 			for (int barrierID : intersectingBarriers)
 			{
-				MasonGeometry barrierGeometry = PedestrianSimulation.barriersMap.get(barrierID);
+				MasonGeometry barrierGeometry = PedSimCity.barriersMap.get(barrierID);
 				Geometry viewField = Utilities.viewField(currentLocation, destinationNode);
 				Coordinate intersection = viewField.intersection(barrierGeometry.getGeometry()).getCoordinate();
 				double distanceIntersection = Utilities.euclideanDistance(currentLocation.getCoordinate(), intersection);
@@ -63,9 +59,9 @@ public class BarriersRouting {
 			
 			for (int barrierID : validSorted.keySet())
 			{
-				MasonGeometry barrierGeometry = PedestrianSimulation.barriersMap.get(barrierID);
+				MasonGeometry barrierGeometry = PedSimCity.barriersMap.get(barrierID);
 				String type = barrierGeometry.getStringAttribute("type");
-				ArrayList<EdgeGraph> alongEdges = PedestrianSimulation.barriersEdgesMap.get(barrierID);
+				ArrayList<EdgeGraph> alongEdges = PedSimCity.barriersEdgesMap.get(barrierID);
 				HashMap<EdgeGraph, Double> thisBarrierEdgeGoals = new HashMap<EdgeGraph, Double>();
 				
 				for (EdgeGraph edge : alongEdges)
@@ -119,15 +115,13 @@ public class BarriersRouting {
 			adjacentBarriers.add(barrier);
 		}
 		sequence.add(destinationNode);
-		if (localHeuristic == "angularChange") completePath = routePlanning.angularChangeSequence(sequence, false, true, "dijkstra");
-		else System.out.println("wrongHeuristic");
-		return completePath;
+		return sequence;
 	}
 	
 	public static Set<Integer> intersectingBarriers(NodeGraph originNode, NodeGraph destinationNode, String type)
 	{
 		Geometry viewField = Utilities.viewField(originNode, destinationNode);
-		Bag intersecting = PedestrianSimulation.barriers.getIntersecting(viewField);
+		Bag intersecting = PedSimCity.barriers.getIntersecting(viewField);
     	Set<Integer> intersectingBarriers = new HashSet<Integer>();
     	ArrayList<MasonGeometry> intersectingGeometries = new ArrayList<MasonGeometry>();
 
