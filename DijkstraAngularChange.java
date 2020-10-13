@@ -1,3 +1,10 @@
+/**
+ * DijkstraAngularChange.java 
+ * It computes cumulative angular change shortest path by employing the Dijkstra shortest-path algorithm
+ * It uses the dual graph of the street network
+ **/
+
+
 package sim.app.geo.pedSimCity;
 
 import java.util.ArrayList;
@@ -10,27 +17,35 @@ import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraAngularChange {
     
-	NodeGraph originNode, destinationNode;
-	ArrayList<NodeGraph> visitedNodes;
-	ArrayList<NodeGraph> unvisitedNodes;
-	NodeGraph previousJunction;
-	boolean barriersRouting, regionalRouting;
-	SubGraph graph = new SubGraph();
-    HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
+	NodeGraph originNode, destinationNode, previousJunction;
+	ArrayList<NodeGraph> visitedNodes, unvisitedNodes;
+	boolean regionBasedNavigation, barrierBasedNavigation;
     ArrayList<NodeGraph> centroidsToAvoid = new ArrayList<NodeGraph>();
+    HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
+	SubGraph graph = new SubGraph();
     boolean subGraph = true;
     
+	/**
+	 * 
+	 * @param originNode
+	 * @param destinationNode
+	 * @param centroidsToAvoid
+	 * @param previousJunction
+	 * @param regionBasedNavigation
+	 * @param barrierBasedNavigation
+	 * @return
+	 */
     public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode,
-    		ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, boolean regionalRouting, boolean barriersRouting)
+    		ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, boolean regionBasedNavigation, boolean barrierBasedNavigation)
 	{
     	this.originNode = originNode;
     	this.destinationNode = destinationNode;
     	this.centroidsToAvoid = centroidsToAvoid;
-		this.barriersRouting = barriersRouting;
+		this.barrierBasedNavigation = barrierBasedNavigation;
 		this.previousJunction = previousJunction;
-		this.regionalRouting = regionalRouting;
+		this.regionBasedNavigation = regionBasedNavigation;
     	
-		if ((originNode.region == destinationNode.region) && (regionalRouting))
+		if ((originNode.region == destinationNode.region) && (regionBasedNavigation))
     	{
     		graph = PedSimCity.regionsMap.get(originNode.region).dualGraph;
     		originNode = graph.findNode(originNode.getCoordinate());
@@ -72,6 +87,12 @@ public class DijkstraAngularChange {
 	    for (NodeGraph targetNode : adjacentNodes) 
 	    {    
 	    	if (visitedNodes.contains(targetNode)) continue;
+	    	
+            /**
+             * Check if the current and the possible next centroid share in the primal graph the same junction as the current with 
+             * its previous centroid --> if yes move on. This essential means that the in the primal graph you would go back to an
+             * already traversed node; but the dual graph wouldn't know.
+             */
             if (Utilities.commonPrimalJunction(targetNode, currentNode) == mapWrappers.get(currentNode).commonPrimalJunction) 
             	continue;
 	    	
@@ -79,7 +100,7 @@ public class DijkstraAngularChange {
             commonEdge = currentNode.getEdgeBetween(targetNode);
 	    	double error = 0.0;
 
-	    	if (barriersRouting) 
+	    	if (barrierBasedNavigation) 
 	    	{
 		    	List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
 		    	List<Integer> negativeBarriers = targetNode.primalEdge.negativeBarriers;
@@ -88,10 +109,7 @@ public class DijkstraAngularChange {
 	    		else error = Utilities.fromNormalDistribution(1, 0.10, null);
 	    	}
 	    	else error = Utilities.fromNormalDistribution(1, 0.10, null);
-//
-////	    	double segmentCost = commonEdge.getDeflectionAngle() + utilities.fromNormalDistribution(0, 5); 	
 	    	double edgeCost = commonEdge.getDeflectionAngle() * error; 	
-//	    	double edgeCost = commonEdge.getDeflectionAngle() + Utilities.fromNormalDistribution(0, 5, null); 
             if (edgeCost > 180) edgeCost = 180;
             if (edgeCost < 0) edgeCost = 0;
 	    	GeomPlanarGraphDirectedEdge outEdge = currentNode.getDirectedEdgeBetween(targetNode);
@@ -150,7 +168,7 @@ public class DijkstraAngularChange {
 			destinationNode = graph.getParentNode(destinationNode);
 			if (centroidsToAvoid != null) centroidsToAvoid = graph.getParentNodes(centroidsToAvoid);
 			Path secondAttempt = this.dijkstraPath(originNode, destinationNode, centroidsToAvoid, previousJunction, 
-					regionalRouting, barriersRouting);
+					regionBasedNavigation, barrierBasedNavigation);
 			return secondAttempt;
 		}
 

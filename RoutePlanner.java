@@ -37,7 +37,7 @@ public class RoutePlanner {
 		if (algorithm == "astar")
 		{
 			AStarRoadDistance pathfinder = new AStarRoadDistance();
-		    path = pathfinder.astarPath(originNode, destinationNode, segmentsToAvoid, regionBasedNavigation, barrierBasedNavigation);   
+		    path = pathfinder.astarPath(originNode, destinationNode, segmentsToAvoid, barrierBasedNavigation);   
 		    return path.edges;
 		}
 		else
@@ -82,7 +82,7 @@ public class RoutePlanner {
 			if (algorithm == "astar")
 			{
 				AStarRoadDistance pathfinder = new AStarRoadDistance();
-			    path = pathfinder.astarPath(tmpOrigin, tmpDestination, completePath, regionBasedNavigation, barrierBasedNavigation); 
+			    path = pathfinder.astarPath(tmpOrigin, tmpDestination, completePath, barrierBasedNavigation); 
 			}
 			else
 			{
@@ -175,8 +175,7 @@ public class RoutePlanner {
 		if (algorithm == "astar")
 		{
 			AStarAngularChange pathfinder = new AStarAngularChange();
-		    path = pathfinder.astarPath(dualOrigin, dualDestination, centroidsToAvoid, previousJunction, 
-		    		regionBasedNavigation, barrierBasedNavigation); 
+		    path = pathfinder.astarPath(dualOrigin, dualDestination, centroidsToAvoid, previousJunction, barrierBasedNavigation); 
 		}
 		else
 		{
@@ -262,8 +261,7 @@ public class RoutePlanner {
 			if (algorithm == "astar")
 			{
 				AStarAngularChange pathFinder = new AStarAngularChange();
-			    path = pathFinder.astarPath(tmpOrigin, tmpDestination, centroidsToAvoid, previousJunction, 
-			    		regionBasedNavigation, barrierBasedNavigation); 
+			    path = pathFinder.astarPath(tmpOrigin, tmpDestination, centroidsToAvoid, previousJunction, barrierBasedNavigation); 
 			}
 			else
 			{

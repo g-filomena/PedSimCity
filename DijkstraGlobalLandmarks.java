@@ -1,6 +1,10 @@
 /**
- ** Dikstra for shortest-Euclidean distance path 
- **
+ * DijkstraAngularChange.java 
+ * It computes cumulative angular change shortest path by employing the Dijkstra shortest-path algorithm
+ * It uses the dual graph of the street network
+
+
+
  ** Copyright 2019 by Gabriele Filomena
  ** Licensed under the Academic Free License version 3.0
  **
@@ -23,6 +27,16 @@ public class DijkstraGlobalLandmarks {
     ArrayList<Integer> segmentsToAvoid = new ArrayList<Integer>();
     boolean onlyAnchors;
     
+	/**
+	 * 
+	 * @param originNode
+	 * @param destinationNode
+	 * @param centroidsToAvoid
+	 * @param previousJunction
+	 * @param regionBasedNavigation
+	 * @param barrierBasedNavigation
+	 * @return
+	 */
     public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode, ArrayList<Integer> segmentsToAvoid, boolean onlyAnchors)
 	{
     	this.originNode = originNode;

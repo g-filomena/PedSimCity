@@ -90,7 +90,6 @@ public class PedSimCity extends SimState
     
 
     public int numTripsScenario;
-
     public int numAgents;
 	static boolean visibility = false;
 	boolean dynamicRouting = false;
@@ -214,6 +213,7 @@ public class PedSimCity extends SimState
 	   	for (String cr : criteria)
 	   	{
 	   		String csvRoutes;
+//	   		prexifOutput
 	   		if (landmarkNavigation) csvRoutes = "C:/Users/g_filo01/sciebo/Scripts/ABM analysis/Input/landmarkNavigation/"+cityName
 	   						+"_PedSim_landmarks_routes_RAGL_"+cr+"_"+(currentJob+10)+".csv";
 	   		else csvRoutes = "C:/Users/g_filo01/sciebo/Scripts/ABM analysis/Input/regionBasedRouting/"+cityName
@@ -514,9 +514,6 @@ public class PedSimCity extends SimState
     	int numTripsScenario;
     	if (landmarkNavigation) numTripsScenario = distances.size();
     	else numTripsScenario = 1;
-//    	NodeGraph originNode = nodesMap.get(32335);
-//    	NodeGraph destinationNode = nodesMap.get(12722);
-//    	Pair<NodeGraph, NodeGraph> pair = new Pair<NodeGraph, NodeGraph> (originNode, destinationNode);
         ArrayList<ArrayList<NodeGraph>> listSequences = new ArrayList<ArrayList<NodeGraph>> ();
 
 
@@ -524,8 +521,8 @@ public class PedSimCity extends SimState
     	{
 	    	for (int i = 0; i < numTripsScenario; i++)
 	    	{
-////	    		NodeGraph originNode = null;
-////	    		while (originNode == null) originNode = NodesLookup.randomNode(nodesGeometries, network);
+//	    		NodeGraph originNode = null;
+//	    		while (originNode == null) originNode = NodesLookup.randomNode(nodesGeometries, network);
 ////	    		NodeGraph destinationNode = NodesLookup.nodeWithinFromDistances(originNode, junctions, distances, network);
 ////	    		
 //////	    		int OR [] = {15425, 12632, 10024};
@@ -541,7 +538,7 @@ public class PedSimCity extends SimState
 	    		if (i == 0) System.out.println(" ORIGIN "+ OR.get(i)+"  "+DE.get(i));
 		    	Pair<NodeGraph, NodeGraph> pair = new Pair<NodeGraph, NodeGraph> (originNode, destinationNode);
     		
-    			ArrayList<NodeGraph> sequence = LandmarkNavigation.findSequenceSubGoals(originNode, destinationNode, false);
+    			ArrayList<NodeGraph> sequence = LandmarkNavigation.findSequenceSubGoals(originNode, destinationNode, false, "local");
     			listSequences.add(sequence);
 		    	OD.add(pair);  
 	    		}

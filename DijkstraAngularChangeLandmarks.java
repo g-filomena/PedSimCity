@@ -1,21 +1,36 @@
+/**
+ * DijkstraAngularChange.java 
+ * It computes cumulative angular change shortest path by employing the Dijkstra shortest-path algorithm
+ * It uses the dual graph of the street network
+ **/
+
 package sim.app.geo.pedSimCity;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-
 import sim.app.geo.urbanSim.*;
 import sim.app.geo.urbanSim.Utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraAngularChangeLandmarks {
     
-	NodeGraph originNode, destinationNode, primalDestinationNode;
+	NodeGraph originNode, destinationNode, previousJunction, primalDestinationNode;
 	ArrayList<NodeGraph> visitedNodes, unvisitedNodes;
-	NodeGraph previousJunction = null;
-    HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
+	boolean regionBasedNavigation, barrierBasedNavigation;
     ArrayList<NodeGraph> centroidsToAvoid = new ArrayList<NodeGraph>();
+    HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
     boolean onlyAnchors;
     
+	/**
+	 * 
+	 * @param originNode
+	 * @param destinationNode
+	 * @param centroidsToAvoid
+	 * @param previousJunction
+	 * @param regionBasedNavigation
+	 * @param barrierBasedNavigation
+	 * @return
+	 */
     public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode, 
     		NodeGraph primalDestinationNode, ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, boolean onlyAnchors)
 	{
@@ -38,7 +53,6 @@ public class DijkstraAngularChangeLandmarks {
 
 		while (unvisitedNodes.size() > 0) 
 		{
-
 			NodeGraph currentNode = getClosest(unvisitedNodes); // at the beginning it takes originNode
 			visitedNodes.add(currentNode);
 			unvisitedNodes.remove(currentNode);
@@ -54,11 +68,16 @@ public class DijkstraAngularChangeLandmarks {
 	    for (NodeGraph targetNode : adjacentNodes) 
 	    {    
 	    	if (visitedNodes.contains(targetNode)) continue;
+	    	
+            /**
+             * Check if the current and the possible next centroid share in the primal graph the same junction as the current with 
+             * its previous centroid --> if yes move on. This essential means that the in the primal graph you would go back to an
+             * already traversed node; but the dual graph wouldn't know.
+             */
             if (Utilities.commonPrimalJunction(targetNode, currentNode) ==  mapWrappers.get(currentNode).commonPrimalJunction) continue;
 
             EdgeGraph commonEdge = null;
             commonEdge = currentNode.getEdgeBetween(targetNode);
-//	    	double edgeCost = commonEdge.getDeflectionAngle() + Utilities.fromNormalDistribution(0, 5, null);      
 	    	
             double error = Utilities.fromNormalDistribution(1, 0.10, null);
             if (error < 0) error = 0.00;

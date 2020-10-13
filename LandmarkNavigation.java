@@ -15,10 +15,13 @@ public class LandmarkNavigation
 	/** 
 	* Sequence intermediate points based on local-landmarkness (identification of decision points).
 	* If regionBasedNavigation is true, look within the region, regardless originNode and destinatioNode
-	* Percentile indicate the percentile above which a node is considered salient, on the basis of local or global betweenness centrality.
+	* Percentile indicates the percentile above which a node is considered salient, on the basis of local or global betweenness centrality.
+	* typeLandmarkness can be "global" or "local", depending on whether global landmarks or local landmarks are used to compute
+	* the wayfinding complexity of the environment.
 	*/
 
-	public static ArrayList<NodeGraph> findSequenceSubGoals(NodeGraph originNode, NodeGraph destinationNode, boolean regionBasedNavigation)
+	public static ArrayList<NodeGraph> findSequenceSubGoals(NodeGraph originNode, NodeGraph destinationNode, boolean regionBasedNavigation,
+			String typeLandmarkness)
 	{
 		double percentile = PedSimCity.salientNodesPercentile;
 		ArrayList<NodeGraph> knownJunctions;
@@ -49,7 +52,7 @@ public class LandmarkNavigation
     		knownJunctions = PedSimCity.network.salientNodesBewteenSpace(originNode, destinationNode, 0,0, percentile, "local");
     	}
 
-        double wayfindingEasiness = wayfindingEasiness(originNode, destinationNode);
+        double wayfindingEasiness = wayfindingEasiness(originNode, destinationNode, typeLandmarkness);
         double searchDistance = Utilities.nodesDistance(originNode, destinationNode) * (wayfindingEasiness);
         NodeGraph currentNode = originNode;
             
@@ -112,7 +115,7 @@ public class LandmarkNavigation
                 }
         		knownJunctions = PedSimCity.network.salientNodesBewteenSpace(bestNode, destinationNode, 0,0, percentile, "local");
         	}
-        	wayfindingEasiness = wayfindingEasiness(bestNode, destinationNode);
+        	wayfindingEasiness = wayfindingEasiness(bestNode, destinationNode, typeLandmarkness);
         	searchDistance = Utilities.nodesDistance(bestNode, destinationNode) * wayfindingEasiness;
             currentNode = bestNode;
             bestNode = null;
@@ -385,14 +388,15 @@ public class LandmarkNavigation
     return 0.0;
     }
         
-    public static double wayfindingEasiness(NodeGraph originNode, NodeGraph destinationNode)
+    public static double wayfindingEasiness(NodeGraph originNode, NodeGraph destinationNode, String typeLandmarkness)
     {
     	double distanceComplexity = Utilities.nodesDistance(originNode, destinationNode)/Math.max(PedSimCity.roads.MBR.getHeight(),
     				PedSimCity.roads.MBR.getWidth());
                
     	ArrayList<MasonGeometry> buildings = getBuildings(originNode, destinationNode, originNode.region);
-//    	ArrayList<MasonGeometry> landmarks = getLandmarks(buildings, PedSimCity.localLandmarkThreshold, "local");
-    	ArrayList<MasonGeometry> landmarks = getLandmarks(buildings, PedSimCity.globalLandmarkThreshold, "global");
+    	ArrayList<MasonGeometry> landmarks = new ArrayList<MasonGeometry>();
+    	if (typeLandmarkness == "global")  landmarks = getLandmarks(buildings, PedSimCity.globalLandmarkThreshold, "global");
+    	else landmarks = getLandmarks(buildings, PedSimCity.localLandmarkThreshold, "local");
     	
         double buildingsComplexity = 1.0;
         if (buildings.size() == 0 || buildings == null) buildingsComplexity = 0.0;
@@ -417,15 +421,8 @@ public class LandmarkNavigation
     
     
     public static double buildingsComplexity(ArrayList<MasonGeometry> buildings, ArrayList<MasonGeometry> landmarks)
-    {
-//    	double areaBuildings = 0.0;
-//        double areaLandmarks = 0.0;
-//    	for (MasonGeometry gB : buildings) areaBuildings += gB.geometry.getArea();
-//        for (MasonGeometry gL : buildings) areaLandmarks += gL.geometry.getArea();
-//    	double complexity = (areaBuildings - areaLandmarks)/ areaBuildings;
-    	
-    	double complexity = ((double)buildings.size()-landmarks.size())/(double) buildings.size();
-		return complexity;
+    {   	
+    	return ((double) buildings.size()-landmarks.size())/(double) buildings.size();
     }
     
     public static ArrayList<MasonGeometry> getBuildings(NodeGraph originNode, NodeGraph destinationNode, int region)

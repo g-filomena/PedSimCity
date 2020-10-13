@@ -1,38 +1,47 @@
 /**
- ** AStarAngularChange.java
- **
- ** Copyright 2011 by Sarah Wise, Mark Coletti, Andrew Crooks, and
- ** George Mason University.
- **
- ** Licensed under the Academic Free License version 3.0
- **
- ** See the file "LICENSE" for more information
- **
- ** $Id: AStar.java 842 2012-12-18 01:09:18Z mcoletti $
+ * AStarAngularChange.java 
+ * This is built on AStar.java 2011 (by Sarah Wise, Mark Coletti, Andrew Crooks)
+ * 
+ * It computes cumulative angular change shortest path by employing the A* shortest path algorithm.
+ * It uses the dual graph of the street network.
+ * It does not support navigation based on regions nor landmarks.
+ * It does support barrier-based navigation.
  **/
-package sim.app.geo.pedSimCity;
 
+package sim.app.geo.pedSimCity;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-
 import sim.app.geo.urbanSim.*;
 import sim.app.geo.urbanSim.Utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class AStarAngularChange
 {
-	
-	HashMap<Integer, NodeGraph> nodesMap;
-	HashMap<Integer, EdgeGraph> edgesMap;
-	HashMap<Integer, NodeGraph> centroidsMap;
+	NodeGraph originNode, destinationNode, previousJunction;
+	ArrayList<NodeGraph> visitedNodes, unvisitedNodes;
+	boolean barrierBasedNavigation;
+    ArrayList<NodeGraph> centroidsToAvoid = new ArrayList<NodeGraph>();
     HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
-	NodeGraph previousJunction;
-	
-    public Path astarPath(NodeGraph originNode, NodeGraph destinationNode, 
-    		ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, boolean regionalRouting, boolean barriersRouting)
+
+	/**
+	 * @param originNode the originNode
+	 * @param destinationNode the destinationNode
+	 * @param centroidsToAvoid the centroids (dual nodes, representing segments) already traversed in previous iterations, if applicable
+	 * @param previousJunction the previous primal junction, if any
+	 * @param regionBasedNavigation if the agent uses regions
+	 * @param barrierBasedNavigation if the agent uses barriers
+	 */
+    public Path astarPath(NodeGraph originNode, NodeGraph destinationNode, ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, 
+    			boolean barrierBasedNavigation)
     {
-        // set up the containers for the sequenceEdges
+        this.originNode = originNode;
+        this.destinationNode = destinationNode;
+        this.centroidsToAvoid = centroidsToAvoid;
+        this.previousJunction = previousJunction;
+        this.barrierBasedNavigation = barrierBasedNavigation;
+    	
+    	// set up the containers for the sequenceEdges
         ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges =  new ArrayList<GeomPlanarGraphDirectedEdge>();
 
         // containers for the metainformation about the Nodes relative to the
@@ -47,21 +56,19 @@ public class AStarAngularChange
         originNodeWrapper.hx = 0;
         originNodeWrapper.fx = originNodeWrapper.gx + originNodeWrapper.hx;
 
-        // A* containers: nodes to be investigated
+        // A* containers: nodes to be investigated vs the ones that have been investigated
         ArrayList<NodeWrapper> closedSet = new ArrayList<NodeWrapper>();
-        // nodes that have been investigated
         ArrayList<NodeWrapper> openSet = new ArrayList<NodeWrapper>();
-        openSet.add(originNodeWrapper); //adding the startNode Wrapper 
+        openSet.add(originNodeWrapper); 
         
         while (openSet.size() > 0)
         { 
         	// while there are reachable nodes to investigate
             NodeWrapper currentNodeWrapper = findMin(openSet); // find the shortest path so far
-            // we have found the shortest possible path to the goal! Reconstruct the path and send it back.
             NodeGraph currentNode = currentNodeWrapper.node;
-            if (currentNode == destinationNode)  return reconstructPath(goalNodeWrapper);
+            if (currentNode == destinationNode)  return reconstructPath(goalNodeWrapper); //found
             if (centroidsToAvoid == null);
-            else if (centroidsToAvoid.contains(currentNode))
+            else if (centroidsToAvoid.contains(currentNode)) //this centroid was already traversed in a previous iteration
             { 
             	openSet.remove(currentNodeWrapper);
             	closedSet.add(currentNodeWrapper);
@@ -79,10 +86,15 @@ public class AStarAngularChange
                 NodeGraph targetNode = null;
                 EdgeGraph commonEdge = (EdgeGraph) outEdge.getEdge();
                 targetNode = commonEdge.getOtherNode(currentNode);
-                if (Utilities.commonPrimalJunction(targetNode, currentNode) == currentNodeWrapper.commonPrimalJunction) continue;
-                // get the A* meta information about this Node
-                NodeWrapper nextNodeWrapper;
                 
+                /**
+                 * Check if the current and the possible next centroid share in the primal graph the same junction as the current with 
+                 * its previous centroid --> if yes move on. This essential means that the in the primal graph you would go back to an
+                 * already traversed node; but the dual graph wouldn't know.
+                 */
+                if (Utilities.commonPrimalJunction(targetNode, currentNode) == currentNodeWrapper.commonPrimalJunction) continue;     
+                
+                NodeWrapper nextNodeWrapper;
                 if (mapWrappers.containsKey(targetNode)) nextNodeWrapper = mapWrappers.get(targetNode);
                 else
                 {
@@ -92,21 +104,22 @@ public class AStarAngularChange
 
                 if (closedSet.contains(nextNodeWrapper)) continue; // it has already been considered
                 
-                // otherwise evaluate the cost of this node/edge combo
+                // otherwise evaluate the cost of this combo   	    	
+    	    	// computing errors in perception of road coasts with stochastic variables 
     	    	double error = 0.0;
-    	    	List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
-    	    	List<Integer> negativeBarriers = targetNode.primalEdge.negativeBarriers;
-    	    	if (barriersRouting) 
+    	    	if (barrierBasedNavigation) 
     	    	{
+        	    	List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
+        	    	List<Integer> negativeBarriers = targetNode.primalEdge.negativeBarriers;
     	    		if (positiveBarriers != null) error = Utilities.fromNormalDistribution(0.70, 0.10, "left");
     	    		else if (negativeBarriers != null) error = Utilities.fromNormalDistribution(1.30, 0.10, "right");
     	    		else error = Utilities.fromNormalDistribution(1, 0.10, null);
     	    	}
     	    	else error = Utilities.fromNormalDistribution(1, 0.10, null);
-                double edgeCost = commonEdge.getDeflectionAngle() * error;
+                
+    	    	double edgeCost = commonEdge.getDeflectionAngle() * error;
                 if (edgeCost > 180) edgeCost = 180;
                 if (edgeCost < 0) edgeCost = 0;
-                
                 double tentativeCost = currentNodeWrapper.gx + edgeCost;
                 boolean better = false;
 
@@ -116,8 +129,8 @@ public class AStarAngularChange
                     nextNodeWrapper.hx = 0;
 					better = true;
                 }
-                
                 else if (tentativeCost < nextNodeWrapper.gx) better = true;
+                
                 // store A* information about this promising candidate node
                 if (better)
                 {
@@ -135,14 +148,7 @@ public class AStarAngularChange
         return path;
     }
 
-    
-    /**
-     * Takes the information about the given node n and returns the path that
-     * found it.
-     * @param n the end point of the path
-     * @return an ArrayList of GeomPlanarGraphDirectedEdges that lead from the
-     * given Node to the Node from which the search began
-     */
+    // path reconstruction, given the last nodeWrapper
     Path reconstructPath(NodeWrapper nodeWrapper)
     {
         ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges =  new ArrayList<GeomPlanarGraphDirectedEdge>();
@@ -160,15 +166,7 @@ public class AStarAngularChange
         path.mapWrappers = mapWrappers;
         return path;
     }
-
-
-    /**
-     * 	Considers the list of Nodes open for consideration and returns the node
-     *  with minimum fx value
-     * @param set list of open Nodes
-     * @return
-     */
-    
+  
     NodeWrapper findMin(ArrayList<NodeWrapper> set)
     {
         double min = 100000;

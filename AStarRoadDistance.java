@@ -1,18 +1,14 @@
 /**
- ** AStarEuclidean.java
- **
- ** Copyright 2019 by Sarah Wise, Mark Coletti, Andrew Crooks, and
- ** George Mason University.
- **
- ** Licensed under the Academic Free License version 3.0
- **
- ** See the file "LICENSE" for more information
- **
- ** $Id: AStar.java 842 2012-12-18 01:09:18Z mcoletti $
+ * AStarRoadDistance.java 
+ * This is built on AStar.java 2011 (by Sarah Wise, Mark Coletti, Andrew Crooks)
+ * 
+ * It computes road (metric) distance shortest path by employing the A* shortest path algorithm.
+ * It uses the primal graph of the street network.
+ * It does not support navigation based on regions nor landmarks.
+ * It does support barrier-based navigation.
  **/
+
 package sim.app.geo.pedSimCity;
-
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -22,13 +18,27 @@ import sim.app.geo.urbanSim.Utilities.Path;
 
 public class AStarRoadDistance
 {
-
+	NodeGraph originNode, destinationNode;
+	ArrayList<NodeGraph> visitedNodes, unvisitedNodes;
+	boolean barrierBasedNavigation;
     HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
+    
+	/**
+	 * @param originNode the originNode
+	 * @param destinationNode the destinationNode
+	 * @param segmentsToAvoid street segments already traversed in previous iterations, if applicable
+	 * @param regionBasedNavigation if the agent uses regions
+	 * @param barrierBasedNavigation if the agent uses barriers
+	 */
 
-    public Path astarPath(NodeGraph originNode, NodeGraph destinationNode, 
-    		ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid, boolean regionalRouting, boolean barriersRouting)
+    public Path astarPath(NodeGraph originNode, NodeGraph destinationNode, ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid,
+    		boolean barrierBasedNavigation)
     {
         // set up the containers for the sequenceEdges
+        this.originNode = originNode;
+        this.destinationNode = destinationNode;
+        this.barrierBasedNavigation = barrierBasedNavigation;
+        
         ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges =  new ArrayList<GeomPlanarGraphDirectedEdge>();
         
         // containers for the metainformation about the Nodes relative to the
@@ -42,9 +52,8 @@ public class AStarRoadDistance
         originNodeWrapper.hx = 0;
         originNodeWrapper.fx = originNodeWrapper.gx + originNodeWrapper.hx;
         
-        // A* containers: nodes to be investigated
+        // A* containers: nodes to be investigated vs the ones that have been investigated
         ArrayList<NodeWrapper> closedSet = new ArrayList<NodeWrapper>();
-        // nodes that have been investigated
         ArrayList<NodeWrapper> openSet = new ArrayList<NodeWrapper>();
         openSet.add(originNodeWrapper); //adding the originNode Wrapper         
 
@@ -53,10 +62,10 @@ public class AStarRoadDistance
         	// while there are reachable nodes to investigate
             NodeWrapper currentNodeWrapper = findMin(openSet); // find the shortest path so far
             NodeGraph currentNode = currentNodeWrapper.node;
-            if (currentNode == destinationNode) return reconstructPath(destinationNodeWrapper);
-            // we have found the shortest possible path to the goal! Reconstruct the path and send it back.
-            openSet.remove(currentNodeWrapper); // maintain the lists
+            if (currentNode == destinationNode) return reconstructPath(destinationNodeWrapper); //found
+            openSet.remove(currentNodeWrapper); 
             closedSet.add(currentNodeWrapper);
+            
             // check all the edges out from this Node
             ArrayList<GeomPlanarGraphDirectedEdge> outEdges = new ArrayList<GeomPlanarGraphDirectedEdge> (currentNode.getOutDirectedEdges());
     		
@@ -64,11 +73,12 @@ public class AStarRoadDistance
             {
                 NodeGraph targetNode = null;
                 EdgeGraph commonEdge = (EdgeGraph) outEdge.getEdge();
+                
+                // skip segments already traversed in previous iterations
                 if (segmentsToAvoid == null);
                 else if (segmentsToAvoid.contains(outEdge)) continue;
                 targetNode = commonEdge.getOtherNode(currentNode);
 
-                // get the A* meta information about this Node
                 NodeWrapper nextNodeWrapper;
                 if (mapWrappers.containsKey(targetNode)) nextNodeWrapper =  mapWrappers.get(targetNode);
                 else
@@ -78,9 +88,10 @@ public class AStarRoadDistance
                 }
                 if (closedSet.contains(nextNodeWrapper)) continue; // it has already been considered
 
-                // otherwise evaluate the cost of this node/edge combo
+                // otherwise evaluate the cost of this node/edge combo and
+    	    	// compute errors in perception of road coasts with stochastic variables 
                 double error = 0.0;
-    	    	if (barriersRouting) 
+    	    	if (barrierBasedNavigation) 
     	    	{
         	    	List<Integer> positiveBarriers = commonEdge.positiveBarriers;
         	    	List<Integer> negativeBarriers = commonEdge.negativeBarriers;
@@ -98,8 +109,7 @@ public class AStarRoadDistance
                     nextNodeWrapper.hx = Utilities.nodesDistance(targetNode, destinationNode);
                     better = true;
                 }
-                
-                else if (tentativeCost < nextNodeWrapper.gx) {better = true;}
+                else if (tentativeCost < nextNodeWrapper.gx) better = true;
 
                 // store A* information about this promising candidate node
                 if (better)
@@ -117,14 +127,7 @@ public class AStarRoadDistance
         return path;
     }
     
-
-    /**
-     * Takes the information about the given node n and returns the path that
-     * found it.
-     * @param n the end point of the path
-     * @return an ArrayList of GeomPlanarGraphDirectedEdges that lead from the
-     * given Node to the Node from which the search began
-     */
+    // path reconstruction, given the last nodeWrapper
     Path reconstructPath(NodeWrapper nodeWrapper)
     {
         ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges =  new ArrayList<GeomPlanarGraphDirectedEdge>();
@@ -141,14 +144,7 @@ public class AStarRoadDistance
         return path;
     }
     
-
-    /**
-     * 	Considers the list of Nodes open for consideration and returns the node
-     *  with minimum fx value
-     * @param set list of open Nodes
-     * @return
-     */
-    
+  
     NodeWrapper findMin(ArrayList<NodeWrapper> set)
     {
         double min = 100000;

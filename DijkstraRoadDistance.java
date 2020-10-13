@@ -1,10 +1,10 @@
 /**
- ** Dikstra for shortest-Euclidean distance path 
- **
- ** Copyright 2019 by Gabriele Filomena
- ** Licensed under the Academic Free License version 3.0
- **
+ ** AStarAngularChange.java 
+ * This is built on AStar.java 2011 (by Sarah Wise, Mark Coletti, Andrew Crooks)
+ * It computes cumulative angular change shortest path by employing the A* algorithm
+ * It uses the dual graph of the street network
  **/
+
 
 package sim.app.geo.pedSimCity;
 import java.util.ArrayList;
@@ -24,14 +24,24 @@ public class DijkstraRoadDistance {
 	ArrayList<NodeGraph> unvisitedNodes;
 	HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
     ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid = new ArrayList<GeomPlanarGraphDirectedEdge>();
-	boolean barriersRouting;
+	boolean barrierBasedNavigation;
     
+	/**
+	 * 
+	 * @param originNode
+	 * @param destinationNode
+	 * @param centroidsToAvoid
+	 * @param previousJunction
+	 * @param regionBasedNavigation
+	 * @param barrierBasedNavigation
+	 * @return
+	 */
     public Path dijkstraPath(NodeGraph originNode, NodeGraph destinationNode,
-    		ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid, boolean regionalRouting, boolean barriersRouting)
+    		ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid, boolean regionBasedNavigation, boolean barrierBasedNavigation)
 	{
     	this.segmentsToAvoid = segmentsToAvoid;
     	this.destinationNode = destinationNode;
-    	this.barriersRouting = barriersRouting;
+    	this.barrierBasedNavigation = barrierBasedNavigation;
 		visitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes.add(originNode);
@@ -81,7 +91,7 @@ public class DijkstraRoadDistance {
 	    	
 	    	List<Integer> positiveBarriers = commonEdge.positiveBarriers;
 	    	List<Integer> negativeBarriers = commonEdge.negativeBarriers;
-	    	if (barriersRouting) 
+	    	if (barrierBasedNavigation) 
 	    	{
 	    		if (positiveBarriers != null) error = Utilities.fromNormalDistribution(0.70, 0.10, "left");
 	    		else if (negativeBarriers != null) error = Utilities.fromNormalDistribution(1.30, 0.10, "right");

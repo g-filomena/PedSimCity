@@ -1,10 +1,10 @@
 /**
- ** Dikstra for shortest-Euclidean distance path 
- **
- ** Copyright 2019 by Gabriele Filomena
- ** Licensed under the Academic Free License version 3.0
- **
+ ** AStarAngularChange.java 
+ * This is built on AStar.java 2011 (by Sarah Wise, Mark Coletti, Andrew Crooks)
+ * It computes cumulative angular change shortest path by employing the A* algorithm
+ * It uses the dual graph of the street network
  **/
+
 
 package sim.app.geo.pedSimCity;
 import java.util.ArrayList;
@@ -24,6 +24,16 @@ public class DijkstraRoadDistanceLandmarks {
     ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid = new ArrayList<GeomPlanarGraphDirectedEdge>();
     boolean onlyAnchors; 
     
+	/**
+	 * 
+	 * @param originNode
+	 * @param destinationNode
+	 * @param centroidsToAvoid
+	 * @param previousJunction
+	 * @param regionBasedNavigation
+	 * @param barrierBasedNavigation
+	 * @return
+	 */
     public Path dijkstraPath(NodeGraph originNode, NodeGraph tmpDestinationNode, NodeGraph destinationNode,
     		ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid, boolean onlyAnchors)
 	{

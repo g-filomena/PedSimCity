@@ -1,9 +1,8 @@
 /**
- ** Dikstra for shortest-Euclidean distance path 
- **
- ** Copyright 2019 by Gabriele Filomena
- ** Licensed under the Academic Free License version 3.0
- **
+ ** AStarAngularChange.java 
+ * This is built on AStar.java 2011 (by Sarah Wise, Mark Coletti, Andrew Crooks)
+ * It computes cumulative angular change shortest path by employing the A* algorithm
+ * It uses the dual graph of the street network
  **/
 
 package sim.app.geo.pedSimCity;
