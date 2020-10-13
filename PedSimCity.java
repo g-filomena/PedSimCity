@@ -488,9 +488,10 @@ public class PedSimCity extends SimState
         	
         	if (fiveElements)
         	{
+        		primalGraph.setLandmarksGraph();
         		VectorLayer regionNetwork = new VectorLayer();
         		for (EdgeGraph edge : edgesDistrict) regionNetwork.addGeometry(edge.masonGeometry);
-        		double buildingsComplexity = 1.0;
+
             	ArrayList<MasonGeometry> buildings = LandmarkNavigation.getBuildings(null, null, entry.getKey());
             	regionsMap.get(entry.getKey()).regionNetwork = regionNetwork;
             	regionsMap.get(entry.getKey()).buildings = buildings;

@@ -124,21 +124,24 @@ public class LandmarkNavigation
     	sequence.add(destinationNode);
     	return sequence;
 	}
-
+	
+	
+	/** 
+	 * It computes localLandmarkness of a node (primal graph route), given the previous traversed nodes;
+	 * 
+	 * @param node, the candidate node
+	 * @param advanceVis it indicates whether 2d advance visibility should be considered
+	 * @param mapWrappers the metainfomartion of the nodes traversed so far
+	 */
     static double localLandmarkness(NodeGraph node, boolean advanceVis, HashMap<NodeGraph, NodeWrapper>	mapWrappers)
     {   
-		/** 
-		 * While the wayfindingEasiness is lower than the threshold the agent looks for intermediate-points.
-		 * Second and third parameter not necessary here (i.e. set to 0,0)
-		 * "local" rescales betweenness centrality within the search space; otherwise uses "global" for the global centrality value.
-		 */
-    	
+   	
         List<Integer> localLandmarks = new ArrayList<Integer>();
         localLandmarks = node.localLandmarks;
         double localScore = 0.0;
         if (localLandmarks == null) return 0.0;
         
-        if (!advanceVis) return Collections.max(node.localScores);
+        if (!advanceVis) return Collections.max(node.localScores); //if not using the complete formula, just return the max score at the node
         else
         {
         	NodeWrapper previous = mapWrappers.get(mapWrappers.get(node).nodeFrom);
@@ -150,7 +153,8 @@ public class LandmarkNavigation
 	            double distanceTravelled = 0;
 	            double cumulativeAdvanceVis = 0;
 	            
-	            while ((nodeFrom != null) & (distanceTravelled <= PedSimCity.visibilityThreshold))
+	            //check previous nodes, while < threshold --> update local salience
+	            while ((nodeFrom != null) & (distanceTravelled <= PedSimCity.visibilityThreshold)) 
 	            {
 	                List<Integer> visible = new ArrayList<Integer>();
 	                visible = nodeFrom.visible2d;
@@ -174,7 +178,14 @@ public class LandmarkNavigation
         }
     }
         
-   
+	
+	/** 
+	 * It computes localLandmarkness of a node (primal graph route), given the previous traversed nodes;
+	 * 
+	 * @param node, the candidate node
+	 * @param advanceVis it indicates whether 2d advance visibility should be considered
+	 * @param mapWrappers the metainfomartion of the nodes traversed so far
+	 */
     static double globalLandmarknessNode(NodeGraph targetNode, NodeGraph destinationNode, boolean useAnchors) 
     {   	
             
@@ -203,6 +214,14 @@ public class LandmarkNavigation
        return nodeGlobalScore;
     }
        
+	
+	/** 
+	 * It computes localLandmarkness of a node (primal graph route), given the previous traversed nodes;
+	 * 
+	 * @param node, the candidate node
+	 * @param advanceVis it indicates whether 2d advance visibility should be considered
+	 * @param mapWrappers the metainfomartion of the nodes traversed so far
+	 */
     static double globalLandmarknessDualNode(NodeGraph centroid, NodeGraph targetCentroid, NodeGraph destinationNode, boolean useAnchors) 
     {   	
 		// current real segment: identifying node
@@ -237,73 +256,87 @@ public class LandmarkNavigation
 		return nodeGlobalScore;
 	}
     
-                        
-    static double globalLandmarknessPaths(NodeGraph destinationNode, NodeGraph tmpNode, HashMap<NodeGraph, 
-    		NodeWrapper> mapWrappers, boolean useAnchors, String method)
-    {   	
-        List<Integer> anchors = new ArrayList<Integer>();
-        anchors = destinationNode.anchors;
-        if (useAnchors & anchors == null) return 0.0;
-
-        List<Double> nodeGlobalScores = new ArrayList<Double>();
-        Set<Entry<NodeGraph, NodeWrapper>> entries = mapWrappers.entrySet();
+	
+	/** 
+	 * It computes localLandmarkness of a node (primal graph route), given the previous traversed nodes;
+	 * 
+	 * @param node, the candidate node
+	 * @param advanceVis it indicates whether 2d advance visibility should be considered
+	 * @param mapWrappers the metainfomartion of the nodes traversed so far
+	 */    
+//    static double globalLandmarknessPaths(NodeGraph destinationNode, NodeGraph tmpNode, HashMap<NodeGraph, 
+//    		NodeWrapper> mapWrappers, boolean useAnchors, String method)
+//    {   	
+//        List<Integer> anchors = new ArrayList<Integer>();
+//        anchors = destinationNode.anchors;
+//        if (useAnchors & anchors == null) return 0.0;
+//
+//        List<Double> nodeGlobalScores = new ArrayList<Double>();
+//        Set<Entry<NodeGraph, NodeWrapper>> entries = mapWrappers.entrySet();
+//        
+//        if (!useAnchors)
+//        {
+//            for (Entry<NodeGraph, NodeWrapper> pair : entries)
+//            {
+//                NodeGraph node = (NodeGraph) pair.getKey();
+//                List<Integer> distantLandmarks = new ArrayList<Integer>();
+//                distantLandmarks = node.distantLandmarks;
+//                
+//                double nodeGlobalScore = 0.0;
+//                if (distantLandmarks == null) nodeGlobalScore = 0.0;
+//                nodeGlobalScore = Collections.max(node.distantScores);
+//                nodeGlobalScores.add(nodeGlobalScore);
+//            }
+//        	if (method == "max") return Collections.max(nodeGlobalScores);
+//        	if (method == "mean")return nodeGlobalScores.stream().mapToDouble(i -> i).average().orElse(0.0);
+//        }
+//        else
+//        {
+//        	for (Entry<NodeGraph, NodeWrapper> pair : entries) 
+//            {
+//        		NodeGraph node = (NodeGraph) pair.getKey();
+//                List<Integer> distantLandmarks = new ArrayList<Integer>();
+//                distantLandmarks = node.distantLandmarks;
+//                double nodeGlobalScore = 0.0;
+//                if (distantLandmarks == null) 
+//                {
+//                	nodeGlobalScores.add(nodeGlobalScore);
+//                	continue;
+//                }
+//                else
+//                {
+//                	for (int dL : distantLandmarks)
+//                    {
+//                		double tmp = 0.0;
+//                 	   	if (anchors.contains(dL))
+//                 	   	{
+//							tmp = node.distantScores.get(distantLandmarks.indexOf(dL));
+//							double distanceLandmark = destinationNode.distances.get(anchors.indexOf(dL));
+//							double distanceWeight = Utilities.nodesDistance(tmpNode, destinationNode)/
+//									distanceLandmark;
+//							if (distanceWeight > 1.0) distanceWeight = 1.0;
+//							tmp = tmp*distanceWeight;   
+//                 	   }
+//                 	  if (tmp > nodeGlobalScore) nodeGlobalScore = tmp;
+//                    }
+//                    nodeGlobalScores.add(nodeGlobalScore);
+//                }
+//            }
+//            if (method == "max") return Collections.max(nodeGlobalScores);
+//            if (method == "mean") return nodeGlobalScores.stream().mapToDouble(i -> i).average().orElse(0.0);
+//        }
+//        return 0.0;
+//    }
         
-        if (!useAnchors)
-        {
-            for (Entry<NodeGraph, NodeWrapper> pair : entries)
-            {
-                NodeGraph node = (NodeGraph) pair.getKey();
-                List<Integer> distantLandmarks = new ArrayList<Integer>();
-                distantLandmarks = node.distantLandmarks;
-                
-                double nodeGlobalScore = 0.0;
-                if (distantLandmarks == null) nodeGlobalScore = 0.0;
-                nodeGlobalScore = Collections.max(node.distantScores);
-                nodeGlobalScores.add(nodeGlobalScore);
-            }
-        	if (method == "max") return Collections.max(nodeGlobalScores);
-        	if (method == "mean")return nodeGlobalScores.stream().mapToDouble(i -> i).average().orElse(0.0);
-        }
-        else
-        {
-        	for (Entry<NodeGraph, NodeWrapper> pair : entries) 
-            {
-        		NodeGraph node = (NodeGraph) pair.getKey();
-                List<Integer> distantLandmarks = new ArrayList<Integer>();
-                distantLandmarks = node.distantLandmarks;
-                double nodeGlobalScore = 0.0;
-                if (distantLandmarks == null) 
-                {
-                	nodeGlobalScores.add(nodeGlobalScore);
-                	continue;
-                }
-                else
-                {
-                	for (int dL : distantLandmarks)
-                    {
-                		double tmp = 0.0;
-                 	   	if (anchors.contains(dL))
-                 	   	{
-							tmp = node.distantScores.get(distantLandmarks.indexOf(dL));
-							double distanceLandmark = destinationNode.distances.get(anchors.indexOf(dL));
-							double distanceWeight = Utilities.nodesDistance(tmpNode, destinationNode)/
-									distanceLandmark;
-							if (distanceWeight > 1.0) distanceWeight = 1.0;
-							tmp = tmp*distanceWeight;   
-                 	   }
-                 	  if (tmp > nodeGlobalScore) nodeGlobalScore = tmp;
-                    }
-                    nodeGlobalScores.add(nodeGlobalScore);
-                }
-            }
-            if (method == "max") return Collections.max(nodeGlobalScores);
-            if (method == "mean") return nodeGlobalScores.stream().mapToDouble(i -> i).average().orElse(0.0);
-        }
-        return 0.0;
-    }
         
-        
-        
+	
+	/** 
+	 * It computes localLandmarkness of a node (primal graph route), given the previous traversed nodes;
+	 * 
+	 * @param node, the candidate node
+	 * @param advanceVis it indicates whether 2d advance visibility should be considered
+	 * @param mapWrappers the metainfomartion of the nodes traversed so far
+	 */    
     static double globalLandmarknessDualPath(NodeGraph dualDestinationNode, NodeGraph tmpNode, 
     		NodeGraph destinationNode, HashMap<NodeGraph, NodeWrapper> mapWrappers,
     		boolean useAnchors, String method)

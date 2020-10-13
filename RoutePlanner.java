@@ -10,6 +10,7 @@ public class RoutePlanner {
 	
 	boolean regionBasedNavigation = false;
 	boolean barrierBasedNavigation = false;
+	boolean landmarkBasedNavigation = false;
 	boolean moveOn = false;
 	boolean onlyAnchors = true;
 	NodeGraph originNode, destinationNode;
@@ -43,7 +44,8 @@ public class RoutePlanner {
 		else
 		{
 			DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
-		    path = pathfinder.dijkstraPath(originNode, destinationNode, segmentsToAvoid, regionBasedNavigation, barrierBasedNavigation);    
+		    path = pathfinder.dijkstraPath(originNode, destinationNode, null, segmentsToAvoid, landmarkBasedNavigation,
+		    				regionBasedNavigation, barrierBasedNavigation, onlyAnchors);    
 		    return path.edges;
 		}
 	}
@@ -87,7 +89,8 @@ public class RoutePlanner {
 			else
 			{
 				DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
-			    path = pathfinder.dijkstraPath(tmpOrigin, tmpDestination, completePath, regionBasedNavigation, barrierBasedNavigation); 
+			    path = pathfinder.dijkstraPath(tmpOrigin, tmpDestination, destinationNode, completePath, landmarkBasedNavigation, 
+			    		regionBasedNavigation, barrierBasedNavigation, onlyAnchors); 
 			}
 			
 			while (path.edges == null && !moveOn) backtracking(tmpDestination, false);
@@ -131,8 +134,9 @@ public class RoutePlanner {
 				continue;
 			}	    	
 			
-			DijkstraRoadDistanceLandmarks pathFinder = new DijkstraRoadDistanceLandmarks();
-		    path = pathFinder.dijkstraPath(tmpOrigin, tmpDestination, destinationNode, completePath, onlyAnchors);
+			DijkstraRoadDistance pathFinder = new DijkstraRoadDistance();
+		    path = pathFinder.dijkstraPath(tmpOrigin, tmpDestination, destinationNode, completePath, landmarkBasedNavigation, regionBasedNavigation,
+		    		barrierBasedNavigation, onlyAnchors);
 		    while (path.edges == null && !moveOn) backtracking(tmpDestination, true);
 			tmpOrigin = tmpDestination;
 			if (moveOn) continue;
@@ -180,8 +184,8 @@ public class RoutePlanner {
 		else
 		{
 			DijkstraAngularChange pathfinder = new DijkstraAngularChange();
-		    path = pathfinder.dijkstraPath(dualOrigin, dualDestination, centroidsToAvoid, previousJunction, 
-		    		regionBasedNavigation, barrierBasedNavigation); 
+		    path = pathfinder.dijkstraPath(dualOrigin, dualDestination, destinationNode, centroidsToAvoid, previousJunction, 
+		    		landmarkBasedNavigation, regionBasedNavigation, barrierBasedNavigation, onlyAnchors); 
 		}
 
 	    cleanDualPath(originNode, destinationNode);
@@ -266,8 +270,8 @@ public class RoutePlanner {
 			else
 			{
 				DijkstraAngularChange pathFinder = new DijkstraAngularChange();
-			    path = pathFinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, centroidsToAvoid, previousJunction, 
-			    		regionBasedNavigation, barrierBasedNavigation); 
+			    path = pathFinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, 
+			    		landmarkBasedNavigation, regionBasedNavigation, barrierBasedNavigation, onlyAnchors); 
 			}
 
 			while (path.edges == null && !moveOn) backtrackingDual(tmpDualOrigin, tmpDualDestination, tmpDestination, true);
@@ -334,8 +338,9 @@ public class RoutePlanner {
 	    		continue;
 	    	}
 	    	    	
-			DijkstraAngularChangeLandmarks pathFinder = new DijkstraAngularChangeLandmarks();
-		    path = pathFinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, onlyAnchors);
+			DijkstraAngularChange pathFinder = new DijkstraAngularChange();
+		    path = pathFinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction,
+		    		landmarkBasedNavigation, regionBasedNavigation, barrierBasedNavigation, onlyAnchors);
 
 			while (path.edges == null && !moveOn) backtrackingDual(tmpDualOrigin, tmpDualDestination, tmpDestination, true);	
 		    if (path.edges == null) continue;
@@ -402,13 +407,14 @@ public class RoutePlanner {
 		}
 		if (landmarkBasedNavigation)
 		{
-			DijkstraRoadDistanceLandmarks pathFinder = new DijkstraRoadDistanceLandmarks();
-			path = pathFinder.dijkstraPath(tmpOrigin, tmpDestination, destinationNode, completePath, onlyAnchors);
+			DijkstraRoadDistance pathFinder = new DijkstraRoadDistance();
+			path = pathFinder.dijkstraPath(tmpOrigin, tmpDestination, destinationNode, completePath, landmarkBasedNavigation, regionBasedNavigation,
+					barrierBasedNavigation, onlyAnchors);
 		}
 		else
 		{
 			DijkstraRoadDistance pathFinder = new DijkstraRoadDistance();
-			path = pathFinder.dijkstraPath(tmpOrigin, tmpDestination, completePath, false, false);
+			path = pathFinder.dijkstraPath(tmpOrigin, tmpDestination, null,  completePath, landmarkBasedNavigation, false, false, onlyAnchors);
 		}
 	}
 	
@@ -442,15 +448,15 @@ public class RoutePlanner {
 		
     	if (landmarkBasedNavigation)
     	{
-    		DijkstraAngularChangeLandmarks pathFinder = new DijkstraAngularChangeLandmarks();
+    		DijkstraAngularChange pathFinder = new DijkstraAngularChange();
     		path = pathFinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode,	centroidsToAvoid, 
-    				previousJunction, onlyAnchors);
+    				previousJunction, landmarkBasedNavigation, regionBasedNavigation, barrierBasedNavigation, onlyAnchors);
     	}
     	else
     	{
 	    	DijkstraAngularChange pathFinder = new DijkstraAngularChange();
-			path = pathFinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, centroidsToAvoid, previousJunction,regionBasedNavigation, 
-					barrierBasedNavigation);
+			path = pathFinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, 
+					previousJunction, landmarkBasedNavigation, regionBasedNavigation, barrierBasedNavigation, onlyAnchors);
     	}
 	}  
 	

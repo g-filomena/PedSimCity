@@ -1,8 +1,9 @@
 /**
- ** AStarAngularChange.java 
- * This is built on AStar.java 2011 (by Sarah Wise, Mark Coletti, Andrew Crooks)
- * It computes cumulative angular change shortest path by employing the A* algorithm
- * It uses the dual graph of the street network
+ * DijkstraRoadDistance.java 
+ * It computes the road (metric) distance shortest path by employing the Dijkstra shortest-path algorithm.
+ * It uses the primal graph of the street network.
+ * 
+ * It supports: landmark-, region-, barrier-based navigation.
  **/
 
 
@@ -19,33 +20,66 @@ import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraRoadDistance {
     
-	NodeGraph destinationNode;
-	ArrayList<NodeGraph> visitedNodes;
-	ArrayList<NodeGraph> unvisitedNodes;
+	NodeGraph originNode, destinationNode, finalDestinationNode;
+	ArrayList<NodeGraph> visitedNodes, unvisitedNodes;
 	HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
-    ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid = new ArrayList<GeomPlanarGraphDirectedEdge>();
-	boolean barrierBasedNavigation;
-    
+    ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid;
+    ArrayList<EdgeGraph> edgesToAvoid = new ArrayList<EdgeGraph> ();
+	boolean landmarkBasedNavigation, regionBasedNavigation, barrierBasedNavigation, onlyAnchors;
+	SubGraph graph = new SubGraph();
+    boolean subGraph = true; // it contemplates an attempt where navigation takes place by the convex-hull method (see below).
+	
 	/**
-	 * 
-	 * @param originNode
-	 * @param destinationNode
-	 * @param centroidsToAvoid
-	 * @param previousJunction
-	 * @param regionBasedNavigation
-	 * @param barrierBasedNavigation
-	 * @return
+	 * @param originNode the origin node (it may be a sequence intermediate origin node, e.g. in landmark navigation);
+	 * @param destinationNode the destination node (it may be a sequence intermediate destination node, e.g. in landmark navigation);
+	 * @param finalDestinationNode the actual final destination Node;
+	 * @param segmentsToAvoid street segments already traversed in previous iterations, if applicable;
+	 * @param landmarkBasedNavigation using Landmarks y/n;
+	 * @param regionBasedNavigation using Regions y/n;
+	 * @param barrierBasedNavigation using Barriers y/n;
+	 * @param onlyAnchors using only anchors when landmark-based navigation is on;
 	 */
-    public Path dijkstraPath(NodeGraph originNode, NodeGraph destinationNode,
-    		ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid, boolean regionBasedNavigation, boolean barrierBasedNavigation)
+    public Path dijkstraPath(NodeGraph originNode, NodeGraph destinationNode, NodeGraph finalDestinationNode,  
+    		ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid, boolean landmarkBasedNavigation, boolean regionBasedNavigation, 
+    		boolean barrierBasedNavigation, boolean onlyAnchors)
 	{
-    	this.segmentsToAvoid = segmentsToAvoid;
+    	this.originNode = originNode;
     	this.destinationNode = destinationNode;
+    	this.finalDestinationNode = finalDestinationNode;
+    	this.segmentsToAvoid = new ArrayList<GeomPlanarGraphDirectedEdge>(segmentsToAvoid);
+    	this.landmarkBasedNavigation = landmarkBasedNavigation;
+    	this.regionBasedNavigation = regionBasedNavigation;
     	this.barrierBasedNavigation = barrierBasedNavigation;
+		
+    	// from the GeomPlanarGraphDirectedEdge get the actual EdgeGraph (safer)
+    	if (segmentsToAvoid != null) for (GeomPlanarGraphDirectedEdge e : segmentsToAvoid) edgesToAvoid.add((EdgeGraph) e.getEdge());
+    	
+		/**
+		 * If region-based navigation, navigate only within the region subgraph, if origin and destination nodes belong to the same region.
+		 * Otherwise, form a subgraph within a convex hull
+		 **/
+    	
+    	if ((originNode.region == destinationNode.region) && (regionBasedNavigation))
+    	{
+    		graph = PedSimCity.regionsMap.get(originNode.region).dualGraph;
+    		originNode = graph.findNode(originNode.getCoordinate());
+    		destinationNode = graph.findNode(destinationNode.getCoordinate());
+    		if (segmentsToAvoid != null) edgesToAvoid =  graph.getChildEdges(edgesToAvoid);
+    	}
+    	else if (subGraph == true) // create graph from convex hull
+    	{
+    		ArrayList<EdgeGraph> containedEdges = PedSimCity.network.edgesWithinSpace(originNode, destinationNode); 
+    		graph = new SubGraph(PedSimCity.network, containedEdges);
+    		originNode = graph.findNode(originNode.getCoordinate());
+    		destinationNode = graph.findNode(destinationNode.getCoordinate());
+    		if (segmentsToAvoid != null) edgesToAvoid =  graph.getChildEdges(edgesToAvoid);
+    	}
+    	
 		visitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes.add(originNode);
-        
+    	
+        // NodeWrapper = container for the metainformation about a Node 
 		NodeWrapper nodeWrapper = new NodeWrapper(originNode);
 		nodeWrapper.gx = 0.0;
         mapWrappers.put(originNode, nodeWrapper);
@@ -66,33 +100,20 @@ public class DijkstraRoadDistance {
 	    for (NodeGraph targetNode : adjacentNodes) 
 	    {    
 	    	if (visitedNodes.contains(targetNode)) continue;	
-            EdgeGraph commonEdge = null;
-            commonEdge = currentNode.getEdgeBetween(targetNode);
+
+            EdgeGraph commonEdge = currentNode.getEdgeBetween(targetNode);
             GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);
 
-			if (segmentsToAvoid == null);
-            else if (segmentsToAvoid.contains(outEdge))	continue;
-            else
-            {
-            	boolean toContinue = false;
-            	for (GeomPlanarGraphDirectedEdge otherEdge : segmentsToAvoid)
-            	{
-            		EdgeGraph oe = (EdgeGraph) otherEdge.getEdge();
-            		if (oe.getID().equals(commonEdge.getID())) 
-            		{
-            			toContinue = true;
-            			break;
-            		}
-            	}
-            	if (toContinue) continue;
-            }
-			
+			if (edgesToAvoid == null);
+            else if (edgesToAvoid.contains((EdgeGraph) outEdge.getEdge()))	continue;		
 	    	double error = 0.0;
 	    	
-	    	List<Integer> positiveBarriers = commonEdge.positiveBarriers;
-	    	List<Integer> negativeBarriers = commonEdge.negativeBarriers;
+            // computing costs based on the navigation strategies.
+	    	// computing errors in perception of road coasts with stochastic variables 
 	    	if (barrierBasedNavigation) 
 	    	{
+		    	List<Integer> positiveBarriers = commonEdge.positiveBarriers;
+		    	List<Integer> negativeBarriers = commonEdge.negativeBarriers;
 	    		if (positiveBarriers != null) error = Utilities.fromNormalDistribution(0.70, 0.10, "left");
 	    		else if (negativeBarriers != null) error = Utilities.fromNormalDistribution(1.30, 0.10, "right");
 	    		else error = Utilities.fromNormalDistribution(1, 0.10, null);
@@ -100,8 +121,19 @@ public class DijkstraRoadDistance {
 	    	else error = Utilities.fromNormalDistribution(1, 0.10, null);
 	    	double edgeCost = commonEdge.getLength()*error;
 	    	
-
-        	double tentativeCost = getBest(currentNode) + edgeCost;
+	    	double tentativeCost = 0.0;
+	    	if (landmarkBasedNavigation)
+	    	{
+	            double globalLandmarkness = 0.0;
+		    	if (onlyAnchors) globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode, finalDestinationNode, true);
+		    	else globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode, finalDestinationNode, false);
+	
+	        	double nodeLandmarkness = 1-globalLandmarkness*PedSimCity.globalLandmarknessWeight;
+	        	double nodeCost = edgeCost*nodeLandmarkness;
+	        	tentativeCost = getBest(currentNode) + nodeCost;
+	    	}
+	    	else tentativeCost = getBest(currentNode) + edgeCost;
+		    	
 	    	if (getBest(targetNode) > tentativeCost)
 	    	{
 	    		NodeWrapper nodeWrapper = mapWrappers.get(targetNode);
@@ -115,8 +147,8 @@ public class DijkstraRoadDistance {
 	     }
 	}
 
-
-	NodeGraph getClosest(ArrayList<NodeGraph> nodes) //amongst unvisited (they have to have been explored)
+	// get the closest amongst unvisited nodes -- the ones that haven't been explored yet
+	NodeGraph getClosest(ArrayList<NodeGraph> nodes)
 	{
 		NodeGraph closest = null;
 		for (NodeGraph node : nodes) 
@@ -146,7 +178,24 @@ public class DijkstraRoadDistance {
 		NodeGraph step = destinationNode;
 		mapTraversedWrappers.put(destinationNode, mapWrappers.get(destinationNode));
 		
-		if ((step == null) || (mapWrappers.size() == 1)) return path; //no path
+		/**
+		 * If the subgraph navigation hasn't worked, retry by using the full graph
+		 * --> it switches "subgraph" to false;
+		 */
+		if ((mapWrappers.get(destinationNode) == null) && (subGraph == true))
+		{
+			subGraph = false;
+			visitedNodes.clear();
+			unvisitedNodes.clear();
+			mapWrappers.clear();
+			originNode = graph.getParentNode(originNode);
+			destinationNode = graph.getParentNode(destinationNode);
+			Path secondAttempt = this.dijkstraPath(originNode, destinationNode, finalDestinationNode, segmentsToAvoid, 
+					landmarkBasedNavigation, regionBasedNavigation, barrierBasedNavigation, onlyAnchors);
+			return secondAttempt;
+		}
+		
+		if (step == null || mapWrappers.size() == 1) return path; //no path
 		try 
 		{
 			while (mapWrappers.get(step).nodeFrom != null)

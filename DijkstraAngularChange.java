@@ -1,7 +1,9 @@
 /**
  * DijkstraAngularChange.java 
- * It computes cumulative angular change shortest path by employing the Dijkstra shortest-path algorithm
- * It uses the dual graph of the street network
+ * It computes the cumulative angular change shortest path by employing the Dijkstra shortest-path algorithm
+ * It uses the dual graph of the street network.
+ * 
+ * It supports: landmark-, region-, barrier-based navigation.
  **/
 
 
@@ -17,34 +19,43 @@ import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraAngularChange {
     
-	NodeGraph originNode, destinationNode, previousJunction;
-	ArrayList<NodeGraph> visitedNodes, unvisitedNodes;
-	boolean regionBasedNavigation, barrierBasedNavigation;
-    ArrayList<NodeGraph> centroidsToAvoid = new ArrayList<NodeGraph>();
+	NodeGraph originNode, destinationNode, primalDestinationNode, previousJunction;
+	ArrayList<NodeGraph> visitedNodes, unvisitedNodes, centroidsToAvoid;
+	boolean landmarkBasedNavigation, regionBasedNavigation, barrierBasedNavigation, onlyAnchors;
     HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 	SubGraph graph = new SubGraph();
-    boolean subGraph = true;
-    
+    boolean subGraph = true; // it contemplates an attempt where navigation takes place by the convex-hull method (see below).
+
 	/**
-	 * 
-	 * @param originNode
-	 * @param destinationNode
-	 * @param centroidsToAvoid
-	 * @param previousJunction
-	 * @param regionBasedNavigation
-	 * @param barrierBasedNavigation
-	 * @return
+	 * @param originNode the origin node (dual graph);
+	 * @param destinationNode the destination node (dual graph);
+	 * @param primalDestinationNode the actual final, primal destination Node;
+	 * @param centroidsToAvoid the centroids (dual nodes, representing segments) already traversed in previous iterations, if applicable;
+	 * @param previousJunction the previous primal junction, if any;
+	 * @param landmarkBasedNavigation using Landmarks y/n;
+	 * @param regionBasedNavigation using Regions y/n;
+	 * @param barrierBasedNavigation using Barriers y/n;
+	 * @param onlyAnchors using only anchors when landmark-based navigation is on;
 	 */
-    public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode,
-    		ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, boolean regionBasedNavigation, boolean barrierBasedNavigation)
+    public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode, NodeGraph primalDestinationNode,
+    		ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, boolean landmarkBasedNavigation, boolean regionBasedNavigation,
+    		boolean barrierBasedNavigation, boolean onlyAnchors)
 	{
     	this.originNode = originNode;
     	this.destinationNode = destinationNode;
-    	this.centroidsToAvoid = centroidsToAvoid;
+    	this.primalDestinationNode = primalDestinationNode;
+    	this.centroidsToAvoid = new ArrayList<NodeGraph>(centroidsToAvoid);
+		this.landmarkBasedNavigation = landmarkBasedNavigation;
+		this.regionBasedNavigation = regionBasedNavigation;
 		this.barrierBasedNavigation = barrierBasedNavigation;
 		this.previousJunction = previousJunction;
-		this.regionBasedNavigation = regionBasedNavigation;
-    	
+		this.onlyAnchors = onlyAnchors;
+
+		/**
+		 * If region-based navigation, navigate only within the region subgraph, if origin and destination nodes belong to the same region.
+		 * Otherwise, form a subgraph within a convex hull
+		 **/
+		
 		if ((originNode.region == destinationNode.region) && (regionBasedNavigation))
     	{
     		graph = PedSimCity.regionsMap.get(originNode.region).dualGraph;
@@ -64,11 +75,14 @@ public class DijkstraAngularChange {
 		visitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes.add(originNode);
-
+		
+        // NodeWrapper = container for the metainformation about a Node 
 		NodeWrapper NodeWrapper = new NodeWrapper(originNode);
 		NodeWrapper.gx = 0.0;
 		if (previousJunction != null) NodeWrapper.commonPrimalJunction = previousJunction;
         mapWrappers.put(originNode, NodeWrapper);
+        
+        // adding centroids to avoid in the visited set
         if (centroidsToAvoid != null) for (NodeGraph c : centroidsToAvoid) visitedNodes.add(c);
 
 		while (unvisitedNodes.size() > 0) 
@@ -96,10 +110,11 @@ public class DijkstraAngularChange {
             if (Utilities.commonPrimalJunction(targetNode, currentNode) == mapWrappers.get(currentNode).commonPrimalJunction) 
             	continue;
 	    	
-            EdgeGraph commonEdge = null;
-            commonEdge = currentNode.getEdgeBetween(targetNode);
-	    	double error = 0.0;
-
+            EdgeGraph commonEdge = currentNode.getEdgeBetween(targetNode);
+	    	
+            // computing costs based on the navigation strategies.
+	    	// computing errors in perception of road coasts with stochastic variables 
+            double error = 0.0;
 	    	if (barrierBasedNavigation) 
 	    	{
 		    	List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
@@ -112,9 +127,23 @@ public class DijkstraAngularChange {
 	    	double edgeCost = commonEdge.getDeflectionAngle() * error; 	
             if (edgeCost > 180) edgeCost = 180;
             if (edgeCost < 0) edgeCost = 0;
+            
 	    	GeomPlanarGraphDirectedEdge outEdge = currentNode.getDirectedEdgeBetween(targetNode);
-	   
-        	double tentativeCost = getBest(currentNode) + edgeCost;
+	    	
+	    	double tentativeCost;
+	    	if (landmarkBasedNavigation)
+	    	{
+	            double globalLandmarkness = 0.0;
+		    	if (onlyAnchors) globalLandmarkness = LandmarkNavigation.globalLandmarknessDualNode(currentNode, targetNode, 
+		    			primalDestinationNode, true);
+		    	else globalLandmarkness = LandmarkNavigation.globalLandmarknessDualNode(currentNode, targetNode, primalDestinationNode, false);
+	        	double nodeLandmarkness = 1-globalLandmarkness*PedSimCity.globalLandmarknessWeight;
+	        	double nodeCost = nodeLandmarkness*edgeCost;
+	        	tentativeCost = getBest(currentNode) + nodeCost;
+	    	}
+
+	    	else tentativeCost = getBest(currentNode) + edgeCost;
+	    	
 	    	if (getBest(targetNode) > tentativeCost)
     		{
     			NodeWrapper NodeWrapper = mapWrappers.get(targetNode);
@@ -130,7 +159,7 @@ public class DijkstraAngularChange {
 	}
 
 
-	private NodeGraph getClosest(ArrayList<NodeGraph> nodes) //amongst unvisited (they have to have been explored)
+	private NodeGraph getClosest(ArrayList<NodeGraph> nodes)
 	{
 		NodeGraph closest = null;
 		for (NodeGraph node : nodes) 
@@ -146,18 +175,23 @@ public class DijkstraAngularChange {
 		if (mapWrappers.get(target) == null) return Double.MAX_VALUE;
 	    else return mapWrappers.get(target).gx;
 	}
-
+	
+	
 	public Path reconstructPath(NodeGraph originNode, NodeGraph destinationNode) 
 	{
         Path path = new Path();
 		path.edges = null;
 		path.mapWrappers = null;
-		Integer attempt = 0;
+
 		HashMap<NodeGraph, NodeWrapper> mapTraversedWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 		ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges = new ArrayList<GeomPlanarGraphDirectedEdge>();
 		NodeGraph step = destinationNode;
 		mapTraversedWrappers.put(destinationNode, mapWrappers.get(destinationNode));
 
+		/**
+		 * If the subgraph navigation hasn't worked, retry by using the full graph
+		 * --> it switches "subgraph" to false;
+		 */
 		if ((mapWrappers.get(destinationNode) == null) && (subGraph == true))
 		{
 			subGraph = false;
@@ -167,8 +201,8 @@ public class DijkstraAngularChange {
 			originNode = graph.getParentNode(originNode);
 			destinationNode = graph.getParentNode(destinationNode);
 			if (centroidsToAvoid != null) centroidsToAvoid = graph.getParentNodes(centroidsToAvoid);
-			Path secondAttempt = this.dijkstraPath(originNode, destinationNode, centroidsToAvoid, previousJunction, 
-					regionBasedNavigation, barrierBasedNavigation);
+			Path secondAttempt = this.dijkstraPath(originNode, destinationNode, primalDestinationNode, centroidsToAvoid, previousJunction, 
+					landmarkBasedNavigation, regionBasedNavigation, barrierBasedNavigation, onlyAnchors);
 			return secondAttempt;
 		}
 
@@ -186,12 +220,12 @@ public class DijkstraAngularChange {
 		    	{
 					GeomPlanarGraphDirectedEdge lastDe = (GeomPlanarGraphDirectedEdge) step.primalEdge.getDirEdge(0);
 		        	sequenceEdges.add(0, lastDe); 
-		        	attempt += 1;
 					break;
 		    	}
 		    }
 		}
 		catch(java.lang.NullPointerException e)  {return path;}
+		
         path.edges = sequenceEdges;
         path.mapWrappers = mapTraversedWrappers;
 	    return path;

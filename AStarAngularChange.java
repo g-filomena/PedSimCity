@@ -2,7 +2,7 @@
  * AStarAngularChange.java 
  * This is built on AStar.java 2011 (by Sarah Wise, Mark Coletti, Andrew Crooks)
  * 
- * It computes cumulative angular change shortest path by employing the A* shortest path algorithm.
+ * It computes the cumulative angular change shortest path by employing the A* shortest path algorithm.
  * It uses the dual graph of the street network.
  * It does not support navigation based on regions nor landmarks.
  * It does support barrier-based navigation.
@@ -25,27 +25,26 @@ public class AStarAngularChange
     HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 
 	/**
-	 * @param originNode the originNode
-	 * @param destinationNode the destinationNode
-	 * @param centroidsToAvoid the centroids (dual nodes, representing segments) already traversed in previous iterations, if applicable
-	 * @param previousJunction the previous primal junction, if any
-	 * @param regionBasedNavigation if the agent uses regions
-	 * @param barrierBasedNavigation if the agent uses barriers
+	 * @param originNode the originNode;
+	 * @param destinationNode the destinationNode;
+	 * @param centroidsToAvoid the centroids (dual nodes, representing segments) already traversed in previous iterations, if applicable;
+	 * @param previousJunction the previous primal junction, if any;
+	 * @param regionBasedNavigation using Regions y/n;
+	 * @param barrierBasedNavigation using Barriers y/n;
 	 */
     public Path astarPath(NodeGraph originNode, NodeGraph destinationNode, ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, 
     			boolean barrierBasedNavigation)
     {
         this.originNode = originNode;
         this.destinationNode = destinationNode;
-        this.centroidsToAvoid = centroidsToAvoid;
+    	this.centroidsToAvoid = new ArrayList<NodeGraph>(centroidsToAvoid);
         this.previousJunction = previousJunction;
         this.barrierBasedNavigation = barrierBasedNavigation;
     	
     	// set up the containers for the sequenceEdges
         ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges =  new ArrayList<GeomPlanarGraphDirectedEdge>();
 
-        // containers for the metainformation about the Nodes relative to the
-        // A* search
+        // NodeWrapper = container for the metainformation about a Node 
         NodeWrapper originNodeWrapper = new NodeWrapper(originNode);
 		if (previousJunction != null) originNodeWrapper.commonPrimalJunction = previousJunction;
         NodeWrapper goalNodeWrapper = new NodeWrapper(destinationNode);

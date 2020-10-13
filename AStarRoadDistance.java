@@ -24,11 +24,11 @@ public class AStarRoadDistance
     HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
     
 	/**
-	 * @param originNode the originNode
-	 * @param destinationNode the destinationNode
-	 * @param segmentsToAvoid street segments already traversed in previous iterations, if applicable
-	 * @param regionBasedNavigation if the agent uses regions
-	 * @param barrierBasedNavigation if the agent uses barriers
+	 * @param originNode the originNode;
+	 * @param destinationNode the destinationNode;
+	 * @param segmentsToAvoid street segments already traversed in previous iterations, if applicable;
+	 * @param regionBasedNavigation using Regions y/n;
+	 * @param barrierBasedNavigation using Barriers y/n;
 	 */
 
     public Path astarPath(NodeGraph originNode, NodeGraph destinationNode, ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid,
@@ -41,8 +41,7 @@ public class AStarRoadDistance
         
         ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges =  new ArrayList<GeomPlanarGraphDirectedEdge>();
         
-        // containers for the metainformation about the Nodes relative to the
-        // A* search
+        // NodeWrapper = container for the metainformation about a Node 
         NodeWrapper originNodeWrapper = new NodeWrapper(originNode);
         NodeWrapper destinationNodeWrapper = new NodeWrapper(destinationNode);
         mapWrappers.put(originNode, originNodeWrapper);
