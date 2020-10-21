@@ -41,7 +41,7 @@ public class LandmarkNavigation
 	public static ArrayList<NodeGraph> findSequenceSubGoals(NodeGraph originNode, NodeGraph destinationNode, boolean regionBasedNavigation,
 			String typeLandmarkness)
 	{
-		double percentile = researchParameters.salientNodesPercentile;
+		double percentile = ResearchParameters.salientNodesPercentile;
 		ArrayList<NodeGraph> knownJunctions;
 		ArrayList<NodeGraph> sequence = new ArrayList<NodeGraph>();
 		List<Integer> badCandidates = new ArrayList<Integer>();
@@ -75,7 +75,7 @@ public class LandmarkNavigation
 		NodeGraph currentNode = originNode;
 
 		// while the wayfindingEasiness is lower than the threshold the agent looks for intermediate-points.
-		while (wayfindingEasiness < researchParameters.wayfindingEasinessThreshold)
+		while (wayfindingEasiness < ResearchParameters.wayfindingEasinessThreshold)
 		{
 			NodeGraph bestNode = null;
 			double attractivness = 0.0;
@@ -115,7 +115,7 @@ public class LandmarkNavigation
 			 * "local" rescales the nodes' betweenness centrality within the search space;
 			 *  otherwise use "global" for the actual, global centrality value.
 			 */
-			percentile = researchParameters.salientNodesPercentile;
+			percentile = ResearchParameters.salientNodesPercentile;
 			knownJunctions = PedSimCity.network.salientNodesBewteenSpace(bestNode, destinationNode, 0, 0,  percentile, "local");
 			while (knownJunctions == null)
 			{
@@ -166,7 +166,7 @@ public class LandmarkNavigation
 				double cumulativeAdvanceVis = 0;
 
 				//check previous nodes, while < threshold --> update local salience
-				while ((nodeFrom != null) & (distanceTravelled <= researchParameters.visibilityThreshold))
+				while ((nodeFrom != null) & (distanceTravelled <= ResearchParameters.visibilityThreshold))
 				{
 					List<Integer> visible = new ArrayList<Integer>();
 					visible = nodeFrom.visible2d;
@@ -295,8 +295,8 @@ public class LandmarkNavigation
 		ArrayList<MasonGeometry> landmarks = new ArrayList<MasonGeometry>();
 
 		// global or local landmarks, different thresholds
-		if (typeLandmarkness == "global")  landmarks = getLandmarks(buildings, researchParameters.globalLandmarkThreshold, "global");
-		else landmarks = getLandmarks(buildings, researchParameters.localLandmarkThreshold, "local");
+		if (typeLandmarkness == "global")  landmarks = getLandmarks(buildings, ResearchParameters.globalLandmarkThreshold, "global");
+		else landmarks = getLandmarks(buildings, ResearchParameters.localLandmarkThreshold, "local");
 		// complexity
 		double buildingsComplexity = 1.0;
 		if (buildings.size() == 0 || buildings == null) buildingsComplexity = 0.0;

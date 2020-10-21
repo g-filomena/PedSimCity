@@ -37,7 +37,7 @@ public class AgentProperties
 		if (criteria.contains("Regions")) regionBasedNavigation = true;
 		if (criteria.contains("roadDistance")) localHeuristic = "roadDistance";
 		else if (criteria.contains("angularChange")) localHeuristic = "angularChange";
-		if (agentKnowledge <= researchParameters.noobAgentThreshold) onlyAnchors = false;
+		if (agentKnowledge <= ResearchParameters.noobAgentThreshold) onlyAnchors = false;
 	}
 
 	public void setOD(ArrayList<Pair<NodeGraph, NodeGraph>> OD, ArrayList<ArrayList<NodeGraph>> listSequences) {

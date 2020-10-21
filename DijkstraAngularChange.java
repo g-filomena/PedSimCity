@@ -140,7 +140,7 @@ public class DijkstraAngularChange {
 				if (onlyAnchors) globalLandmarkness = LandmarkNavigation.globalLandmarknessDualNode(currentNode, targetNode,
 						primalDestinationNode, true);
 				else globalLandmarkness = LandmarkNavigation.globalLandmarknessDualNode(currentNode, targetNode, primalDestinationNode, false);
-				double nodeLandmarkness = 1-globalLandmarkness*researchParameters.globalLandmarknessWeight;
+				double nodeLandmarkness = 1-globalLandmarkness*ResearchParameters.globalLandmarknessWeight;
 				double nodeCost = nodeLandmarkness*edgeCost;
 				tentativeCost = getBest(currentNode) + nodeCost;
 			}

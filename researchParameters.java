@@ -1,6 +1,6 @@
 package sim.app.geo.pedSimCity;
 
-public class researchParameters {
+public class ResearchParameters {
 
 	// Some researcher-defined parameter
 	static double regionBasedNavigationThreshold = 600; //Region-based navigation Threshold - meters

@@ -525,7 +525,7 @@ public class PedSimCity extends SimState {
 		if (testingRegions) {
 			csvSegments = outputFolderRegions+"_PedSim_regions_"+(currentJob)+".csv";
 			FileWriter writerDensitiesData = new FileWriter(csvSegments);
-			CSVUtils.writeLine(writerDensitiesData, Arrays.asList("edgeID", "AC", "RB", "BB", "RBB"));
+			CSVUtils.writeLine(writerDensitiesData, Arrays.asList("edgeID", "AC", "RB", "BB", "BRB"));
 
 
 			int rGeoSize = edgesGeometries.size();

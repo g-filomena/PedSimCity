@@ -132,7 +132,7 @@ public class DijkstraRoadDistance {
 				if (onlyAnchors) globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode, finalDestinationNode, true);
 				else globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode, finalDestinationNode, false);
 
-				double nodeLandmarkness = 1-globalLandmarkness*researchParameters.globalLandmarknessWeight;
+				double nodeLandmarkness = 1-globalLandmarkness*ResearchParameters.globalLandmarknessWeight;
 				double nodeCost = edgeCost*nodeLandmarkness;
 				tentativeCost = getBest(currentNode) + nodeCost;
 			}

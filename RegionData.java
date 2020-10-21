@@ -23,8 +23,8 @@ public class RegionData {
 
 	public void assignLandmarks()
 	{
-		this.globalLandmarks = LandmarkNavigation.getLandmarks(this.buildings, researchParameters.globalLandmarkThreshold, "global");
-		this.localLandmarks = LandmarkNavigation.getLandmarks(this.buildings, researchParameters.localLandmarkThreshold, "local");
+		this.globalLandmarks = LandmarkNavigation.getLandmarks(this.buildings, ResearchParameters.globalLandmarkThreshold, "global");
+		this.localLandmarks = LandmarkNavigation.getLandmarks(this.buildings, ResearchParameters.localLandmarkThreshold, "local");
 	}
 	public double computeComplexity(String typeLandmarkness)
 	{
