@@ -21,7 +21,7 @@ import com.opencsv.CSVReader;
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.planargraph.DirectedEdgeStar;
 
-import sim.app.geo.urbanSim.Angle;
+import sim.app.geo.urbanSim.Angles;
 import sim.app.geo.urbanSim.EdgeGraph;
 import sim.app.geo.urbanSim.Graph;
 import sim.app.geo.urbanSim.NodeGraph;
@@ -197,7 +197,7 @@ public class PedSimCity extends SimState {
 					gd.regionTo = possibleRegion;
 					gd.entry = oppositeNode;
 					gd.distance = bridge.getLength();
-					gd.entryAngle = Angle.angle(node, oppositeNode);
+					gd.entryAngle = Angles.angle(node, oppositeNode);
 
 					RegionData dd = regionsMap.get(region);
 					dd.gateways.add(gd);

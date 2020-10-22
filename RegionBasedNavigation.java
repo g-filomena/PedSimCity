@@ -211,7 +211,7 @@ public class RegionBasedNavigation {
 				for (NodeGraph entry : subGoal.adjacentEntries)
 				{
 					if (entry.region != desiredRegion) continue;
-					double entryAngle = Angle.angle(subGoal, entry);
+					double entryAngle = Angles.angle(subGoal, entry);
 					if (entryAngle < deviation)
 					{
 						deviation = entryAngle;
@@ -242,7 +242,7 @@ public class RegionBasedNavigation {
 		HashMap<Pair<NodeGraph, NodeGraph>, Double> validGates = new HashMap<Pair<NodeGraph, NodeGraph>, Double> ();
 		HashMap<Pair<NodeGraph, NodeGraph>, Double> otherGates = new HashMap<Pair<NodeGraph, NodeGraph>, Double> ();
 	
-		double destinationAngle = Angle.angle(currentLocation, destinationNode);
+		double destinationAngle = Angles.angle(currentLocation, destinationNode);
 		double distanceTarget = Utilities.nodesDistance(currentLocation, destinationNode);
 		
 		for (GatewayData gd : possibleGates)
@@ -252,21 +252,21 @@ public class RegionBasedNavigation {
 			if ((specificRegion != 999999) && (specificRegion != gd.regionTo)) continue;
 			if (visitedRegions.contains(gd.regionTo)) continue;
 
-			double exitAngle = Angle.angle(currentLocation, gd.node);
+			double exitAngle = Angles.angle(currentLocation, gd.node);
 			double distanceFromGate = Utilities.nodesDistance(currentLocation, gd.node);
 			
 			if (distanceFromGate > distanceTarget ||
-				!Angle.isInDirection(destinationAngle, exitAngle, 140) || 
-				!Angle.isInDirection(destinationAngle, gd.entryAngle, 140) == false)
+				!Angles.isInDirection(destinationAngle, exitAngle, 140) || 
+				!Angles.isInDirection(destinationAngle, gd.entryAngle, 140) == false)
 			{
-				double cost = Angle.differenceAngles(exitAngle, destinationAngle); 
+				double cost = Angles.differenceAngles(exitAngle, destinationAngle); 
 				if (cost > 95) continue;
-				cost += Angle.differenceAngles(exitAngle, gd.entryAngle);
+				cost += Angles.differenceAngles(exitAngle, gd.entryAngle);
 				otherGates.put(gd.gatewayID, cost);
 				continue;
 			}
-			double cost = Angle.differenceAngles(exitAngle, destinationAngle);
-			cost += Angle.differenceAngles(exitAngle, gd.entryAngle);   
+			double cost = Angles.differenceAngles(exitAngle, destinationAngle);
+			cost += Angles.differenceAngles(exitAngle, gd.entryAngle);   
 			validGates.put(gd.gatewayID, cost);
 		}
 		if ((validGates.size() == 0) && (specificRegion != 999999)) return null;
