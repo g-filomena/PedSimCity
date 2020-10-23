@@ -34,11 +34,10 @@ public class DijkstraGlobalLandmarks {
 	 * global landmark is considered as a possible distant landmark;
 	 */
 	public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode, ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid,
-			boolean onlyAnchors)
-	{
+			boolean onlyAnchors) {
 		this.originNode = originNode;
 		this.destinationNode = destinationNode;
-		this.segmentsToAvoid = new ArrayList<GeomPlanarGraphDirectedEdge>(segmentsToAvoid);
+		if (segmentsToAvoid != null) this.segmentsToAvoid = new ArrayList<GeomPlanarGraphDirectedEdge>(segmentsToAvoid);
 		this.onlyAnchors = onlyAnchors;
 
 		visitedNodes = new ArrayList<NodeGraph>();
@@ -53,9 +52,9 @@ public class DijkstraGlobalLandmarks {
 		// from the GeomPlanarGraphDirectedEdge get the actual EdgeGraph (safer)
 		if (segmentsToAvoid != null) for (GeomPlanarGraphDirectedEdge e : segmentsToAvoid) edgesToAvoid.add((EdgeGraph) e.getEdge());
 
-		while (unvisitedNodes.size() > 0)
-		{
-			NodeGraph node = getClosest(unvisitedNodes); // at the beginning it takes originNode
+		while (unvisitedNodes.size() > 0) {
+			// at the beginning it takes originNode
+			NodeGraph node = getClosest(unvisitedNodes);
 			visitedNodes.add(node);
 			unvisitedNodes.remove(node);
 			findMinDistances(node);
@@ -66,8 +65,7 @@ public class DijkstraGlobalLandmarks {
 	void findMinDistances(NodeGraph currentNode)
 	{
 		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
-		for (NodeGraph targetNode : adjacentNodes)
-		{
+		for (NodeGraph targetNode : adjacentNodes) {
 			if (visitedNodes.contains(targetNode)) continue;
 
 			EdgeGraph commonEdge = currentNode.getEdgeBetween(targetNode);
@@ -81,13 +79,12 @@ public class DijkstraGlobalLandmarks {
 			else globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode, destinationNode, false);
 
 			// the global landmarkness from the node is divided by the segment's length so to avoid that the path is not affected
-			//by network distance
+			// by network distance
 			double nodeLandmarkness = (1-globalLandmarkness)/commonEdge.getLength();
 
 			double tentativeCost = getBest(currentNode) + nodeLandmarkness;
 
-			if (getBest(targetNode) > tentativeCost)
-			{
+			if (getBest(targetNode) > tentativeCost) {
 				NodeWrapper nodeWrapper = mapWrappers.get(targetNode);
 				if (nodeWrapper == null) nodeWrapper = new NodeWrapper(targetNode);
 				nodeWrapper.nodeFrom = currentNode;
@@ -99,27 +96,23 @@ public class DijkstraGlobalLandmarks {
 		}
 	}
 
-
-	NodeGraph getClosest(ArrayList<NodeGraph> nodes) //amongst unvisited (they have to have been explored)
-	{
+	//amongst unvisited (they have to have been explored)
+	NodeGraph getClosest(ArrayList<NodeGraph> nodes) {
 		NodeGraph closest = null;
-		for (NodeGraph node : nodes)
-		{
+		for (NodeGraph node : nodes) {
 			if (closest == null) closest = node;
 			else if (getBest(node) < getBest(closest)) closest = node;
 		}
 		return closest;
 	}
 
-	Double getBest(NodeGraph target)
-	{
+	Double getBest(NodeGraph target) {
 		if (mapWrappers.get(target) == null) return Double.MAX_VALUE;
 		else return mapWrappers.get(target).gx;
 	}
 
 
-	Path reconstructPath(NodeGraph originNode, NodeGraph destinationNode)
-	{
+	Path reconstructPath(NodeGraph originNode, NodeGraph destinationNode) {
 		Path path = new Path();
 		path.edges = null;
 		path.mapWrappers = null;
@@ -131,17 +124,16 @@ public class DijkstraGlobalLandmarks {
 
 		// check that the path has been formulated properly
 		if ((step == null) || (mapWrappers.size() == 1))  return path;
-		try
-		{
-			while (mapWrappers.get(step).nodeFrom != null)
-			{
+		try {
+			while (mapWrappers.get(step).nodeFrom != null) {
 				GeomPlanarGraphDirectedEdge dd = mapWrappers.get(step).edgeFrom;
 				step = mapWrappers.get(step).nodeFrom;
 				sequenceEdges.add(0, dd);
 				mapTraversedWrappers.put(step, mapWrappers.get(step));
 			}
 		}
-		catch(java.lang.NullPointerException e)	{return path;} //no path
+		//no path
+		catch(java.lang.NullPointerException e)	{return path;}
 
 		path.edges = sequenceEdges;
 		path.mapWrappers = mapTraversedWrappers;

@@ -66,19 +66,22 @@ public class AStarAngularChange {
 
 		while (openSet.size() > 0) {
 			// while there are reachable nodes to investigate
-			NodeWrapper currentNodeWrapper = findMin(openSet); // find the shortest path so far
+			// find the shortest path so far
+			NodeWrapper currentNodeWrapper = findMin(openSet);
 			NodeGraph currentNode = currentNodeWrapper.node;
-			if (currentNode == destinationNode)  return reconstructPath(goalNodeWrapper); //found
+			// check if the destinationNode has been reached
+			if (currentNode == destinationNode)  return reconstructPath(goalNodeWrapper);
 			if (centroidsToAvoid == null);
 
-			//this centroid was already traversed in a previous iteration
+			// this centroid was already traversed in a previous iteration
 			else if (centroidsToAvoid.contains(currentNode)) {
 				openSet.remove(currentNodeWrapper);
 				closedSet.add(currentNodeWrapper);
 				continue;
 			}
 
-			openSet.remove(currentNodeWrapper); // maintain the lists
+			// maintain the lists
+			openSet.remove(currentNodeWrapper);
 			closedSet.add(currentNodeWrapper);
 
 			// check all the edges out from this Node
@@ -102,11 +105,11 @@ public class AStarAngularChange {
 					nextNodeWrapper = new NodeWrapper(targetNode);
 					mapWrappers.put(targetNode, nextNodeWrapper);
 				}
-
-				if (closedSet.contains(nextNodeWrapper)) continue; // it has already been considered
+				// it has already been considered
+				if (closedSet.contains(nextNodeWrapper)) continue;
 
 				// otherwise evaluate the cost of this combo
-				// computing errors in perception of road coasts with stochastic variables
+				// compute errors in perception of road coasts with stochastic variables
 				double error = 0.0;
 				if (barrierBasedNavigation) {
 					List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
@@ -152,9 +155,9 @@ public class AStarAngularChange {
 		NodeWrapper currentWrapper = nodeWrapper;
 
 		while (currentWrapper.nodeFrom != null) {
-			GeomPlanarGraphDirectedEdge edge = (GeomPlanarGraphDirectedEdge)
-					currentWrapper.node.primalEdge.getDirEdge(0);
-			sequenceEdges.add(0, edge); // add this edge to the front of the list
+			GeomPlanarGraphDirectedEdge edge = (GeomPlanarGraphDirectedEdge) currentWrapper.node.primalEdge.getDirEdge(0);
+			// add this edge to the front of the list
+			sequenceEdges.add(0, edge);
 			currentWrapper = mapWrappers.get(currentWrapper.nodeFrom);
 		}
 		Path path = new Path();

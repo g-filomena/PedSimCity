@@ -16,7 +16,7 @@ import sim.app.geo.urbanSim.NodeGraph;
 
 public class AgentProperties
 {
-
+	public int agentID;
 	public String criteria;
 	double sd_error = 0.10;
 	double agentKnowledge = 1.0;
@@ -24,8 +24,10 @@ public class AgentProperties
 	boolean onlyAnchors = true;
 	boolean barrierBasedNavigation = false;
 	boolean regionBasedNavigation = false;
+
 	String localHeuristic = "roadDistance";
 	String algorithm = "dijkstra";
+	String typeOfBarriers = "all";
 
 	ArrayList<Pair<NodeGraph, NodeGraph>> OD =  new ArrayList<Pair<NodeGraph, NodeGraph>>();
 	ArrayList<ArrayList<NodeGraph>> listSequences = new ArrayList<ArrayList<NodeGraph>> ();

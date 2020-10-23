@@ -1,6 +1,20 @@
 package sim.app.geo.pedSimCity;
 
+
+/**
+ * Some parameters set by the modeller
+ *
+ */
 public class ResearchParameters {
+
+	static String cityName = "London";
+
+	// testing elements
+	static boolean testingRegions = false;
+	static boolean testingLandmarks = true;
+	static boolean visibility = false;
+
+	static boolean fiveElements = false;
 
 	// Some researcher-defined parameter
 	static double regionBasedNavigationThreshold = 600; //Region-based navigation Threshold - meters

@@ -60,7 +60,8 @@ public class RoutePlanner {
 	public ArrayList<GeomPlanarGraphDirectedEdge> roadDistanceSequence(ArrayList<NodeGraph> sequence, AgentProperties ap) {
 
 		this.sequenceNodes = new ArrayList<NodeGraph> (sequence);
-		NodeGraph tmpOrigin = sequenceNodes.get(0); // originNode
+		// originNode
+		NodeGraph tmpOrigin = sequenceNodes.get(0);
 		this.destinationNode = sequenceNodes.get(sequenceNodes.size()-1);
 		this.regionBasedNavigation = ap.regionBasedNavigation;
 		sequenceNodes.remove(0);
@@ -68,14 +69,14 @@ public class RoutePlanner {
 		for (NodeGraph tmpDestination : sequenceNodes) {
 
 			moveOn = false;
-			//check if this tmpDestination has been traversed already
+			// check if this tmpDestination has been traversed already
 			if (Utilities.nodesFromPath(completePath).contains(tmpDestination)) {
 				controlPath(tmpDestination);
 				tmpOrigin = tmpDestination;
 				continue;
 			}
 
-			//check if edge in between
+			// check if edge in between
 			GeomPlanarGraphDirectedEdge edge = tmpOrigin.getDirectedEdgeBetween(tmpDestination);
 			if (edge != null) {
 				if (!completePath.contains(edge)) completePath.add(edge);
@@ -106,7 +107,8 @@ public class RoutePlanner {
 			AgentProperties ap) {
 
 		this.sequenceNodes = new ArrayList<NodeGraph> (sequence);
-		NodeGraph tmpOrigin = sequenceNodes.get(0); // originNode
+		// originNode
+		NodeGraph tmpOrigin = sequenceNodes.get(0);
 		this.destinationNode = sequenceNodes.get(sequenceNodes.size()-1);
 		this.regionBasedNavigation = ap.regionBasedNavigation;
 		this.landmarkBasedNavigation = true;
@@ -122,7 +124,7 @@ public class RoutePlanner {
 				continue;
 			}
 
-			//check if edge in between
+			// check if edge in between
 			GeomPlanarGraphDirectedEdge edge = tmpOrigin.getDirectedEdgeBetween(tmpDestination);
 			if (edge != null) {
 				if (!completePath.contains(edge)) completePath.add(edge);
@@ -197,12 +199,13 @@ public class RoutePlanner {
 			AgentProperties ap) {
 		this.regionBasedNavigation = ap.regionBasedNavigation;
 		this.sequenceNodes = new ArrayList<NodeGraph> (sequence);
-		NodeGraph tmpOrigin = originNode = sequenceNodes.get(0); // originNode
+		// originNode
+		NodeGraph tmpOrigin = originNode = sequenceNodes.get(0);
 		this.destinationNode = sequenceNodes.get(sequenceNodes.size()-1);
 		sequenceNodes.remove(0);
 
 		for (NodeGraph tmpDestination : sequenceNodes) {
-			//check if this tmpDestination has been traversed already
+			// check if this tmpDestination has been traversed already
 			moveOn = false;
 			if (tmpOrigin != originNode) {
 				previousJunction = Utilities.previousJunction(completePath);
@@ -215,7 +218,7 @@ public class RoutePlanner {
 				continue;
 			}
 
-			//check if edge in between
+			// check if edge in between
 			GeomPlanarGraphDirectedEdge edge = tmpOrigin.getDirectedEdgeBetween(tmpDestination);
 			if (edge != null) {
 				if (!completePath.contains(edge)) completePath.add(edge);
@@ -227,9 +230,11 @@ public class RoutePlanner {
 
 			while (tmpDualOrigin == null && previousJunction !=null) {
 				tmpOrigin = (NodeGraph) completePath.get(completePath.size()-1).getFromNode();
-				completePath.remove(completePath.size()-1); // remove last one which did not work!
+				// remove last one which did not work!
+				completePath.remove(completePath.size()-1);
 				centroidsToAvoid.remove(centroidsToAvoid.size()-1);
-				previousJunction = Utilities.previousJunction(completePath); // take new previous junction
+				// take new previous junction
+				previousJunction = Utilities.previousJunction(completePath);
 				edge = tmpOrigin.getDirectedEdgeBetween(tmpDestination);
 				if (edge != null) {
 					if (!completePath.contains(edge)) completePath.add(edge);
@@ -244,7 +249,7 @@ public class RoutePlanner {
 			while ((tmpDualDestination == tmpDualOrigin) || (tmpDualDestination == null)) tmpDualDestination = tmpDestination.getDualNode(
 					tmpOrigin, tmpDestination, regionBasedNavigation, previousJunction);
 
-			//check if just one node separates them
+			// check if just one node separates them
 			if (Utilities.commonPrimalJunction(tmpDualOrigin, tmpDualDestination) != null) {
 				completePath.add(tmpOrigin.getDirectedEdgeBetween(Utilities.commonPrimalJunction(tmpDualOrigin, tmpDualDestination)));
 				completePath.add(Utilities.commonPrimalJunction(tmpDualOrigin, tmpDualDestination).getDirectedEdgeBetween(tmpDestination));
@@ -280,7 +285,8 @@ public class RoutePlanner {
 		this.landmarkBasedNavigation = true;
 		this.sequenceNodes = new ArrayList<NodeGraph> (sequence);
 
-		NodeGraph tmpOrigin = originNode = sequenceNodes.get(0); // originNode
+		// originNode
+		NodeGraph tmpOrigin = originNode = sequenceNodes.get(0);
 		this.destinationNode = sequenceNodes.get(sequenceNodes.size()-1);
 		sequenceNodes.remove(0);
 
@@ -292,14 +298,14 @@ public class RoutePlanner {
 				centroidsToAvoid = Utilities.centroidsFromPath(completePath);
 			}
 
-			//check if this tmpDestination has been traversed already
+			// check if this tmpDestination has been traversed already
 			if (Utilities.nodesFromPath(completePath).contains(tmpDestination)) {
 				controlPath(tmpDestination);
 				tmpOrigin = tmpDestination;
 				continue;
 			}
 
-			//check if edge in between
+			// check if edge in between
 			GeomPlanarGraphDirectedEdge edge = tmpOrigin.getDirectedEdgeBetween(tmpDestination);
 			if (edge != null) {
 				if (!completePath.contains(edge)) completePath.add(edge);
@@ -307,13 +313,13 @@ public class RoutePlanner {
 				continue;
 			}
 
-			//TO DO centroids to avoid in dual
+			// TO DO centroids to avoid in dual
 			NodeGraph tmpDualOrigin = tmpOrigin.getDualNode(tmpOrigin, tmpDestination, regionBasedNavigation, previousJunction);
 			NodeGraph tmpDualDestination = null;
 			while (tmpDualDestination == tmpDualOrigin || tmpDualDestination == null) tmpDualDestination = tmpDestination.getDualNode(
 					tmpOrigin, tmpDestination, regionBasedNavigation, previousJunction);
 
-			//check if just one node separates them
+			// check if just one node separates them
 			if (Utilities.commonPrimalJunction(tmpDualOrigin, tmpDualDestination) != null) {
 				completePath.add(tmpOrigin.getDirectedEdgeBetween(Utilities.commonPrimalJunction(tmpDualOrigin, tmpDualDestination)));
 				completePath.add(Utilities.commonPrimalJunction(tmpDualOrigin, tmpDualDestination).getDirectedEdgeBetween(tmpDestination));
@@ -367,7 +373,7 @@ public class RoutePlanner {
 		this.barrierBasedNavigation = ap.barrierBasedNavigation;
 
 		RegionBasedNavigation regionsPath = new RegionBasedNavigation();
-		ArrayList<NodeGraph> regionsSequence = regionsPath.sequenceRegions(originNode, destinationNode, barrierBasedNavigation);
+		ArrayList<NodeGraph> regionsSequence = regionsPath.sequenceRegions(originNode, destinationNode, barrierBasedNavigation, ap.typeOfBarriers);
 		ArrayList<GeomPlanarGraphDirectedEdge> path =  new ArrayList<GeomPlanarGraphDirectedEdge>();
 
 		if (ap.localHeuristic == "roadDistance") path = roadDistanceSequence(regionsSequence, ap);
@@ -392,7 +398,7 @@ public class RoutePlanner {
 
 		ArrayList<GeomPlanarGraphDirectedEdge> path =  new ArrayList<GeomPlanarGraphDirectedEdge>();
 		BarrierBasedNavigation barrierBasedPath = new BarrierBasedNavigation();
-		ArrayList<NodeGraph> sequenceBarriers = barrierBasedPath.sequenceBarriers(originNode, destinationNode);
+		ArrayList<NodeGraph> sequenceBarriers = barrierBasedPath.sequenceBarriers(originNode, destinationNode, ap.typeOfBarriers);
 		if (ap.localHeuristic == "roadDistance") path = roadDistanceSequence(sequenceBarriers, ap);
 		else if (ap.localHeuristic == "angularChange") path = angularChangeSequence(sequenceBarriers, ap);
 		return path;
@@ -411,7 +417,8 @@ public class RoutePlanner {
 	{
 		// new tmpOrigin
 		NodeGraph tmpOrigin = (NodeGraph) completePath.get(completePath.size()-1).getFromNode();
-		completePath.remove(completePath.size()-1); //remove the last problematic segment;
+		// remove the last problematic segment;
+		completePath.remove(completePath.size()-1);
 
 		// check if there's a segment between the new tmpOrigin and the destination
 		GeomPlanarGraphDirectedEdge edge = tmpOrigin.getDirectedEdgeBetween(tmpDestination);
@@ -508,9 +515,9 @@ public class RoutePlanner {
 
 	private void cleanDualPath(NodeGraph originNode, NodeGraph destinationNode)
 	{
-		//check if the path is one edge ahead
+		// check if the path is one edge ahead
 		if (Utilities.previousJunction(path.edges) == destinationNode) path.edges.remove(path.edges.size()-1);
-		//check presence of a unnecessary edge at the beginning of the path
+		// check presence of a unnecessary edge at the beginning of the path
 		if (Utilities.commonPrimalJunction(((EdgeGraph) path.edges.get(0).getEdge()).dualNode,
 				((EdgeGraph) path.edges.get(1).getEdge()).dualNode) == originNode) path.edges.remove(0);
 		checkSequenceEdges(originNode, destinationNode);
@@ -528,7 +535,8 @@ public class RoutePlanner {
 		NodeGraph previousNode = originNode;
 		for (GeomPlanarGraphDirectedEdge edge: path.edges) {
 			NodeGraph nextNode = (NodeGraph) edge.getToNode();
-			//need to swap
+
+			// need to swap
 			if (nextNode == previousNode) {
 				nextNode = (NodeGraph) edge.getFromNode();
 				GeomPlanarGraphDirectedEdge correctEdge = previousNode.getDirectedEdgeBetween(nextNode);

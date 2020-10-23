@@ -56,11 +56,13 @@ public class AStarRoadDistance
 		// A* containers: nodes to be investigated vs the ones that have been investigated
 		ArrayList<NodeWrapper> closedSet = new ArrayList<NodeWrapper>();
 		ArrayList<NodeWrapper> openSet = new ArrayList<NodeWrapper>();
-		openSet.add(originNodeWrapper); //adding the originNode Wrapper
+		//add the originNode Wrapper
+		openSet.add(originNodeWrapper);
 
 		while (openSet.size() > 0) {
 			// while there are reachable nodes to investigate
-			NodeWrapper currentNodeWrapper = findMin(openSet); // find the shortest path so far
+			// find the shortest path so far
+			NodeWrapper currentNodeWrapper = findMin(openSet);
 			NodeGraph currentNode = currentNodeWrapper.node;
 			if (currentNode == destinationNode) return reconstructPath(destinationNodeWrapper); //found
 			openSet.remove(currentNodeWrapper);
@@ -84,7 +86,8 @@ public class AStarRoadDistance
 					nextNodeWrapper = new NodeWrapper(targetNode);
 					mapWrappers.put(targetNode, nextNodeWrapper);
 				}
-				if (closedSet.contains(nextNodeWrapper)) continue; // it has already been considered
+				// if it has already been considered
+				if (closedSet.contains(nextNodeWrapper)) continue;
 
 				// otherwise evaluate the cost of this node/edge combo and
 				// compute errors in perception of road coasts with stochastic variables
@@ -129,7 +132,8 @@ public class AStarRoadDistance
 		NodeWrapper currentWrapper = nodeWrapper;
 
 		while (currentWrapper.nodeFrom != null) {
-			sequenceEdges.add(0, currentWrapper.edgeFrom); // add this edge to the front of the list
+			// add this edge to the front of the list
+			sequenceEdges.add(0, currentWrapper.edgeFrom);
 			currentWrapper = mapWrappers.get(currentWrapper.nodeFrom);
 		}
 		Path path = new Path();

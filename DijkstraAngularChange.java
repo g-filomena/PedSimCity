@@ -28,9 +28,11 @@ public class DijkstraAngularChange {
 	boolean landmarkBasedNavigation, regionBasedNavigation, barrierBasedNavigation, onlyAnchors;
 	HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 	SubGraph graph = new SubGraph();
-	boolean subGraph = true; // it contemplates an attempt where navigation takes place by the convex-hull method (see below).
+	// it contemplates an attempt where navigation takes place by the convex-hull method (see below).
+	boolean subGraph = true;
 
 	AgentProperties ap = new AgentProperties();
+
 	/**
 	 * @param originNode the origin node (dual graph);
 	 * @param destinationNode the destination node (dual graph);
@@ -39,6 +41,7 @@ public class DijkstraAngularChange {
 	 * @param previousJunction the previous primal junction, if any;
 	 * @param ap the set of the properties that describe the agent;
 	 */
+
 	public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode, NodeGraph primalDestinationNode,
 			ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, AgentProperties ap) {
 
@@ -46,7 +49,7 @@ public class DijkstraAngularChange {
 		this.originNode = originNode;
 		this.destinationNode = destinationNode;
 		this.primalDestinationNode = primalDestinationNode;
-		this.centroidsToAvoid = new ArrayList<NodeGraph>(centroidsToAvoid);
+		if (centroidsToAvoid != null) this.centroidsToAvoid = new ArrayList<NodeGraph>(centroidsToAvoid);
 		this.previousJunction = previousJunction;
 
 		this.landmarkBasedNavigation = ap.landmarkBasedNavigation;
@@ -87,11 +90,12 @@ public class DijkstraAngularChange {
 		if (previousJunction != null) NodeWrapper.commonPrimalJunction = previousJunction;
 		mapWrappers.put(originNode, NodeWrapper);
 
-		// adding centroids to avoid in the visited set
+		// add centroids to avoid in the visited set
 		if (centroidsToAvoid != null) for (NodeGraph c : centroidsToAvoid) visitedNodes.add(c);
 
 		while (unvisitedNodes.size() > 0) {
-			NodeGraph currentNode = getClosest(unvisitedNodes); // at the beginning it takes originNode
+			// at the beginning it takes originNode
+			NodeGraph currentNode = getClosest(unvisitedNodes);
 			visitedNodes.add(currentNode);
 			unvisitedNodes.remove(currentNode);
 			findMinDistances(currentNode);
@@ -99,10 +103,9 @@ public class DijkstraAngularChange {
 		return reconstructPath(originNode, destinationNode);
 	}
 
-	private void findMinDistances(NodeGraph currentNode)
-	{
-		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
+	private void findMinDistances(NodeGraph currentNode) {
 
+		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
 		for (NodeGraph targetNode : adjacentNodes) {
 			if (visitedNodes.contains(targetNode)) continue;
 
@@ -116,8 +119,8 @@ public class DijkstraAngularChange {
 
 			EdgeGraph commonEdge = currentNode.getEdgeBetween(targetNode);
 
-			// computing costs based on the navigation strategies.
-			// computing errors in perception of road coasts with stochastic variables
+			// compute costs based on the navigation strategies.
+			// compute errors in perception of road coasts with stochastic variables
 			double error = 0.0;
 			if (barrierBasedNavigation) {
 				List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
@@ -189,10 +192,9 @@ public class DijkstraAngularChange {
 		NodeGraph step = destinationNode;
 		mapTraversedWrappers.put(destinationNode, mapWrappers.get(destinationNode));
 
-		/**
-		 * If the subgraph navigation hasn't worked, retry by using the full graph
-		 * --> it switches "subgraph" to false;
-		 */
+		// If the subgraph navigation hasn't worked, retry by using the full graph
+		// --> it switches "subgraph" to false;
+
 		if ((mapWrappers.get(destinationNode) == null) && (subGraph == true)) {
 			subGraph = false;
 			visitedNodes.clear();

@@ -1,4 +1,4 @@
-# PedSimCity: An Agent-Based Model for simulating pedestrian movement in large urban areas
+## PedSimCity: An Agent-Based Model for simulating pedestrian movement in large urban areas
 
 This model incoporates simplified cognitive maps of the urban environment in the architecture of the agents
 In particular, a computational approach to Kevyn Lynch's The Image of the City (see related [paper](https://www.sciencedirect.com/science/article/pii/S0264275118309776) in Cities) is employed to incorporate salient urban element in the route-choice approaches of the agents.
