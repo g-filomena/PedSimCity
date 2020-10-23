@@ -15,4 +15,4 @@ It requires:
 * GeoMason and its requirements;
 * [UrbanSim](https://github.com/g-filomena/urbanSim), a set of supporting functions.
 
-The core of the simulation (the simulation state, the scheduler and the agent basic movement functions) are based on *Gridlock*, by Sarah Wise, Mark Coletti, and Andrew Crooks, a GeoMason example.
+The core of the simulation (the simulation state, the scheduler and the agent basic movement functions) is based on *Gridlock*, by Sarah Wise, Mark Coletti, and Andrew Crooks, a GeoMason example.
