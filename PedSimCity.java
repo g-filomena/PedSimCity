@@ -386,7 +386,7 @@ public class PedSimCity extends SimState {
 	// Main function allows simulation to be run in stand-alone, non-GUI mode/
 	public static void main(String[] args)
 	{
-		int jobs = 40;
+		int jobs = 50;
 
 		try	{
 
