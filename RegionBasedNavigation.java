@@ -31,7 +31,7 @@ public class RegionBasedNavigation {
 	boolean finalRegion = false;
 	boolean barrierBasedNavigation = false;
 	HashMap<Integer, EdgeGraph> edgesMap;
-	HashMap<Pair<NodeGraph, NodeGraph>, GatewayData> gatewaysMap;
+	HashMap<Pair<NodeGraph, NodeGraph>, Gateway> gatewaysMap;
 
 	/**
 	 * It returns a sequence of nodes, wherein, besides the origin and the destination nodes, the other nodes represent entry and exit gateways
@@ -156,7 +156,7 @@ public class RegionBasedNavigation {
 			for (EdgeGraph edge : incomingEdges) if (edge.barriers != null) adjacentBarriers.addAll(edge.barriers);
 
 			// identify all the barriers in the region
-			RegionData region = PedSimCity.regionsMap.get(gateway.region);
+			Region region = PedSimCity.regionsMap.get(gateway.region);
 			intersectingBarriers.retainAll(new HashSet<Integer>(region.primalGraph.getBarriersGraph()));
 			if (intersectingBarriers.size() == 0) continue;
 
@@ -233,7 +233,7 @@ public class RegionBasedNavigation {
 	private Pair<NodeGraph, NodeGraph> nextGateways(NodeGraph currentLocation, int currentRegion, int specificRegion) {
 
 		// retrieve current region's exits
-		ArrayList<GatewayData> possibleGates = PedSimCity.regionsMap.get(currentRegion).gateways;
+		ArrayList<Gateway> possibleGates = PedSimCity.regionsMap.get(currentRegion).gateways;
 		HashMap<Pair<NodeGraph, NodeGraph>, Double> validGates = new HashMap<Pair<NodeGraph, NodeGraph>, Double> ();
 		HashMap<Pair<NodeGraph, NodeGraph>, Double> otherGates = new HashMap<Pair<NodeGraph, NodeGraph>, Double> ();
 
@@ -241,7 +241,7 @@ public class RegionBasedNavigation {
 		double destinationAngle = Angles.angle(currentLocation, destinationNode);
 		double distanceTarget = Utilities.nodesDistance(currentLocation, destinationNode);
 
-		for (GatewayData gd : possibleGates) {
+		for (Gateway gd : possibleGates) {
 			if (gd.node == currentLocation) continue;
 			// the gateway entraps the agent
 			if (badExits.contains(gd.gatewayID)) continue;

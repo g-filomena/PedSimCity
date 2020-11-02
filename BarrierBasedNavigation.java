@@ -114,7 +114,7 @@ public class BarrierBasedNavigation {
 			else if ((typeOfBarriers.equals("negative")) && (barrierType.equals("railway")) || (barrierType.equals("road")))
 				intersectingGeometries.add(geoBarrier);
 			else if ((typeOfBarriers.equals("separating")) && (!barrierType.equals("parks"))) intersectingGeometries.add(geoBarrier);
-			else if (typeOfBarriers == barrierType) intersectingGeometries.add(geoBarrier);
+			else if (typeOfBarriers.equals(barrierType)) intersectingGeometries.add(geoBarrier);
 		}
 		for (MasonGeometry i: intersectingGeometries) intersectingBarriers.add(i.getIntegerAttribute("barrierID"));
 		return intersectingBarriers;
@@ -131,7 +131,7 @@ public class BarrierBasedNavigation {
 	 */
 
 	public static Pair<EdgeGraph, Integer> barrierGoal (Set<Integer> intersectingBarriers, NodeGraph currentLocation, NodeGraph destinationNode,
-			RegionData region) {
+			Region region) {
 
 		HashMap<Integer, Double> possibleBarriers = new HashMap<Integer, Double> ();
 		// create search-space
