@@ -17,7 +17,7 @@ public class ActivityPlanner{
 
 	public void goForLeisure(Pedestrian ped) {
 		ped.originNode = ped.destinationNode;
-		ped.destinationNode = NodesLookup.randomNode(PedSimCity.nodesGeometries, PedSimCity.network);
+		ped.destinationNode = NodesLookup.randomNode(PedSimCity.junctions.geometriesList, PedSimCity.network);
 		ped.ap.otherPlace = ped.destinationNode;
 		ped.ap.setThresholdAway("leisure");
 		go(ped);
@@ -34,7 +34,7 @@ public class ActivityPlanner{
 	public void goForErrands(Pedestrian ped) {
 		// work
 		ped.originNode = ped.destinationNode;
-		ped.destinationNode = NodesLookup.randomNode(PedSimCity.nodesGeometries, PedSimCity.network);
+		ped.destinationNode = NodesLookup.randomNode(PedSimCity.junctions.geometriesList, PedSimCity.network);
 		ped.ap.otherPlace = ped.destinationNode;
 		ped.ap.setThresholdAway("errand");
 		go(ped);
@@ -42,7 +42,6 @@ public class ActivityPlanner{
 
 	private void go(Pedestrian ped)
 	{
-
 		ped.ap.setAway();
 		ped.findNewAStarPath(ped.state);
 	}

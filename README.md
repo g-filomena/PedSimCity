@@ -7,7 +7,7 @@ The model is built on Mason and [GeoMason](https://cs.gmu.edu/~eclab/projects/ma
 
 A basic conceptual model of the ABM was presented at the [2018 Agile Conference](https://agile-online.org/conference_paper/cds/agile_2018/shortpapers/64%20short_paper_64.pdf).
 The introduction of different urban elements has been tested, in combination with existing route-choice models:
-* Landmark-based navigation: London - [landmarkBased branch](https://github.com/g-filomena/pedSimCity/tree/LandmarkBased) - Methods, results and evaluation are documented in *Modelling Modelling the effect of landmarks on pedestrian dynamics* (in review, Computer, Environmenta and Urban Systems).
+* Landmark-based navigation: London - [landmarkBased branch](https://github.com/g-filomena/pedSimCity/tree/LandmarkBased) - Methods, results and evaluation are documented in *Modelling the effect of landmarks on pedestrian dynamics* (in review, Computer, Environmenta and Urban Systems).
 * Region- and barrier-based navigation: London and Paris - [regionBased branch](https://github.com/g-filomena/pedSimCity/tree/RegionBased) - Methods and results, along with a validation are documented in *Perception of urban subdivisions in pedestrian movement simulation* (in review, PLOS ONE).
 
 

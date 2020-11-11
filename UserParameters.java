@@ -1,0 +1,74 @@
+package sim.app.geo.pedSimCity;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Some parameters set by the modeller
+ *
+ */
+public class UserParameters {
+
+	//General parameters/components
+	static String cityName = "Muenster";
+	static int jobs = 1;
+	static boolean testingRegions = true;
+	static boolean testingLandmarks = true;
+	static boolean fiveElements = false;
+
+	static boolean testingSpecificRoutes = true;
+	static boolean readingFromPrevious =  false;
+	static List<Integer> OR = new ArrayList<Integer>();
+	static List<Integer> DE = new ArrayList<Integer>();
+
+	static String criteriaLandmarks[] = {"roadDistance", "angularChange", "roadDistanceLandmarks", "angularChangeLandmarks",
+			"localLandmarks", "globalLandmarks"};
+	static String criteriaRegions[] = {"angularChange", "angularChangeRegions", "angularChangeBarriers", "angularChangeRegionsBarriers"};
+	static String criteria[] = {"roadDistance", "angularChange", "turns"};
+
+	//
+	static double thresholdTurn = 45.0;
+	// Landmark Integration
+	static double distanceNodeLandmark = 50.0;
+	public static double distanceAnchors = 2000.0;
+	static double globalLandmarkThreshold = 0.20; //
+	static double localLandmarkThreshold = 0.30; //
+	static double salientNodesPercentile = 0.75; // Threshold Percentile to identify salient nodes
+
+	// Some researcher-defined parameter
+	static double regionBasedNavigationThreshold = 600; //Region-based navigation Threshold - meters
+	static double wayfindingEasinessThreshold = 0.95; //2d Visibility threshold; distanLandmarks usage threshold
+	static double globalLandmarknessWeight = 0.80; //weight Global Landmarkness in combination with edge cost
+
+	// Time related parameters
+	static int minutesPerStep = 10;
+	static int startingHour = 7*minutesPerStep;
+	static int endingHour = 24*minutesPerStep;
+
+	// Agents/groups parameters
+	static int numAgents = 2000;
+	static int groups = 6;
+	static Double[] composition = {0.30, 0.20, 0.20, 0.10, 0.10, 0.10};
+	static double noobAgentThreshold = 0.25;
+	static double expertAgentThreshold = 0.75;
+
+
+	//directories
+	public static String outputFolder = "C:/Users/g_filo01/sciebo/Scripts/ABM analysis/Input/";
+
+	public static void setTestingMatrix() {
+		Integer[] or = {4229, 10815, 1586, 10873, 268};
+		Integer[] de = {11379, 10268, 11337, 5706, 11130};
+		for (int i : or) OR.add(i);
+		for (int i : de) DE.add(i);
+	}
+
+	public String getOutputFolder() {
+		if (testingSpecificRoutes) outputFolder = outputFolder+"test/"+cityName+"_PedSim_test_";
+		if (testingLandmarks) outputFolder = outputFolder+"landmarkNavigation/"+cityName+"_PedSim_landmarks_";
+		else if (testingRegions) outputFolder = outputFolder+"regionBaedNavigation/"+cityName+"_PedSim_regions_";
+		return outputFolder;
+	}
+
+
+}

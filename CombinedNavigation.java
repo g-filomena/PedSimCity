@@ -3,153 +3,73 @@ package sim.app.geo.pedSimCity;
 import java.util.ArrayList;
 
 import sim.app.geo.urbanSim.NodeGraph;
-import sim.app.geo.urbanSim.SubGraph;
 import sim.app.geo.urbanSim.Utilities;
-import sim.util.Bag;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class CombinedNavigation{
 
 	NodeGraph originNode, destinationNode;
-	double wayfindingEasinessThreshold = ResearchParameters.wayfindingEasinessThreshold;
 
 	AgentProperties ap = new AgentProperties();
-	ArrayList<NodeGraph> sequenceNodes;
 	ArrayList<GeomPlanarGraphDirectedEdge> completePath =  new ArrayList<GeomPlanarGraphDirectedEdge>();
-	ArrayList<NodeGraph> combinedSequence = new ArrayList<NodeGraph>();
+	ArrayList<NodeGraph> sequenceNodes = new ArrayList<NodeGraph>();
+	boolean regionBasedNavigation;
 
 	public ArrayList<GeomPlanarGraphDirectedEdge> path(NodeGraph originNode, NodeGraph destinationNode, AgentProperties ap) {
 		this.ap = ap;
-		this.combinedSequence.clear();
+		this.sequenceNodes.clear();
 		RoutePlanner planner = new RoutePlanner();
-		/**
-		 * regional routing necessary Yes/No based on threshold?
-		 */
-		if (Utilities.nodesDistance(originNode,  destinationNode) < ResearchParameters.regionBasedNavigationThreshold &
-				ap.regionBasedNavigation) {
+
+		//regional routing necessary Yes/No based on threshold?
+		if (Utilities.nodesDistance(originNode,  destinationNode) < UserParameters.regionBasedNavigationThreshold
+				|| !ap.regionBasedNavigation || originNode.region == destinationNode.region) this.regionBasedNavigation = false;
+
+		if (regionBasedNavigation) {
+			RegionBasedNavigation regionsPath = new RegionBasedNavigation();
+			sequenceNodes = regionsPath.sequenceRegions(originNode, destinationNode, ap);
+		}
+
+		// through barrier (sub-goals), already computed above
+		if (ap.barrierBasedNavigation) {;}
+		// through local landmarks or important nodes (sub-goals)
+		else if ((ap.landmarkBasedNavigation && ap.usingLocalLandmarks) || ap.nodeBasedNavigation ) {
+			// when ap.nodeBasedNavigation ap.landmarkBasedNavigation is false;
+			if (this.regionBasedNavigation) intraRegionMarks();
+			else sequenceNodes = LandmarkNavigation.onRouteMarks(originNode, destinationNode, ap);
+		}
+		// pure global landmark navigation (no heuristic, no sub-goals)
+		else if  (ap.usingGlobalLandmarks && !ap.usingLocalLandmarks && ap.localHeuristic == ""
+				&& !this.regionBasedNavigation) return planner.globalLandmarksPath(originNode, destinationNode, ap);
+
+		if (sequenceNodes.size() == 0) {
 			sequenceNodes.add(originNode);
 			sequenceNodes.add(destinationNode);
 		}
 
-		/**
-		 * A) Combined Region- Barrier-based navigation --> Get Path
-		 * B) Initialise regions
-		 */
-		else {
-			RegionBasedNavigation regionsPath = new RegionBasedNavigation();
-			sequenceNodes = regionsPath.sequenceRegions(originNode, destinationNode, ap.barrierBasedNavigation, ap.typeOfBarriers);
-			ap.regionBasedNavigation = true;
-		}
-
-		combinedLandmarks();
-		if (ap.landmarkBasedNavigation) {
-			if (ap.localHeuristic == "roadDistance") completePath = planner.roadDistanceLandmarks(combinedSequence, ap);
-			else completePath = planner.angularChangeLandmarks(combinedSequence,ap);
-		}
-
-		else if(ap.nodeBasedNavigation) {
-			if (ap.localHeuristic == "roadDistance") completePath = planner.roadDistanceSequence(combinedSequence, ap);
-			else completePath = planner.angularChangeSequence(combinedSequence, ap);
-		}
-		return completePath;
-	}
-
-	/**
-	 * using landmarks?
-	 * two types of landmark-based navigation, depending on knowledge:
-	 * a) the agent uses all the landmarks, regardless the fact that they anchor the destination --> unexpert agents (more detours);
-	 * b) the agent uses only landmarks that anchor the destination;
-	 */
-
-	public void combinedLandmarks() {
-
-		NodeGraph tmpOrigin = originNode;
-
-		for (NodeGraph tmpDestination : this.sequenceNodes) {
-			if (tmpDestination == originNode || tmpOrigin == destinationNode) continue;
-			combinedSequence.add(tmpOrigin);
-
-			double wayfindinEasiness = LandmarkNavigation.wayfindingEasinessRegion(originNode, destinationNode, tmpOrigin, tmpDestination,
-					ap.typeLandmarks);
-			if (wayfindinEasiness > ResearchParameters.wayfindingEasinessThreshold) {
-				tmpOrigin = tmpDestination;
-				continue;
-			}
-			Bag localLandmarks = PedSimCity.regionsMap.get(tmpOrigin.region).localLandmarks;
-
-			/**
-			 * Are there landmarks in the region?
-			 * if no --> use barriers if agent is noob
-			 */
-
-			if ((localLandmarks.size() == 0) || localLandmarks == null) {
-				if (ap.agentKnowledge <= ResearchParameters.noobAgentThreshold) {
-					BarrierBasedNavigation barrierBasedPath = new BarrierBasedNavigation();
-					ArrayList<NodeGraph> sequenceIntraRegion = barrierBasedPath.sequenceBarriers(tmpOrigin, tmpDestination, ap.typeOfBarriers);
-					for (NodeGraph tmpNode : sequenceIntraRegion) {
-						if (tmpNode == tmpDestination || tmpNode == tmpOrigin) continue;
-						combinedSequence.add(tmpNode);
-					}
-				}
-			}
-
-			else {
-				ArrayList<NodeGraph> sequenceIntraRegion = LandmarkNavigation.findSequenceSubGoals(tmpOrigin, tmpDestination,
-						ap.regionBasedNavigation, ap.typeLandmarks);
-
-				for (NodeGraph tmpNode : sequenceIntraRegion) {
-					if (tmpNode == tmpDestination || tmpNode == tmpOrigin) continue;
-					combinedSequence.add(tmpNode);
-				}
-			}
-			tmpOrigin = tmpDestination;
-		}
-		combinedSequence.add(destinationNode);
-	}
-
-	public ArrayList<NodeGraph> combinedNodes()
-	{
-
-		ArrayList<NodeGraph> combinedSequence = new ArrayList<NodeGraph>();
-		NodeGraph tmpOrigin = originNode;
-
-		for (NodeGraph tmpDestination : this.sequenceNodes) {
-			if (tmpDestination == originNode || tmpOrigin == destinationNode) continue;
-			combinedSequence.add(tmpOrigin);
-			NodeGraph intermediateNode = nodeBasedNavigation(tmpOrigin, tmpDestination, tmpOrigin.region);
-			if (intermediateNode != null) combinedSequence.add(intermediateNode);
-			tmpOrigin = tmpDestination;
-		}
-		combinedSequence.add(destinationNode);
-		return combinedSequence;
+		if (ap.localHeuristic.equals("roadDistance")) return planner.roadDistanceSequence(sequenceNodes, ap);
+		else if (ap.localHeuristic.equals("angularChange") || ap.localHeuristic.equals("turns")) return planner.angularChangeBasedSequence(sequenceNodes, ap);
+		else if (ap.usingGlobalLandmarks && ap.localHeuristic == "") return planner.globalLandmarksPathSequence(sequenceNodes, ap);
+		else return null;
 	}
 
 
-	/**
-	 * The agent uses junctions to navigate.
-	 *
-	 */
+	public void intraRegionMarks() {
 
-	public NodeGraph nodeBasedNavigation(NodeGraph originNode, NodeGraph destinationNode, int region) {
-		SubGraph regionGraph = PedSimCity.regionsMap.get(region).primalGraph;
-		ArrayList<NodeGraph> regionSalientNodes = regionGraph.salientNodesInSubGraph(ResearchParameters.salientNodesPercentile);
-		double attractivness = 0.0;
-		NodeGraph bestNode = null;
+		NodeGraph entryGateway = originNode;
+		for (NodeGraph exitGateway : this.sequenceNodes) {
+			if (exitGateway == originNode || entryGateway == destinationNode) continue;
+			ArrayList<NodeGraph> onRouteMarks = new ArrayList<NodeGraph>();
+			// works also for nodeBasedNavigation only:
+			onRouteMarks = LandmarkNavigation.onRouteMarksRegion(entryGateway, exitGateway, originNode, destinationNode, ap);
 
-		for (NodeGraph tmpNode : regionSalientNodes) {
-			double currentDistance = Utilities.nodesDistance(originNode, destinationNode);
-			double gain = (currentDistance - Utilities.nodesDistance(tmpNode, destinationNode))/currentDistance;
-			double centrality = tmpNode.centrality_sc; //using rescaled
-			double salience = centrality*0.60 + gain*0.40;
-
-			if (salience >  attractivness) {
-				attractivness = salience;
-				bestNode = tmpNode;
+			if (onRouteMarks.size() == 0 && ap.agentKnowledge <= UserParameters.noobAgentThreshold) {
+				BarrierBasedNavigation barrierBasedPath = new BarrierBasedNavigation();
+				onRouteMarks = barrierBasedPath.sequenceBarriers(entryGateway, exitGateway, ap.typeBarriers);
 			}
+			sequenceNodes.addAll(onRouteMarks);
+			entryGateway = exitGateway;
 		}
-		return bestNode;
 	}
-
 }
 
 

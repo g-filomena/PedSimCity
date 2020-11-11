@@ -67,9 +67,9 @@ public final class Pedestrian implements Steppable {
 		this.ap = ap;
 		this.state = state;
 
-		if (ResearchParameters.fiveElements) {
+		if (UserParameters.fiveElements) {
 			this.activityBased = true;
-			minutesSoFar = ResearchParameters.startingHour;
+			minutesSoFar = UserParameters.startingHour;
 		}
 		else originNode = (NodeGraph) ap.OD.get(numTrips).getValue(0);
 
@@ -82,12 +82,13 @@ public final class Pedestrian implements Steppable {
 
 
 	public void findNewAStarPath(PedSimCity state) {
-
+		System.out.println(originNode.getID() + "  "+ destinationNode.getID()+ " "+ap.criteria);
 		if (activityBased) {
 			CombinedNavigation combinedNavigation = new CombinedNavigation();
 			newPath = combinedNavigation.path(originNode, destinationNode, this.ap);
 		}
-		else  selectCriteria();
+		else selectCriteria();
+
 
 		RouteData route = new RouteData();
 		route.origin = originNode.getID();
@@ -127,11 +128,11 @@ public final class Pedestrian implements Steppable {
 	{
 		PedSimCity stateSchedule = (PedSimCity) state;
 		// check that we've been placed on an Edge  //check that we haven't already reached our destination
-		minutesSoFar += ResearchParameters.minutesPerStep;
+		minutesSoFar += UserParameters.minutesPerStep;
 
 		if (activityBased)
 		{
-			if (minutesSoFar == ResearchParameters.endingHour) {
+			if (minutesSoFar == UserParameters.endingHour) {
 				System.out.println("End of the day - calling finish");
 				stateSchedule.finish();
 			}
@@ -157,9 +158,7 @@ public final class Pedestrian implements Steppable {
 				return;
 			}
 		}
-
 		keepWalking();
-
 	}
 
 	/**
@@ -183,8 +182,11 @@ public final class Pedestrian implements Steppable {
 		// move to the next edge in the path
 		EdgeGraph edge = (EdgeGraph) path.get(indexOnPath).getEdge();
 		setupEdge(edge);
+		speed = progress(residualMove);
+		currentIndex += speed;
+
 		//	speed = socialBasedProgress(residualMove);
-		currentIndex += residualMove;
+		//		currentIndex += residualMove;
 		// check to see if the progress has taken the current index beyond its goal
 		// given the direction of movement. If so, proceed to the next edge
 		if (linkDirection == 1 && currentIndex > endIndex) transitionToNextEdge(currentIndex - endIndex);
@@ -233,22 +235,19 @@ public final class Pedestrian implements Steppable {
 	}
 
 	void updateEdgeData(EdgeGraph edge) {
-
-		switch (ap.criteria) {
-		case "roadDistance" : edge.roadDistance += 1;
-		case "angularChange" : edge.angularChangeLandmarks += 1;
-		case "roadDistanceLandmarks" : edge.roadDistanceLandmarks += 1;
-		case "angularChangeLandmarks" : edge.angularChangeLandmarks += 1;
-		case "localLandmarks" : edge.localLandmarks += 1;
-		case "globalLandmarks" : edge.globalLandmarks += 1;
-		case "roadDistanceRegions" : edge.roadDistanceRegions += 1;
-		case "angularChangeRegions" : edge.angularChangeRegions += 1;
-		case "roadDistanceBarriers" : edge.roadDistanceBarriers += 1;
-		case "angularChangeBarriers" : edge.angularChangeBarriers += 1;
-		case "roadDistanceRegionsBarriers" : edge.roadDistanceRegionsBarriers += 1;
-		case "angularChangeRegionsBarriers" : edge.angularChangeRegionsBarriers += 1;
-		}
-
+		edge = PedSimCity.edgesMap.get(edge.getID()); //in case it was a subgraph edge
+		if (ap.criteria.equals("roadDistance")) edge.roadDistance += 1;
+		else if (ap.criteria.equals("angularChange")) edge.angularChangeLandmarks += 1;
+		else if (ap.criteria.equals("roadDistanceLandmarks")) edge.roadDistanceLandmarks += 1;
+		else if (ap.criteria.equals("angularChangeLandmarks")) edge.angularChangeLandmarks += 1;
+		else if (ap.criteria.equals("localLandmarks")) edge.localLandmarks += 1;
+		else if (ap.criteria.equals("globalLandmarks")) edge.globalLandmarks += 1;
+		else if (ap.criteria.contains("roadDistanceRegions")) edge.roadDistanceRegions += 1;
+		else if (ap.criteria.contains("angularChangeRegions")) edge.angularChangeRegions += 1;
+		else if (ap.criteria.contains("roadDistanceBarriers")) edge.roadDistanceBarriers += 1;
+		else if (ap.criteria.contains("angularChangeBarriers")) edge.angularChangeBarriers += 1;
+		else if (ap.criteria.contains("roadDistanceRegionsBarriers")) edge.roadDistanceRegionsBarriers += 1;
+		else if (ap.criteria.contains("angularChangeRegionsBarriers")) edge.angularChangeRegionsBarriers += 1;
 	}
 
 	public void setStoppable(Stoppable a) {killAgent = a;}
@@ -259,29 +258,39 @@ public final class Pedestrian implements Steppable {
 
 	public void selectCriteria()
 	{
-
-		this.sequence = ap.listSequences.get(numTrips);
+		if (UserParameters.testingLandmarks) this.sequence = ap.listSequences.get(numTrips);
 		RoutePlanner planner = new RoutePlanner();
 
-		switch(ap.criteria) {
-		case "roadDistance" : newPath = planner.roadDistance(originNode, destinationNode, null, ap);
-		case "angularChange" :newPath = planner.angularChange(originNode, destinationNode, null, null, ap);
-		case "roadDistanceLandmarks": newPath = planner.roadDistanceLandmarks(sequence, ap);
-		case "angularChangeLandmarks": newPath = planner.angularChangeLandmarks(sequence, ap);
-		case "localLandmarks" : newPath = planner.roadDistanceSequence(sequence, ap);
-		case "globalLandmarks" : newPath = planner.globalLandmarksPath(originNode, destinationNode, null, ap);
-		case "roadDistanceBarriers" : newPath = planner.barrierBasedPath(originNode, destinationNode, ap);
-		case "angularChangeBarriers" : newPath = planner.barrierBasedPath(originNode, destinationNode, ap);
-		case "roadDistanceRegions" :newPath = planner.regionBarrierBasedPath(originNode, destinationNode, ap);
-		case "angularChangeRegions" : newPath = planner.regionBarrierBasedPath(originNode, destinationNode, ap);
-		}
+		if (ap.criteria.equals("roadDistance"))	newPath = planner.roadDistance(originNode, destinationNode, ap);
+		else if (ap.criteria.equals("angularChange")) newPath = planner.angularChangeBased(originNode, destinationNode, ap);
+		else if (ap.criteria.equals("roadDistanceLandmarks")) newPath = planner.roadDistanceSequence(sequence, ap);
+		else if (ap.criteria.equals("angularChangeLandmarks")) newPath = planner.angularChangeBasedSequence(sequence, ap);
+		else if (ap.criteria.equals("localLandmarks")) newPath = planner.roadDistanceSequence(sequence, ap);
+		else if (ap.criteria.equals("globalLandmarks")) newPath = planner.globalLandmarksPath(originNode, destinationNode, ap);
+		else if (ap.criteria.contains("Regions")) newPath = planner.regionBarrierBasedPath(originNode, destinationNode, ap);
+		else if (ap.criteria.contains("Barriers")) newPath= planner.barrierBasedPath(originNode, destinationNode, ap);
 	}
+
+
+	double progress(double val)
+	{
+		//        double traffic = world.edgeTraffic.get(currentEdge).size();
+		//        double factor = 1000 * edgeLength / (traffic * 5);
+		double edgeLength = currentEdge.getLine().getLength();
+		double factor = 1000 * edgeLength;
+		factor = Math.min(1, factor);
+
+		return val * linkDirection * factor;
+	}
+
 
 	public void keepWalking() {
 
 		// move along the current segment
+		speed = progress(moveRate);
 		// speed = socialBasedProgress(moveRate);
-		currentIndex += moveRate;
+		currentIndex += speed;
+		//		currentIndex += moveRate;
 		// check to see if the progress has taken the current index beyond its goal
 		// given the direction of movement. If so, proceed to the next edge
 		if (linkDirection == 1 && currentIndex > endIndex) {
@@ -303,7 +312,7 @@ public final class Pedestrian implements Steppable {
 
 	public void checkRoutine(SimState state) {
 
-		ap.totalTimeAway += ResearchParameters.minutesPerStep;
+		ap.totalTimeAway += UserParameters.minutesPerStep;
 		if (reachedDestination) {
 			if (destinationNode == ap.workPlace) ap.atWork = true;
 			if (destinationNode == ap.homePlace) ap.atHome = true;
@@ -313,8 +322,8 @@ public final class Pedestrian implements Steppable {
 		}
 		if (!reachedDestination & !ap.atPlace) return;
 
-		if (ap.atWork | ap.away) ap.timeAway += ResearchParameters.minutesPerStep;
-		else if (ap.atHome) ap.timeAtHome += ResearchParameters.minutesPerStep;
+		if (ap.atWork | ap.away) ap.timeAway += UserParameters.minutesPerStep;
+		else if (ap.atHome) ap.timeAtHome += UserParameters.minutesPerStep;
 		if ((ap.timeAtWork < ap.thresholdAway) | (ap.timeAtHome < ap.thresholdAtHome) | (ap.timeAway < ap.thresholdAway)) return;
 
 		// new activity

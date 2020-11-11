@@ -79,6 +79,12 @@ public class Group {
 		ap.barrierBasedNavigation = this.barrierBasedNavigation;
 		ap.nodeBasedNavigation = this.nodeBasedNavigation;
 
+		double p = random.nextFloat();
+		if (p <= 0.45) ap.worker = true;
+		else if (p <= 0.70) ap.student = true;
+		else if (p <= 0.85 ) ap.flaneur = true;
+		else if (p <= 0.85 ) ap.homeBased = true;
+
 	}
 
 	public void configureGroup(int groupID) {

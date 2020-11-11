@@ -29,7 +29,7 @@ public class RegionBasedNavigation {
 	NodeGraph originNode, destinationNode, currentLocation, previousLocation;
 	int currentRegion, specificRegion, targetRegion;
 	boolean finalRegion = false;
-	boolean barrierBasedNavigation = false;
+
 	HashMap<Integer, EdgeGraph> edgesMap;
 	HashMap<Pair<NodeGraph, NodeGraph>, Gateway> gatewaysMap;
 
@@ -42,15 +42,13 @@ public class RegionBasedNavigation {
 	 *
 	 * @param originNode the origin node;
 	 * @param destinationNode the destination node;
-	 * @param barrierBasedNavigation using Barriers y/n;
-	 * @param typeOfBarriers the type of barriers to consider, it depends on the agent;
+	 * @param ap agent properties;
 	 */
 
-	public ArrayList<NodeGraph> sequenceRegions(NodeGraph originNode, NodeGraph destinationNode, boolean barrierBasedNavigation,
-			String typeOfBarriers) {
+	public ArrayList<NodeGraph> sequenceRegions(NodeGraph originNode, NodeGraph destinationNode, AgentProperties ap) {
+
 		this.edgesMap = PedSimCity.edgesMap;
 		this.gatewaysMap = PedSimCity.gatewaysMap;
-		this.barrierBasedNavigation = barrierBasedNavigation;
 		this.originNode = originNode;
 		this.destinationNode = destinationNode;
 
@@ -116,7 +114,7 @@ public class RegionBasedNavigation {
 		// sub-goals and barriers - navigation
 		ArrayList<NodeGraph> newSequence = new ArrayList<NodeGraph>();
 		// if also barrier navigation, insert barrier-sub goals into the sequence
-		if (barrierBasedNavigation) newSequence = regionalBarriers(sequence);
+		if (ap.barrierBasedNavigation) newSequence = regionalBarriers(sequence, ap);
 		else newSequence = sequence;
 		return newSequence;
 	}
@@ -128,9 +126,10 @@ public class RegionBasedNavigation {
 	 * Thus, the sequence of gateways may change, although the sequence of regions don't.
 	 *
 	 * @param sequence the sequence of nodes;
+	 * @param ap agent properties;
 	 */
 
-	public ArrayList<NodeGraph> regionalBarriers(ArrayList<NodeGraph> sequence)
+	public ArrayList<NodeGraph> regionalBarriers(ArrayList<NodeGraph> sequence, AgentProperties ap)
 	{
 		// it stores the barriers that the agent has already been exposed to
 		ArrayList<Integer> adjacentBarriers = new ArrayList<Integer>();
@@ -147,7 +146,7 @@ public class RegionBasedNavigation {
 			if ((indexOf > 0) && (indexOf%2 != 0)) continue;
 
 			// check if there are good barriers in line of movement towards the destination
-			Set<Integer> intersectingBarriers = BarrierBasedNavigation.intersectingBarriers(gateway, destinationNode, "all");
+			Set<Integer> intersectingBarriers = BarrierBasedNavigation.intersectingBarriers(gateway, destinationNode, ap.typeBarriers);
 			//no barriers
 			if (intersectingBarriers.size() == 0) continue;
 
@@ -157,7 +156,7 @@ public class RegionBasedNavigation {
 
 			// identify all the barriers in the region
 			Region region = PedSimCity.regionsMap.get(gateway.region);
-			intersectingBarriers.retainAll(new HashSet<Integer>(region.primalGraph.getBarriersGraph()));
+			intersectingBarriers.retainAll(new HashSet<Integer>(region.primalGraph.getSubGraphBarriers()));
 			if (intersectingBarriers.size() == 0) continue;
 
 			// disregard barriers that have been already walked along
@@ -167,7 +166,7 @@ public class RegionBasedNavigation {
 
 			NodeGraph subGoal = null;
 			// given the intersecting barriers, identify the best one and the relative edge close to it
-			Pair<EdgeGraph, Integer> barrierGoal = BarrierBasedNavigation.barrierGoal(intersectingBarriers, destinationNode, gateway, region);
+			Pair<EdgeGraph, Integer> barrierGoal = BarrierBasedNavigation.barrierGoal(intersectingBarriers, gateway, destinationNode, region);
 			if (barrierGoal == null) continue;
 			EdgeGraph edgeGoal = barrierGoal.getValue0();
 			int barrier = barrierGoal.getValue1();
@@ -277,22 +276,6 @@ public class RegionBasedNavigation {
 		// return the first gateway pair
 		for (Entry<Pair<NodeGraph, NodeGraph>, Double> gatewaysPair: validSorted.entrySet()) return gatewaysPair.getKey();
 		return null;
-
 	}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 }
 

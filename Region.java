@@ -31,8 +31,8 @@ public class Region {
 
 	public void assignLandmarks()
 	{
-		this.globalLandmarks = LandmarkNavigation.getLandmarks(this.buildings, ResearchParameters.globalLandmarkThreshold, "global");
-		this.localLandmarks = LandmarkNavigation.getLandmarks(this.buildings, ResearchParameters.localLandmarkThreshold, "local");
+		this.globalLandmarks = LandmarkNavigation.getLandmarks(this.buildings, UserParameters.globalLandmarkThreshold, "global");
+		this.localLandmarks = LandmarkNavigation.getLandmarks(this.buildings, UserParameters.localLandmarkThreshold, "local");
 	}
 
 	/**

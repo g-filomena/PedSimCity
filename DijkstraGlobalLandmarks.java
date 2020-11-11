@@ -13,6 +13,7 @@ import java.util.HashMap;
 import sim.app.geo.urbanSim.EdgeGraph;
 import sim.app.geo.urbanSim.NodeGraph;
 import sim.app.geo.urbanSim.NodeWrapper;
+import sim.app.geo.urbanSim.SubGraph;
 import sim.app.geo.urbanSim.Utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
@@ -24,21 +25,31 @@ public class DijkstraGlobalLandmarks {
 	ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid;
 	ArrayList<EdgeGraph> edgesToAvoid = new ArrayList<EdgeGraph> ();
 
-	boolean onlyAnchors;
-
+	AgentProperties ap = new AgentProperties();
+	SubGraph graph = new SubGraph();
 	/**
 	 * @param originNode the origin node;
 	 * @param destinationNode the final destination Node;
 	 * @param segmentsToAvoid street segments already traversed in previous iterations, if applicable;
-	 * @param onlyAnchors when computing global landmarkness, it considers only landmarks anchoring the destination as possible; if false,
-	 * global landmark is considered as a possible distant landmark;
+	 * @param ap the agent properties;
 	 */
 	public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode, ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid,
-			boolean onlyAnchors) {
+			AgentProperties ap) {
+
+		this.ap = ap;
 		this.originNode = originNode;
 		this.destinationNode = destinationNode;
 		if (segmentsToAvoid != null) this.segmentsToAvoid = new ArrayList<GeomPlanarGraphDirectedEdge>(segmentsToAvoid);
-		this.onlyAnchors = onlyAnchors;
+
+		// If region-based navigation, navigate only within the region subgraph, if origin and destination nodes belong to the same region.
+		// Otherwise, form a subgraph within a convex hull
+
+		if ((originNode.region == destinationNode.region) && (ap.regionBasedNavigation)) {
+			graph = PedSimCity.regionsMap.get(originNode.region).primalGraph;
+			originNode = graph.findNode(originNode.getCoordinate());
+			destinationNode = graph.findNode(destinationNode.getCoordinate());
+			if (segmentsToAvoid != null) edgesToAvoid =  graph.getChildEdges(edgesToAvoid);
+		}
 
 		visitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes = new ArrayList<NodeGraph>();
@@ -75,7 +86,7 @@ public class DijkstraGlobalLandmarks {
 			else if (edgesToAvoid.contains(outEdge.getEdge()))	continue;
 
 			double globalLandmarkness = 0.0;
-			if (onlyAnchors) globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode, destinationNode, true);
+			if (ap.onlyAnchors) globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode, destinationNode, true);
 			else globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode, destinationNode, false);
 
 			// the global landmarkness from the node is divided by the segment's length so to avoid that the path is not affected
