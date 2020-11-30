@@ -33,17 +33,9 @@ public class RoutePlanner {
 	public ArrayList<GeomPlanarGraphDirectedEdge> roadDistance(NodeGraph originNode, NodeGraph destinationNode,  AgentProperties ap) {
 
 		this.ap = ap;
-
-		if (ap.algorithm == "astar") {
-			AStarRoadDistance pathfinder = new AStarRoadDistance();
-			path = pathfinder.astarPath(originNode, destinationNode, null, ap);
-			return path.edges;
-		}
-		else {
-			DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
-			path = pathfinder.dijkstraPath(originNode, destinationNode, null, null, ap);
-			return path.edges;
-		}
+		DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
+		path = pathfinder.dijkstraPath(originNode, destinationNode, null, null, ap);
+		return path.edges;
 	}
 
 	/**
@@ -117,11 +109,8 @@ public class RoutePlanner {
 			return edges;
 		}
 
-		if (ap.localHeuristic == "angularChange") {
-			DijkstraAngularChange pathfinder = new DijkstraAngularChange();
-			path = pathfinder.dijkstraPath(dualOrigin, dualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
-		}
-
+		DijkstraAngularChange pathfinder = new DijkstraAngularChange();
+		path = pathfinder.dijkstraPath(dualOrigin, dualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
 		cleanDualPath(originNode, destinationNode);
 		return path.edges;
 	}
@@ -197,11 +186,8 @@ public class RoutePlanner {
 				continue;
 			}
 
-			if (ap.localHeuristic == "angularChange") {
-				DijkstraAngularChange pathfinder = new DijkstraAngularChange();
-				path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
-			}
-
+			DijkstraAngularChange pathfinder = new DijkstraAngularChange();
+			path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
 			while (path.edges == null && !moveOn) backtrackingDual(tmpDualOrigin, tmpDualDestination, tmpDestination);
 			if (path.edges == null) continue;
 			tmpOrigin = tmpDestination;
@@ -289,7 +275,7 @@ public class RoutePlanner {
 		ArrayList<GeomPlanarGraphDirectedEdge> path =  new ArrayList<GeomPlanarGraphDirectedEdge>();
 
 		if (ap.localHeuristic == "roadDistance") path = roadDistanceSequence(regionsSequence, ap);
-		else path = angularChangeBasedSequence(regionsSequence, ap);
+		else if (ap.localHeuristic == "angularChange") path = angularChangeBasedSequence(regionsSequence, ap);
 		return path;
 	}
 
@@ -377,11 +363,8 @@ public class RoutePlanner {
 			return;
 		}
 		tmpDualOrigin = tmpOrigin.getDualNode(tmpOrigin, tmpDestination, ap.regionBasedNavigation, previousJunction);
-
-		if (ap.localHeuristic == "angularChange") {
-			DijkstraAngularChange pathfinder = new DijkstraAngularChange();
-			path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
-		}
+		DijkstraAngularChange pathfinder = new DijkstraAngularChange();
+		path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
 	}
 
 	/**
@@ -392,7 +375,6 @@ public class RoutePlanner {
 
 	private void controlPath(NodeGraph destinationNode)
 	{
-
 		for (GeomPlanarGraphDirectedEdge e: completePath) {
 			if (e.getToNode() == destinationNode) {
 				int lastIndex = completePath.indexOf(e);
