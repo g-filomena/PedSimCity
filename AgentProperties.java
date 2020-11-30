@@ -91,8 +91,6 @@ public class AgentProperties {
 		else if (routeChoice.contains("angularChange")) localHeuristic = "angularChange";
 		else if (routeChoice.contains("turns")) localHeuristic = "turns";
 		else if (routeChoice.contains("junctions")) localHeuristic = "junctions";
-		if (agentKnowledge <= UserParameters.noobAgentThreshold) onlyAnchors = false;
-
 	}
 
 	public void setOD(ArrayList<Pair<NodeGraph, NodeGraph>> OD, ArrayList<ArrayList<NodeGraph>> listSequences) {

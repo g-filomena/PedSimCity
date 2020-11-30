@@ -124,7 +124,7 @@ public class DijkstraAngularChange {
 				else error = Utilities.fromDistribution(1, 0.10, null);
 			}
 			else error = Utilities.fromDistribution(1, 0.10, null);
-			double edgeCost = commonEdge.getDeflectionAngle() * 1;
+			double edgeCost = commonEdge.getDeflectionAngle() * error;
 			System.out.println(edgeCost);
 			if (edgeCost > 180) edgeCost = 180;
 			if (edgeCost < 0) edgeCost = 0;

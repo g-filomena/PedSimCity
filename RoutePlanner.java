@@ -121,10 +121,6 @@ public class RoutePlanner {
 			DijkstraAngularChange pathfinder = new DijkstraAngularChange();
 			path = pathfinder.dijkstraPath(dualOrigin, dualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
 		}
-		else if (ap.localHeuristic == "turns") {
-			DijkstraTurns pathfinder = new DijkstraTurns();
-			path = pathfinder.dijkstraPath(dualOrigin, dualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
-		}
 
 		cleanDualPath(originNode, destinationNode);
 		return path.edges;
@@ -203,10 +199,6 @@ public class RoutePlanner {
 
 			if (ap.localHeuristic == "angularChange") {
 				DijkstraAngularChange pathfinder = new DijkstraAngularChange();
-				path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
-			}
-			else if (ap.localHeuristic == "turns") {
-				DijkstraTurns pathfinder = new DijkstraTurns();
 				path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
 			}
 
@@ -388,10 +380,6 @@ public class RoutePlanner {
 
 		if (ap.localHeuristic == "angularChange") {
 			DijkstraAngularChange pathfinder = new DijkstraAngularChange();
-			path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
-		}
-		else if (ap.localHeuristic == "turns") {
-			DijkstraTurns pathfinder = new DijkstraTurns();
 			path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
 		}
 	}

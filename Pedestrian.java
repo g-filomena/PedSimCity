@@ -2,7 +2,6 @@ package sim.app.geo.pedSimCity;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.GeometryFactory;
@@ -58,20 +57,12 @@ public final class Pedestrian implements Steppable {
 	AgentProperties ap = new AgentProperties();
 	Stoppable killAgent;
 
-	//time
-	int minutesSoFar = 0;
-	boolean activityBased = false;
 
 	/** Constructor Function */
 	public Pedestrian(PedSimCity state, AgentProperties ap) {
 		this.ap = ap;
 		this.state = state;
-
-		if (UserParameters.fiveElements) {
-			this.activityBased = true;
-			minutesSoFar = UserParameters.startingHour;
-		}
-		else originNode = (NodeGraph) ap.OD.get(numTrips).getValue(0);
+		originNode = (NodeGraph) ap.OD.get(numTrips).getValue(0);
 
 		GeometryFactory fact = new GeometryFactory();
 		agentLocation = new MasonGeometry(fact.createPoint(new Coordinate(10, 10)));
@@ -83,19 +74,14 @@ public final class Pedestrian implements Steppable {
 
 	public void findNewAStarPath(PedSimCity state) {
 		System.out.println(originNode.getID() + "  "+ destinationNode.getID()+ " "+ap.routeChoice);
-		if (activityBased) {
-			CombinedNavigation combinedNavigation = new CombinedNavigation();
-			newPath = combinedNavigation.path(originNode, destinationNode, this.ap);
-		}
-		else selectrouteChoice();
-
+		selectrouteChoice();
 
 		RouteData route = new RouteData();
 		route.origin = originNode.getID();
 		route.destination = destinationNode.getID();
 		route.routeChoice = ap.routeChoice;
 		List<Integer> sequenceEdges = new ArrayList<Integer>();
-		if (!this.activityBased) route.routeID = numTrips;
+		route.routeID = numTrips;
 
 		for (GeomPlanarGraphDirectedEdge o : newPath) {
 			// update edge data
@@ -129,35 +115,23 @@ public final class Pedestrian implements Steppable {
 	{
 		PedSimCity stateSchedule = (PedSimCity) state;
 		// check that we've been placed on an Edge  //check that we haven't already reached our destination
-		minutesSoFar += UserParameters.minutesPerStep;
 
-		if (activityBased)
-		{
-			if (minutesSoFar == UserParameters.endingHour) {
-				System.out.println("End of the day - calling finish");
-				stateSchedule.finish();
-			}
-			checkRoutine(state);
-			if (ap.atPlace) return;
-		}
-		else {
-			if (reachedDestination || destinationNode == null) {
-				if (reachedDestination)	reachedDestination = false;
-				if (numTrips == ap.OD.size()) {
-					stateSchedule.agentsList.remove(this);
-					if (stateSchedule.agentsList.size() == 0) {
-						System.out.println("calling finish");
-						stateSchedule.finish();
-					}
-					killAgent.stop();
-					return;
+		if (reachedDestination || destinationNode == null) {
+			if (reachedDestination)	reachedDestination = false;
+			if (numTrips == ap.OD.size()) {
+				stateSchedule.agentsList.remove(this);
+				if (stateSchedule.agentsList.size() == 0) {
+					System.out.println("calling finish");
+					stateSchedule.finish();
 				}
-				originNode = (NodeGraph) ap.OD.get(numTrips).getValue(0);
-				updatePosition(originNode.getCoordinate());
-				destinationNode = (NodeGraph) ap.OD.get(numTrips).getValue(1);
-				findNewAStarPath(stateSchedule);
+				killAgent.stop();
 				return;
 			}
+			originNode = (NodeGraph) ap.OD.get(numTrips).getValue(0);
+			updatePosition(originNode.getCoordinate());
+			destinationNode = (NodeGraph) ap.OD.get(numTrips).getValue(1);
+			findNewAStarPath(stateSchedule);
+			return;
 		}
 		keepWalking();
 	}
@@ -276,12 +250,9 @@ public final class Pedestrian implements Steppable {
 
 	double progress(double val)
 	{
-		//        double traffic = world.edgeTraffic.get(currentEdge).size();
-		//        double factor = 1000 * edgeLength / (traffic * 5);
 		double edgeLength = currentEdge.getLine().getLength();
 		double factor = 1000 * edgeLength;
 		factor = Math.min(1, factor);
-
 		return val * linkDirection * factor;
 	}
 
@@ -290,9 +261,7 @@ public final class Pedestrian implements Steppable {
 
 		// move along the current segment
 		speed = progress(moveRate);
-		// speed = socialBasedProgress(moveRate);
 		currentIndex += speed;
-		//		currentIndex += moveRate;
 		// check to see if the progress has taken the current index beyond its goal
 		// given the direction of movement. If so, proceed to the next edge
 		if (linkDirection == 1 && currentIndex > endIndex) {
@@ -309,76 +278,6 @@ public final class Pedestrian implements Steppable {
 			// just update the position!
 			Coordinate currentPos = segment.extractPoint(currentIndex);
 			updatePosition(currentPos);
-		}
-	}
-
-	public void checkRoutine(SimState state) {
-
-		ap.totalTimeAway += UserParameters.minutesPerStep;
-		if (reachedDestination) {
-			if (destinationNode == ap.workPlace) ap.atWork = true;
-			if (destinationNode == ap.homePlace) ap.atHome = true;
-			if (destinationNode == ap.otherPlace) ap.away = true;
-			ap.atPlace = true;
-			reachedDestination = false;
-		}
-		if (!reachedDestination & !ap.atPlace) return;
-
-		if (ap.atWork | ap.away) ap.timeAway += UserParameters.minutesPerStep;
-		else if (ap.atHome) ap.timeAtHome += UserParameters.minutesPerStep;
-		if ((ap.timeAtWork < ap.thresholdAway) | (ap.timeAtHome < ap.thresholdAtHome) | (ap.timeAway < ap.thresholdAway)) return;
-
-		// new activity
-		double probNightOut = 0.40;
-		double probErrands = 0.35;
-		Random random = new Random();
-		ActivityPlanner activity = new ActivityPlanner();
-		// 20.00 pm (approx)
-		int evening = 20*60+random.nextInt(30);
-		int afternoon = 15*60+random.nextInt(30);
-		int morning = 8*60+random.nextInt(30);
-
-		if (ap.student || ap.worker)
-		{
-			if (ap.atWork) {
-				// either go home or for errands (25% of chances if it's earlier than 20pm
-				if (random.nextFloat() <= probErrands & minutesSoFar < evening) activity.goForErrands(this);
-				else activity.goHome(this);
-			}
-			else if (ap.atHome & ap.timeAtWork == 0.0) activity.goToWork(this);
-			else if (ap.atHome & ap.timeAtWork > 0.0) {
-				if (ap.student) probNightOut = 0.60;
-				// go out or for other errands
-				if (minutesSoFar < evening & random.nextFloat() <= probErrands) activity.goForErrands(this);
-				else if (minutesSoFar > evening & random.nextFloat() <= probNightOut) activity.goForLeisure(this);
-			}
-			else if (ap.away) activity.goHome(this);
-		}
-
-		else if (ap.flaneur)
-		{
-			if ((ap.atHome && minutesSoFar > morning) || (ap.totalTimeAway < ap.thresholdWandering)) {
-				if (minutesSoFar < evening & random.nextFloat() <= probErrands) activity.goForErrands(this);
-				activity.goForLeisure(this);
-			}
-			else if (ap.totalTimeAway >= ap.thresholdWandering) {
-				activity.goHome(this);
-			}
-		}
-
-		else if (ap.homeBased)
-		{
-			if (ap.atHome && minutesSoFar < evening) {
-				// either go home or for errands (45% of chances if it's earlier than 20pm
-				if (minutesSoFar > morning & random.nextFloat() <= probErrands) activity.goForErrands(this);
-				else if (minutesSoFar > afternoon) activity.goForLeisure(this);
-			}
-			// either go home or for errands (25% of chances if it's earlier than 20pm
-			else if (ap.atHome && minutesSoFar > evening) {
-				// either go home or for errands (25% of chances if it's earlier than 20pm
-				if (random.nextFloat() <= probNightOut) activity.goForLeisure(this);
-			}
-			else if (ap.away) activity.goHome(this);
 		}
 	}
 }

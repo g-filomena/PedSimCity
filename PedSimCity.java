@@ -2,7 +2,6 @@ package sim.app.geo.pedSimCity;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
@@ -152,27 +151,12 @@ public class PedSimCity extends SimState {
 			Pair<NodeGraph, NodeGraph> pair = new Pair<NodeGraph, NodeGraph> (originNode, destinationNode);
 			OD.add(pair);
 		}
-		if (UserParameters.fiveElements) prepareGroups();
 
 		for (int i = 0; i < numAgents; i++)	{
 			AgentProperties ap = new AgentProperties();
-
-			if (UserParameters.fiveElements) {
-
-				for (int g : groupBounds){
-					if (i <= g) {
-						groups.get(groupBounds.indexOf(g)).setAgentProperties(ap);
-						break;
-					}
-				}
-
-				ap.setLocations();
-			}
-			else {
-				ap.setProperties(criteria[i]);
-				ap.setOD(OD, listSequences);
-				ap.agentID = i;
-			}
+			ap.setProperties(criteria[i]);
+			ap.setOD(OD, listSequences);
+			ap.agentID = i;
 
 			Pedestrian a = new Pedestrian(this, ap);
 			MasonGeometry newGeometry = a.getGeometry();
@@ -236,7 +220,7 @@ public class PedSimCity extends SimState {
 		network.generateCentralityMap();
 
 		// Element 2 - Landmarks -
-		if (UserParameters.testingLandmarks || UserParameters.fiveElements ) {
+		if (UserParameters.testingLandmarks) {
 
 			Bag bagLocal = LandmarkNavigation.getLandmarks(buildings, UserParameters.localLandmarkThreshold, "local");
 			for (Object l : bagLocal) {
@@ -289,7 +273,7 @@ public class PedSimCity extends SimState {
 
 
 		// Identify gateways
-		if (UserParameters.testingRegions || UserParameters.fiveElements ) {
+		if (UserParameters.testingRegions) {
 
 			for (NodeGraph node : nodesMap.values()) {
 				node.region = node.masonGeometry.getIntegerAttribute("district");
@@ -341,7 +325,7 @@ public class PedSimCity extends SimState {
 			edge.setID(edgeID);
 			edge.resetDensities();
 
-			if (UserParameters.testingRegions | UserParameters.fiveElements)  {
+			if (UserParameters.testingRegions)  {
 				edge.setBarriers();
 				// add edges to the regions' information
 
@@ -375,7 +359,7 @@ public class PedSimCity extends SimState {
 		}
 
 		// Element 4 - Regions: create regions' subgraphs and store other information about regions (landmarks, barriers)
-		if (UserParameters.testingRegions || UserParameters.fiveElements) {
+		if (UserParameters.testingRegions) {
 
 			for (Entry<Integer, Region> entry : regionsMap.entrySet()) {
 
@@ -399,18 +383,6 @@ public class PedSimCity extends SimState {
 				primalGraph.setSubGraphBarriers();
 				regionsMap.get(entry.getKey()).primalGraph = primalGraph;
 				regionsMap.get(entry.getKey()).dualGraph = dualGraph;
-
-				// set the landmarks of this region
-				if (UserParameters.fiveElements) {
-					primalGraph.setSubGraphLandmarks();
-					VectorLayer regionNetwork = new VectorLayer();
-					for (EdgeGraph edge : edgesRegion) regionNetwork.addGeometry(edge.masonGeometry);
-					regionsMap.get(entry.getKey()).regionNetwork = regionNetwork;
-					Bag buildings = LandmarkNavigation.getBuildings(null, null, entry.getKey());
-					regionsMap.get(entry.getKey()).buildings = buildings;
-					regionsMap.get(entry.getKey()).assignLandmarks();
-					regionsMap.get(entry.getKey()).computeComplexity("local");
-				}
 			}
 
 			// Element 5 - Barriers: create barriers map
@@ -429,23 +401,4 @@ public class PedSimCity extends SimState {
 		}
 		System.out.println("Creation environment completed");
 	}
-
-	public void prepareGroups() {
-
-
-		List<Double> composition = Arrays.asList(UserParameters.composition);
-		int accumulated = 0;
-		for (double p : composition) {
-
-			int indexOf = composition.indexOf(p);
-			Group group = new Group();
-			group.configureGroup(indexOf);
-			groups.add(group);
-			accumulated += (int) (numAgents*p);
-			if (indexOf == 0) groupBounds.add((int) (numAgents*p));
-			else groupBounds.add(accumulated);
-		}
-		if (groupBounds.get(groupBounds.size() - 1) == numAgents) groupBounds.set(groupBounds.size() - 1, numAgents);
-	}
-
 }
