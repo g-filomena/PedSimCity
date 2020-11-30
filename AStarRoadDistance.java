@@ -16,8 +16,8 @@ import java.util.List;
 import sim.app.geo.urbanSim.EdgeGraph;
 import sim.app.geo.urbanSim.NodeGraph;
 import sim.app.geo.urbanSim.NodeWrapper;
+import sim.app.geo.urbanSim.Path;
 import sim.app.geo.urbanSim.Utilities;
-import sim.app.geo.urbanSim.Utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class AStarRoadDistance
@@ -95,17 +95,17 @@ public class AStarRoadDistance
 				if (barrierBasedNavigation) {
 					List<Integer> positiveBarriers = commonEdge.positiveBarriers;
 					List<Integer> negativeBarriers = commonEdge.negativeBarriers;
-					if (positiveBarriers != null) error = Utilities.fromNormalDistribution(0.70, 0.10, "left");
-					else if (negativeBarriers != null) error = Utilities.fromNormalDistribution(1.30, 0.10, "right");
-					else error = Utilities.fromNormalDistribution(1, 0.10, null);
+					if (positiveBarriers != null) error = Utilities.fromDistribution(0.70, 0.10, "left");
+					else if (negativeBarriers != null) error = Utilities.fromDistribution(1.30, 0.10, "right");
+					else error = Utilities.fromDistribution(1, 0.10, null);
 				}
-				else error = Utilities.fromNormalDistribution(1, 0.10, null);
+				else error = Utilities.fromDistribution(1, 0.10, null);
 				double tentativeCost = currentNodeWrapper.gx + commonEdge.getLength()*error;
 				boolean better = false;
 
 				if (!openSet.contains(nextNodeWrapper)) {
 					openSet.add(nextNodeWrapper);
-					nextNodeWrapper.hx = Utilities.nodesDistance(targetNode, destinationNode);
+					nextNodeWrapper.hx = NodeGraph.nodesDistance(targetNode, destinationNode);
 					better = true;
 				}
 				else if (tentativeCost < nextNodeWrapper.gx) better = true;

@@ -15,9 +15,9 @@ import java.util.List;
 import sim.app.geo.urbanSim.EdgeGraph;
 import sim.app.geo.urbanSim.NodeGraph;
 import sim.app.geo.urbanSim.NodeWrapper;
+import sim.app.geo.urbanSim.Path;
 import sim.app.geo.urbanSim.SubGraph;
 import sim.app.geo.urbanSim.Utilities;
-import sim.app.geo.urbanSim.Utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 
@@ -32,8 +32,12 @@ public class DijkstraRoadDistance {
 	SubGraph graph = new SubGraph();
 
 	// it contemplates an attempt where navigation takes place by the convex-hull method (see below).
+<<<<<<< Updated upstream
 	boolean subGraph = true;
 
+=======
+	boolean subGraph = UserParameters.subGraph;
+>>>>>>> Stashed changes
 	AgentProperties ap = new AgentProperties();
 	/**
 	 * @param originNode the origin node (it may be a sequence intermediate origin node, e.g. in landmark navigation);
@@ -99,12 +103,16 @@ public class DijkstraRoadDistance {
 	}
 
 	void findMinDistances(NodeGraph currentNode) {
-		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
+		ArrayList<NodeGraph> adjacentNodes = currentNode.adjacentNodes;
 		for (NodeGraph targetNode : adjacentNodes) {
 
 			if (visitedNodes.contains(targetNode)) continue;
+<<<<<<< Updated upstream
 
 			EdgeGraph commonEdge = currentNode.getEdgeBetween(targetNode);
+=======
+			EdgeGraph commonEdge = currentNode.getEdgeWith(targetNode);
+>>>>>>> Stashed changes
 			GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);
 
 			if (segmentsToAvoid == null);
@@ -116,11 +124,11 @@ public class DijkstraRoadDistance {
 			if (barrierBasedNavigation) {
 				List<Integer> positiveBarriers = commonEdge.positiveBarriers;
 				List<Integer> negativeBarriers = commonEdge.negativeBarriers;
-				if (positiveBarriers != null) error = Utilities.fromNormalDistribution(0.70, 0.10, "left");
-				else if (negativeBarriers != null) error = Utilities.fromNormalDistribution(1.30, 0.10, "right");
-				else error = Utilities.fromNormalDistribution(1, 0.10, null);
+				if (positiveBarriers != null) error = Utilities.fromDistribution(0.70, 0.10, "left");
+				else if (negativeBarriers != null) error = Utilities.fromDistribution(1.30, 0.10, "right");
+				else error = Utilities.fromDistribution(1, 0.10, null);
 			}
-			else error = Utilities.fromNormalDistribution(1, 0.10, null);
+			else error = Utilities.fromDistribution(1, 0.10, null);
 			double edgeCost = commonEdge.getLength()*error;
 
 			double tentativeCost = 0.0;

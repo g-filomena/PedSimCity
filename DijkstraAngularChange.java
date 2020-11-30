@@ -16,9 +16,9 @@ import java.util.List;
 import sim.app.geo.urbanSim.EdgeGraph;
 import sim.app.geo.urbanSim.NodeGraph;
 import sim.app.geo.urbanSim.NodeWrapper;
+import sim.app.geo.urbanSim.Path;
 import sim.app.geo.urbanSim.SubGraph;
 import sim.app.geo.urbanSim.Utilities;
-import sim.app.geo.urbanSim.Utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraAngularChange {
@@ -29,7 +29,7 @@ public class DijkstraAngularChange {
 	HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 	SubGraph graph = new SubGraph();
 	// it contemplates an attempt where navigation takes place by the convex-hull method (see below).
-	boolean subGraph = true;
+	boolean subGraph = UserParameters.subGraph;
 
 	AgentProperties ap = new AgentProperties();
 
@@ -72,8 +72,13 @@ public class DijkstraAngularChange {
 			// primalJunction is always the same;
 		}
 
+<<<<<<< Updated upstream
 		else if (subGraph == true) {
 			// create graph from convex hull
+=======
+		// create graph from convex hull
+		else if (subGraph) {
+>>>>>>> Stashed changes
 			ArrayList<EdgeGraph> containedEdges = PedSimCity.dualNetwork.edgesWithinSpace(originNode, destinationNode);
 			graph = new SubGraph(PedSimCity.dualNetwork, containedEdges);
 			originNode = graph.findNode(originNode.getCoordinate());
@@ -105,7 +110,8 @@ public class DijkstraAngularChange {
 
 	private void findMinDistances(NodeGraph currentNode) {
 
-		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
+		ArrayList<NodeGraph> adjacentNodes = currentNode.adjacentNodes;
+
 		for (NodeGraph targetNode : adjacentNodes) {
 			if (visitedNodes.contains(targetNode)) continue;
 
@@ -114,10 +120,10 @@ public class DijkstraAngularChange {
 			 * its previous centroid --> if yes move on. This essential means that the in the primal graph you would go back to an
 			 * already traversed node; but the dual graph wouldn't know.
 			 */
-			if (Utilities.commonPrimalJunction(targetNode, currentNode) == mapWrappers.get(currentNode).commonPrimalJunction)
+			if (Path.commonPrimalJunction(targetNode, currentNode) == mapWrappers.get(currentNode).commonPrimalJunction)
 				continue;
 
-			EdgeGraph commonEdge = currentNode.getEdgeBetween(targetNode);
+			EdgeGraph commonEdge = currentNode.getEdgeWith(targetNode);
 
 			// compute costs based on the navigation strategies.
 			// compute errors in perception of road coasts with stochastic variables
@@ -125,16 +131,17 @@ public class DijkstraAngularChange {
 			if (barrierBasedNavigation) {
 				List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
 				List<Integer> negativeBarriers = targetNode.primalEdge.negativeBarriers;
-				if (positiveBarriers != null) error = Utilities.fromNormalDistribution(0.70, 0.10, "left");
-				else if ((negativeBarriers != null) && (positiveBarriers == null)) error = Utilities.fromNormalDistribution(1.30, 0.10, "right");
-				else error = Utilities.fromNormalDistribution(1, 0.10, null);
+				if (positiveBarriers != null) error = Utilities.fromDistribution(0.70, 0.10, "left");
+				else if ((negativeBarriers != null) && (positiveBarriers == null)) error = Utilities.fromDistribution(1.30, 0.10, "right");
+				else error = Utilities.fromDistribution(1, 0.10, null);
 			}
-			else error = Utilities.fromNormalDistribution(1, 0.10, null);
-			double edgeCost = commonEdge.getDeflectionAngle() * error;
+			else error = Utilities.fromDistribution(1, 0.10, null);
+			double edgeCost = commonEdge.getDeflectionAngle() * 1;
+			System.out.println(edgeCost);
 			if (edgeCost > 180) edgeCost = 180;
 			if (edgeCost < 0) edgeCost = 0;
 
-			GeomPlanarGraphDirectedEdge outEdge = currentNode.getDirectedEdgeBetween(targetNode);
+			GeomPlanarGraphDirectedEdge outEdge = currentNode.getDirectedEdgeWith(targetNode);
 
 			double tentativeCost;
 
@@ -155,7 +162,7 @@ public class DijkstraAngularChange {
 				if (NodeWrapper == null) NodeWrapper = new NodeWrapper(targetNode);
 				NodeWrapper.nodeFrom = currentNode;
 				NodeWrapper.edgeFrom = outEdge;
-				NodeWrapper.commonPrimalJunction = Utilities.commonPrimalJunction(currentNode, targetNode);
+				NodeWrapper.commonPrimalJunction = Path.commonPrimalJunction(currentNode, targetNode);
 				NodeWrapper.gx = tentativeCost;
 				mapWrappers.put(targetNode, NodeWrapper);
 				unvisitedNodes.add(targetNode);

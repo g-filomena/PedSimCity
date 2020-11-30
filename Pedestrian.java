@@ -61,8 +61,12 @@ public final class Pedestrian implements Steppable {
 	public Pedestrian(PedSimCity state, AgentProperties ap) {
 		this.ap = ap;
 		this.state = state;
+<<<<<<< Updated upstream
 
 		NodeGraph originNode = (NodeGraph) ap.OD.get(numTrips).getValue(0);
+=======
+		originNode = (NodeGraph) ap.OD.get(numTrips).getValue(0);
+>>>>>>> Stashed changes
 
 		GeometryFactory fact = new GeometryFactory();
 		agentLocation = new MasonGeometry(fact.createPoint(new Coordinate(10, 10)));
@@ -73,6 +77,7 @@ public final class Pedestrian implements Steppable {
 
 
 	public void findNewAStarPath(PedSimCity state) {
+<<<<<<< Updated upstream
 
 		ArrayList<GeomPlanarGraphDirectedEdge> newPath = null;
 
@@ -88,12 +93,17 @@ public final class Pedestrian implements Steppable {
 		else if (ap.criteria == "roadDistanceBarriers" || ap.criteria == "angularChangeBarriers")
 			newPath = planner.barrierBasedPath(originNode, destinationNode, ap);
 		else newPath = planner.regionBarrierBasedPath(originNode, destinationNode, ap);
+=======
+		System.out.println(originNode.getID() + "  "+ destinationNode.getID()+ " "+ap.routeChoice);
+		selectrouteChoice();
+>>>>>>> Stashed changes
 
 		RouteData route = new RouteData();
 		route.origin = originNode.getID();
 		route.destination = destinationNode.getID();
-		route.criteria = ap.criteria;
+		route.routeChoice = ap.routeChoice;
 		List<Integer> sequenceEdges = new ArrayList<Integer>();
+		route.routeID = numTrips;
 
 
 		for (GeomPlanarGraphDirectedEdge o : newPath) {
@@ -129,8 +139,13 @@ public final class Pedestrian implements Steppable {
 	{
 		PedSimCity stateSchedule = (PedSimCity) state;
 		// check that we've been placed on an Edge  //check that we haven't already reached our destination
+<<<<<<< Updated upstream
 		if (reachedDestination || destinationNode == null) {
 
+=======
+
+		if (reachedDestination || destinationNode == null) {
+>>>>>>> Stashed changes
 			if (reachedDestination)	reachedDestination = false;
 			if (numTrips == ap.OD.size()) {
 				stateSchedule.agentsList.remove(this);
@@ -141,13 +156,17 @@ public final class Pedestrian implements Steppable {
 				killAgent.stop();
 				return;
 			}
+<<<<<<< Updated upstream
 
 			//	repositionAgent();
+=======
+>>>>>>> Stashed changes
 			originNode = (NodeGraph) ap.OD.get(numTrips).getValue(0);
 			updatePosition(originNode.getCoordinate());
 			destinationNode = (NodeGraph) ap.OD.get(numTrips).getValue(1);
 			findNewAStarPath(stateSchedule);
 			return;
+<<<<<<< Updated upstream
 		}
 
 		// move along the current segment
@@ -172,6 +191,11 @@ public final class Pedestrian implements Steppable {
 			Coordinate currentPos = segment.extractPoint(currentIndex);
 			updatePosition(currentPos);
 		}
+=======
+		}
+
+		keepWalking();
+>>>>>>> Stashed changes
 	}
 
 	/**
@@ -244,6 +268,7 @@ public final class Pedestrian implements Steppable {
 	}
 
 	void updateEdgeData(EdgeGraph edge) {
+<<<<<<< Updated upstream
 		if (ap.criteria == "roadDistance") edge.roadDistance += 1;
 		else if (ap.criteria == "angularChange") edge.angularChange += 1;
 		else if (ap.criteria == "topological") edge.topological += 1;
@@ -257,6 +282,21 @@ public final class Pedestrian implements Steppable {
 		else if (ap.criteria == "angularChangeBarriers") edge.angularChangeBarriers += 1;
 		else if (ap.criteria == "roadDistanceRegionsBarriers") edge.roadDistanceRegionsBarriers += 1;
 		else if (ap.criteria == "angularChangeRegionsBarriers") edge.angularChangeRegionsBarriers += 1;
+=======
+		edge = PedSimCity.edgesMap.get(edge.getID()); //in case it was a subgraph edge
+		if (ap.routeChoice.equals("roadDistance")) edge.roadDistance += 1;
+		else if (ap.routeChoice.equals("angularChange")) edge.angularChangeLandmarks += 1;
+		else if (ap.routeChoice.equals("roadDistanceLandmarks")) edge.roadDistanceLandmarks += 1;
+		else if (ap.routeChoice.equals("angularChangeLandmarks")) edge.angularChangeLandmarks += 1;
+		else if (ap.routeChoice.equals("localLandmarks")) edge.localLandmarks += 1;
+		else if (ap.routeChoice.equals("globalLandmarks")) edge.globalLandmarks += 1;
+		else if (ap.routeChoice.contains("roadDistanceRegions")) edge.roadDistanceRegions += 1;
+		else if (ap.routeChoice.contains("angularChangeRegions")) edge.angularChangeRegions += 1;
+		else if (ap.routeChoice.contains("roadDistanceBarriers")) edge.roadDistanceBarriers += 1;
+		else if (ap.routeChoice.contains("angularChangeBarriers")) edge.angularChangeBarriers += 1;
+		else if (ap.routeChoice.contains("roadDistanceRegionsBarriers")) edge.roadDistanceRegionsBarriers += 1;
+		else if (ap.routeChoice.contains("angularChangeRegionsBarriers")) edge.angularChangeRegionsBarriers += 1;
+>>>>>>> Stashed changes
 	}
 
 	public void setStoppable(Stoppable a) {killAgent = a;}
@@ -265,5 +305,63 @@ public final class Pedestrian implements Steppable {
 	/** return geometry representing agent location */
 	public MasonGeometry getGeometry() {return agentLocation;}
 
+<<<<<<< Updated upstream
 
+=======
+	public void selectrouteChoice()
+	{
+		if (UserParameters.testingLandmarks) this.sequence = ap.listSequences.get(numTrips);
+		RoutePlanner planner = new RoutePlanner();
+
+		if (ap.routeChoice.equals("roadDistance"))	newPath = planner.roadDistance(originNode, destinationNode, ap);
+		else if (ap.routeChoice.equals("angularChange")) newPath = planner.angularChangeBased(originNode, destinationNode, ap);
+		else if (ap.routeChoice.equals("roadDistanceLandmarks")) newPath = planner.roadDistanceSequence(sequence, ap);
+		else if (ap.routeChoice.equals("angularChangeLandmarks")) newPath = planner.angularChangeBasedSequence(sequence, ap);
+		else if (ap.routeChoice.equals("localLandmarks")) newPath = planner.roadDistanceSequence(sequence, ap);
+		else if (ap.routeChoice.equals("globalLandmarks")) newPath = planner.globalLandmarksPath(originNode, destinationNode, ap);
+		else if (ap.routeChoice.contains("Regions")) newPath = planner.regionBarrierBasedPath(originNode, destinationNode, ap);
+		else if (ap.routeChoice.contains("Barriers")) newPath= planner.barrierBasedPath(originNode, destinationNode, ap);
+	}
+
+
+	double progress(double val)
+	{
+		//        double traffic = world.edgeTraffic.get(currentEdge).size();
+		//        double factor = 1000 * edgeLength / (traffic * 5);
+		double edgeLength = currentEdge.getLine().getLength();
+		double factor = 1000 * edgeLength;
+		factor = Math.min(1, factor);
+
+		return val * linkDirection * factor;
+	}
+
+
+	public void keepWalking() {
+
+		// move along the current segment
+		speed = progress(moveRate);
+		// speed = socialBasedProgress(moveRate);
+		currentIndex += speed;
+		//		currentIndex += moveRate;
+		// check to see if the progress has taken the current index beyond its goal
+		// given the direction of movement. If so, proceed to the next edge
+		if (linkDirection == 1 && currentIndex > endIndex) {
+			Coordinate currentPos = segment.extractPoint(endIndex);
+			updatePosition(currentPos);
+			transitionToNextEdge(currentIndex - endIndex);
+		}
+		else if (linkDirection == -1 && currentIndex < startIndex) {
+			Coordinate currentPos = segment.extractPoint(startIndex);
+			updatePosition(currentPos);
+			transitionToNextEdge(startIndex - currentIndex);
+		}
+		else {
+			// just update the position!
+			Coordinate currentPos = segment.extractPoint(currentIndex);
+			updatePosition(currentPos);
+		}
+	}
+
+
+>>>>>>> Stashed changes
 }

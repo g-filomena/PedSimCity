@@ -8,8 +8,7 @@ import java.util.ArrayList;
 
 import sim.app.geo.urbanSim.EdgeGraph;
 import sim.app.geo.urbanSim.NodeGraph;
-import sim.app.geo.urbanSim.Utilities;
-import sim.app.geo.urbanSim.Utilities.Path;
+import sim.app.geo.urbanSim.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class RoutePlanner {
@@ -39,6 +38,11 @@ public class RoutePlanner {
 	public ArrayList<GeomPlanarGraphDirectedEdge> roadDistance(NodeGraph originNode, NodeGraph destinationNode,
 			ArrayList <GeomPlanarGraphDirectedEdge> segmentsToAvoid,  AgentProperties ap) {
 
+<<<<<<< Updated upstream
+=======
+		this.ap = ap;
+
+>>>>>>> Stashed changes
 		if (ap.algorithm == "astar") {
 			AStarRoadDistance pathfinder = new AStarRoadDistance();
 			path = pathfinder.astarPath(originNode, destinationNode, segmentsToAvoid, ap);
@@ -70,14 +74,14 @@ public class RoutePlanner {
 
 			moveOn = false;
 			// check if this tmpDestination has been traversed already
-			if (Utilities.nodesFromPath(completePath).contains(tmpDestination)) {
+			if (Path.nodesFromPath(completePath).contains(tmpDestination)) {
 				controlPath(tmpDestination);
 				tmpOrigin = tmpDestination;
 				continue;
 			}
 
 			// check if edge in between
-			GeomPlanarGraphDirectedEdge edge = tmpOrigin.getDirectedEdgeBetween(tmpDestination);
+			GeomPlanarGraphDirectedEdge edge = tmpOrigin.getDirectedEdgeWith(tmpDestination);
 			if (edge != null) {
 				if (!completePath.contains(edge)) completePath.add(edge);
 				tmpOrigin = tmpDestination;
@@ -162,14 +166,22 @@ public class RoutePlanner {
 
 		NodeGraph dualOrigin = originNode.getDualNode(originNode, destinationNode, regionBasedNavigation, previousJunction);
 		NodeGraph dualDestination = null;
+<<<<<<< Updated upstream
 
 		while (dualDestination == dualOrigin || dualDestination == null) dualDestination = destinationNode.getDualNode(
 				originNode, destinationNode, regionBasedNavigation, previousJunction);
 
 		if (Utilities.commonPrimalJunction(dualOrigin, dualDestination) != null) {
+=======
+		this.ap = ap;
+		previousJunction = originNode;
+		while (dualDestination == dualOrigin || dualDestination == null) dualDestination = destinationNode.getDualNode(
+				originNode, destinationNode, ap.regionBasedNavigation, previousJunction);
+		if (Path.commonPrimalJunction(dualOrigin, dualDestination) != null) {
+>>>>>>> Stashed changes
 			ArrayList<GeomPlanarGraphDirectedEdge> edges = new ArrayList<GeomPlanarGraphDirectedEdge>();
-			edges.add(originNode.getDirectedEdgeBetween(Utilities.commonPrimalJunction(dualOrigin, dualDestination)));
-			edges.add(Utilities.commonPrimalJunction(dualOrigin, dualDestination).getDirectedEdgeBetween(destinationNode));
+			edges.add(originNode.getDirectedEdgeWith(Path.commonPrimalJunction(dualOrigin, dualDestination)));
+			edges.add(Path.commonPrimalJunction(dualOrigin, dualDestination).getDirectedEdgeWith(destinationNode));
 			return edges;
 		}
 
@@ -177,11 +189,14 @@ public class RoutePlanner {
 			AStarAngularChange pathfinder = new AStarAngularChange();
 			path = pathfinder.astarPath(dualOrigin, dualDestination, centroidsToAvoid, previousJunction, ap);
 		}
+<<<<<<< Updated upstream
 		else {
 			DijkstraAngularChange pathfinder = new DijkstraAngularChange();
 			path = pathfinder.dijkstraPath(dualOrigin, dualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
 
 		}
+=======
+>>>>>>> Stashed changes
 
 		cleanDualPath(originNode, destinationNode);
 		return path.edges;
@@ -208,18 +223,18 @@ public class RoutePlanner {
 			// check if this tmpDestination has been traversed already
 			moveOn = false;
 			if (tmpOrigin != originNode) {
-				previousJunction = Utilities.previousJunction(completePath);
-				centroidsToAvoid = Utilities.centroidsFromPath(completePath);
+				previousJunction = Path.previousJunction(completePath);
+				centroidsToAvoid = Path.centroidsFromPath(completePath);
 			}
 
-			if (Utilities.nodesFromPath(completePath).contains(tmpDestination)) {
+			if (Path.nodesFromPath(completePath).contains(tmpDestination)) {
 				controlPath(tmpDestination);
 				tmpOrigin = tmpDestination;
 				continue;
 			}
 
 			// check if edge in between
-			GeomPlanarGraphDirectedEdge edge = tmpOrigin.getDirectedEdgeBetween(tmpDestination);
+			GeomPlanarGraphDirectedEdge edge = tmpOrigin.getDirectedEdgeWith(tmpDestination);
 			if (edge != null) {
 				if (!completePath.contains(edge)) completePath.add(edge);
 				tmpOrigin = tmpDestination;
@@ -234,8 +249,8 @@ public class RoutePlanner {
 				completePath.remove(completePath.size()-1);
 				centroidsToAvoid.remove(centroidsToAvoid.size()-1);
 				// take new previous junction
-				previousJunction = Utilities.previousJunction(completePath);
-				edge = tmpOrigin.getDirectedEdgeBetween(tmpDestination);
+				previousJunction = Path.previousJunction(completePath);
+				edge = tmpOrigin.getDirectedEdgeWith(tmpDestination);
 				if (edge != null) {
 					if (!completePath.contains(edge)) completePath.add(edge);
 					tmpOrigin = tmpDestination;
@@ -250,15 +265,22 @@ public class RoutePlanner {
 					tmpOrigin, tmpDestination, regionBasedNavigation, previousJunction);
 
 			// check if just one node separates them
-			if (Utilities.commonPrimalJunction(tmpDualOrigin, tmpDualDestination) != null) {
-				completePath.add(tmpOrigin.getDirectedEdgeBetween(Utilities.commonPrimalJunction(tmpDualOrigin, tmpDualDestination)));
-				completePath.add(Utilities.commonPrimalJunction(tmpDualOrigin, tmpDualDestination).getDirectedEdgeBetween(tmpDestination));
+			if (Path.commonPrimalJunction(tmpDualOrigin, tmpDualDestination) != null) {
+				completePath.add(tmpOrigin.getDirectedEdgeWith(Path.commonPrimalJunction(tmpDualOrigin, tmpDualDestination)));
+				completePath.add(Path.commonPrimalJunction(tmpDualOrigin, tmpDualDestination).getDirectedEdgeWith(tmpDestination));
 				tmpOrigin = tmpDestination;
 				continue;
 			}
 
+<<<<<<< Updated upstream
 			DijkstraAngularChange pathFinder = new DijkstraAngularChange();
 			path = pathFinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
+=======
+			if (ap.localHeuristic == "angularChange") {
+				DijkstraAngularChange pathfinder = new DijkstraAngularChange();
+				path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
+			}
+>>>>>>> Stashed changes
 
 			while (path.edges == null && !moveOn) backtrackingDual(tmpDualOrigin, tmpDualDestination, tmpDestination);
 			if (path.edges == null) continue;
@@ -299,14 +321,14 @@ public class RoutePlanner {
 			}
 
 			// check if this tmpDestination has been traversed already
-			if (Utilities.nodesFromPath(completePath).contains(tmpDestination)) {
+			if (Path.nodesFromPath(completePath).contains(tmpDestination)) {
 				controlPath(tmpDestination);
 				tmpOrigin = tmpDestination;
 				continue;
 			}
 
 			// check if edge in between
-			GeomPlanarGraphDirectedEdge edge = tmpOrigin.getDirectedEdgeBetween(tmpDestination);
+			GeomPlanarGraphDirectedEdge edge = tmpOrigin.getDirectedEdgeWith(tmpDestination);
 			if (edge != null) {
 				if (!completePath.contains(edge)) completePath.add(edge);
 				tmpOrigin = tmpDestination;
@@ -421,7 +443,7 @@ public class RoutePlanner {
 		completePath.remove(completePath.size()-1);
 
 		// check if there's a segment between the new tmpOrigin and the destination
-		GeomPlanarGraphDirectedEdge edge = tmpOrigin.getDirectedEdgeBetween(tmpDestination);
+		GeomPlanarGraphDirectedEdge edge = tmpOrigin.getDirectedEdgeWith(tmpDestination);
 		if (edge != null) {
 			if (!completePath.contains(edge)) completePath.add(edge);
 			moveOn = true;
@@ -464,9 +486,9 @@ public class RoutePlanner {
 		completePath.remove(completePath.size()-1);
 		centroidsToAvoid.remove(centroidsToAvoid.size()-1);
 		// take new previous junction
-		previousJunction = Utilities.previousJunction(completePath);
+		previousJunction = Path.previousJunction(completePath);
 		// check if there's a segment between the new tmpOrigin and the destination
-		GeomPlanarGraphDirectedEdge edge = tmpOrigin.getDirectedEdgeBetween(tmpDestination);
+		GeomPlanarGraphDirectedEdge edge = tmpOrigin.getDirectedEdgeWith(tmpDestination);
 
 		if (edge != null) {
 			if (!completePath.contains(edge)) completePath.add(edge);
@@ -479,10 +501,13 @@ public class RoutePlanner {
 			DijkstraAngularChange pathFinder = new DijkstraAngularChange();
 			path = pathFinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode,	centroidsToAvoid, previousJunction, ap);
 		}
+<<<<<<< Updated upstream
 		else {
 			DijkstraAngularChange pathFinder = new DijkstraAngularChange();
 			path = pathFinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
 		}
+=======
+>>>>>>> Stashed changes
 	}
 
 	/**
@@ -498,7 +523,7 @@ public class RoutePlanner {
 			if (e.getToNode() == destinationNode) {
 				int lastIndex = completePath.indexOf(e);
 				completePath = new ArrayList<GeomPlanarGraphDirectedEdge>(completePath.subList(0, lastIndex+1));
-				if (Utilities.previousJunction(completePath) == destinationNode) completePath.remove(completePath.size()-1);
+				if (Path.previousJunction(completePath) == destinationNode) completePath.remove(completePath.size()-1);
 				return;
 			}
 		}
@@ -516,9 +541,9 @@ public class RoutePlanner {
 	private void cleanDualPath(NodeGraph originNode, NodeGraph destinationNode)
 	{
 		// check if the path is one edge ahead
-		if (Utilities.previousJunction(path.edges) == destinationNode) path.edges.remove(path.edges.size()-1);
+		if (Path.previousJunction(path.edges) == destinationNode) path.edges.remove(path.edges.size()-1);
 		// check presence of a unnecessary edge at the beginning of the path
-		if (Utilities.commonPrimalJunction(((EdgeGraph) path.edges.get(0).getEdge()).dualNode,
+		if (Path.commonPrimalJunction(((EdgeGraph) path.edges.get(0).getEdge()).dualNode,
 				((EdgeGraph) path.edges.get(1).getEdge()).dualNode) == originNode) path.edges.remove(0);
 		checkSequenceEdges(originNode, destinationNode);
 	}
@@ -539,12 +564,11 @@ public class RoutePlanner {
 			// need to swap
 			if (nextNode == previousNode) {
 				nextNode = (NodeGraph) edge.getFromNode();
-				GeomPlanarGraphDirectedEdge correctEdge = previousNode.getDirectedEdgeBetween(nextNode);
+				GeomPlanarGraphDirectedEdge correctEdge = previousNode.getDirectedEdgeWith(nextNode);
 				path.edges.set(path.edges.indexOf(edge), correctEdge);
 			}
 			previousNode = nextNode;
 		}
 	}
-
 }
 

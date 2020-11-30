@@ -11,6 +11,7 @@ public class RouteData {
 
 	Integer origin;
 	Integer destination;
-	String criteria;
+	String routeChoice;
 	List<Integer> sequenceEdges;
+	int routeID;
 }

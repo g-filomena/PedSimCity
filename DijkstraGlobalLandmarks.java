@@ -13,7 +13,12 @@ import java.util.HashMap;
 import sim.app.geo.urbanSim.EdgeGraph;
 import sim.app.geo.urbanSim.NodeGraph;
 import sim.app.geo.urbanSim.NodeWrapper;
+<<<<<<< Updated upstream
 import sim.app.geo.urbanSim.Utilities.Path;
+=======
+import sim.app.geo.urbanSim.Path;
+import sim.app.geo.urbanSim.SubGraph;
+>>>>>>> Stashed changes
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraGlobalLandmarks {
@@ -64,11 +69,11 @@ public class DijkstraGlobalLandmarks {
 
 	void findMinDistances(NodeGraph currentNode)
 	{
-		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
+		ArrayList<NodeGraph> adjacentNodes = currentNode.adjacentNodes;
 		for (NodeGraph targetNode : adjacentNodes) {
 			if (visitedNodes.contains(targetNode)) continue;
 
-			EdgeGraph commonEdge = currentNode.getEdgeBetween(targetNode);
+			EdgeGraph commonEdge = currentNode.getEdgeWith(targetNode);
 			GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);
 
 			if (segmentsToAvoid == null);

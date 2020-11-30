@@ -17,8 +17,8 @@ import java.util.List;
 import sim.app.geo.urbanSim.EdgeGraph;
 import sim.app.geo.urbanSim.NodeGraph;
 import sim.app.geo.urbanSim.NodeWrapper;
+import sim.app.geo.urbanSim.Path;
 import sim.app.geo.urbanSim.Utilities;
-import sim.app.geo.urbanSim.Utilities.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class AStarAngularChange {
@@ -97,7 +97,7 @@ public class AStarAngularChange {
 				 * its previous centroid --> if yes move on. This essential means that the in the primal graph you would go back to an
 				 * already traversed node; but the dual graph wouldn't know.
 				 */
-				if (Utilities.commonPrimalJunction(targetNode, currentNode) == currentNodeWrapper.commonPrimalJunction) continue;
+				if (Path.commonPrimalJunction(targetNode, currentNode) == currentNodeWrapper.commonPrimalJunction) continue;
 
 				NodeWrapper nextNodeWrapper;
 				if (mapWrappers.containsKey(targetNode)) nextNodeWrapper = mapWrappers.get(targetNode);
@@ -114,11 +114,11 @@ public class AStarAngularChange {
 				if (barrierBasedNavigation) {
 					List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
 					List<Integer> negativeBarriers = targetNode.primalEdge.negativeBarriers;
-					if (positiveBarriers != null) error = Utilities.fromNormalDistribution(0.70, 0.10, "left");
-					else if (negativeBarriers != null) error = Utilities.fromNormalDistribution(1.30, 0.10, "right");
-					else error = Utilities.fromNormalDistribution(1, 0.10, null);
+					if (positiveBarriers != null) error = Utilities.fromDistribution(0.70, 0.10, "left");
+					else if (negativeBarriers != null) error = Utilities.fromDistribution(1.30, 0.10, "right");
+					else error = Utilities.fromDistribution(1, 0.10, null);
 				}
-				else error = Utilities.fromNormalDistribution(1, 0.10, null);
+				else error = Utilities.fromDistribution(1, 0.10, null);
 
 				double edgeCost = commonEdge.getDeflectionAngle() * error;
 				if (edgeCost > 180) edgeCost = 180;
@@ -139,7 +139,7 @@ public class AStarAngularChange {
 					nextNodeWrapper.edgeFrom = outEdge;
 					nextNodeWrapper.gx = tentativeCost;
 					nextNodeWrapper.fx = nextNodeWrapper.gx + nextNodeWrapper.hx;
-					nextNodeWrapper.commonPrimalJunction = Utilities.commonPrimalJunction(targetNode, currentNode);
+					nextNodeWrapper.commonPrimalJunction = Path.commonPrimalJunction(targetNode, currentNode);
 				}
 			}
 		}
