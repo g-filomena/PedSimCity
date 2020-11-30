@@ -47,8 +47,9 @@ public class ImportingExporting {
 			}
 		}
 		else if (UserParameters.testingRegions) inputDataDirectory = "districtsData/"+UserParameters.cityName+"/";
+		else if (UserParameters.fiveElements) inputDataDirectory = "data/"+UserParameters.cityName+"/";
 		else if (UserParameters.testingSpecificRoutes) inputDataDirectory = "data/"+UserParameters.cityName+"/";
-		if (UserParameters.testingLandmarks) {
+		if (UserParameters.testingLandmarks  || UserParameters.fiveElements) {
 			// read buildings
 			System.out.println("reading buildings and sight lines layers");
 			URL landmarksFile = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_landmarks.shp");
@@ -60,7 +61,7 @@ public class ImportingExporting {
 			PedSimCity.buildings.setID("buildingID");
 		}
 
-		if (UserParameters.testingRegions) {
+		if (UserParameters.testingRegions || UserParameters.fiveElements) {
 
 			System.out.println("reading barriers layer");
 			URL barriersFile = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_barriers.shp");

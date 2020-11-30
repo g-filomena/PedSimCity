@@ -5,25 +5,25 @@ import java.util.ArrayList;
 import sim.app.geo.urbanSim.EdgeGraph;
 import sim.app.geo.urbanSim.SubGraph;
 import sim.app.geo.urbanSim.VectorLayer;
-import sim.util.geo.MasonGeometry;
+import sim.util.Bag;
 
 
 /**
  * To store information about regions.
  *
  */
-public class RegionData {
+public class Region {
 
-	SubGraph primalGraph;
-	SubGraph dualGraph;
-	VectorLayer regionNetwork;
+	public SubGraph primalGraph;
+	public SubGraph dualGraph;
+	public VectorLayer regionNetwork;
 	double buildingsComplexity;
 
-	ArrayList<EdgeGraph> edgesMap = new ArrayList<EdgeGraph>();
-	ArrayList<GatewayData> gateways = new ArrayList<GatewayData>();
-	ArrayList<MasonGeometry> buildings = new  ArrayList<MasonGeometry>();
-	ArrayList<MasonGeometry> localLandmarks = new  ArrayList<MasonGeometry>();
-	ArrayList<MasonGeometry> globalLandmarks = new ArrayList<MasonGeometry>();
+	public ArrayList<EdgeGraph> edges = new ArrayList<EdgeGraph>();
+	public ArrayList<Gateway> gateways = new ArrayList<Gateway>();
+	public Bag buildings = new  Bag();
+	public Bag localLandmarks = new  Bag();
+	public Bag globalLandmarks = new Bag();
 
 	/**
 	 * Assign landmarks to this region.
@@ -31,8 +31,8 @@ public class RegionData {
 
 	public void assignLandmarks()
 	{
-		this.globalLandmarks = LandmarkNavigation.getLandmarks(this.buildings, ResearchParameters.globalLandmarkThreshold, "global");
-		this.localLandmarks = LandmarkNavigation.getLandmarks(this.buildings, ResearchParameters.localLandmarkThreshold, "local");
+		this.globalLandmarks = LandmarkNavigation.getLandmarks(this.buildings, UserParameters.globalLandmarkThreshold, "global");
+		this.localLandmarks = LandmarkNavigation.getLandmarks(this.buildings, UserParameters.localLandmarkThreshold, "local");
 	}
 
 	/**

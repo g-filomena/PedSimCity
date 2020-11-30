@@ -13,65 +13,57 @@ import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class RoutePlanner {
 
-	boolean regionBasedNavigation = false;
-	boolean barrierBasedNavigation = false;
-	boolean landmarkBasedNavigation = false;
 	boolean moveOn = false;
-
 	NodeGraph originNode, destinationNode;
 	NodeGraph previousJunction = null;
 
 	ArrayList<NodeGraph> sequenceNodes = new ArrayList<NodeGraph>();
 	ArrayList<NodeGraph> centroidsToAvoid = new ArrayList<NodeGraph>();
 	ArrayList<GeomPlanarGraphDirectedEdge> completePath =  new ArrayList<GeomPlanarGraphDirectedEdge>();
-	Path path = new Path();
 	AgentProperties ap = new AgentProperties();
+	Path path = new Path();
 
 	/**
 	 * Road-distance based A) Direct O-D road-distance shortest path
 	 *
 	 * @param originNode the origin node;
 	 * @param destinationNode the destination node;
-	 * @param segmentsToAvoid possible segments to avoid (e.g. already traversed in previous iterations);
 	 * @param ap the agent properties;
 	 */
-	public ArrayList<GeomPlanarGraphDirectedEdge> roadDistance(NodeGraph originNode, NodeGraph destinationNode,
-			ArrayList <GeomPlanarGraphDirectedEdge> segmentsToAvoid,  AgentProperties ap) {
+	public ArrayList<GeomPlanarGraphDirectedEdge> roadDistance(NodeGraph originNode, NodeGraph destinationNode,  AgentProperties ap) {
 
-<<<<<<< Updated upstream
-=======
 		this.ap = ap;
 
->>>>>>> Stashed changes
 		if (ap.algorithm == "astar") {
 			AStarRoadDistance pathfinder = new AStarRoadDistance();
-			path = pathfinder.astarPath(originNode, destinationNode, segmentsToAvoid, ap);
+			path = pathfinder.astarPath(originNode, destinationNode, null, ap);
 			return path.edges;
 		}
 		else {
 			DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
-			path = pathfinder.dijkstraPath(originNode, destinationNode, null, segmentsToAvoid, ap);
+			path = pathfinder.dijkstraPath(originNode, destinationNode, null, null, ap);
 			return path.edges;
 		}
 	}
 
 	/**
-	 * Road-distance based B) Sequence [O, ..., D] road-distance shortest path - works for local landmarks, regional+barriers, barriers only
+	 * Road-distance based B) Sequence [O, ..., D] road-distance shortest path.
+	 * It allows to combine multiple navigation strategies (on the basis of on-route marks (local landmarks or crucial nodes, region-based, barrier-based
+	 * navigation combined with road-distance based heuristics).
 	 *
 	 * @param sequence sequence of intermediate nodes (e.g. on-route marks, gateways) including the origin and the destination nodes;
 	 * @param ap the agent properties;
 	 */
 	public ArrayList<GeomPlanarGraphDirectedEdge> roadDistanceSequence(ArrayList<NodeGraph> sequence, AgentProperties ap) {
 
+		this.ap = ap;
 		this.sequenceNodes = new ArrayList<NodeGraph> (sequence);
 		// originNode
 		NodeGraph tmpOrigin = sequenceNodes.get(0);
 		this.destinationNode = sequenceNodes.get(sequenceNodes.size()-1);
-		this.regionBasedNavigation = ap.regionBasedNavigation;
 		sequenceNodes.remove(0);
 
 		for (NodeGraph tmpDestination : sequenceNodes) {
-
 			moveOn = false;
 			// check if this tmpDestination has been traversed already
 			if (Path.nodesFromPath(completePath).contains(tmpDestination)) {
@@ -94,7 +86,6 @@ public class RoutePlanner {
 			while (path.edges == null && !moveOn) backtracking(tmpDestination);
 			tmpOrigin = tmpDestination;
 			if (moveOn) continue;
-
 			checkSequenceEdges(tmpOrigin, tmpDestination);
 			completePath.addAll(path.edges);
 		}
@@ -102,117 +93,56 @@ public class RoutePlanner {
 	}
 
 	/**
-	 * Road-distance based C) road-distance minimisation + landmark-based (local and global) path
-	 *
-	 * @param sequence sequence of intermediate nodes (e.g. on-route marks, gateways) including the origin and the destination nodes;
-	 * @param ap the agent properties;
-	 */
-	public ArrayList<GeomPlanarGraphDirectedEdge> roadDistanceLandmarks(ArrayList<NodeGraph> sequence,
-			AgentProperties ap) {
-
-		this.sequenceNodes = new ArrayList<NodeGraph> (sequence);
-		// originNode
-		NodeGraph tmpOrigin = sequenceNodes.get(0);
-		this.destinationNode = sequenceNodes.get(sequenceNodes.size()-1);
-		this.regionBasedNavigation = ap.regionBasedNavigation;
-		this.landmarkBasedNavigation = true;
-		sequenceNodes.remove(0);
-
-		// check if node has been traversed already
-		for (NodeGraph tmpDestination : sequenceNodes) {
-
-			moveOn = false;
-			if (Utilities.nodesFromPath(completePath).contains(tmpDestination)) {
-				controlPath(tmpDestination);
-				tmpOrigin = tmpDestination;
-				continue;
-			}
-
-			// check if edge in between
-			GeomPlanarGraphDirectedEdge edge = tmpOrigin.getDirectedEdgeBetween(tmpDestination);
-			if (edge != null) {
-				if (!completePath.contains(edge)) completePath.add(edge);
-				tmpOrigin = tmpDestination;
-				continue;
-			}
-
-			DijkstraRoadDistance pathFinder = new DijkstraRoadDistance();
-			path = pathFinder.dijkstraPath(tmpOrigin, tmpDestination, destinationNode, completePath, ap);
-			while (path.edges == null && !moveOn) backtracking(tmpDestination);
-			tmpOrigin = tmpDestination;
-			if (moveOn) continue;
-
-			checkSequenceEdges(tmpOrigin, tmpDestination);
-			completePath.addAll(path.edges);
-		}
-		return completePath;
-	}
-
-
-	/**
-	 * Angular change based A) Direct O-D Least cumulative angular change shortest path
+	 * Angular change-based A) Direct O-D Least cumulative angular change or topological (lowest number of turns) shortest path.
 	 *
 	 * @param originNode the origin node;
 	 * @param destinationNode the destination node;
 	 * @param centroidsToAvoid possible segments (centroids) to avoid (e.g. already traversed in previous iterations);
-	 * @param previouJunction the last, if any, primal junction traversed, so to avoid to cross it again;
 	 * @param ap the agent properties;
 	 */
 
-	public ArrayList<GeomPlanarGraphDirectedEdge> angularChange(NodeGraph originNode, NodeGraph destinationNode, ArrayList<NodeGraph>
-	centroidsToAvoid, NodeGraph previousJunction, AgentProperties ap) {
+	public ArrayList<GeomPlanarGraphDirectedEdge> angularChangeBased(NodeGraph originNode, NodeGraph destinationNode,
+			AgentProperties ap) {
 
-		this.regionBasedNavigation = ap.regionBasedNavigation;
-
-		NodeGraph dualOrigin = originNode.getDualNode(originNode, destinationNode, regionBasedNavigation, previousJunction);
+		NodeGraph dualOrigin = originNode.getDualNode(originNode, destinationNode, ap.regionBasedNavigation, previousJunction);
 		NodeGraph dualDestination = null;
-<<<<<<< Updated upstream
-
-		while (dualDestination == dualOrigin || dualDestination == null) dualDestination = destinationNode.getDualNode(
-				originNode, destinationNode, regionBasedNavigation, previousJunction);
-
-		if (Utilities.commonPrimalJunction(dualOrigin, dualDestination) != null) {
-=======
 		this.ap = ap;
 		previousJunction = originNode;
 		while (dualDestination == dualOrigin || dualDestination == null) dualDestination = destinationNode.getDualNode(
 				originNode, destinationNode, ap.regionBasedNavigation, previousJunction);
 		if (Path.commonPrimalJunction(dualOrigin, dualDestination) != null) {
->>>>>>> Stashed changes
 			ArrayList<GeomPlanarGraphDirectedEdge> edges = new ArrayList<GeomPlanarGraphDirectedEdge>();
 			edges.add(originNode.getDirectedEdgeWith(Path.commonPrimalJunction(dualOrigin, dualDestination)));
 			edges.add(Path.commonPrimalJunction(dualOrigin, dualDestination).getDirectedEdgeWith(destinationNode));
 			return edges;
 		}
 
-		if (ap.algorithm == "astar") {
-			AStarAngularChange pathfinder = new AStarAngularChange();
-			path = pathfinder.astarPath(dualOrigin, dualDestination, centroidsToAvoid, previousJunction, ap);
-		}
-<<<<<<< Updated upstream
-		else {
+		if (ap.localHeuristic == "angularChange") {
 			DijkstraAngularChange pathfinder = new DijkstraAngularChange();
 			path = pathfinder.dijkstraPath(dualOrigin, dualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
-
 		}
-=======
->>>>>>> Stashed changes
+		else if (ap.localHeuristic == "turns") {
+			DijkstraTurns pathfinder = new DijkstraTurns();
+			path = pathfinder.dijkstraPath(dualOrigin, dualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
+		}
 
 		cleanDualPath(originNode, destinationNode);
 		return path.edges;
 	}
 
 	/**
-	 * Angular-change based B) Sequence [O, ..., D] Least cumulative angular change shortest path - works for local landmarks,
-	 * regional+barriers, barriers only
+	 * Angular change-based B) Sequence [O, ..., D] Least cumulative angular change or topological (lowest number of turns) shortest path.
+	 * It allows to combine multiple navigation strategies (on the basis of on-route marks (local landmarks or crucial nodes, region-based, barrier-based
+	 * navigation combined with angular change based heuristics).
 	 *
 	 * @param sequence sequence of intermediate nodes (e.g. on-route marks, gateways) including the origin and the destination nodes;
 	 * @param ap the agent properties;
 	 */
 
-	public ArrayList<GeomPlanarGraphDirectedEdge> angularChangeSequence(ArrayList<NodeGraph> sequence,
-			AgentProperties ap) {
-		this.regionBasedNavigation = ap.regionBasedNavigation;
+	public ArrayList<GeomPlanarGraphDirectedEdge> angularChangeBasedSequence(ArrayList<NodeGraph> sequence,	AgentProperties ap) {
+
+
+		this.ap = ap;
 		this.sequenceNodes = new ArrayList<NodeGraph> (sequence);
 		// originNode
 		NodeGraph tmpOrigin = originNode = sequenceNodes.get(0);
@@ -240,10 +170,9 @@ public class RoutePlanner {
 				tmpOrigin = tmpDestination;
 				continue;
 			}
-			//TO DO centroids to avoid in dual
-			NodeGraph tmpDualOrigin = tmpOrigin.getDualNode(tmpOrigin, tmpDestination, regionBasedNavigation, previousJunction);
 
-			while (tmpDualOrigin == null && previousJunction !=null) {
+			NodeGraph tmpDualOrigin = tmpOrigin.getDualNode(tmpOrigin, tmpDestination, ap.regionBasedNavigation, previousJunction);
+			while (tmpDualOrigin == null && previousJunction != null) {
 				tmpOrigin = (NodeGraph) completePath.get(completePath.size()-1).getFromNode();
 				// remove last one which did not work!
 				completePath.remove(completePath.size()-1);
@@ -256,13 +185,13 @@ public class RoutePlanner {
 					tmpOrigin = tmpDestination;
 					break;
 				}
-				tmpDualOrigin = tmpOrigin.getDualNode(tmpOrigin, tmpDestination, regionBasedNavigation, previousJunction);
+				tmpDualOrigin = tmpOrigin.getDualNode(tmpOrigin, tmpDestination, ap.regionBasedNavigation, previousJunction);
 			}
 			if (tmpOrigin == tmpDestination) continue;
 
 			NodeGraph tmpDualDestination = null;
 			while ((tmpDualDestination == tmpDualOrigin) || (tmpDualDestination == null)) tmpDualDestination = tmpDestination.getDualNode(
-					tmpOrigin, tmpDestination, regionBasedNavigation, previousJunction);
+					tmpOrigin, tmpDestination, ap.regionBasedNavigation, previousJunction);
 
 			// check if just one node separates them
 			if (Path.commonPrimalJunction(tmpDualOrigin, tmpDualDestination) != null) {
@@ -272,15 +201,14 @@ public class RoutePlanner {
 				continue;
 			}
 
-<<<<<<< Updated upstream
-			DijkstraAngularChange pathFinder = new DijkstraAngularChange();
-			path = pathFinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
-=======
 			if (ap.localHeuristic == "angularChange") {
 				DijkstraAngularChange pathfinder = new DijkstraAngularChange();
 				path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
 			}
->>>>>>> Stashed changes
+			else if (ap.localHeuristic == "turns") {
+				DijkstraTurns pathfinder = new DijkstraTurns();
+				path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
+			}
 
 			while (path.edges == null && !moveOn) backtrackingDual(tmpDualOrigin, tmpDualDestination, tmpDestination);
 			if (path.edges == null) continue;
@@ -293,33 +221,40 @@ public class RoutePlanner {
 		return completePath;
 	}
 
+	/**
+	 * Global landmarks path a)
+	 *
+	 * It returns the path that maximises global landmarkness between an origin and a destination.
+	 * @param originNode the origin node;
+	 * @param destinationNode the destination node;
+	 * @param ap the agent properties;
+	 *
+	 */
+	public ArrayList<GeomPlanarGraphDirectedEdge> globalLandmarksPath (NodeGraph originNode, NodeGraph destinationNode, AgentProperties ap) {
+		this.ap = ap;
+		DijkstraGlobalLandmarks pathfinder = new DijkstraGlobalLandmarks();
+		path = pathfinder.dijkstraPath(originNode, destinationNode, null, ap);
+		return path.edges;
+	}
 
 	/**
-	 * Angular change based C) Cumulative angular change minimisation + landmark-based (local and global) path
+	 * Global landmarks path B) Sequence [O, ..., D] Maximise global landmarkness through a sequence of intermediate nodes
 	 *
 	 * @param sequence sequence of intermediate nodes (e.g. on-route marks, gateways) including the origin and the destination nodes;
 	 * @param ap the agent properties;
+	 *
 	 */
-	public ArrayList<GeomPlanarGraphDirectedEdge> angularChangeLandmarks(ArrayList<NodeGraph> sequence,
-			AgentProperties ap) {
+	public ArrayList<GeomPlanarGraphDirectedEdge> globalLandmarksPathSequence(ArrayList<NodeGraph> sequence, AgentProperties ap) {
 
-		this.regionBasedNavigation = ap.regionBasedNavigation;
-		this.landmarkBasedNavigation = true;
+		this.ap = ap;
 		this.sequenceNodes = new ArrayList<NodeGraph> (sequence);
-
 		// originNode
-		NodeGraph tmpOrigin = originNode = sequenceNodes.get(0);
+		NodeGraph tmpOrigin = sequenceNodes.get(0);
 		this.destinationNode = sequenceNodes.get(sequenceNodes.size()-1);
 		sequenceNodes.remove(0);
 
 		for (NodeGraph tmpDestination : sequenceNodes) {
 			moveOn = false;
-
-			if (tmpOrigin != originNode) {
-				previousJunction = Utilities.previousJunction(completePath);
-				centroidsToAvoid = Utilities.centroidsFromPath(completePath);
-			}
-
 			// check if this tmpDestination has been traversed already
 			if (Path.nodesFromPath(completePath).contains(tmpDestination)) {
 				controlPath(tmpDestination);
@@ -335,52 +270,17 @@ public class RoutePlanner {
 				continue;
 			}
 
-			// TO DO centroids to avoid in dual
-			NodeGraph tmpDualOrigin = tmpOrigin.getDualNode(tmpOrigin, tmpDestination, regionBasedNavigation, previousJunction);
-			NodeGraph tmpDualDestination = null;
-			while (tmpDualDestination == tmpDualOrigin || tmpDualDestination == null) tmpDualDestination = tmpDestination.getDualNode(
-					tmpOrigin, tmpDestination, regionBasedNavigation, previousJunction);
+			DijkstraGlobalLandmarks pathfinder = new DijkstraGlobalLandmarks();
+			path = pathfinder.dijkstraPath(originNode, destinationNode, completePath, ap);
 
-			// check if just one node separates them
-			if (Utilities.commonPrimalJunction(tmpDualOrigin, tmpDualDestination) != null) {
-				completePath.add(tmpOrigin.getDirectedEdgeBetween(Utilities.commonPrimalJunction(tmpDualOrigin, tmpDualDestination)));
-				completePath.add(Utilities.commonPrimalJunction(tmpDualOrigin, tmpDualDestination).getDirectedEdgeBetween(tmpDestination));
-				tmpOrigin = tmpDestination;
-				continue;
-			}
-
-			DijkstraAngularChange pathFinder = new DijkstraAngularChange();
-			path = pathFinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
-
-			while (path.edges == null && !moveOn) backtrackingDual(tmpDualOrigin, tmpDualDestination, tmpDestination);
-			if (path.edges == null) continue;
+			while (path.edges == null && !moveOn) backtracking(tmpDestination);
 			tmpOrigin = tmpDestination;
 			if (moveOn) continue;
-
-			cleanDualPath(tmpOrigin, tmpDestination);
+			checkSequenceEdges(tmpOrigin, tmpDestination);
 			completePath.addAll(path.edges);
 		}
 		return completePath;
 	}
-
-	/**
-	 * Global landmarks path
-	 *
-	 * It returns the path that maximises global landmarkness between an origin and a destination.
-	 * @param originNode the origin node;
-	 * @param destinationNode the destination node;
-	 * @param segmentsToAvoid possible segments to avoid (e.g. already traversed in previous iterations);
-	 * @param ap the agent properties;
-	 *
-	 */
-	public ArrayList<GeomPlanarGraphDirectedEdge> globalLandmarksPath (NodeGraph originNode, NodeGraph destinationNode,
-			ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid, AgentProperties ap) {
-
-		DijkstraGlobalLandmarks pathfinder = new DijkstraGlobalLandmarks();
-		path = pathfinder.dijkstraPath(originNode, destinationNode, segmentsToAvoid, ap.onlyAnchors);
-		return path.edges;
-	}
-
 	/**
 	 * Region- or Region- and barrier-based path
 	 *
@@ -391,15 +291,13 @@ public class RoutePlanner {
 	 */
 	public ArrayList<GeomPlanarGraphDirectedEdge> regionBarrierBasedPath (NodeGraph originNode, NodeGraph destinationNode,
 			AgentProperties ap) {
-		this.regionBasedNavigation = ap.regionBasedNavigation;
-		this.barrierBasedNavigation = ap.barrierBasedNavigation;
-
+		this.ap = ap;
 		RegionBasedNavigation regionsPath = new RegionBasedNavigation();
-		ArrayList<NodeGraph> regionsSequence = regionsPath.sequenceRegions(originNode, destinationNode, barrierBasedNavigation, ap.typeOfBarriers);
+		ArrayList<NodeGraph> regionsSequence = regionsPath.sequenceRegions(originNode, destinationNode, ap);
 		ArrayList<GeomPlanarGraphDirectedEdge> path =  new ArrayList<GeomPlanarGraphDirectedEdge>();
 
 		if (ap.localHeuristic == "roadDistance") path = roadDistanceSequence(regionsSequence, ap);
-		else if (ap.localHeuristic == "angularChange") path = angularChangeSequence(regionsSequence, ap);
+		else path = angularChangeBasedSequence(regionsSequence, ap);
 		return path;
 	}
 
@@ -414,15 +312,12 @@ public class RoutePlanner {
 	public ArrayList<GeomPlanarGraphDirectedEdge> barrierBasedPath (NodeGraph originNode, NodeGraph destinationNode,
 			AgentProperties ap) {
 
-		this.landmarkBasedNavigation = ap.landmarkBasedNavigation;
-		this.regionBasedNavigation = ap.regionBasedNavigation;
-		this.barrierBasedNavigation = ap.barrierBasedNavigation;
-
+		this.ap = ap;
 		ArrayList<GeomPlanarGraphDirectedEdge> path =  new ArrayList<GeomPlanarGraphDirectedEdge>();
 		BarrierBasedNavigation barrierBasedPath = new BarrierBasedNavigation();
-		ArrayList<NodeGraph> sequenceBarriers = barrierBasedPath.sequenceBarriers(originNode, destinationNode, ap.typeOfBarriers);
+		ArrayList<NodeGraph> sequenceBarriers = barrierBasedPath.sequenceBarriers(originNode, destinationNode, ap.typeBarriers);
 		if (ap.localHeuristic == "roadDistance") path = roadDistanceSequence(sequenceBarriers, ap);
-		else if (ap.localHeuristic == "angularChange") path = angularChangeSequence(sequenceBarriers, ap);
+		else if (ap.localHeuristic == "angularChange") path = angularChangeBasedSequence(sequenceBarriers, ap);
 		return path;
 	}
 
@@ -450,14 +345,9 @@ public class RoutePlanner {
 			return;
 		}
 		// if not, try to compute the path from the new tmpOrigin
-		if (this.landmarkBasedNavigation) {
-			DijkstraRoadDistance pathFinder = new DijkstraRoadDistance();
-			path = pathFinder.dijkstraPath(tmpOrigin, tmpDestination, destinationNode, completePath, ap);
-		}
-		else {
-			DijkstraRoadDistance pathFinder = new DijkstraRoadDistance();
-			path = pathFinder.dijkstraPath(tmpOrigin, tmpDestination, null,  completePath, ap);
-		}
+
+		DijkstraRoadDistance pathFinder = new DijkstraRoadDistance();
+		path = pathFinder.dijkstraPath(tmpOrigin, tmpDestination, destinationNode, completePath, ap);
 	}
 
 	/**
@@ -471,7 +361,6 @@ public class RoutePlanner {
 	 */
 	private void backtrackingDual(NodeGraph tmpDualOrigin, NodeGraph tmpDualDestination, NodeGraph tmpDestination)
 	{
-
 		// new tmpOrigin
 		NodeGraph tmpOrigin;
 		try {
@@ -495,19 +384,16 @@ public class RoutePlanner {
 			moveOn = true;
 			return;
 		}
-		tmpDualOrigin = tmpOrigin.getDualNode(tmpOrigin, tmpDestination, this.regionBasedNavigation, previousJunction);
+		tmpDualOrigin = tmpOrigin.getDualNode(tmpOrigin, tmpDestination, ap.regionBasedNavigation, previousJunction);
 
-		if (this.landmarkBasedNavigation) {
-			DijkstraAngularChange pathFinder = new DijkstraAngularChange();
-			path = pathFinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode,	centroidsToAvoid, previousJunction, ap);
+		if (ap.localHeuristic == "angularChange") {
+			DijkstraAngularChange pathfinder = new DijkstraAngularChange();
+			path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
 		}
-<<<<<<< Updated upstream
-		else {
-			DijkstraAngularChange pathFinder = new DijkstraAngularChange();
-			path = pathFinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
+		else if (ap.localHeuristic == "turns") {
+			DijkstraTurns pathfinder = new DijkstraTurns();
+			path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
 		}
-=======
->>>>>>> Stashed changes
 	}
 
 	/**

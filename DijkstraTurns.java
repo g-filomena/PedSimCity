@@ -21,15 +21,13 @@ import sim.app.geo.urbanSim.SubGraph;
 import sim.app.geo.urbanSim.Utilities;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
-public class DijkstraAngularChange {
+public class DijkstraTurns {
 
 	NodeGraph originNode, destinationNode, primalDestinationNode, previousJunction;
 	ArrayList<NodeGraph> visitedNodes, unvisitedNodes, centroidsToAvoid;
 	HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 	SubGraph graph = new SubGraph();
 	// it contemplates an attempt where navigation takes place by the convex-hull method (see below).
-	boolean subGraph = UserParameters.subGraph;
-
 	AgentProperties ap = new AgentProperties();
 
 	/**
@@ -51,11 +49,7 @@ public class DijkstraAngularChange {
 		if (centroidsToAvoid != null) this.centroidsToAvoid = new ArrayList<NodeGraph>(centroidsToAvoid);
 		this.previousJunction = previousJunction;
 
-
-		/**
-		 * If region-based navigation, navigate only within the region subgraph, if origin and destination nodes belong to the same region.
-		 * Otherwise, form a subgraph within a convex hull
-		 **/
+		// If region-based navigation, navigate only within the region subgraph, if origin and destination nodes belong to the same region.
 
 		if ((originNode.region == destinationNode.region) && (ap.regionBasedNavigation)) {
 			graph = PedSimCity.regionsMap.get(originNode.region).dualGraph;
@@ -65,14 +59,6 @@ public class DijkstraAngularChange {
 			// primalJunction is always the same;
 		}
 
-		// create graph from convex hull
-		else if (subGraph) {
-			ArrayList<EdgeGraph> containedEdges = PedSimCity.dualNetwork.edgesWithinSpace(originNode, destinationNode);
-			graph = new SubGraph(PedSimCity.dualNetwork, containedEdges);
-			originNode = graph.findNode(originNode.getCoordinate());
-			destinationNode = graph.findNode(destinationNode.getCoordinate());
-			if (centroidsToAvoid != null) centroidsToAvoid = graph.getChildNodes(centroidsToAvoid);
-		}
 		visitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes = new ArrayList<NodeGraph>();
 		unvisitedNodes.add(originNode);
@@ -97,9 +83,7 @@ public class DijkstraAngularChange {
 	}
 
 	private void findMinDistances(NodeGraph currentNode) {
-
 		ArrayList<NodeGraph> adjacentNodes = currentNode.adjacentNodes;
-
 		for (NodeGraph targetNode : adjacentNodes) {
 			if (visitedNodes.contains(targetNode)) continue;
 
@@ -125,25 +109,22 @@ public class DijkstraAngularChange {
 			}
 			else error = Utilities.fromDistribution(1, 0.10, null);
 			double edgeCost = commonEdge.getDeflectionAngle() * 1;
-			System.out.println(edgeCost);
 			if (edgeCost > 180) edgeCost = 180;
 			if (edgeCost < 0) edgeCost = 0;
-
 			GeomPlanarGraphDirectedEdge outEdge = currentNode.getDirectedEdgeWith(targetNode);
 
 			double tentativeCost;
 
-			if (ap.usingGlobalLandmarks) {
+			if (ap.landmarkBasedNavigation) {
 				double globalLandmarkness = 0.0;
 				if (ap.onlyAnchors) globalLandmarkness = LandmarkNavigation.globalLandmarknessDualNode(currentNode, targetNode,
 						primalDestinationNode, true);
 				else globalLandmarkness = LandmarkNavigation.globalLandmarknessDualNode(currentNode, targetNode, primalDestinationNode, false);
 				double nodeLandmarkness = 1-globalLandmarkness*UserParameters.globalLandmarknessWeight;
-				double nodeCost = nodeLandmarkness*edgeCost;
-				tentativeCost = getBest(currentNode) + nodeCost;
+				edgeCost = nodeLandmarkness*edgeCost;
 			}
-
-			else tentativeCost = getBest(currentNode) + edgeCost;
+			if (edgeCost >= UserParameters.thresholdTurn) tentativeCost = getBest(currentNode) + 1;
+			else tentativeCost = getBest(currentNode); //no turn
 
 			if (getBest(targetNode) > tentativeCost) {
 				NodeWrapper NodeWrapper = mapWrappers.get(targetNode);
@@ -187,23 +168,8 @@ public class DijkstraAngularChange {
 		NodeGraph step = destinationNode;
 		mapTraversedWrappers.put(destinationNode, mapWrappers.get(destinationNode));
 
-		// If the subgraph navigation hasn't worked, retry by using the full graph
-		// --> it switches "subgraph" to false;
-
-		if ((mapWrappers.get(destinationNode) == null) && (subGraph == true)) {
-			subGraph = false;
-			visitedNodes.clear();
-			unvisitedNodes.clear();
-			mapWrappers.clear();
-			originNode = graph.getParentNode(originNode);
-			destinationNode = graph.getParentNode(destinationNode);
-			if (centroidsToAvoid != null) centroidsToAvoid = graph.getParentNodes(centroidsToAvoid);
-			Path secondAttempt = this.dijkstraPath(originNode, destinationNode, primalDestinationNode, centroidsToAvoid, previousJunction, ap);
-			return secondAttempt;
-		}
-
 		// check that the path has been formulated properly
-		if (mapWrappers.size() == 1) return path;
+		if ((step == null) || (mapWrappers.size() == 1)) return path;
 		try {
 
 			while (mapWrappers.get(step).nodeFrom != null) {
