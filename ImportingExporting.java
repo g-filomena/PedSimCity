@@ -171,14 +171,38 @@ public class ImportingExporting {
 				LineString geometry = (LineString) edge.masonGeometry.geometry;
 				merger.add(geometry);
 			}
-
+			int limit = 254;
 			Collection<LineString> collection = merger.getMergedLineStrings();
 			LineString mergedLine = collection.iterator().next();
 			MasonGeometry mg = new MasonGeometry(mergedLine);
 			mg.addIntegerAttribute("O", rD.origin);
 			mg.addIntegerAttribute("D", rD.destination);
 			mg.addStringAttribute("routeChoice", rD.routeChoice);
-			mg.addAttribute("edges", ArrayUtils.toString(rD.sequenceEdges));
+
+			// the sequence of edgesIDs is truncated and split in different fields as a shapefile can handle max 254 characters per field
+			String edgeIDs = ArrayUtils.toString(rD.sequenceEdges);
+			String first_part = null;
+			String other = null;
+			if (edgeIDs.length() <= limit) mg.addAttribute("edgesID_0", edgeIDs);
+			else {
+				first_part = edgeIDs.substring(0, limit);
+				mg.addAttribute("edgesID_0", first_part);
+				other = edgeIDs.substring(limit);
+
+				int counter = 1;
+				while (true) {
+					if (other.length() > limit) {
+						first_part = other.substring(0, limit);
+						if (edgeIDs.length() <= limit) mg.addAttribute("edgesID_"+counter, first_part);
+						other = other.substring(limit);
+						counter += 1;
+					}
+					else {
+						mg.addAttribute("edgesID_"+counter, other);
+						break;
+					}
+				}
+			}
 			routes.addGeometry(mg);
 		}
 		ShapeFileExporter.write(directory, routes);
