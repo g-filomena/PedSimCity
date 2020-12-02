@@ -4,6 +4,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -88,6 +89,7 @@ public class ImportingExporting {
 		PedSimCity.centroids.generateGeometriesList();
 
 		System.out.println("files imported successfully");
+		UserParameters.setOutputFolder();
 	}
 
 
@@ -160,7 +162,8 @@ public class ImportingExporting {
 		System.out.println("saving Routes");
 
 		VectorLayer routes = new VectorLayer();
-		String	directory = UserParameters.outputFolder+"_routes_"+(job);
+		String	directory = UserParameters.outputFolderRoutes+"_routes_"+(job);
+		int columns = 0;
 		for (RouteData rD : PedSimCity.routesData) {
 
 			List<Integer> sequenceEdges = rD.sequenceEdges;
@@ -188,12 +191,12 @@ public class ImportingExporting {
 				first_part = edgeIDs.substring(0, limit);
 				mg.addAttribute("edgesID_0", first_part);
 				other = edgeIDs.substring(limit);
-
 				int counter = 1;
 				while (true) {
+					if (counter > columns) columns += 1;
 					if (other.length() > limit) {
 						first_part = other.substring(0, limit);
-						if (edgeIDs.length() <= limit) mg.addAttribute("edgesID_"+counter, first_part);
+						mg.addAttribute("edgesID_"+counter, first_part);
 						other = other.substring(limit);
 						counter += 1;
 					}
@@ -205,6 +208,21 @@ public class ImportingExporting {
 			}
 			routes.addGeometry(mg);
 		}
+		// this is to avoid to have geometries without the needed columns' values filled in.
+		if (columns > 0) {
+			routes.generateGeometriesList();
+			for (int column = 1; column<= columns; column++)
+			{
+				ArrayList<MasonGeometry> routeGeometries = routes.geometriesList;
+				for (MasonGeometry route : routeGeometries)
+				{
+					if (route.hasAttribute("edgesID_"+column)) continue;
+					else route.addAttribute("edgesID_"+column, "None");
+
+				}
+			}
+		}
+
 		ShapeFileExporter.write(directory, routes);
 		PedSimCity.routesData.clear();
 	}

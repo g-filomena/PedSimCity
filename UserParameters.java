@@ -13,9 +13,9 @@ public class UserParameters {
 	static String cityName = "London";
 	static int jobs = 50;
 	static boolean testingRegions = false;
-	static boolean testingLandmarks = false;
+	static boolean testingLandmarks = true;
 
-	static boolean testingSpecificRoutes = true;
+	static boolean testingSpecificRoutes = false;
 	static boolean readingFromPrevious =  false;
 	static List<Integer> OR = new ArrayList<Integer>();
 	static List<Integer> DE = new ArrayList<Integer>();
@@ -29,7 +29,7 @@ public class UserParameters {
 	// Landmark Integration
 	static double distanceNodeLandmark = 50.0;
 	public static double distanceAnchors = 2000.0;
-	static double globalLandmarkThreshold = 0.20; //
+	static double globalLandmarkThreshold = 0.30; //
 	static double localLandmarkThreshold = 0.30; //
 	static double salientNodesPercentile = 0.75; // Threshold Percentile to identify salient nodes
 
@@ -41,7 +41,9 @@ public class UserParameters {
 	static int numAgents = 2000;
 
 	//directories
-	public static String outputFolder = "C:/Users/g_filo01/sciebo/Scripts/ABM analysis/Input/";
+	public static String outputFolderDefault = "C:/Users/g_filo01/sciebo/Scripts/PedSimCity_Analysis/Input/";
+	public static String outputFolder;
+	public static String outputFolderRoutes;
 
 	public static void setTestingMatrix() {
 		Integer[] or = {};
@@ -50,11 +52,19 @@ public class UserParameters {
 		for (int i : de) DE.add(i);
 	}
 
-	public String getOutputFolder() {
-		if (testingSpecificRoutes) outputFolder = outputFolder+"test/"+cityName+"_PedSim_test_";
-		if (testingLandmarks) outputFolder = outputFolder+"landmarkNavigation/"+cityName+"_PedSim_landmarks_";
-		else if (testingRegions) outputFolder = outputFolder+"regionBaedNavigation/"+cityName+"_PedSim_regions_";
-		return outputFolder;
+	public static void setOutputFolder() {
+		if (testingSpecificRoutes) {
+			outputFolder = outputFolderDefault+"test/"+cityName+"_PedSim_test_";
+			outputFolderRoutes = outputFolderDefault+"test/routes/"+cityName+"_PedSim_test_";
+		}
+		if (testingLandmarks) {
+			outputFolder = outputFolderDefault+"landmarkNavigation/"+cityName+"_PedSim_landmarks_";
+			outputFolderRoutes = outputFolderDefault+"landmarkNavigation/routes/"+cityName+"_PedSim_landmarks_";
+		}
+		else if (testingRegions) {
+			outputFolder = outputFolderDefault+"regionBasedNavigation/"+cityName+"_PedSim_regions_";
+			outputFolderRoutes = outputFolderDefault+"regionBasedNavigation/routes/"+cityName+"_PedSim_regions_";
+		}
 	}
 
 

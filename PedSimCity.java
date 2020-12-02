@@ -111,6 +111,7 @@ public class PedSimCity extends SimState {
 
 	public void populate() {
 		// prepare to start the simulation - OD Matrix
+
 		int numTripsScenario = 1;
 		if (UserParameters.testingSpecificRoutes) {
 			UserParameters.setTestingMatrix();
@@ -120,12 +121,9 @@ public class PedSimCity extends SimState {
 		else if (UserParameters.testingRegions) numTripsScenario = 2000;
 
 		ArrayList<ArrayList<NodeGraph>> listSequences = new ArrayList<ArrayList<NodeGraph>> ();
-
-
 		for (int i = 0; i < numTripsScenario; i++) {
 			NodeGraph originNode = null;
 			NodeGraph destinationNode = null;
-
 			if (UserParameters.readingFromPrevious || UserParameters.testingSpecificRoutes) {
 				originNode = nodesMap.get(UserParameters.OR.get(i));
 				destinationNode = nodesMap.get(UserParameters.DE.get(i));
@@ -151,6 +149,7 @@ public class PedSimCity extends SimState {
 			Pair<NodeGraph, NodeGraph> pair = new Pair<NodeGraph, NodeGraph> (originNode, destinationNode);
 			OD.add(pair);
 		}
+		System.out.println("Matrix OD successfully generated");
 
 		for (int i = 0; i < numAgents; i++)	{
 			AgentProperties ap = new AgentProperties();
@@ -183,8 +182,6 @@ public class PedSimCity extends SimState {
 	public static void main(String[] args) throws IOException
 	{
 		int jobs = UserParameters.jobs;
-		if (UserParameters.testingLandmarks) jobs = 50;
-		if (UserParameters.testingRegions) jobs = 5;
 		ImportingExporting.importFiles();
 		prepareLayers();
 
