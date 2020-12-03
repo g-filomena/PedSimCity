@@ -121,27 +121,26 @@ public class DijkstraAngularChange {
 				List<Integer> negativeBarriers = targetNode.primalEdge.negativeBarriers;
 				if (positiveBarriers != null) error = Utilities.fromDistribution(0.70, 0.10, "left");
 				else if ((negativeBarriers != null) && (positiveBarriers == null)) error = Utilities.fromDistribution(1.30, 0.10, "right");
-				else error = Utilities.fromDistribution(1, 0.10, null);
+				else error = Utilities.fromDistribution(1.0, 0.10, null);
 			}
-			else error = Utilities.fromDistribution(1, 0.10, null);
+			else error = Utilities.fromDistribution(1.0, 0.10, null);
 			double edgeCost = commonEdge.getDeflectionAngle() * error;
-			if (edgeCost > 180) edgeCost = 180;
-			if (edgeCost < 0) edgeCost = 0;
+			if (edgeCost > 180) edgeCost = 180.0;
+			if (edgeCost < 0) edgeCost = 0.0;
 
 			GeomPlanarGraphDirectedEdge outEdge = currentNode.getDirectedEdgeWith(targetNode);
 
 			double tentativeCost;
 
-			if (ap.usingGlobalLandmarks) {
+			if (ap.usingGlobalLandmarks && NodeGraph.nodesDistance(targetNode, primalDestinationNode) > UserParameters.threshold3dVisibility) {
 				double globalLandmarkness = 0.0;
 				if (ap.onlyAnchors) globalLandmarkness = LandmarkNavigation.globalLandmarknessDualNode(currentNode, targetNode,
 						primalDestinationNode, true);
 				else globalLandmarkness = LandmarkNavigation.globalLandmarknessDualNode(currentNode, targetNode, primalDestinationNode, false);
-				double nodeLandmarkness = 1-globalLandmarkness*UserParameters.globalLandmarknessWeight;
+				double nodeLandmarkness = 1.0-globalLandmarkness*UserParameters.globalLandmarknessWeight;
 				double nodeCost = nodeLandmarkness*edgeCost;
 				tentativeCost = getBest(currentNode) + nodeCost;
 			}
-
 			else tentativeCost = getBest(currentNode) + edgeCost;
 
 			if (getBest(targetNode) > tentativeCost) {

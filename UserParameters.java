@@ -29,6 +29,7 @@ public class UserParameters {
 	// Landmark Integration
 	static double distanceNodeLandmark = 50.0;
 	public static double distanceAnchors = 2000.0;
+	static double threshold3dVisibility  = 300.0;
 	static double globalLandmarkThreshold = 0.30; //
 	static double localLandmarkThreshold = 0.30; //
 	static double salientNodesPercentile = 0.75; // Threshold Percentile to identify salient nodes

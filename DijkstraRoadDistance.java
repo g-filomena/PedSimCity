@@ -108,15 +108,15 @@ public class DijkstraRoadDistance {
 				List<Integer> negativeBarriers = commonEdge.negativeBarriers;
 				if (positiveBarriers != null) error = Utilities.fromDistribution(0.70, 0.10, "left");
 				else if (negativeBarriers != null) error = Utilities.fromDistribution(1.30, 0.10, "right");
-				else error = Utilities.fromDistribution(1, 0.10, null);
+				else error = Utilities.fromDistribution(1.0, 0.10, null);
 			}
-			else error = Utilities.fromDistribution(1, 0.10, null);
+			else error = Utilities.fromDistribution(1.0, 0.10, null);
 			double edgeCost = commonEdge.getLength()*error;
 
 			double tentativeCost = 0.0;
-			if (ap.usingGlobalLandmarks) {
+			if (ap.usingGlobalLandmarks && NodeGraph.nodesDistance(targetNode, finalDestinationNode) > UserParameters.threshold3dVisibility) {
 				double globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode, finalDestinationNode, ap.onlyAnchors);
-				double nodeLandmarkness = 1-globalLandmarkness*UserParameters.globalLandmarknessWeight;
+				double nodeLandmarkness = 1.0-globalLandmarkness*UserParameters.globalLandmarknessWeight;
 				double nodeCost = edgeCost*nodeLandmarkness;
 				tentativeCost = getBest(currentNode) + nodeCost;
 			}

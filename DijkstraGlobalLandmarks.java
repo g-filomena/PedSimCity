@@ -91,7 +91,7 @@ public class DijkstraGlobalLandmarks {
 
 			// the global landmarkness from the node is divided by the segment's length so to avoid that the path is not affected
 			// by network distance
-			double nodeLandmarkness = (1-globalLandmarkness)/commonEdge.getLength();
+			double nodeLandmarkness = (1.0-globalLandmarkness)/commonEdge.getLength();
 
 			double tentativeCost = getBest(currentNode) + nodeLandmarkness;
 
