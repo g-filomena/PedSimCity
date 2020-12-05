@@ -25,7 +25,6 @@ public class DijkstraAngularChange {
 
 	NodeGraph originNode, destinationNode, primalDestinationNode, previousJunction;
 	ArrayList<NodeGraph> visitedNodes, unvisitedNodes, centroidsToAvoid;
-	boolean landmarkBasedNavigation, regionBasedNavigation, barrierBasedNavigation, onlyAnchors;
 	HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 	SubGraph graph = new SubGraph();
 	// it contemplates an attempt where navigation takes place by the convex-hull method (see below).
@@ -52,19 +51,13 @@ public class DijkstraAngularChange {
 		if (centroidsToAvoid != null) this.centroidsToAvoid = new ArrayList<NodeGraph>(centroidsToAvoid);
 		this.previousJunction = previousJunction;
 
-		this.landmarkBasedNavigation = ap.landmarkBasedNavigation;
-		this.regionBasedNavigation = ap.regionBasedNavigation;
-		this.barrierBasedNavigation = ap.barrierBasedNavigation;
-		this.onlyAnchors = ap.onlyAnchors;
-
-
 
 		/**
 		 * If region-based navigation, navigate only within the region subgraph, if origin and destination nodes belong to the same region.
 		 * Otherwise, form a subgraph within a convex hull
 		 **/
 
-		if ((originNode.region == destinationNode.region) && (regionBasedNavigation)) {
+		if ((originNode.region == destinationNode.region) && (ap.regionBasedNavigation)) {
 			graph = PedSimCity.regionsMap.get(originNode.region).dualGraph;
 			originNode = graph.findNode(originNode.getCoordinate());
 			destinationNode = graph.findNode(destinationNode.getCoordinate());
@@ -72,13 +65,7 @@ public class DijkstraAngularChange {
 			// primalJunction is always the same;
 		}
 
-<<<<<<< Updated upstream
-		else if (subGraph == true) {
-			// create graph from convex hull
-=======
-		// create graph from convex hull
 		else if (subGraph) {
->>>>>>> Stashed changes
 			ArrayList<EdgeGraph> containedEdges = PedSimCity.dualNetwork.edgesWithinSpace(originNode, destinationNode);
 			graph = new SubGraph(PedSimCity.dualNetwork, containedEdges);
 			originNode = graph.findNode(originNode.getCoordinate());
@@ -128,7 +115,7 @@ public class DijkstraAngularChange {
 			// compute costs based on the navigation strategies.
 			// compute errors in perception of road coasts with stochastic variables
 			double error = 0.0;
-			if (barrierBasedNavigation) {
+			if (ap.barrierBasedNavigation) {
 				List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
 				List<Integer> negativeBarriers = targetNode.primalEdge.negativeBarriers;
 				if (positiveBarriers != null) error = Utilities.fromDistribution(0.70, 0.10, "left");
@@ -141,23 +128,16 @@ public class DijkstraAngularChange {
 			if (edgeCost < 0) edgeCost = 0.0;
 
 			GeomPlanarGraphDirectedEdge outEdge = currentNode.getDirectedEdgeWith(targetNode);
-
 			double tentativeCost;
 
-<<<<<<< Updated upstream
 			if (landmarkBasedNavigation) {
-=======
-			if (ap.usingGlobalLandmarks && NodeGraph.nodesDistance(targetNode, primalDestinationNode) > UserParameters.threshold3dVisibility) {
->>>>>>> Stashed changes
+				if (ap.usingGlobalLandmarks && NodeGraph.nodesDistance(targetNode, primalDestinationNode) > UserParameters.threshold3dVisibility) {
 				double globalLandmarkness = 0.0;
-				if (onlyAnchors) globalLandmarkness = LandmarkNavigation.globalLandmarknessDualNode(currentNode, targetNode,
+				if (ap.onlyAnchors) globalLandmarkness = LandmarkNavigation.globalLandmarknessDualNode(currentNode, targetNode,
 						primalDestinationNode, true);
 				else globalLandmarkness = LandmarkNavigation.globalLandmarknessDualNode(currentNode, targetNode, primalDestinationNode, false);
-<<<<<<< Updated upstream
-				double nodeLandmarkness = 1-globalLandmarkness*ResearchParameters.globalLandmarknessWeight;
-=======
+
 				double nodeLandmarkness = 1.0-globalLandmarkness*UserParameters.globalLandmarknessWeight;
->>>>>>> Stashed changes
 				double nodeCost = nodeLandmarkness*edgeCost;
 				tentativeCost = getBest(currentNode) + nodeCost;
 			}
@@ -173,6 +153,7 @@ public class DijkstraAngularChange {
 				mapWrappers.put(targetNode, NodeWrapper);
 				unvisitedNodes.add(targetNode);
 			}
+		}
 		}
 	}
 
@@ -221,7 +202,7 @@ public class DijkstraAngularChange {
 		}
 
 		// check that the path has been formulated properly
-		if ((step == null) || (mapWrappers.size() == 1)) return path;
+		if (mapWrappers.size() == 1) return path;
 		try {
 
 			while (mapWrappers.get(step).nodeFrom != null) {

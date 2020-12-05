@@ -47,7 +47,6 @@ public class UserParameters {
 	public static String outputFolder;
 	public static String outputFolderRoutes;
 
-
 	public static void setTestingMatrix() {
 		Integer[] or = {};
 		Integer[] de = {};
@@ -69,6 +68,4 @@ public class UserParameters {
 			outputFolderRoutes = outputFolderDefault+"regionBasedNavigation/routes/"+cityName+"_PedSim_regions_";
 		}
 	}
-
-
 }
