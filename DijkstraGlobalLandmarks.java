@@ -6,14 +6,22 @@
  *
  */
 
-package sim.app.geo.pedSimCity;
+package sim.app.geo.PedSimCity;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+<<<<<<< Updated upstream
 import sim.app.geo.urbanSim.EdgeGraph;
 import sim.app.geo.urbanSim.NodeGraph;
 import sim.app.geo.urbanSim.NodeWrapper;
 import sim.app.geo.urbanSim.Utilities.Path;
+=======
+import sim.app.geo.UrbanSim.EdgeGraph;
+import sim.app.geo.UrbanSim.NodeGraph;
+import sim.app.geo.UrbanSim.NodeWrapper;
+import sim.app.geo.UrbanSim.Path;
+import sim.app.geo.UrbanSim.SubGraph;
+>>>>>>> Stashed changes
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraGlobalLandmarks {
@@ -64,11 +72,11 @@ public class DijkstraGlobalLandmarks {
 
 	void findMinDistances(NodeGraph currentNode)
 	{
-		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
+		ArrayList<NodeGraph> adjacentNodes = currentNode.adjacentNodes;
 		for (NodeGraph targetNode : adjacentNodes) {
 			if (visitedNodes.contains(targetNode)) continue;
 
-			EdgeGraph commonEdge = currentNode.getEdgeBetween(targetNode);
+			EdgeGraph commonEdge = currentNode.getEdgeWith(targetNode);
 			GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);
 
 			if (segmentsToAvoid == null);
@@ -80,7 +88,7 @@ public class DijkstraGlobalLandmarks {
 
 			// the global landmarkness from the node is divided by the segment's length so to avoid that the path is not affected
 			// by network distance
-			double nodeLandmarkness = (1-globalLandmarkness)/commonEdge.getLength();
+			double nodeLandmarkness = (1.0-globalLandmarkness)/commonEdge.getLength();
 
 			double tentativeCost = getBest(currentNode) + nodeLandmarkness;
 

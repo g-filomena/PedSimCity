@@ -4,7 +4,7 @@
  *
  * */
 
-package sim.app.geo.pedSimCity;
+package sim.app.geo.PedSimCity;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -17,9 +17,10 @@ import org.javatuples.Pair;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
 
-import sim.app.geo.urbanSim.EdgeGraph;
-import sim.app.geo.urbanSim.NodeGraph;
-import sim.app.geo.urbanSim.Utilities;
+import sim.app.geo.UrbanSim.Angles;
+import sim.app.geo.UrbanSim.EdgeGraph;
+import sim.app.geo.UrbanSim.NodeGraph;
+import sim.app.geo.UrbanSim.Utilities;
 import sim.util.Bag;
 import sim.util.geo.MasonGeometry;
 
@@ -76,7 +77,7 @@ public class BarrierBasedNavigation {
 			// pick the closest barrier sub-goal
 			NodeGraph u = edgeGoal.u;
 			NodeGraph v = edgeGoal.v;
-			if ((Utilities.nodesDistance(currentLocation, u)) < (Utilities.nodesDistance(currentLocation, v))) subGoal = u;
+			if ((NodeGraph.nodesDistance(currentLocation, u)) < (NodeGraph.nodesDistance(currentLocation, v))) subGoal = u;
 			else subGoal = v;
 
 			sequence.add(subGoal);
@@ -98,8 +99,13 @@ public class BarrierBasedNavigation {
 
 	public static Set<Integer> intersectingBarriers(NodeGraph currentLocation, NodeGraph destinationNode, String typeOfBarriers) {
 
+<<<<<<< Updated upstream
 		Geometry viewField = Utilities.viewField(currentLocation, destinationNode);
 		Bag intersecting = PedSimCity.barriers.getIntersecting(viewField);
+=======
+		Geometry viewField = Angles.viewField(currentLocation, destinationNode, 70.0);
+		Bag intersecting = PedSimCity.barriers.intersectingFeatures(viewField);
+>>>>>>> Stashed changes
 		Set<Integer> intersectingBarriers = new HashSet<Integer>();
 		ArrayList<MasonGeometry> intersectingGeometries = new ArrayList<MasonGeometry>();
 
@@ -135,7 +141,7 @@ public class BarrierBasedNavigation {
 
 		HashMap<Integer, Double> possibleBarriers = new HashMap<Integer, Double> ();
 		// create search-space
-		Geometry viewField = Utilities.viewField(currentLocation, destinationNode);
+		Geometry viewField = Angles.viewField(currentLocation, destinationNode, 70.0);
 
 		// for each barrier, check whether they are within the region/area considered and within the search-space, and if
 		// it complies with the criteria
@@ -156,7 +162,11 @@ public class BarrierBasedNavigation {
 		if (region != null) regionBasedNavigation = true;
 
 		// sorted by distance (further away first)
+<<<<<<< Updated upstream
 		LinkedHashMap<Integer, Double> validSorted = (LinkedHashMap<Integer, Double>) Utilities.sortByValue(possibleBarriers, "descending");
+=======
+		LinkedHashMap<Integer, Double> validSorted = (LinkedHashMap<Integer, Double>) Utilities.sortByValue(possibleBarriers, true);
+>>>>>>> Stashed changes
 		ArrayList<EdgeGraph> regionEdges = null;
 		// the edges of the current region
 		if (regionBasedNavigation) regionEdges = region.primalGraph.getParentEdges(region.primalGraph.getEdges());
@@ -185,8 +195,7 @@ public class BarrierBasedNavigation {
 			if (thisBarrierEdgeGoals.size() == 0) continue;
 
 			// this is considered a good Edge, sort by distance and takes the closest to the current location.
-			LinkedHashMap<EdgeGraph, Double> thisBarrierSubGoalSorted = (LinkedHashMap<EdgeGraph, Double>)
-					Utilities.sortByValue(thisBarrierEdgeGoals, "ascending");
+			LinkedHashMap<EdgeGraph, Double> thisBarrierSubGoalSorted = (LinkedHashMap<EdgeGraph, Double>) Utilities.sortByValue(thisBarrierEdgeGoals, false);
 			EdgeGraph possibleEdgeGoal = thisBarrierSubGoalSorted.keySet().iterator().next();
 
 			// compare it with the previous barrier-edges pairs, on the basis of the type. Positive barriers are preferred.

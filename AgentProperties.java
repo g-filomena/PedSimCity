@@ -1,10 +1,14 @@
-package sim.app.geo.pedSimCity;
+package sim.app.geo.PedSimCity;
 
 import java.util.ArrayList;
 
 import org.javatuples.Pair;
 
+<<<<<<< Updated upstream
 import sim.app.geo.urbanSim.NodeGraph;
+=======
+import sim.app.geo.UrbanSim.NodeGraph;
+>>>>>>> Stashed changes
 
 /**
  * @param landmarkBasedNavigation using Landmarks y/n;
@@ -17,12 +21,29 @@ import sim.app.geo.urbanSim.NodeGraph;
 public class AgentProperties
 {
 	public int agentID;
+<<<<<<< Updated upstream
 	public String criteria;
 	double sd_error = 0.10;
 	double agentKnowledge = 1.0;
+=======
+	public int group;
+	double sdError = 0.10;
+	double agentKnowledge = 1.0;
+
+	// for general routing
+	String localHeuristic = "";
+	String algorithm = "dijkstra";
+	public String routeChoice;
+	// only when testingLandmarks or testingRegions
+	ArrayList<Pair<NodeGraph, NodeGraph>> OD =  new ArrayList<Pair<NodeGraph, NodeGraph>>();
+	ArrayList<ArrayList<NodeGraph>> listSequences = new ArrayList<ArrayList<NodeGraph>> ();
+
+	//landmarkNavigation related parameters
+>>>>>>> Stashed changes
 	boolean landmarkBasedNavigation = false;
 	boolean onlyAnchors = true;
 	boolean barrierBasedNavigation = false;
+<<<<<<< Updated upstream
 	boolean regionBasedNavigation = false;
 
 	String localHeuristic = "roadDistance";
@@ -40,11 +61,42 @@ public class AgentProperties
 		if (criteria.contains("roadDistance")) localHeuristic = "roadDistance";
 		else if (criteria.contains("angularChange")) localHeuristic = "angularChange";
 		if (agentKnowledge <= ResearchParameters.noobAgentThreshold) onlyAnchors = false;
+=======
+	// the ones possibly used as sub-goals ["all", "positive", "negative", "separating"]
+	String typeBarriers = "";
+
+
+	public void setProperties(String routeChoice) {
+		this.routeChoice = routeChoice;
+		if (routeChoice.contains("Landmarks")) {
+			landmarkBasedNavigation = true;
+			typeLandmarks = "local";
+		}
+
+		if (routeChoice.equals("localLandmarks")) usingLocalLandmarks = true;
+		else if (routeChoice.equals("globalLandmarks")) usingGlobalLandmarks = true;
+		else if (routeChoice.contains("Landmarks")) {
+			usingLocalLandmarks = true;
+			usingGlobalLandmarks = true;
+		}
+		if (routeChoice.contains("Barriers")) {
+			typeBarriers = "all";
+			barrierBasedNavigation = true;
+		}
+		if (routeChoice.contains("Regions")) regionBasedNavigation = true;
+		if (routeChoice.contains("roadDistance")) localHeuristic = "roadDistance";
+		else if (routeChoice.contains("angularChange")) localHeuristic = "angularChange";
+		else if (routeChoice.contains("turns")) localHeuristic = "turns";
+		else if (routeChoice.contains("junctions")) localHeuristic = "junctions";
+>>>>>>> Stashed changes
 	}
 
 	public void setOD(ArrayList<Pair<NodeGraph, NodeGraph>> OD, ArrayList<ArrayList<NodeGraph>> listSequences) {
 		this.OD = OD;
 		this.listSequences = new ArrayList<ArrayList<NodeGraph>> (listSequences);
 	}
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 }

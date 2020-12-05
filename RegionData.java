@@ -1,11 +1,18 @@
-package sim.app.geo.pedSimCity;
+package sim.app.geo.PedSimCity;
 
 import java.util.ArrayList;
 
+<<<<<<< Updated upstream:RegionData.java
 import sim.app.geo.urbanSim.EdgeGraph;
 import sim.app.geo.urbanSim.SubGraph;
 import sim.app.geo.urbanSim.VectorLayer;
 import sim.util.geo.MasonGeometry;
+=======
+import sim.app.geo.UrbanSim.EdgeGraph;
+import sim.app.geo.UrbanSim.SubGraph;
+import sim.app.geo.UrbanSim.VectorLayer;
+import sim.util.Bag;
+>>>>>>> Stashed changes:Region.java
 
 
 /**

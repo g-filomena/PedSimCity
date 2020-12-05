@@ -4,7 +4,7 @@
  *
  * */
 
-package sim.app.geo.pedSimCity;
+package sim.app.geo.PedSimCity;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -15,10 +15,10 @@ import java.util.Set;
 
 import org.javatuples.Pair;
 
-import sim.app.geo.urbanSim.Angles;
-import sim.app.geo.urbanSim.EdgeGraph;
-import sim.app.geo.urbanSim.NodeGraph;
-import sim.app.geo.urbanSim.Utilities;
+import sim.app.geo.UrbanSim.Angles;
+import sim.app.geo.UrbanSim.EdgeGraph;
+import sim.app.geo.UrbanSim.NodeGraph;
+import sim.app.geo.UrbanSim.Utilities;
 
 public class RegionBasedNavigation {
 
@@ -175,7 +175,7 @@ public class RegionBasedNavigation {
 			// pick the closest barrier sub-goal
 			NodeGraph u = edgeGoal.u;
 			NodeGraph v = edgeGoal.v;
-			if ((Utilities.nodesDistance(gateway, u)) < (Utilities.nodesDistance(gateway, v))) subGoal = u;
+			if ((NodeGraph.nodesDistance(gateway, u)) < (NodeGraph.nodesDistance(gateway, v))) subGoal = u;
 			else subGoal = v;
 
 			adjacentBarriers.add(barrier);
@@ -239,7 +239,7 @@ public class RegionBasedNavigation {
 
 		// check compliance with criteria
 		double destinationAngle = Angles.angle(currentLocation, destinationNode);
-		double distanceTarget = Utilities.nodesDistance(currentLocation, destinationNode);
+		double distanceTarget = NodeGraph.nodesDistance(currentLocation, destinationNode);
 
 		for (GatewayData gd : possibleGates) {
 			if (gd.node == currentLocation) continue;
@@ -249,7 +249,7 @@ public class RegionBasedNavigation {
 			if (visitedRegions.contains(gd.regionTo)) continue;
 
 			double exitAngle = Angles.angle(currentLocation, gd.node);
-			double distanceFromGate = Utilities.nodesDistance(currentLocation, gd.node);
+			double distanceFromGate = NodeGraph.nodesDistance(currentLocation, gd.node);
 
 			// criteria are not met
 			if (distanceFromGate > distanceTarget ||
@@ -272,7 +272,7 @@ public class RegionBasedNavigation {
 
 		// sort the valid gates, rewarding the ones with the lowest deviation towards the destination
 		LinkedHashMap<Pair<NodeGraph, NodeGraph>, Double> validSorted = (LinkedHashMap<Pair<NodeGraph, NodeGraph>, Double>)
-				Utilities.sortByValue(validGates, "ascending");
+				Utilities.sortByValue(validGates, false);
 
 		// return the first gateway pair
 		for (Entry<Pair<NodeGraph, NodeGraph>, Double> gatewaysPair: validSorted.entrySet()) return gatewaysPair.getKey();
