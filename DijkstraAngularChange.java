@@ -99,7 +99,6 @@ public class DijkstraAngularChange {
 			// compute errors in perception of road coasts with stochastic variables
 			double error = Utilities.fromDistribution(1.0, 0.10, null);
 			double edgeCost = commonEdge.getDeflectionAngle() * error;
-			System.out.println(commonEdge.getDeflectionAngle() +  "  "+primalDestinationNode.distantLandmarks.toString());
 			if (edgeCost > 180.0) edgeCost = 180.0;
 			if (edgeCost < 0.0) edgeCost = 0.0;
 

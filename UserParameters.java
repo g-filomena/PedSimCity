@@ -41,7 +41,7 @@ public class UserParameters {
 	static int numAgents = 2000;
 
 	//directories
-	public static String outputFolderDefault = "C:/Users/g_filo01/sciebo/Scripts/PedSimCity_Analysis/Input/";
+	public static String outputFolderDefault = "C:/Users/g_filo01/sciebo/Scripts/PedSimCity-Evaluation/Input/";
 	public static String outputFolder;
 	public static String outputFolderRoutes;
 
@@ -58,8 +58,8 @@ public class UserParameters {
 			outputFolderRoutes = outputFolderDefault+"test/routes/"+cityName+"_PedSim_test_";
 		}
 		if (testingLandmarks) {
-			outputFolder = outputFolderDefault+"landmarkNavigation/"+cityName+"_PedSim_landmarks_";
-			outputFolderRoutes = outputFolderDefault+"landmarkNavigation/routes/"+cityName+"_PedSim_landmarks_";
+			outputFolder = outputFolderDefault+"landmarkNavigation/"+cityName+"_PedSim_landmarks_vv";
+			outputFolderRoutes = outputFolderDefault+"landmarkNavigation/routes/"+cityName+"_PedSim_landmarks_vv";
 		}
 	}
 }

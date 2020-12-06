@@ -15,5 +15,6 @@ It requires:
 * GeoMason and its requirements;
 * [UrbanSim](https://github.com/g-filomena/urbanSim), a set of supporting functions for urban simulation models.
 
-Before running the model, check the default parameters in the class UserParameters.java so to run the ABM as you please; one can also set the directories for storing the output.
+Before running the model, check the default parameters in the class UserParameters.java so to run the ABM as you please; there, one can also set the local directories for storing the output.
+
 The core of the simulation (the simulation state, the scheduler and the agent basic movement functions) is based on *Gridlock*, by Sarah Wise, Mark Coletti, and Andrew Crooks, a GeoMason example.

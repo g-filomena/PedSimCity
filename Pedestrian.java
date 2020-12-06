@@ -61,7 +61,6 @@ public final class Pedestrian implements Steppable {
 	public Pedestrian(PedSimCity state, AgentProperties ap) {
 		this.ap = ap;
 		this.state = state;
-		System.out.println(ap.OD.size());
 		originNode = (NodeGraph) ap.OD.get(numTrips).getValue(0);
 		GeometryFactory fact = new GeometryFactory();
 		agentLocation = new MasonGeometry(fact.createPoint(new Coordinate(10, 10)));
@@ -77,7 +76,7 @@ public final class Pedestrian implements Steppable {
 	 */
 	public void findNewAStarPath(PedSimCity state) {
 		selectRouteChoice();
-		System.out.println(originNode.getID() + "  "+ destinationNode.getID()+ " "+ap.routeChoice+"  "+numTrips);
+		System.out.println(originNode.getID() + "  "+ destinationNode.getID()+ " "+ap.routeChoice);
 
 		RouteData route = new RouteData();
 		route.origin = originNode.getID();

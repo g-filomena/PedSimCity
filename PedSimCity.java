@@ -99,8 +99,7 @@ public class PedSimCity extends SimState {
 			UserParameters.setTestingMatrix();
 			numTripsScenario = UserParameters.OR.size();
 		}
-		//		else if (UserParameters.testingLandmarks) numTripsScenario = distances.size();
-		else if (UserParameters.testingLandmarks) numTripsScenario = 10;
+		else if (UserParameters.testingLandmarks) numTripsScenario = distances.size();
 		ArrayList<ArrayList<NodeGraph>> listSequences = new ArrayList<ArrayList<NodeGraph>> ();
 
 		for (int i = 0; i < numTripsScenario; i++) {
