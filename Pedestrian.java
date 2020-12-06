@@ -219,12 +219,12 @@ public final class Pedestrian implements Steppable {
 	 **/
 	void updateEdgeData(EdgeGraph edge) {
 		edge = PedSimCity.edgesMap.get(edge.getID()); //in case it was a subgraph edge
-		if (ap.routeChoice.equals("roadDistance")) edge.roadDistance += 1;
-		else if (ap.routeChoice.equals("angularChange")) edge.angularChangeLandmarks += 1;
-		else if (ap.routeChoice.equals("roadDistanceLandmarks")) edge.roadDistanceLandmarks += 1;
-		else if (ap.routeChoice.equals("angularChangeLandmarks")) edge.angularChangeLandmarks += 1;
-		else if (ap.routeChoice.equals("localLandmarks")) edge.localLandmarks += 1;
-		else if (ap.routeChoice.equals("globalLandmarks")) edge.globalLandmarks += 1;
+		if (ap.routeChoice.equals("RD")) edge.RD += 1;
+		else if (ap.routeChoice.equals("AC")) edge.AC += 1;
+		else if (ap.routeChoice.equals("RL")) edge.RL += 1;
+		else if (ap.routeChoice.equals("AL")) edge.AL += 1;
+		else if (ap.routeChoice.equals("LL")) edge.LL += 1;
+		else if (ap.routeChoice.equals("GL")) edge.GL += 1;
 	}
 
 	public void setStoppable(Stoppable a) {killAgent = a;}
@@ -237,12 +237,12 @@ public final class Pedestrian implements Steppable {
 	{
 		if (UserParameters.testingLandmarks) this.sequence = ap.listSequences.get(numTrips);
 		RoutePlanner planner = new RoutePlanner();
-		if (ap.routeChoice.equals("roadDistance"))	newPath = planner.roadDistance(originNode, destinationNode, ap);
-		else if (ap.routeChoice.equals("angularChange")) newPath = planner.angularChangeBased(originNode, destinationNode, ap);
-		else if (ap.routeChoice.equals("roadDistanceLandmarks")) newPath = planner.roadDistanceSequence(sequence, ap);
-		else if (ap.routeChoice.equals("angularChangeLandmarks")) newPath = planner.angularChangeBasedSequence(sequence, ap);
-		else if (ap.routeChoice.equals("localLandmarks")) newPath = planner.roadDistanceSequence(sequence, ap);
-		else if (ap.routeChoice.equals("globalLandmarks")) newPath = planner.globalLandmarksPath(originNode, destinationNode, ap);
+		if (ap.routeChoice.equals("RD"))	newPath = planner.roadDistance(originNode, destinationNode, ap);
+		else if (ap.routeChoice.equals("AC")) newPath = planner.angularChangeBased(originNode, destinationNode, ap);
+		else if (ap.routeChoice.equals("RL")) newPath = planner.roadDistanceSequence(sequence, ap);
+		else if (ap.routeChoice.equals("AL")) newPath = planner.angularChangeBasedSequence(sequence, ap);
+		else if (ap.routeChoice.equals("LL")) newPath = planner.roadDistanceSequence(sequence, ap);
+		else if (ap.routeChoice.equals("GL")) newPath = planner.globalLandmarksPath(originNode, destinationNode, ap);
 	}
 
 	/** It computes the agents' speed  */

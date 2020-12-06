@@ -125,9 +125,9 @@ public class ImportingExporting {
 				MasonGeometry segment = (MasonGeometry) edgesGeometries.objs[i];
 				EdgeGraph ed = PedSimCity.edgesMap.get(segment.getIntegerAttribute("edgeID"));
 				CSVUtils.writeLine(writerDensitiesData, Arrays.asList(Integer.toString(ed.getID()),
-						Integer.toString(ed.roadDistance), Integer.toString(ed.angularChange),
-						Integer.toString(ed.roadDistanceLandmarks), Integer.toString(ed.angularChangeLandmarks),
-						Integer.toString(ed.localLandmarks), Integer.toString(ed.globalLandmarks)));
+						Integer.toString(ed.RD), Integer.toString(ed.AC),
+						Integer.toString(ed.RL), Integer.toString(ed.AL),
+						Integer.toString(ed.LL), Integer.toString(ed.GL)));
 			}
 			writerDensitiesData.flush();
 			writerDensitiesData.close();

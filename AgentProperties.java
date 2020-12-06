@@ -37,20 +37,22 @@ public class AgentProperties {
 
 	public void setProperties(String routeChoice) {
 		this.routeChoice = routeChoice;
-		if (routeChoice.contains("Landmarks")) {
+		if (routeChoice.equals("RL") || routeChoice.equals("AL") || routeChoice.equals("LL") ) {
+			usingLocalLandmarks = true;
 			landmarkBasedNavigation = true;
 			typeLandmarks = "local";
 		}
 
-		if (routeChoice.equals("localLandmarks")) usingLocalLandmarks = true;
-		else if (routeChoice.equals("globalLandmarks")) usingGlobalLandmarks = true;
-		else if (routeChoice.contains("Landmarks")) {
-			usingLocalLandmarks = true;
+		if (routeChoice.equals("GL")) {
 			usingGlobalLandmarks = true;
 			onlyAnchors = true;
 		}
-		if (routeChoice.contains("roadDistance")) localHeuristic = "roadDistance";
-		else if (routeChoice.contains("angularChange")) localHeuristic = "angularChange";
+		if (routeChoice.equals("RL") || routeChoice.equals("AL")) {
+			usingGlobalLandmarks = true;
+			onlyAnchors = true;
+		}
+		if (routeChoice.contains("R")) localHeuristic = "roadDistance";
+		else if (routeChoice.contains("A")) localHeuristic = "angularChange";
 	}
 
 	public void setOD(ArrayList<Pair<NodeGraph, NodeGraph>> OD, ArrayList<ArrayList<NodeGraph>> listSequences) {

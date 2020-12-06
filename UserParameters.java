@@ -20,9 +20,14 @@ public class UserParameters {
 	static List<Integer> DE = new ArrayList<Integer>();
 
 	static boolean subGraph = false;
-	static String routeChoicesLandmarks[] = {"roadDistance", "angularChange", "roadDistanceLandmarks", "angularChangeLandmarks",
-			"localLandmarks", "globalLandmarks"};
-	static String routeChoices[] = {"roadDistance", "angularChange"};
+	// RD = road distance
+	// AC = angular change
+	// RL = road distance + landmarks
+	// AL = angular change + landmarks
+	// LL = road distance + local landmarks
+	// GL = global landmarks
+	static String routeChoicesLandmarks[] = {"RD", "AC", "RL", "AL", "LL", "GL"};
+	static String routeChoices[] = {"RD", "AC"};
 
 	// Landmark Integration
 	static double distanceNodeLandmark = 50.0;
@@ -58,8 +63,8 @@ public class UserParameters {
 			outputFolderRoutes = outputFolderDefault+"test/routes/"+cityName+"_PedSim_test_";
 		}
 		if (testingLandmarks) {
-			outputFolder = outputFolderDefault+"landmarkNavigation/"+cityName+"_PedSim_landmarks_vv";
-			outputFolderRoutes = outputFolderDefault+"landmarkNavigation/routes/"+cityName+"_PedSim_landmarks_vv";
+			outputFolder = outputFolderDefault+"landmarkNavigation/"+cityName+"_PedSim_landmarks_";
+			outputFolderRoutes = outputFolderDefault+"landmarkNavigation/routes/"+cityName+"_PedSim_landmarks_";
 		}
 	}
 }
