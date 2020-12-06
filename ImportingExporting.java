@@ -31,8 +31,8 @@ public class ImportingExporting {
 		String inputDataDirectory = null;
 		if (UserParameters.testingLandmarks) {
 			inputDataDirectory = "landmarksData"+"/"+UserParameters.cityName+"/";
-			/// read distances
 
+			/// read GPS trajectories distances
 			if (!UserParameters.testingSpecificRoutes) {
 				System.out.println("reading distances");
 				CSVReader readerDistances = new CSVReader(new FileReader(PedSimCity.class.getResource(inputDataDirectory).toString().substring(6)
@@ -48,8 +48,8 @@ public class ImportingExporting {
 				readerDistances.close();
 			}
 		}
-		else if (UserParameters.testingRegions) inputDataDirectory = "districtsData/"+UserParameters.cityName+"/";
 		else if (UserParameters.testingSpecificRoutes) inputDataDirectory = "data/"+UserParameters.cityName+"/";
+
 		if (UserParameters.testingLandmarks) {
 			// read buildings
 			System.out.println("reading buildings and sight lines layers");
@@ -60,14 +60,6 @@ public class ImportingExporting {
 			PedSimCity.buildings.generateGeometriesList();
 			PedSimCity.sightLines.generateGeometriesList();
 			PedSimCity.buildings.setID("buildingID");
-		}
-
-		if (UserParameters.testingRegions) {
-
-			System.out.println("reading barriers layer");
-			URL barriersFile = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_barriers.shp");
-			ShapeFileImporter.read(barriersFile, PedSimCity.barriers);
-			PedSimCity.barriers.generateGeometriesList();
 		}
 
 		// read the street network shapefiles and create the primal and the dual graph
@@ -116,32 +108,13 @@ public class ImportingExporting {
 
 
 	// save the simulation output
-	public static void saveCSV(int job) throws IOException {
+	public static void saveResults(int job) throws IOException {
 
 		System.out.println("saving Densities");
 		Bag edgesGeometries = PedSimCity.roads.getGeometries();
 		String csvSegments = null;
 
-		if (UserParameters.testingRegions) {
-			csvSegments = UserParameters.outputFolder+(job)+".csv";
-			FileWriter writerDensitiesData = new FileWriter(csvSegments);
-			CSVUtils.writeLine(writerDensitiesData, Arrays.asList("edgeID", "AC", "RB", "BB", "BRB"));
-
-
-			int rGeoSize = edgesGeometries.size();
-			for (int i = 0; i < rGeoSize; i++) {
-				MasonGeometry segment = (MasonGeometry) edgesGeometries.objs[i];
-				EdgeGraph ed = PedSimCity.edgesMap.get(segment.getIntegerAttribute("edgeID"));
-				CSVUtils.writeLine(writerDensitiesData, Arrays.asList(Integer.toString(
-						ed.getID()), Integer.toString(ed.roadDistance),
-						Integer.toString(ed.angularChange), Integer.toString(ed.angularChangeRegions),
-						Integer.toString(ed.angularChangeBarriers),	Integer.toString(ed.angularChangeRegionsBarriers)));
-			}
-			writerDensitiesData.flush();
-			writerDensitiesData.close();
-		}
-
-		else if (UserParameters.testingLandmarks) {
+		if (UserParameters.testingLandmarks) {
 
 			csvSegments = UserParameters.outputFolder+(job)+".csv";
 			FileWriter writerDensitiesData = new FileWriter(csvSegments);
@@ -163,7 +136,7 @@ public class ImportingExporting {
 		System.out.println("saving Routes");
 
 		VectorLayer routes = new VectorLayer();
-		String	directory = UserParameters.outputFolderRoutes+"_routes_"+(job);
+		String	directory = UserParameters.outputFolderRoutes+"routes_"+(job);
 		int columns = 0;
 		for (RouteData rD : PedSimCity.routesData) {
 

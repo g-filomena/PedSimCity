@@ -61,7 +61,7 @@ public final class Pedestrian implements Steppable {
 	public Pedestrian(PedSimCity state, AgentProperties ap) {
 		this.ap = ap;
 		this.state = state;
-
+		System.out.println(ap.OD.size());
 		originNode = (NodeGraph) ap.OD.get(numTrips).getValue(0);
 		GeometryFactory fact = new GeometryFactory();
 		agentLocation = new MasonGeometry(fact.createPoint(new Coordinate(10, 10)));
@@ -70,14 +70,14 @@ public final class Pedestrian implements Steppable {
 		updatePosition(startCoord);
 	}
 
-
+	/**
+	 * It formulates a new path when the agent is done with its previous one.
+	 *
+	 * @param state the simulation state;
+	 */
 	public void findNewAStarPath(PedSimCity state) {
-
-		ArrayList<GeomPlanarGraphDirectedEdge> newPath = null;
-
-		this.sequence = ap.listSequences.get(numTrips);
-		System.out.println(originNode.getID() + "  "+ destinationNode.getID()+ " "+ap.routeChoice);
-		selectrouteChoice();
+		selectRouteChoice();
+		System.out.println(originNode.getID() + "  "+ destinationNode.getID()+ " "+ap.routeChoice+"  "+numTrips);
 
 		RouteData route = new RouteData();
 		route.origin = originNode.getID();
@@ -85,7 +85,6 @@ public final class Pedestrian implements Steppable {
 		route.routeChoice = ap.routeChoice;
 		List<Integer> sequenceEdges = new ArrayList<Integer>();
 		route.routeID = numTrips;
-
 		for (GeomPlanarGraphDirectedEdge o : newPath) {
 			// update edge data
 			updateEdgeData((EdgeGraph) o.getEdge());
@@ -129,8 +128,12 @@ public final class Pedestrian implements Steppable {
 				killAgent.stop();
 				return;
 			}
-			//	repositionAgent();
-
+			originNode = (NodeGraph) ap.OD.get(numTrips).getValue(0);
+			updatePosition(originNode.getCoordinate());
+			destinationNode = (NodeGraph) ap.OD.get(numTrips).getValue(1);
+			findNewAStarPath(stateSchedule);
+			return;
+		}
 		keepWalking();
 	}
 
@@ -170,12 +173,11 @@ public final class Pedestrian implements Steppable {
 	/**
 	 * Sets the Agent up to proceed along an Edge.
 	 *
-	 * @param edge the GeomPlanarGraphEdge to traverse next;
+	 * @param edge the EdgeGraph to traverse next;
 	 * */
 	void setupEdge(EdgeGraph edge) {
 
 		currentEdge = edge;
-
 		//transform GeomPlanarGraphEdge in Linestring
 		LineString line = edge.getLine();
 		//index the Linestring
@@ -201,14 +203,22 @@ public final class Pedestrian implements Steppable {
 
 	}
 
-	/** move the agent to the given coordinates */
+	/**
+	 * It moves the agent to the given coordinates.
+	 *
+	 * @param c the coordinates;
+	 **/
 	public void updatePosition(Coordinate c) {
 		pointMoveTo.setCoordinate(c);
 		PedSimCity.agents.setGeometryLocation(agentLocation, pointMoveTo);
 	}
 
+	/**
+	 * It updates the volumes on a given edge, on the basis of the agent's route choice model.
+	 *
+	 * @param EdgeGraph the edge;
+	 **/
 	void updateEdgeData(EdgeGraph edge) {
-
 		edge = PedSimCity.edgesMap.get(edge.getID()); //in case it was a subgraph edge
 		if (ap.routeChoice.equals("roadDistance")) edge.roadDistance += 1;
 		else if (ap.routeChoice.equals("angularChange")) edge.angularChangeLandmarks += 1;
@@ -216,35 +226,27 @@ public final class Pedestrian implements Steppable {
 		else if (ap.routeChoice.equals("angularChangeLandmarks")) edge.angularChangeLandmarks += 1;
 		else if (ap.routeChoice.equals("localLandmarks")) edge.localLandmarks += 1;
 		else if (ap.routeChoice.equals("globalLandmarks")) edge.globalLandmarks += 1;
-		else if (ap.routeChoice.contains("roadDistanceRegions")) edge.roadDistanceRegions += 1;
-		else if (ap.routeChoice.contains("angularChangeRegions")) edge.angularChangeRegions += 1;
-		else if (ap.routeChoice.contains("roadDistanceBarriers")) edge.roadDistanceBarriers += 1;
-		else if (ap.routeChoice.contains("angularChangeBarriers")) edge.angularChangeBarriers += 1;
-		else if (ap.routeChoice.contains("roadDistanceRegionsBarriers")) edge.roadDistanceRegionsBarriers += 1;
-		else if (ap.routeChoice.contains("angularChangeRegionsBarriers")) edge.angularChangeRegionsBarriers += 1;
 	}
 
 	public void setStoppable(Stoppable a) {killAgent = a;}
 
-	/** return geometry representing agent location */
+	/** It returns the geometry representing agent location */
 	public MasonGeometry getGeometry() {return agentLocation;}
 
-	public void selectrouteChoice()
+	/** It select the route choice model and it calls the path formulation algorithm  */
+	public void selectRouteChoice()
 	{
 		if (UserParameters.testingLandmarks) this.sequence = ap.listSequences.get(numTrips);
 		RoutePlanner planner = new RoutePlanner();
-
 		if (ap.routeChoice.equals("roadDistance"))	newPath = planner.roadDistance(originNode, destinationNode, ap);
 		else if (ap.routeChoice.equals("angularChange")) newPath = planner.angularChangeBased(originNode, destinationNode, ap);
 		else if (ap.routeChoice.equals("roadDistanceLandmarks")) newPath = planner.roadDistanceSequence(sequence, ap);
 		else if (ap.routeChoice.equals("angularChangeLandmarks")) newPath = planner.angularChangeBasedSequence(sequence, ap);
 		else if (ap.routeChoice.equals("localLandmarks")) newPath = planner.roadDistanceSequence(sequence, ap);
 		else if (ap.routeChoice.equals("globalLandmarks")) newPath = planner.globalLandmarksPath(originNode, destinationNode, ap);
-		else if (ap.routeChoice.contains("Regions")) newPath = planner.regionBarrierBasedPath(originNode, destinationNode, ap);
-		else if (ap.routeChoice.contains("Barriers")) newPath= planner.barrierBasedPath(originNode, destinationNode, ap);
-		else if (ap.routeChoice.contains("turns")) newPath= planner.angularChangeBased(originNode, destinationNode, ap);
 	}
 
+	/** It computes the agents' speed  */
 	double progress(double val)
 	{
 		double edgeLength = currentEdge.getLine().getLength();
@@ -253,7 +255,7 @@ public final class Pedestrian implements Steppable {
 		return val * linkDirection * factor;
 	}
 
-
+	/** It makes the agent move along the computed route  */
 	public void keepWalking() {
 		// move along the current segment
 		speed = progress(moveRate);

@@ -10,7 +10,6 @@
 package sim.app.geo.PedSimCity;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 
 import sim.app.geo.UrbanSim.EdgeGraph;
 import sim.app.geo.UrbanSim.NodeGraph;
@@ -52,17 +51,7 @@ public class DijkstraRoadDistance {
 		// from the GeomPlanarGraphDirectedEdge get the actual EdgeGraph (safer)
 		if (segmentsToAvoid != null) for (GeomPlanarGraphDirectedEdge e : segmentsToAvoid) edgesToAvoid.add((EdgeGraph) e.getEdge());
 
-		// If region-based navigation, navigate only within the region subgraph, if origin and destination nodes belong to the same region.
-		// Otherwise, form a subgraph within a convex hull
-
-		if ((originNode.region == destinationNode.region) && (ap.regionBasedNavigation)) {
-			graph = PedSimCity.regionsMap.get(originNode.region).primalGraph;
-			originNode = graph.findNode(originNode.getCoordinate());
-			destinationNode = graph.findNode(destinationNode.getCoordinate());
-			if (segmentsToAvoid != null) edgesToAvoid =  graph.getChildEdges(edgesToAvoid);
-		}
-		// create graph from convex hull
-		else if (subGraph) {
+		if (subGraph) {
 			ArrayList<EdgeGraph> containedEdges = PedSimCity.network.edgesWithinSpace(originNode, destinationNode);
 			graph = new SubGraph(PedSimCity.network, containedEdges);
 			originNode = graph.findNode(originNode.getCoordinate());
@@ -100,20 +89,8 @@ public class DijkstraRoadDistance {
 
 			if (segmentsToAvoid == null);
 			else if (edgesToAvoid.contains(outEdge.getEdge()))	continue;
-			double error = 0.0;
-
-			// compute costs based on the navigation strategies.
-			// compute errors in perception of road coasts with stochastic variables
-			if (ap.barrierBasedNavigation) {
-				List<Integer> positiveBarriers = commonEdge.positiveBarriers;
-				List<Integer> negativeBarriers = commonEdge.negativeBarriers;
-				if (positiveBarriers != null) error = Utilities.fromDistribution(0.70, 0.10, "left");
-				else if (negativeBarriers != null) error = Utilities.fromDistribution(1.30, 0.10, "right");
-				else error = Utilities.fromDistribution(1.0, 0.10, null);
-			}
-			else error = Utilities.fromDistribution(1.0, 0.10, null);
+			double error = Utilities.fromDistribution(1.0, 0.10, null);
 			double edgeCost = commonEdge.getLength()*error;
-
 			double tentativeCost = 0.0;
 
 			if (ap.usingGlobalLandmarks && NodeGraph.nodesDistance(targetNode, finalDestinationNode) > UserParameters.threshold3dVisibility) {
@@ -123,6 +100,7 @@ public class DijkstraRoadDistance {
 				tentativeCost = getBest(currentNode) + nodeCost;
 			}
 			else tentativeCost = getBest(currentNode) + edgeCost;
+
 			if (getBest(targetNode) > tentativeCost) {
 				NodeWrapper nodeWrapper = mapWrappers.get(targetNode);
 				if (nodeWrapper == null) nodeWrapper = new NodeWrapper(targetNode);

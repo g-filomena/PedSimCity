@@ -12,9 +12,8 @@ public class UserParameters {
 	//General parameters/components
 	static String cityName = "London";
 	static int jobs = 50;
-	static boolean testingRegions = false;
-	static boolean testingLandmarks = true;
 
+	static boolean testingLandmarks = true;
 	static boolean testingSpecificRoutes = false;
 	static boolean readingFromPrevious =  false;
 	static List<Integer> OR = new ArrayList<Integer>();
@@ -23,7 +22,6 @@ public class UserParameters {
 	static boolean subGraph = false;
 	static String routeChoicesLandmarks[] = {"roadDistance", "angularChange", "roadDistanceLandmarks", "angularChangeLandmarks",
 			"localLandmarks", "globalLandmarks"};
-	static String routeChoicesRegions[] = {"angularChange", "angularChangeRegions", "angularChangeBarriers", "angularChangeRegionsBarriers"};
 	static String routeChoices[] = {"roadDistance", "angularChange"};
 
 	// Landmark Integration
@@ -39,7 +37,7 @@ public class UserParameters {
 	static double wayfindingEasinessThreshold = 0.95; //2d Visibility threshold; distanLandmarks usage threshold
 	static double globalLandmarknessWeight = 0.80; //weight Global Landmarkness in combination with edge cost
 
-	// Agents/groups parameters
+	// Agents parameters
 	static int numAgents = 2000;
 
 	//directories
@@ -62,10 +60,6 @@ public class UserParameters {
 		if (testingLandmarks) {
 			outputFolder = outputFolderDefault+"landmarkNavigation/"+cityName+"_PedSim_landmarks_";
 			outputFolderRoutes = outputFolderDefault+"landmarkNavigation/routes/"+cityName+"_PedSim_landmarks_";
-		}
-		else if (testingRegions) {
-			outputFolder = outputFolderDefault+"regionBasedNavigation/"+cityName+"_PedSim_regions_";
-			outputFolderRoutes = outputFolderDefault+"regionBasedNavigation/routes/"+cityName+"_PedSim_regions_";
 		}
 	}
 }
