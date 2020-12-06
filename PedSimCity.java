@@ -106,7 +106,7 @@ public class PedSimCity extends SimState {
 			NodeGraph originNode = null;
 			NodeGraph destinationNode = null;
 
-			if (UserParameters.readingFromPrevious || UserParameters.testingSpecificRoutes) {
+			if (UserParameters.testingSpecificRoutes) {
 				originNode = nodesMap.get(UserParameters.OR.get(i));
 				destinationNode = nodesMap.get(UserParameters.DE.get(i));
 			}
@@ -165,7 +165,6 @@ public class PedSimCity extends SimState {
 				EdgeGraph edge = (EdgeGraph) o;
 				edge.resetDensities();
 			}
-			if (UserParameters.readingFromPrevious) ImportingExporting.readingOD(UserParameters.outputFolderRoutes+"routes_"+job+".csv");
 			SimState state = new PedSimCity(System.currentTimeMillis(), job);
 			state.start();
 			while (state.schedule.step(state)) {}

@@ -15,7 +15,6 @@ public class UserParameters {
 
 	static boolean testingLandmarks = true;
 	static boolean testingSpecificRoutes = false;
-	static boolean readingFromPrevious =  false;
 	static List<Integer> OR = new ArrayList<Integer>();
 	static List<Integer> DE = new ArrayList<Integer>();
 

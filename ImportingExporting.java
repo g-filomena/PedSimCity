@@ -85,28 +85,6 @@ public class ImportingExporting {
 		UserParameters.setOutputFolder();
 	}
 
-
-
-	// it reads OD from an existing file
-	public static void readingOD(String inputFile) throws IOException {
-
-		CSVReader readerOD;
-		readerOD = new CSVReader(new FileReader(inputFile));
-		String[] nextLine;
-		UserParameters.OR.clear();
-		UserParameters.DE.clear();
-
-		int dv = 0;
-		while ((nextLine = readerOD.readNext()) != null) {
-			dv += 1;
-			if (dv == 1) continue;
-			UserParameters.OR.add(Integer.parseInt(nextLine[1]));
-			UserParameters.DE.add(Integer.parseInt(nextLine[2]));
-		}
-		readerOD.close();
-	}
-
-
 	// save the simulation output
 	public static void saveResults(int job) throws IOException {
 
