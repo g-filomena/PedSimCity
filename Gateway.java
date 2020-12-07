@@ -1,11 +1,11 @@
-package sim.app.geo.pedSimCity;
+package sim.app.geo.PedSimCity;
 
 import org.javatuples.Pair;
 
-import sim.app.geo.urbanSim.NodeGraph;
+import sim.app.geo.UrbanSim.NodeGraph;
 
 public class Gateway {
-	
+
 	NodeGraph node;
 	NodeGraph entry;
 	Pair<NodeGraph, NodeGraph> gatewayID;

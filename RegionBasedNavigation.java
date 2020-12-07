@@ -4,7 +4,7 @@
  *
  * */
 
-package sim.app.geo.pedSimCity;
+package sim.app.geo.PedSimCity;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -15,10 +15,10 @@ import java.util.Set;
 
 import org.javatuples.Pair;
 
-import sim.app.geo.urbanSim.Angles;
-import sim.app.geo.urbanSim.EdgeGraph;
-import sim.app.geo.urbanSim.NodeGraph;
-import sim.app.geo.urbanSim.Utilities;
+import sim.app.geo.UrbanSim.Angles;
+import sim.app.geo.UrbanSim.EdgeGraph;
+import sim.app.geo.UrbanSim.NodeGraph;
+import sim.app.geo.UrbanSim.Utilities;
 
 public class RegionBasedNavigation {
 
