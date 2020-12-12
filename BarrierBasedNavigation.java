@@ -164,7 +164,6 @@ public class BarrierBasedNavigation {
 
 		ArrayList<Integer> withinBarriers = new ArrayList<Integer>();
 		ArrayList<EdgeGraph> possibleEdgeGoals = new ArrayList<EdgeGraph>();
-
 		for (int barrierID : validSorted.keySet()) {
 			Barrier barrier = PedSimCity.barriersMap.get(barrierID);
 			String type = barrier.type;
@@ -216,6 +215,7 @@ public class BarrierBasedNavigation {
 		edgeGoal = possibleEdgeGoals.get(0);
 		int barrier = withinBarriers.get(0);
 		Pair<EdgeGraph, Integer> pair = new Pair<EdgeGraph, Integer> (edgeGoal, barrier);
+
 		return pair;
 	}
 }

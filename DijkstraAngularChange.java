@@ -51,7 +51,7 @@ public class DijkstraAngularChange {
 		// If region-based navigation, navigate only within the region subgraph, if origin and destination nodes belong to the same region.
 		// Otherwise, form a subgraph within a convex hull
 
-		if ((originNode.region == destinationNode.region) && (ap.regionBasedNavigation)) {
+		if (originNode.region == destinationNode.region && ap.regionBasedNavigation) {
 			graph = PedSimCity.regionsMap.get(originNode.region).dualGraph;
 			originNode = graph.findNode(originNode.getCoordinate());
 			destinationNode = graph.findNode(destinationNode.getCoordinate());
@@ -103,8 +103,8 @@ public class DijkstraAngularChange {
 			if (ap.barrierBasedNavigation) {
 				List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
 				List<Integer> negativeBarriers = targetNode.primalEdge.negativeBarriers;
-				if (positiveBarriers != null) error = Utilities.fromDistribution(0.70, 0.10, "left");
-				else if ((negativeBarriers != null) && (positiveBarriers == null)) error = Utilities.fromDistribution(1.30, 0.10, "right");
+				if (positiveBarriers.size() > 0) error = Utilities.fromDistribution(0.70, 0.10, "left");
+				else if (negativeBarriers.size() > 0 && positiveBarriers.size() == 0 ) error = Utilities.fromDistribution(1.30, 0.10, "right");
 				else error = Utilities.fromDistribution(1.0, 0.10, null);
 			}
 			else error = Utilities.fromDistribution(1.0, 0.10, null);
@@ -112,7 +112,6 @@ public class DijkstraAngularChange {
 			if (edgeCost > 180.0) edgeCost = 180.0;
 			if (edgeCost < 0.0) edgeCost = 0.0;
 			double tentativeCost = getBest(currentNode) + edgeCost;
-
 
 			if (getBest(targetNode) > tentativeCost) {
 				NodeWrapper NodeWrapper = mapWrappers.get(targetNode);
@@ -154,7 +153,6 @@ public class DijkstraAngularChange {
 		ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges = new ArrayList<GeomPlanarGraphDirectedEdge>();
 		NodeGraph step = destinationNode;
 		mapTraversedWrappers.put(destinationNode, mapWrappers.get(destinationNode));
-
 		// check that the path has been formulated properly
 		if (mapWrappers.size() == 1) return path;
 		try {

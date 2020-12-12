@@ -5,15 +5,17 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.lang3.ArrayUtils;
 
+import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.LineString;
-import com.vividsolutions.jts.operation.linemerge.LineMerger;
 
 import sim.app.geo.UrbanSim.EdgeGraph;
+import sim.app.geo.UrbanSim.NodeGraph;
 import sim.app.geo.UrbanSim.VectorLayer;
 import sim.io.geo.ShapeFileExporter;
 import sim.io.geo.ShapeFileImporter;
@@ -68,7 +70,7 @@ public class ImportingExporting {
 		if (UserParameters.testingRegions) {
 			csvSegments = UserParameters.outputFolder+(job)+".csv";
 			FileWriter writerDensitiesData = new FileWriter(csvSegments);
-			CSVUtils.writeLine(writerDensitiesData, Arrays.asList("edgeID", "AC", "RB", "BB", "BRB"));
+			CSVUtils.writeLine(writerDensitiesData, Arrays.asList("edgeID", "AC", "RB", "BB", "RBB"));
 
 
 			int rGeoSize = edgesGeometries.size();
@@ -76,7 +78,7 @@ public class ImportingExporting {
 				MasonGeometry segment = (MasonGeometry) edgesGeometries.objs[i];
 				EdgeGraph ed = PedSimCity.edgesMap.get(segment.getIntegerAttribute("edgeID"));
 				CSVUtils.writeLine(writerDensitiesData, Arrays.asList(Integer.toString(
-						ed.getID()), Integer.toString(ed.AC), Integer.toString(ed.RB), Integer.toString(ed.BB),	Integer.toString(ed.BRB)));
+						ed.getID()), Integer.toString(ed.AC), Integer.toString(ed.RB), Integer.toString(ed.BB),	Integer.toString(ed.RBB)));
 			}
 			writerDensitiesData.flush();
 			writerDensitiesData.close();
@@ -88,24 +90,39 @@ public class ImportingExporting {
 		String	directory = UserParameters.outputFolderRoutes+"routes_"+(job);
 		int columns = 0;
 		for (RouteData rD : PedSimCity.routesData) {
-
 			List<Integer> sequenceEdges = rD.sequenceEdges;
-			LineMerger merger = new LineMerger();
+			List<Coordinate> allCoords = new ArrayList<Coordinate>();
 
+			// creating the route geometry
 			for (int i : sequenceEdges) {
 				EdgeGraph edge = PedSimCity.edgesMap.get(i);
 				LineString geometry = (LineString) edge.masonGeometry.geometry;
-				merger.add(geometry);
+				Coordinate [] coords = geometry.getCoordinates();
+				List<Coordinate> coordsCollection = Arrays.asList(coords);
+
+				if (i == sequenceEdges.get(0)) {
+					NodeGraph originNode = PedSimCity.nodesMap.get(rD.origin);
+					if (!originNode.getCoordinate().equals(coords[0])) Collections.reverse(coordsCollection);
+					allCoords.addAll(coordsCollection);
+				}
+				else {
+					if (!coords[0].equals(allCoords.get(allCoords.size()-1))) Collections.reverse(coordsCollection);
+					allCoords.addAll(coordsCollection);
+				}
+
 			}
 			int limit = 254;
-			Collection<LineString> collection = merger.getMergedLineStrings();
-			LineString mergedLine = collection.iterator().next();
-			MasonGeometry mg = new MasonGeometry(mergedLine);
+			GeometryFactory factory = new GeometryFactory();
+			Coordinate[] allCoordsArray = new Coordinate[allCoords.size()];
+			for (int i =0; i<= allCoords.size()-1; i ++) allCoordsArray[i] = allCoords.get(i);
+			LineString lineGeometry = factory.createLineString(allCoordsArray);
+			MasonGeometry mg  = new MasonGeometry(lineGeometry);
+
 			mg.addIntegerAttribute("O", rD.origin);
 			mg.addIntegerAttribute("D", rD.destination);
 			mg.addStringAttribute("routeChoice", rD.routeChoice);
 
-			// the sequence of edgesIDs is truncated and split in different fields as a shapefile can handle max 254 characters per field
+			//	the sequence of edgesIDs is truncated and split in different fields as a shapefile can handle max 254 characters per field
 			String edgeIDs = ArrayUtils.toString(rD.sequenceEdges);
 			String first_part = null;
 			String other = null;

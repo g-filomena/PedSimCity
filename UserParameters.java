@@ -10,7 +10,7 @@ import java.util.List;
 public class UserParameters {
 
 	//General parameters/components
-	static String cityName = "London";
+	static String cityName = "Paris";
 	static int jobs = 5;
 
 	static boolean testingRegions = true;
@@ -21,13 +21,10 @@ public class UserParameters {
 	// AC = angular change
 	// RB = angular change + region-based
 	// BB = angular change + barrier-based
-	// BRB = angular change + region-barrier based
-	static String routeChoicesLandmarks[] = {"AC", "RB", "BB","BRB"};
-	static String routeChoices[] = {"RD", "AC"};
+	// RBB = angular change + region-barrier based
+	static String routeChoicesRegions[] = {"AC", "RB", "BB","RBB"};
+	static String routeChoices[] = {"RB"};
 
-
-	// Agents parameters
-	static int numAgents = 2000;
 
 	//directories
 	public static String outputFolderDefault = "C:/Users/g_filo01/sciebo/Scripts/PedSimCity-Evaluation/Input/";
@@ -35,8 +32,10 @@ public class UserParameters {
 	public static String outputFolderRoutes;
 
 	public static void setTestingMatrix() {
-		Integer[] or = {};
-		Integer[] de = {};
+		Integer[] or = {28586};
+		Integer[] de = {42112};
+		OR.clear();
+		DE.clear();
 		for (int i : or) OR.add(i);
 		for (int i : de) DE.add(i);
 	}

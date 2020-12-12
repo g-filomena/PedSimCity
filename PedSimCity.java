@@ -80,9 +80,8 @@ public class PedSimCity extends SimState {
 	public void start()	{
 
 		if (UserParameters.testingSpecificRoutes) routeChoiceModels = UserParameters.routeChoices;
-		else if (UserParameters.testingRegions) numTripsScenario = 2000;
+		else if (UserParameters.testingRegions) routeChoiceModels = UserParameters.routeChoicesRegions;
 		if (UserParameters.testingRegions || UserParameters.testingSpecificRoutes) numAgents = routeChoiceModels.length;
-		else numAgents = UserParameters.numAgents;
 		super.start();
 
 		// prepare environment
@@ -115,10 +114,8 @@ public class PedSimCity extends SimState {
 				destinationNode = nodesMap.get(UserParameters.DE.get(i));
 			}
 			else if (UserParameters.testingRegions) {
-				while ((destinationNode == null) || (originNode == destinationNode)) {
-					while (originNode == null) originNode = NodesLookup.randomNode(network, startingNodes);
-					destinationNode = NodesLookup.randomNodeBetweenLimits(network, originNode, 1000, 3000);
-				}
+				while (originNode == null) originNode = NodesLookup.randomNode(network, startingNodes);
+				while (destinationNode == null)	destinationNode = NodesLookup.randomNodeBetweenLimits(network, originNode, 1000, 3000);
 			}
 			Pair<NodeGraph, NodeGraph> pair = new Pair<NodeGraph, NodeGraph> (originNode, destinationNode);
 			OD.add(pair);
@@ -128,6 +125,7 @@ public class PedSimCity extends SimState {
 		for (int i = 0; i < numAgents; i++)	{
 			AgentProperties ap = new AgentProperties();
 			ap.setProperties(routeChoiceModels[i]);
+			ap.setOD(OD, null);
 			ap.agentID = i;
 
 			Pedestrian a = new Pedestrian(this, ap);
@@ -277,7 +275,6 @@ public class PedSimCity extends SimState {
 		if (UserParameters.testingRegions) {
 
 			for (Entry<Integer, Region> entry : regionsMap.entrySet()) {
-
 				ArrayList<EdgeGraph> edgesRegion = entry.getValue().edges;
 				ArrayList<EdgeGraph> dualEdgesRegion = new ArrayList<EdgeGraph>();
 				SubGraph primalGraph = new SubGraph(network, edgesRegion);

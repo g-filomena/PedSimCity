@@ -93,8 +93,8 @@ public class DijkstraRoadDistance {
 			if (ap.barrierBasedNavigation) {
 				List<Integer> positiveBarriers = commonEdge.positiveBarriers;
 				List<Integer> negativeBarriers = commonEdge.negativeBarriers;
-				if (positiveBarriers != null) error = Utilities.fromDistribution(0.70, 0.10, "left");
-				else if (negativeBarriers != null) error = Utilities.fromDistribution(1.30, 0.10, "right");
+				if (positiveBarriers.size() > 0) error = Utilities.fromDistribution(0.70, 0.10, "left");
+				else if (negativeBarriers.size() > 0 && positiveBarriers.size() == 0 ) error = Utilities.fromDistribution(1.30, 0.10, "right");
 				else error = Utilities.fromDistribution(1.0, 0.10, null);
 			}
 			else error = Utilities.fromDistribution(1.0, 0.10, null);

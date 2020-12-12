@@ -96,12 +96,12 @@ public class RoutePlanner {
 	public ArrayList<GeomPlanarGraphDirectedEdge> angularChangeBased(NodeGraph originNode, NodeGraph destinationNode,
 			AgentProperties ap) {
 
-		NodeGraph dualOrigin = originNode.getDualNode(originNode, destinationNode, false, previousJunction);
+		NodeGraph dualOrigin = originNode.getDualNode(originNode, destinationNode, ap.regionBasedNavigation, previousJunction);
 		NodeGraph dualDestination = null;
 		this.ap = ap;
 		previousJunction = originNode;
 		while (dualDestination == dualOrigin || dualDestination == null) dualDestination = destinationNode.getDualNode(
-				originNode, destinationNode, false, previousJunction);
+				originNode, destinationNode, ap.regionBasedNavigation, previousJunction);
 
 		if (Path.commonPrimalJunction(dualOrigin, dualDestination) != null) {
 			ArrayList<GeomPlanarGraphDirectedEdge> edges = new ArrayList<GeomPlanarGraphDirectedEdge>();
@@ -134,6 +134,8 @@ public class RoutePlanner {
 		sequenceNodes.remove(0);
 
 		for (NodeGraph tmpDestination : sequenceNodes) {
+
+
 			moveOn = false; //for path cleaning and already traversed edges
 			if (tmpOrigin != originNode) {
 				previousJunction = Path.previousJunction(completePath);
@@ -154,7 +156,8 @@ public class RoutePlanner {
 				continue;
 			}
 
-			NodeGraph tmpDualOrigin = tmpOrigin.getDualNode(tmpOrigin, tmpDestination, false, previousJunction);
+			NodeGraph tmpDualOrigin = tmpOrigin.getDualNode(tmpOrigin, tmpDestination, ap.regionBasedNavigation, previousJunction);
+
 			while (tmpDualOrigin == null && previousJunction != null) {
 				tmpOrigin = (NodeGraph) completePath.get(completePath.size()-1).getFromNode();
 				// remove last one which did not work!
@@ -169,13 +172,13 @@ public class RoutePlanner {
 					tmpOrigin = tmpDestination;
 					break;
 				}
-				tmpDualOrigin = tmpOrigin.getDualNode(tmpOrigin, tmpDestination, false, previousJunction);
+				tmpDualOrigin = tmpOrigin.getDualNode(tmpOrigin, tmpDestination, ap.regionBasedNavigation, previousJunction);
 			}
 			if (tmpOrigin == tmpDestination) continue;
 
 			NodeGraph tmpDualDestination = null;
 			while ((tmpDualDestination == tmpDualOrigin) || (tmpDualDestination == null)) tmpDualDestination = tmpDestination.getDualNode(
-					tmpOrigin, tmpDestination, false, previousJunction);
+					tmpOrigin, tmpDestination, ap.regionBasedNavigation, previousJunction);
 
 			// check if just one node separates them
 			if (Path.commonPrimalJunction(tmpDualOrigin, tmpDualDestination) != null) {
@@ -184,9 +187,8 @@ public class RoutePlanner {
 				tmpOrigin = tmpDestination;
 				continue;
 			}
-
 			DijkstraAngularChange pathfinder = new DijkstraAngularChange();
-			path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
+			path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, tmpOrigin, ap);
 			while (path.edges == null && !moveOn) backtrackingDual(tmpDualOrigin, tmpDualDestination, tmpDestination);
 			if (path.edges == null) continue;
 			tmpOrigin = tmpDestination;
@@ -209,11 +211,10 @@ public class RoutePlanner {
 	public ArrayList<GeomPlanarGraphDirectedEdge> regionBarrierBasedPath (NodeGraph originNode, NodeGraph destinationNode, AgentProperties ap) {
 		this.ap = ap;
 		RegionBasedNavigation regionsPath = new RegionBasedNavigation();
-		ArrayList<NodeGraph> regionsSequence = regionsPath.sequenceRegions(originNode, destinationNode, ap);
+		ArrayList<NodeGraph> sequenceRegions = regionsPath.sequenceRegions(originNode, destinationNode, ap);
 		ArrayList<GeomPlanarGraphDirectedEdge> path =  new ArrayList<GeomPlanarGraphDirectedEdge>();
-
-		if (ap.localHeuristic == "roadDistance") path = roadDistanceSequence(regionsSequence, ap);
-		else path = angularChangeBasedSequence(regionsSequence, ap);
+		if (ap.localHeuristic == "roadDistance") path = roadDistanceSequence(sequenceRegions, ap);
+		else path = angularChangeBasedSequence(sequenceRegions, ap);
 		return path;
 	}
 
@@ -225,8 +226,7 @@ public class RoutePlanner {
 	 * @param ap the agent properties;
 	 *
 	 */
-	public ArrayList<GeomPlanarGraphDirectedEdge> barrierBasedPath (NodeGraph originNode, NodeGraph destinationNode,
-			AgentProperties ap) {
+	public ArrayList<GeomPlanarGraphDirectedEdge> barrierBasedPath (NodeGraph originNode, NodeGraph destinationNode, AgentProperties ap) {
 
 		this.ap = ap;
 		ArrayList<GeomPlanarGraphDirectedEdge> path =  new ArrayList<GeomPlanarGraphDirectedEdge>();
@@ -299,10 +299,10 @@ public class RoutePlanner {
 			moveOn = true; // no need to backtracking anymore
 			return;
 		}
-		tmpDualOrigin = tmpOrigin.getDualNode(tmpOrigin, tmpDestination, false, previousJunction);
+		tmpDualOrigin = tmpOrigin.getDualNode(tmpOrigin, tmpDestination, ap.regionBasedNavigation, previousJunction);
 
 		DijkstraAngularChange pathfinder = new DijkstraAngularChange();
-		path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
+		path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, tmpOrigin, ap);
 	}
 
 	/**

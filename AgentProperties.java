@@ -35,16 +35,16 @@ public class AgentProperties {
 
 	public void setProperties(String routeChoice) {
 		this.routeChoice = routeChoice;
-		if (routeChoice.equals("BB") || routeChoice.equals("BRB") ) {
+		if (routeChoice.equals("BB") || routeChoice.equals("RBB") ) {
 			typeBarriers = "all";
 			barrierBasedNavigation = true;
 		}
-		if (routeChoice.equals("RB") || routeChoice.equals("BRB")) regionBasedNavigation = true;
+		if (routeChoice.equals("RB") || routeChoice.equals("RBB")) regionBasedNavigation = true;
 		localHeuristic = "angularChange";
 	}
 
 	public void setOD(ArrayList<Pair<NodeGraph, NodeGraph>> OD, ArrayList<ArrayList<NodeGraph>> listSequences) {
 		this.OD = OD;
-		this.listSequences = new ArrayList<ArrayList<NodeGraph>> (listSequences);
+		if (listSequences != null) this.listSequences = new ArrayList<ArrayList<NodeGraph>> (listSequences);
 	}
 }

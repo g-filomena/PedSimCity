@@ -75,8 +75,8 @@ public final class Pedestrian implements Steppable {
 	 * @param state the simulation state;
 	 */
 	public void findNewAStarPath(PedSimCity state) {
-		selectRouteChoice();
 		System.out.println(originNode.getID() + "  "+ destinationNode.getID()+ " "+ap.routeChoice);
+		selectRouteChoice();
 
 		RouteData route = new RouteData();
 		route.origin = originNode.getID();
@@ -222,7 +222,7 @@ public final class Pedestrian implements Steppable {
 		if (ap.routeChoice.equals("AC")) edge.AC += 1;
 		else if (ap.routeChoice.equals("RB")) edge.RB += 1;
 		else if (ap.routeChoice.equals("BB")) edge.BB += 1;
-		else if (ap.routeChoice.equals("BRB")) edge.BRB += 1;
+		else if (ap.routeChoice.equals("RBB")) edge.RBB += 1;
 	}
 
 	public void setStoppable(Stoppable a) {killAgent = a;}
@@ -237,7 +237,7 @@ public final class Pedestrian implements Steppable {
 		if (ap.routeChoice.equals("AC")) newPath = planner.angularChangeBased(originNode, destinationNode, ap);
 		else if (ap.routeChoice.equals("RB")) newPath = planner.regionBarrierBasedPath(originNode, destinationNode, ap);
 		else if (ap.routeChoice.equals("BB")) newPath = planner.barrierBasedPath(originNode, destinationNode, ap);
-		else if (ap.routeChoice.equals("BRB")) newPath = planner.regionBarrierBasedPath(originNode, destinationNode, ap);
+		else if (ap.routeChoice.equals("RBB")) newPath = planner.regionBarrierBasedPath(originNode, destinationNode, ap);
 	}
 
 	/** It computes the agents' speed  */
