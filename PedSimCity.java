@@ -1,4 +1,4 @@
-package sim.app.geo.pedSimCity;
+package sim.app.geo.PedSimCity;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -12,14 +12,14 @@ import org.javatuples.Pair;
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.planargraph.DirectedEdgeStar;
 
-import sim.app.geo.urbanSim.Angles;
-import sim.app.geo.urbanSim.Building;
-import sim.app.geo.urbanSim.EdgeGraph;
-import sim.app.geo.urbanSim.Graph;
-import sim.app.geo.urbanSim.NodeGraph;
-import sim.app.geo.urbanSim.NodesLookup;
-import sim.app.geo.urbanSim.SubGraph;
-import sim.app.geo.urbanSim.VectorLayer;
+import sim.app.geo.UrbanSim.Angles;
+import sim.app.geo.UrbanSim.Building;
+import sim.app.geo.UrbanSim.EdgeGraph;
+import sim.app.geo.UrbanSim.Graph;
+import sim.app.geo.UrbanSim.NodeGraph;
+import sim.app.geo.UrbanSim.NodesLookup;
+import sim.app.geo.UrbanSim.SubGraph;
+import sim.app.geo.UrbanSim.VectorLayer;
 import sim.engine.SimState;
 import sim.engine.Stoppable;
 import sim.util.Bag;
@@ -39,10 +39,10 @@ public class PedSimCity extends SimState {
 	public static VectorLayer roads = new VectorLayer();
 	public static VectorLayer buildings = new VectorLayer();
 	public static VectorLayer junctions = new VectorLayer();
-	public static VectorLayer barriers = new VectorLayer();
 	public static VectorLayer localLandmarks = new VectorLayer();
 	public static VectorLayer globalLandmarks = new VectorLayer();
 	public static VectorLayer sightLines = new VectorLayer();
+	public static VectorLayer barriers = new VectorLayer();
 	public static Graph network = new Graph();
 
 	//dual graph
@@ -54,30 +54,30 @@ public class PedSimCity extends SimState {
 	public static HashMap<Integer, EdgeGraph> edgesMap = new HashMap<Integer, EdgeGraph>();
 	public static HashMap<Integer, NodeGraph> nodesMap = new HashMap<Integer, NodeGraph>();
 	public static HashMap<Integer, NodeGraph> centroidsMap =  new HashMap<Integer, NodeGraph>();
-	public static HashMap<Integer, Region> regionsMap = new HashMap<Integer, Region>();
+	public static ArrayList<RouteData> routesData = new ArrayList<RouteData>();
+
 	public static HashMap<Integer, Building> buildingsMap = new HashMap<Integer, Building>();
+	public static HashMap<Integer, Region> regionsMap = new HashMap<Integer, Region>();
 	public static HashMap<Integer, Barrier> barriersMap = new HashMap<Integer, Barrier>();
 	public static HashMap<Pair<NodeGraph, NodeGraph>, Gateway> gatewaysMap = new HashMap<Pair<NodeGraph, NodeGraph>, Gateway>();
 
-	public static ArrayList<MasonGeometry> startingNodes = new ArrayList<MasonGeometry> ();
-	public static ArrayList<RouteData> routesData = new ArrayList<RouteData>();
+	public static HashMap<EdgeGraph, ArrayList<Pedestrian>> edgesVolume = new HashMap<EdgeGraph, ArrayList<Pedestrian>>();
 
 	// OD related variables
 	ArrayList<Pair<NodeGraph, NodeGraph>> OD = new ArrayList<Pair<NodeGraph, NodeGraph>>();
 	static List<Float> distances = new ArrayList<Float>();
+	public static ArrayList<MasonGeometry> startingNodes = new ArrayList<MasonGeometry> ();
 	// used only when loading OD sets
 
-
 	public int numTripsScenario, numAgents, currentJob;
+	double height, width, ratio;
 	ArrayList<Integer> groupBounds = new ArrayList<Integer>();
 	ArrayList<Group> groups = new ArrayList<Group>();
-
-	double height, width, ratio;
 
 	// agents
 	public static VectorLayer agents = new VectorLayer();
 	ArrayList<Pedestrian> agentsList = new ArrayList<Pedestrian>();
-	public static String criteria[];
+	public static String routeChoiceModels[];
 
 	/** Constructor */
 
@@ -90,19 +90,26 @@ public class PedSimCity extends SimState {
 
 	@Override
 	public void start()	{
-
-		if (UserParameters.testingSpecificRoutes) criteria = UserParameters.criteria;
-		else if (UserParameters.testingRegions) criteria = UserParameters.criteriaRegions;
-		else if (UserParameters.testingLandmarks) criteria = UserParameters.criteriaLandmarks;
-		if (UserParameters.testingRegions || UserParameters.testingLandmarks) numAgents = criteria.length;
+		if (UserParameters.testingSpecificRoutes) routeChoiceModels = UserParameters.routeChoices;
+		else if (UserParameters.testingRegions) routeChoiceModels = UserParameters.routeChoicesRegions;
+		else if (UserParameters.testingLandmarks) routeChoiceModels = UserParameters.routeChoicesLandmarks;
+		else routeChoiceModels = UserParameters.routeChoicesLandmarks;
+		if (UserParameters.testingRegions || UserParameters.testingLandmarks || UserParameters.testingSpecificRoutes) numAgents = routeChoiceModels.length;
 		else numAgents = UserParameters.numAgents;
+
+		for (String routeChoice : routeChoiceModels) {
+			for (Object o : network.getEdges())	{
+				EdgeGraph edge = (EdgeGraph) o;
+				edge.densities.put(routeChoice, 0);
+			}
+		}
+
 		super.start();
 
 		// prepare environment
 		Envelope MBR = null;
 		MBR = roads.getMBR();
 		MBR.expandToInclude(buildings.getMBR());
-		MBR.expandToInclude(barriers.getMBR());
 		roads.setMBR(MBR);
 
 		// populate
@@ -117,46 +124,49 @@ public class PedSimCity extends SimState {
 			UserParameters.setTestingMatrix();
 			numTripsScenario = UserParameters.OR.size();
 		}
-		else if (UserParameters.testingLandmarks) numTripsScenario = distances.size();
 		else if (UserParameters.testingRegions) numTripsScenario = 2000;
-
+		else if (UserParameters.testingLandmarks) numTripsScenario = distances.size();
 		ArrayList<ArrayList<NodeGraph>> listSequences = new ArrayList<ArrayList<NodeGraph>> ();
 
-
-		for (int i = 0; i < numTripsScenario; i++) {
-			NodeGraph originNode = null;
-			NodeGraph destinationNode = null;
-
-			if (UserParameters.readingFromPrevious || UserParameters.testingSpecificRoutes) {
-				originNode = nodesMap.get(UserParameters.OR.get(i));
-				destinationNode = nodesMap.get(UserParameters.DE.get(i));
-			}
-			else if (UserParameters.testingLandmarks) {
-				while (originNode == null) originNode = NodesLookup.randomNode(network);
-				destinationNode = NodesLookup.randomNodeFromDistancesSet(originNode, distances, network);
-			}
-			else if (UserParameters.testingRegions) {
-				while ((destinationNode == null) || (originNode == destinationNode)) {
-					while (originNode == null) originNode = NodesLookup.randomNode(startingNodes, network);
-					destinationNode = NodesLookup.randomNodeBetweenLimits(originNode, 1000, 3000, network);
-				}
-			}
-			if (UserParameters.testingLandmarks) {
-				AgentProperties apFictionary = new AgentProperties();
-				apFictionary.landmarkBasedNavigation = true;
-				apFictionary.usingLocalLandmarks = true;
-				apFictionary.typeLandmarks = "local";
-				ArrayList<NodeGraph> sequence = LandmarkNavigation.onRouteMarks(originNode, destinationNode, apFictionary);
-				listSequences.add(sequence);
-			}
-			Pair<NodeGraph, NodeGraph> pair = new Pair<NodeGraph, NodeGraph> (originNode, destinationNode);
-			OD.add(pair);
-		}
 		if (UserParameters.fiveElements) prepareGroups();
+
+		else {
+			for (int i = 0; i < numTripsScenario; i++) {
+				NodeGraph originNode = null;
+				NodeGraph destinationNode = null;
+				if (UserParameters.testingSpecificRoutes) {
+					originNode = nodesMap.get(UserParameters.OR.get(i));
+					destinationNode = nodesMap.get(UserParameters.DE.get(i));
+				}
+				else if (UserParameters.testingLandmarks) {
+					while (originNode == null) originNode = NodesLookup.randomNode(network);
+					destinationNode = NodesLookup.randomNodeFromDistancesSet(network, originNode, distances);
+				}
+				else if (UserParameters.testingRegions) {
+					while (originNode == null) originNode = NodesLookup.randomNode(network, startingNodes);
+					while (destinationNode == null)	destinationNode = NodesLookup.randomNodeBetweenLimits(network, originNode, 1000, 3000);
+				}
+				else if (UserParameters.testingModels) {
+					while (originNode == null) originNode = NodesLookup.randomNode(network);
+					while (destinationNode == null)	destinationNode = NodesLookup.randomNodeBetweenLimits(network, originNode, 500, 3000);
+				}
+
+				if (buildings != null) {
+					AgentProperties apFictionary = new AgentProperties();
+					apFictionary.landmarkBasedNavigation = true;
+					apFictionary.usingLocalLandmarks = true;
+					apFictionary.typeLandmarks = "local";
+					ArrayList<NodeGraph> sequence = LandmarkNavigation.onRouteMarks(originNode, destinationNode, apFictionary);
+					listSequences.add(sequence);
+				}
+				Pair<NodeGraph, NodeGraph> pair = new Pair<NodeGraph, NodeGraph> (originNode, destinationNode);
+				OD.add(pair);
+			}
+		}
+
 
 		for (int i = 0; i < numAgents; i++)	{
 			AgentProperties ap = new AgentProperties();
-
 			if (UserParameters.fiveElements) {
 
 				for (int g : groupBounds){
@@ -165,14 +175,15 @@ public class PedSimCity extends SimState {
 						break;
 					}
 				}
-
+				ap.activityBased = true;
 				ap.setLocations();
 			}
+			// testing landmarks or regions
 			else {
-				ap.setProperties(criteria[i]);
+				ap.setProperties(routeChoiceModels[i]);
 				ap.setOD(OD, listSequences);
-				ap.agentID = i;
 			}
+			ap.agentID = i;
 
 			Pedestrian a = new Pedestrian(this, ap);
 			MasonGeometry newGeometry = a.getGeometry();
@@ -190,7 +201,7 @@ public class PedSimCity extends SimState {
 	@Override
 	public void finish()
 	{
-		try {ImportingExporting.saveCSV(this.currentJob);}
+		try {ImportingExporting.saveResults(this.currentJob);}
 		catch (IOException e) {e.printStackTrace();}
 		super.finish();
 	}
@@ -199,15 +210,16 @@ public class PedSimCity extends SimState {
 	public static void main(String[] args) throws IOException
 	{
 		int jobs = UserParameters.jobs;
-		if (UserParameters.testingLandmarks) jobs = 50;
-		if (UserParameters.testingRegions) jobs = 5;
 		ImportingExporting.importFiles();
 		prepareLayers();
 
-		for (int i = 0; i < jobs; i++) {
-			System.out.println("Run nr.. "+i);
-			if (UserParameters.readingFromPrevious) ImportingExporting.readingOD(UserParameters.outputFolder+"routes_angularChange_"+i+".csv");
-			SimState state = new PedSimCity(System.currentTimeMillis(), i);
+		for (int job = 0; job < jobs; job++) {
+			System.out.println("Run nr.. "+job);
+			for (Object o : network.getEdges())	{
+				EdgeGraph edge = (EdgeGraph) o;
+				edge.resetDensities();
+			}
+			SimState state = new PedSimCity(System.currentTimeMillis(), job);
 			state.start();
 			while (state.schedule.step(state)) {}
 		}
@@ -220,12 +232,12 @@ public class PedSimCity extends SimState {
 		// Element 1 - Nodes: assign scores and attributes to nodes
 
 		for (MasonGeometry  nodeGeometry : junctions.geometriesList) {
-
 			// street junctions and betweenness centrality
 			NodeGraph node = network.findNode(nodeGeometry.geometry.getCoordinate());
 			node.setID(nodeGeometry.getIntegerAttribute("nodeID"));
 			node.masonGeometry = nodeGeometry;
 			node.primalEdge = null;
+			//centrality
 			try {node.centrality = nodeGeometry.getDoubleAttribute("Bc_multi");}
 			catch (java.lang.NullPointerException e){node.centrality = nodeGeometry.getDoubleAttribute("Bc_Rd");}
 			// set adjacent edges and nodes
@@ -234,9 +246,8 @@ public class PedSimCity extends SimState {
 		}
 		// generate the centrality map of the graph
 		network.generateCentralityMap();
-
 		// Element 2 - Landmarks -
-		if (UserParameters.testingLandmarks || UserParameters.fiveElements ) {
+		if (buildings != null) {
 
 			Bag bagLocal = LandmarkNavigation.getLandmarks(buildings, UserParameters.localLandmarkThreshold, "local");
 			for (Object l : bagLocal) {
@@ -251,31 +262,35 @@ public class PedSimCity extends SimState {
 			}
 
 			for (MasonGeometry buildingGeometry : buildings.geometriesList) {
-
 				Building building = new Building();
 				building.buildingID = buildingGeometry.getIntegerAttribute("buildingID");
+				building.globalLandmarkness = buildingGeometry.getDoubleAttribute("gScore_sc");
+				building.localLandmarkness = buildingGeometry.getDoubleAttribute("lScore_sc");
 				building.landUse = buildingGeometry.getStringAttribute("land_use");
+				building.DMA = buildingGeometry.getStringAttribute("DMA");
 				building.geometry = buildingGeometry;
 
-				Bag nearestNodes = junctions.getObjectsWithinDistance(building.geometry, 500);
-				MasonGeometry closest = null;
-				double lowestDistance = 501.0;
+				if (UserParameters.fiveElements) {
+					Bag nearestNodes = junctions.getObjectsWithinDistance(building.geometry, 500);
+					MasonGeometry closest = null;
+					double lowestDistance = 501.0;
 
-				for (Object nN : nearestNodes) {
-					MasonGeometry node = (MasonGeometry) nN;
-					double distance = node.geometry.distance(buildingGeometry.geometry);
+					for (Object nN : nearestNodes) {
+						MasonGeometry node = (MasonGeometry) nN;
+						double distance = node.geometry.distance(buildingGeometry.geometry);
 
-					if (distance < lowestDistance) {
-						closest = node;
-						lowestDistance = node.geometry.distance(buildingGeometry.geometry);
+						if (distance < lowestDistance) {
+							closest = node;
+							lowestDistance = node.geometry.distance(buildingGeometry.geometry);
+						}
 					}
+					if (closest == null) building.node = null;
+					else building.node = network.findNode(closest.getGeometry().getCoordinate());
 				}
-				if (closest == null) building.node = null;
-				else building.node = network.findNode(closest.getGeometry().getCoordinate());
 				buildingsMap.put(building.buildingID, building);
 			}
 
-			// Integrating landmarks into the street network
+			// Integrate landmarks into the street network
 			List<Integer> globalLandmarksID = globalLandmarks.getIntColumn("buildingID");
 			VectorLayer sightLinesLight = sightLines.selectFeatures("buildingID", globalLandmarksID, true);
 			// free up memory
@@ -284,12 +299,11 @@ public class PedSimCity extends SimState {
 			System.out.println("incorporating local landmarks");
 			network.setLocalLandmarkness(localLandmarks, buildingsMap, UserParameters.distanceNodeLandmark);
 			System.out.println("incorporating global landmarks");
-			network.setGlobalLandmarkness(globalLandmarks, buildingsMap, UserParameters.distanceAnchors, sightLinesLight);
+			network.setGlobalLandmarkness(globalLandmarks, buildingsMap, UserParameters.distanceAnchors, sightLinesLight, UserParameters.nrAnchors);
 		}
 
-
 		// Identify gateways
-		if (UserParameters.testingRegions || UserParameters.fiveElements ) {
+		if (barriers != null) {
 
 			for (NodeGraph node : nodesMap.values()) {
 				node.region = node.masonGeometry.getIntegerAttribute("district");
@@ -317,14 +331,13 @@ public class PedSimCity extends SimState {
 					if (possibleRegion == region) continue;
 
 					Gateway gd = new Gateway();
-					gd.node = node;
+					gd.exit = node;
 					gd.edgeID = bridge.getID();
 					gd.gatewayID = new Pair<NodeGraph, NodeGraph>(node, oppositeNode);
 					gd.regionTo = possibleRegion;
 					gd.entry = oppositeNode;
 					gd.distance = bridge.getLength();
 					gd.entryAngle = Angles.angle(node, oppositeNode);
-
 					regionsMap.get(region).gateways.add(gd);
 					gatewaysMap.put(new Pair<NodeGraph, NodeGraph>(node, oppositeNode), gd);
 					node.gateway = true;
@@ -335,13 +348,11 @@ public class PedSimCity extends SimState {
 
 		// Element 3 - Street segments: assign attributes
 		for (Object o : network.getEdges())	{
-
 			EdgeGraph edge = (EdgeGraph) o;
 			int edgeID = edge.getIntegerAttribute("edgeID");
 			edge.setID(edgeID);
-			edge.resetDensities();
 
-			if (UserParameters.testingRegions | UserParameters.fiveElements)  {
+			if (barriers != null)  {
 				edge.setBarriers();
 				// add edges to the regions' information
 
@@ -358,26 +369,24 @@ public class PedSimCity extends SimState {
 		// Element 3A - Centroids (Dual Graph): assign edgeID to centroids in the dual graph
 		for (MasonGeometry centroidGeometry : centroids.geometriesList) {
 			int edgeID = centroidGeometry.getIntegerAttribute("edgeID");
-
 			NodeGraph cen = dualNetwork.findNode(centroidGeometry.geometry.getCoordinate());
 			cen.masonGeometry = centroidGeometry;
 			cen.setID(edgeID);
 			cen.primalEdge = edgesMap.get(edgeID);
 			edgesMap.get(edgeID).dualNode = cen;
 			centroidsMap.put(edgeID, cen);
+			cen.setNeighbouringComponents();
 		}
 
 		for (Object o : dualNetwork.getEdges()) {
-
 			EdgeGraph edge = (EdgeGraph) o;
 			edge.deflectionDegrees =  edge.getDoubleAttribute("deg");
 		}
 
 		// Element 4 - Regions: create regions' subgraphs and store other information about regions (landmarks, barriers)
-		if (UserParameters.testingRegions || UserParameters.fiveElements) {
+		if (barriers != null) {
 
 			for (Entry<Integer, Region> entry : regionsMap.entrySet()) {
-
 				ArrayList<EdgeGraph> edgesRegion = entry.getValue().edges;
 				ArrayList<EdgeGraph> dualEdgesRegion = new ArrayList<EdgeGraph>();
 				SubGraph primalGraph = new SubGraph(network, edgesRegion);
@@ -400,7 +409,7 @@ public class PedSimCity extends SimState {
 				regionsMap.get(entry.getKey()).dualGraph = dualGraph;
 
 				// set the landmarks of this region
-				if (UserParameters.fiveElements) {
+				if (buildings != null) {
 					primalGraph.setSubGraphLandmarks();
 					VectorLayer regionNetwork = new VectorLayer();
 					for (EdgeGraph edge : edgesRegion) regionNetwork.addGeometry(edge.masonGeometry);
@@ -429,8 +438,8 @@ public class PedSimCity extends SimState {
 		System.out.println("Creation environment completed");
 	}
 
-	public void prepareGroups() {
 
+	public void prepareGroups() {
 
 		List<Double> composition = Arrays.asList(UserParameters.composition);
 		int accumulated = 0;
@@ -446,5 +455,4 @@ public class PedSimCity extends SimState {
 		}
 		if (groupBounds.get(groupBounds.size() - 1) == numAgents) groupBounds.set(groupBounds.size() - 1, numAgents);
 	}
-
 }

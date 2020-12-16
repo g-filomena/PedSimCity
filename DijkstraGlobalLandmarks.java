@@ -6,15 +6,15 @@
  *
  */
 
-package sim.app.geo.pedSimCity;
+package sim.app.geo.PedSimCity;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import sim.app.geo.urbanSim.EdgeGraph;
-import sim.app.geo.urbanSim.NodeGraph;
-import sim.app.geo.urbanSim.NodeWrapper;
-import sim.app.geo.urbanSim.SubGraph;
-import sim.app.geo.urbanSim.Utilities.Path;
+import sim.app.geo.UrbanSim.EdgeGraph;
+import sim.app.geo.UrbanSim.NodeGraph;
+import sim.app.geo.UrbanSim.NodeWrapper;
+import sim.app.geo.UrbanSim.Path;
+import sim.app.geo.UrbanSim.SubGraph;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraGlobalLandmarks {
@@ -24,9 +24,9 @@ public class DijkstraGlobalLandmarks {
 	HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 	ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid;
 	ArrayList<EdgeGraph> edgesToAvoid = new ArrayList<EdgeGraph> ();
-
 	AgentProperties ap = new AgentProperties();
 	SubGraph graph = new SubGraph();
+
 	/**
 	 * @param originNode the origin node;
 	 * @param destinationNode the final destination Node;
@@ -42,8 +42,6 @@ public class DijkstraGlobalLandmarks {
 		if (segmentsToAvoid != null) this.segmentsToAvoid = new ArrayList<GeomPlanarGraphDirectedEdge>(segmentsToAvoid);
 
 		// If region-based navigation, navigate only within the region subgraph, if origin and destination nodes belong to the same region.
-		// Otherwise, form a subgraph within a convex hull
-
 		if ((originNode.region == destinationNode.region) && (ap.regionBasedNavigation)) {
 			graph = PedSimCity.regionsMap.get(originNode.region).primalGraph;
 			originNode = graph.findNode(originNode.getCoordinate());
@@ -75,24 +73,21 @@ public class DijkstraGlobalLandmarks {
 
 	void findMinDistances(NodeGraph currentNode)
 	{
-		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
+		ArrayList<NodeGraph> adjacentNodes = currentNode.adjacentNodes;
 		for (NodeGraph targetNode : adjacentNodes) {
 			if (visitedNodes.contains(targetNode)) continue;
 
-			EdgeGraph commonEdge = currentNode.getEdgeBetween(targetNode);
+			EdgeGraph commonEdge = currentNode.getEdgeWith(targetNode);
 			GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);
 
 			if (segmentsToAvoid == null);
 			else if (edgesToAvoid.contains(outEdge.getEdge()))	continue;
 
-			double globalLandmarkness = 0.0;
-			if (ap.onlyAnchors) globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode, destinationNode, true);
-			else globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode, destinationNode, false);
+			double globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode, destinationNode, ap.onlyAnchors);
 
 			// the global landmarkness from the node is divided by the segment's length so to avoid that the path is not affected
-			// by network distance
-			double nodeLandmarkness = (1-globalLandmarkness)/commonEdge.getLength();
-
+			// by network (topological) distance
+			double nodeLandmarkness = (1.0-globalLandmarkness)/commonEdge.getLength();
 			double tentativeCost = getBest(currentNode) + nodeLandmarkness;
 
 			if (getBest(targetNode) > tentativeCost) {

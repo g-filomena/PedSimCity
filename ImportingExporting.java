@@ -1,4 +1,4 @@
-package sim.app.geo.pedSimCity;
+package sim.app.geo.PedSimCity;
 
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -6,18 +6,20 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.commons.lang3.ArrayUtils;
-import org.supercsv.io.CsvMapWriter;
-import org.supercsv.io.ICsvMapWriter;
-import org.supercsv.prefs.CsvPreference;
 
 import com.opencsv.CSVReader;
+import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.GeometryFactory;
+import com.vividsolutions.jts.geom.LineString;
 
-import sim.app.geo.urbanSim.EdgeGraph;
+import sim.app.geo.UrbanSim.EdgeGraph;
+import sim.app.geo.UrbanSim.NodeGraph;
+import sim.app.geo.UrbanSim.VectorLayer;
+import sim.io.geo.ShapeFileExporter;
 import sim.io.geo.ShapeFileImporter;
 import sim.util.Bag;
 import sim.util.geo.MasonGeometry;
@@ -28,30 +30,39 @@ public class ImportingExporting {
 	public static void importFiles() throws IOException {
 
 		String inputDataDirectory = null;
+
 		if (UserParameters.testingLandmarks) {
 			inputDataDirectory = "landmarksData"+"/"+UserParameters.cityName+"/";
-			/// read distances
 
-			if (!UserParameters.testingSpecificRoutes) {
-				System.out.println("reading distances");
-				CSVReader readerDistances = new CSVReader(new FileReader(PedSimCity.class.getResource(inputDataDirectory).toString().substring(6)
-						+"/"+UserParameters.cityName+"_tracks_distances.csv"));
-				String[] nextLineDistances;
+			/// read GPS trajectories distances
+			System.out.println("reading distances");
+			CSVReader readerDistances = new CSVReader(new FileReader(PedSimCity.class.getResource(inputDataDirectory).toString().substring(6)
+					+"/"+UserParameters.cityName+"_tracks_distances.csv"));
+			String[] nextLineDistances;
 
-				int ds = 0;
-				while ((nextLineDistances = readerDistances.readNext()) != null) {
-					ds += 1;
-					if (ds == 1) continue;
-					PedSimCity.distances.add(Float.parseFloat(nextLineDistances[2]));
-				}
-				readerDistances.close();
+			int ds = 0;
+			while ((nextLineDistances = readerDistances.readNext()) != null) {
+				ds += 1;
+				if (ds == 1) continue;
+				PedSimCity.distances.add(Float.parseFloat(nextLineDistances[2]));
 			}
+			readerDistances.close();
 		}
-		else if (UserParameters.testingRegions) inputDataDirectory = "districtsData/"+UserParameters.cityName+"/";
-		else if (UserParameters.fiveElements) inputDataDirectory = "data/"+UserParameters.cityName+"/";
 
-		if (UserParameters.testingLandmarks  || UserParameters.fiveElements) {
-			// read buildings
+		if (UserParameters.testingSpecificRoutes) inputDataDirectory = "data/"+UserParameters.cityName+"/";
+		else if (UserParameters.testingRegions) inputDataDirectory = "districtsData/"+UserParameters.cityName+"/";
+
+		try {
+			URL barriersFile = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_barriers.shp");
+			ShapeFileImporter.read(barriersFile, PedSimCity.barriers);
+			System.out.println("reading barriers layer");
+			PedSimCity.barriers.generateGeometriesList();
+		}
+		catch (Exception e) {
+			System.out.println("Barriers " + e + ". Do not worry unless you are testing barrier-based navigation ");
+			PedSimCity.barriers = null;
+		}
+		try {
 			System.out.println("reading buildings and sight lines layers");
 			URL landmarksFile = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_landmarks.shp");
 			URL sightLinesFile = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_sight_lines2D.shp");
@@ -61,13 +72,10 @@ public class ImportingExporting {
 			PedSimCity.sightLines.generateGeometriesList();
 			PedSimCity.buildings.setID("buildingID");
 		}
-
-		if (UserParameters.testingRegions || UserParameters.fiveElements) {
-
-			System.out.println("reading barriers layer");
-			URL barriersFile = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_barriers.shp");
-			ShapeFileImporter.read(barriersFile, PedSimCity.barriers);
-			PedSimCity.barriers.generateGeometriesList();
+		catch (Exception e) {
+			System.out.println("Landmarks " + e + ". Do not worry unless you are testing landmark-based navigation ");
+			PedSimCity.buildings = null;
+			PedSimCity.sightLines = null;
 		}
 
 		// read the street network shapefiles and create the primal and the dual graph
@@ -90,124 +98,118 @@ public class ImportingExporting {
 		PedSimCity.centroids.generateGeometriesList();
 
 		System.out.println("files imported successfully");
+		UserParameters.setOutputFolder();
 	}
-
-
-
-	// it reads OD from an existing file
-	public static void readingOD(String inputFile) throws IOException {
-
-		CSVReader readerOD;
-		readerOD = new CSVReader(new FileReader(inputFile));
-		String[] nextLine;
-		UserParameters.OR.clear();
-		UserParameters.DE.clear();
-
-		int dv = 0;
-		while ((nextLine = readerOD.readNext()) != null) {
-			dv += 1;
-			if (dv == 1) continue;
-			UserParameters.OR.add(Integer.parseInt(nextLine[1]));
-			UserParameters.DE.add(Integer.parseInt(nextLine[2]));
-		}
-		readerOD.close();
-	}
-
 
 	// save the simulation output
-	public static void saveCSV(int job) throws IOException {
+	public static void saveResults(int job) throws IOException {
 
-		System.out.println("saving Densities");
-		Bag edgesGeometries = PedSimCity.roads.getGeometries();
-		String csvSegments = null;
-
-		if (UserParameters.testingRegions) {
-			csvSegments = UserParameters.outputFolder+(job)+".csv";
+		if (UserParameters.testingSpecificRoutes) {;} //densities are not analyzed in this case
+		else {
+			System.out.println("saving Densities");
+			Bag edgesGeometries = PedSimCity.roads.getGeometries();
+			String csvSegments = UserParameters.outputFolder+(job)+".csv";
 			FileWriter writerDensitiesData = new FileWriter(csvSegments);
-			CSVUtils.writeLine(writerDensitiesData, Arrays.asList("edgeID", "AC", "RB", "BB", "BRB"));
-
-
 			int rGeoSize = edgesGeometries.size();
+
+			List<String> rC = Arrays.asList(PedSimCity.routeChoiceModels);
+			rC.add(0, "edgeID");
+			CSVUtils.writeLine(writerDensitiesData, Arrays.asList("edgeID", "AC", "RB", "BB", "RBB"));
+
 			for (int i = 0; i < rGeoSize; i++) {
 				MasonGeometry segment = (MasonGeometry) edgesGeometries.objs[i];
 				EdgeGraph ed = PedSimCity.edgesMap.get(segment.getIntegerAttribute("edgeID"));
-				CSVUtils.writeLine(writerDensitiesData, Arrays.asList(Integer.toString(
-						ed.getID()), Integer.toString(ed.roadDistance),
-						Integer.toString(ed.angularChange), Integer.toString(ed.angularChangeRegions),
-						Integer.toString(ed.angularChangeBarriers),	Integer.toString(ed.angularChangeRegionsBarriers)));
-			}
-			writerDensitiesData.flush();
-			writerDensitiesData.close();
-		}
-
-		else if (UserParameters.testingLandmarks) {
-
-			csvSegments = UserParameters.outputFolder+(job)+".csv";
-			FileWriter writerDensitiesData = new FileWriter(csvSegments);
-			CSVUtils.writeLine(writerDensitiesData, Arrays.asList("edgeID", "RD", "AC", "RL", "AL", "LL", "GL"));
-
-			int rGeoSize = edgesGeometries.size();
-			for (int i = 0; i < rGeoSize; i++) {
-				MasonGeometry segment = (MasonGeometry) edgesGeometries.objs[i];
-				EdgeGraph ed = PedSimCity.edgesMap.get(segment.getIntegerAttribute("edgeID"));
-				CSVUtils.writeLine(writerDensitiesData, Arrays.asList(Integer.toString(ed.getID()),
-						Integer.toString(ed.roadDistance), Integer.toString(ed.angularChange),
-						Integer.toString(ed.roadDistanceLandmarks), Integer.toString(ed.angularChangeLandmarks),
-						Integer.toString(ed.localLandmarks), Integer.toString(ed.globalLandmarks)));
+				List<Integer> values = new ArrayList<Integer>(ed.densities.values());
+				values.add(0, ed.getID());
+				List<String> valuesString = new ArrayList<String>();
+				for (int value : values) valuesString.add(Integer.toString(value));
+				CSVUtils.writeLine(writerDensitiesData, valuesString);
 			}
 			writerDensitiesData.flush();
 			writerDensitiesData.close();
 		}
 
 		System.out.println("saving Routes");
+		VectorLayer routes = new VectorLayer();
+		String	directory = UserParameters.outputFolderRoutes+"routes_"+(job);
+		int columns = 0;
+		for (RouteData rD : PedSimCity.routesData) {
+			List<Integer> sequenceEdges = rD.sequenceEdges;
+			List<Coordinate> allCoords = new ArrayList<Coordinate>();
 
-		for (String cr : PedSimCity.criteria) {
+			// creating the route geometry
+			for (int i : sequenceEdges) {
+				EdgeGraph edge = PedSimCity.edgesMap.get(i);
+				LineString geometry = (LineString) edge.masonGeometry.geometry;
+				Coordinate [] coords = geometry.getCoordinates();
+				List<Coordinate> coordsCollection = Arrays.asList(coords);
 
-			String	csvRoutes = UserParameters.outputFolder+cr+"_routes_"+(job)+".csv";
-
-			List<String> header = new ArrayList<String>();
-			header.addAll(Arrays.asList(new String[] {"routeID", "origin", "destination"}));
-
-			for (int i = 0; i < edgesGeometries.size(); i++) {
-				MasonGeometry segment = (MasonGeometry) edgesGeometries.objs[i];
-				header.add(Integer.toString(segment.getIntegerAttribute("edgeID")));
-			}
-
-			String[] headerArray = new String[header.size()];
-			header.toArray(headerArray);
-			List<Map<String, Object>> rows = new ArrayList<Map<String, Object>>();
-
-			for (RouteData rD : PedSimCity.routesData) {
-				String routeCriteria =  rD.criteria;
-				if (cr != routeCriteria) continue;
-				Map<String, Object> row = new HashMap<String, Object>();
-				List<Integer> sequenceEdges = rD.sequenceEdges;
-
-				int originNode =  rD.origin;
-				int destinationNode = rD.destination;
-				row.put(headerArray[0], Integer.toString(originNode)+"_"+Integer.toString(destinationNode));
-				row.put(headerArray[1], originNode);
-				row.put(headerArray[2], destinationNode);
-
-				for (int e = 0; e < sequenceEdges.size(); e++) {
-					Integer position = ArrayUtils.indexOf(headerArray, Integer.toString(sequenceEdges.get(e)));
-					row.put(headerArray[position], 1);
+				if (i == sequenceEdges.get(0)) {
+					NodeGraph originNode = PedSimCity.nodesMap.get(rD.origin);
+					if (!originNode.getCoordinate().equals(coords[0])) Collections.reverse(coordsCollection);
+					allCoords.addAll(coordsCollection);
 				}
-				rows.add(row);
-			}
+				else {
+					if (!coords[0].equals(allCoords.get(allCoords.size()-1))) Collections.reverse(coordsCollection);
+					allCoords.addAll(coordsCollection);
+				}
 
-			ICsvMapWriter mapWriter = null;
-			try {
-				mapWriter = new CsvMapWriter(new FileWriter(csvRoutes), CsvPreference.STANDARD_PREFERENCE);
-				// write the header
-				mapWriter.writeHeader(headerArray);
-				// write the customer maps
-				for (int r = 0; r < rows.size(); r++) mapWriter.write(rows.get(r), headerArray);
 			}
-			finally {if( mapWriter != null ) mapWriter.close();}
+			int limit = 254;
+			GeometryFactory factory = new GeometryFactory();
+			Coordinate[] allCoordsArray = new Coordinate[allCoords.size()];
+			for (int i =0; i<= allCoords.size()-1; i ++) allCoordsArray[i] = allCoords.get(i);
+			LineString lineGeometry = factory.createLineString(allCoordsArray);
+			MasonGeometry mg  = new MasonGeometry(lineGeometry);
+
+			mg.addIntegerAttribute("O", rD.origin);
+			mg.addIntegerAttribute("D", rD.destination);
+			if (UserParameters.fiveElements) mg.addIntegerAttribute("group", rD.group);
+			else mg.addStringAttribute("routeChoice", rD.routeChoice);
+
+			//	the sequence of edgesIDs is truncated and split in different fields as a shapefile can handle max 254 characters per field
+			String edgeIDs = ArrayUtils.toString(rD.sequenceEdges);
+			String first_part = null;
+			String other = null;
+			if (edgeIDs.length() <= limit) mg.addAttribute("edgesID_0", edgeIDs);
+			else {
+				first_part = edgeIDs.substring(0, limit);
+				mg.addAttribute("edgesID_0", first_part);
+				other = edgeIDs.substring(limit);
+				int counter = 1;
+				while (true) {
+					if (counter > columns) columns += 1;
+					if (other.length() > limit) {
+						first_part = other.substring(0, limit);
+						mg.addAttribute("edgesID_"+counter, first_part);
+						other = other.substring(limit);
+						counter += 1;
+					}
+					else {
+						mg.addAttribute("edgesID_"+counter, other);
+						break;
+					}
+				}
+			}
+			routes.addGeometry(mg);
 		}
+		// this is to avoid to have geometries without the needed columns' values filled in.
+		if (columns > 0) {
+			routes.generateGeometriesList();
+			for (int column = 1; column<= columns; column++)
+			{
+				ArrayList<MasonGeometry> routeGeometries = routes.geometriesList;
+				for (MasonGeometry route : routeGeometries)
+				{
+					if (route.hasAttribute("edgesID_"+column)) continue;
+					else route.addAttribute("edgesID_"+column, "None");
+
+				}
+			}
+		}
+
+		ShapeFileExporter.write(directory, routes);
 		PedSimCity.routesData.clear();
 	}
-
 
 }

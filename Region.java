@@ -1,10 +1,10 @@
-package sim.app.geo.pedSimCity;
+package sim.app.geo.PedSimCity;
 
 import java.util.ArrayList;
 
-import sim.app.geo.urbanSim.EdgeGraph;
-import sim.app.geo.urbanSim.SubGraph;
-import sim.app.geo.urbanSim.VectorLayer;
+import sim.app.geo.UrbanSim.EdgeGraph;
+import sim.app.geo.UrbanSim.SubGraph;
+import sim.app.geo.UrbanSim.VectorLayer;
 import sim.util.Bag;
 
 
@@ -42,8 +42,7 @@ public class Region {
 	 *
 	 * @param typeLandmarkness the type of landmarks to use when computing the complexity.
 	 */
-	public double computeComplexity(String typeLandmarkness)
-	{
+	public double computeComplexity(String typeLandmarkness) {
 		if (this.buildings.size() == 0 || this.buildings == null)  this.buildingsComplexity = 0.0;
 		else if (typeLandmarkness == "global" && globalLandmarks.size() > 0 && globalLandmarks != null)
 		{

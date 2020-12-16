@@ -4,7 +4,7 @@
  *
  * */
 
-package sim.app.geo.pedSimCity;
+package sim.app.geo.PedSimCity;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -15,10 +15,10 @@ import java.util.Set;
 
 import org.javatuples.Pair;
 
-import sim.app.geo.urbanSim.Angles;
-import sim.app.geo.urbanSim.EdgeGraph;
-import sim.app.geo.urbanSim.NodeGraph;
-import sim.app.geo.urbanSim.Utilities;
+import sim.app.geo.UrbanSim.Angles;
+import sim.app.geo.UrbanSim.EdgeGraph;
+import sim.app.geo.UrbanSim.NodeGraph;
+import sim.app.geo.UrbanSim.Utilities;
 
 public class RegionBasedNavigation {
 
@@ -94,8 +94,12 @@ public class RegionBasedNavigation {
 			}
 
 			previousLocation = currentLocation;
-			sequence.add(gateways.getValue0()); //exit
-			sequence.add(gateways.getValue1()); //entry next region
+			//only new entry, when the last entry can send the agent directly to the next region
+			if (gateways.getValue0() == gateways.getValue1()) sequence.add(gateways.getValue1());
+			else{
+				sequence.add(gateways.getValue0()); //exit
+				sequence.add(gateways.getValue1()); //entry next region
+			}
 			currentLocation = gateways.getValue1();
 			currentRegion = currentLocation.region;
 			visitedRegions.add(currentRegion);
@@ -174,7 +178,7 @@ public class RegionBasedNavigation {
 			// pick the closest barrier sub-goal
 			NodeGraph u = edgeGoal.u;
 			NodeGraph v = edgeGoal.v;
-			if ((Utilities.nodesDistance(gateway, u)) < (Utilities.nodesDistance(gateway, v))) subGoal = u;
+			if ((NodeGraph.nodesDistance(gateway, u)) < (NodeGraph.nodesDistance(gateway, v))) subGoal = u;
 			else subGoal = v;
 
 			adjacentBarriers.add(barrier);
@@ -217,6 +221,7 @@ public class RegionBasedNavigation {
 				sequence.set(indexOf+2, newGateways.getValue1());
 			}
 		}
+
 		return newSequence;
 	}
 
@@ -237,32 +242,43 @@ public class RegionBasedNavigation {
 		HashMap<Pair<NodeGraph, NodeGraph>, Double> otherGates = new HashMap<Pair<NodeGraph, NodeGraph>, Double> ();
 
 		// check compliance with criteria
-		double destinationAngle = Angles.angle(currentLocation, destinationNode);
-		double distanceTarget = Utilities.nodesDistance(currentLocation, destinationNode);
+		double locationDestinationAngle = Angles.angle(currentLocation, destinationNode);
+		double distanceTarget = NodeGraph.nodesDistance(currentLocation, destinationNode);
 
 		for (Gateway gd : possibleGates) {
-			if (gd.node == currentLocation) continue;
-			// the gateway entraps the agent
 			if (badExits.contains(gd.gatewayID)) continue;
 			if ((specificRegion != 999999) && (specificRegion != gd.regionTo)) continue;
 			if (visitedRegions.contains(gd.regionTo)) continue;
 
-			double exitAngle = Angles.angle(currentLocation, gd.node);
-			double distanceFromGate = Utilities.nodesDistance(currentLocation, gd.node);
+			double locationExitAngle = Angles.angle(currentLocation, gd.exit);
+			double exitEntryAngle = gd.entryAngle;
+			double exitDestintionAngle = Angles.angle(gd.exit, destinationNode);
+			double differenceExitEntry = Angles.differenceAngles(locationExitAngle, exitDestintionAngle);
+			double distanceFromGate = NodeGraph.nodesDistance(currentLocation, gd.exit);
+			double cost = 0.0;
 
 			// criteria are not met
-			if (distanceFromGate > distanceTarget ||
-					!Angles.isInDirection(destinationAngle, exitAngle, 140) ||
-					!Angles.isInDirection(destinationAngle, gd.entryAngle, 140) == false) {
-
-				double cost = Angles.differenceAngles(exitAngle, destinationAngle);
-				if (cost > 90) continue; //too much
-				cost += Angles.differenceAngles(exitAngle, gd.entryAngle);
+			if (gd.exit == currentLocation && !Angles.isInDirection(locationDestinationAngle, exitEntryAngle, 140)) {
+				cost = Angles.differenceAngles(exitEntryAngle, locationDestinationAngle);
 				otherGates.put(gd.gatewayID, cost); // use as alternatives
 				continue;
 			}
-			double cost = Angles.differenceAngles(exitAngle, destinationAngle);
-			cost += Angles.differenceAngles(exitAngle, gd.entryAngle);
+
+			else if (gd.exit != currentLocation && (distanceFromGate > distanceTarget ||
+					!Angles.isInDirection(locationDestinationAngle, locationExitAngle, 140) ||
+					!Angles.isInDirection(locationDestinationAngle, exitEntryAngle, 140))) {
+				cost = Angles.differenceAngles(locationExitAngle, locationDestinationAngle);
+				if (cost > 90) continue; //too much
+				cost += differenceExitEntry;
+				otherGates.put(gd.gatewayID, cost); // use as alternatives
+				continue;
+			}
+			//in this case just consider the deviation caused by the entry
+			if (gd.exit == currentLocation) cost = Angles.differenceAngles(gd.entryAngle, locationDestinationAngle);
+			else {
+				cost = Angles.differenceAngles(locationExitAngle, locationDestinationAngle);
+				cost += differenceExitEntry;
+			}
 			validGates.put(gd.gatewayID, cost);
 		}
 		if ((validGates.size() == 0) && (specificRegion != 999999)) return null;
@@ -271,7 +287,7 @@ public class RegionBasedNavigation {
 
 		// sort the valid gates, rewarding the ones with the lowest deviation towards the destination
 		LinkedHashMap<Pair<NodeGraph, NodeGraph>, Double> validSorted = (LinkedHashMap<Pair<NodeGraph, NodeGraph>, Double>)
-				Utilities.sortByValue(validGates, "ascending");
+				Utilities.sortByValue(validGates, false);
 
 		// return the first gateway pair
 		for (Entry<Pair<NodeGraph, NodeGraph>, Double> gatewaysPair: validSorted.entrySet()) return gatewaysPair.getKey();

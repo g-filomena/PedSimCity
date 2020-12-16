@@ -1,4 +1,4 @@
-package sim.app.geo.pedSimCity;
+package sim.app.geo.PedSimCity;
 
 import java.util.Random;
 

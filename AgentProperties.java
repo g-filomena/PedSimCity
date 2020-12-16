@@ -1,4 +1,4 @@
-package sim.app.geo.pedSimCity;
+package sim.app.geo.PedSimCity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -6,30 +6,22 @@ import java.util.Random;
 
 import org.javatuples.Pair;
 
-import sim.app.geo.urbanSim.NodeGraph;
+import sim.app.geo.UrbanSim.NodeGraph;
 import sim.util.Bag;
 import sim.util.geo.MasonGeometry;
 
-/**
- * @param landmarkBasedNavigation using Landmarks y/n;
- * @param regionBasedNavigation using Regions y/n;
- * @param barrierBasedNavigation using Barriers y/n;
- * @param onlyAnchors when computing global landmarkness, it considers only landmarks anchoring the destination as possible; if false,
- * global landmark is considered as a possible distant landmark;
- */
 
 public class AgentProperties {
 
 	public int agentID;
+	public String criteria;
+	double sd_error = 0.10;
 	public int group;
-	double sdError = 0.10;
 	double agentKnowledge = 1.0;
 
 	// for general routing
 	String localHeuristic = "";
-	String algorithm = "dijkstra";
-	public String criteria;
-	// only when testingLandmarks or testingRegions
+	public String routeChoice;
 	ArrayList<Pair<NodeGraph, NodeGraph>> OD =  new ArrayList<Pair<NodeGraph, NodeGraph>>();
 	ArrayList<ArrayList<NodeGraph>> listSequences = new ArrayList<ArrayList<NodeGraph>> ();
 
@@ -44,9 +36,11 @@ public class AgentProperties {
 	//region- and barrier-based parameters
 	boolean regionBasedNavigation = false;
 	boolean barrierBasedNavigation = false;
-	boolean nodeBasedNavigation = false;
 	// the ones possibly used as sub-goals ["all", "positive", "negative", "separating"]
 	String typeBarriers = "";
+
+	boolean nodeBasedNavigation = false;
+	boolean activityBased = false;
 
 	// for daily-routine
 	boolean student;
@@ -68,34 +62,41 @@ public class AgentProperties {
 	NodeGraph workPlace;
 	NodeGraph otherPlace;
 
+	/**
+	 * @param landmarkBasedNavigation using Landmarks y/n;
+	 * @param onlyAnchors when computing global landmarkness, it considers only landmarks anchoring the destination as possible; if false,
+	 * global landmark is considered as a possible distant landmark;
+	 */
+	public void setProperties(String routeChoice, String typeLandmarks, String typeBarriers) {
 
-	public void setProperties(String criteria) {
-		this.criteria = criteria;
-		if (criteria.contains("Landmarks")) {
+		this.routeChoice = routeChoice;
+		if (routeChoice.contains("D")) localHeuristic = "roadDistance";
+		if (routeChoice.contains("A")) localHeuristic = "angularChange";
+		if (routeChoice.contains("T")) localHeuristic = "turns";
+
+		if (routeChoice.contains("L")) {
 			landmarkBasedNavigation = true;
-			typeLandmarks = "local";
-		}
-
-		if (criteria.equals("localLandmarks")) usingLocalLandmarks = true;
-		else if (criteria.equals("globalLandmarks")) usingGlobalLandmarks = true;
-		else if (criteria.contains("Landmarks")) {
 			usingLocalLandmarks = true;
+			typeLandmarks = "local"; //for measuring complexity when selecting on-route marks
+		}
+		if (routeChoice.contains("G")) {
+			System.out.println(routeChoice);
 			usingGlobalLandmarks = true;
+			onlyAnchors = true;
 		}
-		if (criteria.contains("Barriers")) {
-			typeBarriers = "all";
-			barrierBasedNavigation = true;
+		if (routeChoice.contains("N")) {
+			nodeBasedNavigation = true;
+			usingLocalLandmarks = false;
+			landmarkBasedNavigation = false;
 		}
-		if (criteria.contains("Regions")) regionBasedNavigation = true;
-		if (criteria.contains("roadDistance")) localHeuristic = "roadDistance";
-		else if (criteria.contains("angularChange")) localHeuristic = "angularChange";
+		if (routeChoice.contains("R")) regionBasedNavigation = true;
+		if (routeChoice.contains("B")) barrierBasedNavigation = true;
 		if (agentKnowledge <= UserParameters.noobAgentThreshold) onlyAnchors = false;
-
 	}
 
 	public void setOD(ArrayList<Pair<NodeGraph, NodeGraph>> OD, ArrayList<ArrayList<NodeGraph>> listSequences) {
 		this.OD = OD;
-		this.listSequences = new ArrayList<ArrayList<NodeGraph>> (listSequences);
+		if (listSequences != null) this.listSequences = new ArrayList<ArrayList<NodeGraph>> (listSequences);
 	}
 
 	public void setAway() 	{
@@ -113,6 +114,9 @@ public class AgentProperties {
 		if (this.flaneur) thresholdAtHome = 30 + random.nextInt(2*60);
 		else thresholdAtHome = 60 + random.nextInt(3*60);
 	}
+
+
+
 
 	public void setThresholdAway(String type) {
 
@@ -137,7 +141,6 @@ public class AgentProperties {
 	public void setLocations() {
 
 		Bag buildingsFiltered = PedSimCity.buildings.filterFeatures("DMA", "live", true);
-		System.out.println(buildingsFiltered.size());
 		Random random = new Random();
 		MasonGeometry buildingGeometry = (MasonGeometry) buildingsFiltered.get(random.nextInt(buildingsFiltered.size()));
 		int buildingID = (int) buildingGeometry.getUserData();
@@ -152,7 +155,5 @@ public class AgentProperties {
 		buildingID = (int) buildingGeometry.getUserData();
 		this.workPlace = PedSimCity.buildingsMap.get(buildingID).node;
 	}
-
-
 
 }
