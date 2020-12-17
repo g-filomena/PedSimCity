@@ -2,7 +2,6 @@ package sim.app.geo.PedSimCity;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
@@ -72,7 +71,7 @@ public class PedSimCity extends SimState {
 	public int numTripsScenario, numAgents, currentJob;
 	double height, width, ratio;
 	ArrayList<Integer> groupBounds = new ArrayList<Integer>();
-	ArrayList<Group> groups = new ArrayList<Group>();
+	static ArrayList<Group> groups = new ArrayList<Group>();
 
 	// agents
 	public static VectorLayer agents = new VectorLayer();
@@ -97,6 +96,12 @@ public class PedSimCity extends SimState {
 		if (UserParameters.testingRegions || UserParameters.testingLandmarks || UserParameters.testingSpecificRoutes) numAgents = routeChoiceModels.length;
 		else numAgents = UserParameters.numAgents;
 
+		// check consistency settings
+		if (UserParameters.testingLandmarks ||  UserParameters.testingRegions ||  UserParameters.testingSpecificRoutes) {
+			UserParameters.empiricalABM = false;
+			UserParameters.activityBased = false;
+		}
+
 		for (String routeChoice : routeChoiceModels) {
 			for (Object o : network.getEdges())	{
 				EdgeGraph edge = (EdgeGraph) o;
@@ -113,9 +118,19 @@ public class PedSimCity extends SimState {
 		roads.setMBR(MBR);
 
 		// populate
-		populate();
+		if (UserParameters.empiricalABM) populateGroups();
+		else populate();
 		agents.setMBR(MBR);
+
+		// moving
+		for (Pedestrian pedestrian : agentsList) {
+			Stoppable stop = schedule.scheduleRepeating(pedestrian);
+			pedestrian.setStoppable(stop);
+			schedule.scheduleRepeating(agents.scheduleSpatialIndexUpdater(), Integer.MAX_VALUE, 1.0);
+		}
 	}
+
+
 
 	public void populate() {
 		// prepare to start the simulation - OD Matrix
@@ -128,61 +143,43 @@ public class PedSimCity extends SimState {
 		else if (UserParameters.testingLandmarks) numTripsScenario = distances.size();
 		ArrayList<ArrayList<NodeGraph>> listSequences = new ArrayList<ArrayList<NodeGraph>> ();
 
-		if (UserParameters.fiveElements) prepareGroups();
-
-		else {
-			for (int i = 0; i < numTripsScenario; i++) {
-				NodeGraph originNode = null;
-				NodeGraph destinationNode = null;
-				if (UserParameters.testingSpecificRoutes) {
-					originNode = nodesMap.get(UserParameters.OR.get(i));
-					destinationNode = nodesMap.get(UserParameters.DE.get(i));
-				}
-				else if (UserParameters.testingLandmarks) {
-					while (originNode == null) originNode = NodesLookup.randomNode(network);
-					destinationNode = NodesLookup.randomNodeFromDistancesSet(network, originNode, distances);
-				}
-				else if (UserParameters.testingRegions) {
-					while (originNode == null) originNode = NodesLookup.randomNode(network, startingNodes);
-					while (destinationNode == null)	destinationNode = NodesLookup.randomNodeBetweenLimits(network, originNode, 1000, 3000);
-				}
-				else if (UserParameters.testingModels) {
-					while (originNode == null) originNode = NodesLookup.randomNode(network);
-					while (destinationNode == null)	destinationNode = NodesLookup.randomNodeBetweenLimits(network, originNode, 500, 3000);
-				}
-
-				if (buildings != null) {
-					AgentProperties apFictionary = new AgentProperties();
-					apFictionary.landmarkBasedNavigation = true;
-					apFictionary.usingLocalLandmarks = true;
-					apFictionary.typeLandmarks = "local";
-					ArrayList<NodeGraph> sequence = LandmarkNavigation.onRouteMarks(originNode, destinationNode, apFictionary);
-					listSequences.add(sequence);
-				}
-				Pair<NodeGraph, NodeGraph> pair = new Pair<NodeGraph, NodeGraph> (originNode, destinationNode);
-				OD.add(pair);
+		for (int i = 0; i < numTripsScenario; i++) {
+			NodeGraph originNode = null;
+			NodeGraph destinationNode = null;
+			if (UserParameters.testingSpecificRoutes) {
+				originNode = nodesMap.get(UserParameters.OR.get(i));
+				destinationNode = nodesMap.get(UserParameters.DE.get(i));
 			}
-		}
+			else if (UserParameters.testingLandmarks) {
+				while (originNode == null) originNode = NodesLookup.randomNode(network);
+				destinationNode = NodesLookup.randomNodeFromDistancesSet(network, originNode, distances);
+			}
+			else if (UserParameters.testingRegions) {
+				while (originNode == null) originNode = NodesLookup.randomNode(network, startingNodes);
+				while (destinationNode == null)	destinationNode = NodesLookup.randomNodeBetweenLimits(network, originNode, 1000, 3000);
+			}
+			else if (UserParameters.testingModels) {
+				while (originNode == null) originNode = NodesLookup.randomNode(network);
+				while (destinationNode == null)	destinationNode = NodesLookup.randomNodeBetweenLimits(network, originNode,
+						UserParameters.minDistance, UserParameters.maxDistance);
+			}
 
+			if (buildings != null) {
+				AgentProperties apFictionary = new AgentProperties();
+				apFictionary.landmarkBasedNavigation = true;
+				apFictionary.usingLocalLandmarks = true;
+				apFictionary.typeLandmarks = "local";
+				ArrayList<NodeGraph> sequence = LandmarkNavigation.onRouteMarks(originNode, destinationNode, apFictionary);
+				listSequences.add(sequence);
+			}
+			Pair<NodeGraph, NodeGraph> pair = new Pair<NodeGraph, NodeGraph> (originNode, destinationNode);
+			OD.add(pair);
+		}
 
 		for (int i = 0; i < numAgents; i++)	{
 			AgentProperties ap = new AgentProperties();
-			if (UserParameters.fiveElements) {
-
-				for (int g : groupBounds){
-					if (i <= g) {
-						groups.get(groupBounds.indexOf(g)).setAgentProperties(ap);
-						break;
-					}
-				}
-				ap.activityBased = true;
-				ap.setLocations();
-			}
-			// testing landmarks or regions
-			else {
-				ap.setProperties(routeChoiceModels[i]);
-				ap.setOD(OD, listSequences);
-			}
+			ap.setRouteChoice(routeChoiceModels[i]);
+			ap.setOD(OD, listSequences);
 			ap.agentID = i;
 
 			Pedestrian a = new Pedestrian(this, ap);
@@ -190,13 +187,39 @@ public class PedSimCity extends SimState {
 			newGeometry.isMovable = true;
 			agents.addGeometry(newGeometry);
 			agentsList.add(a);
-			a.getGeometry().setUserData(a);
-
-			Stoppable stop = schedule.scheduleRepeating(a);
-			a.setStoppable(stop);
-			schedule.scheduleRepeating(agents.scheduleSpatialIndexUpdater(), Integer.MAX_VALUE, 1.0);
 		}
 	}
+
+
+	public void populateGroups() {
+
+		numAgents = UserParameters.numAgents;
+		int left = numAgents;
+		for (Group group : groups) {
+			int groupAgents;
+			if (group.equals(groups.get(groups.size()-1))) groupAgents = left;
+			else {
+				groupAgents = (int) (numAgents * group.portion);
+				left -= groupAgents;
+			}
+			group.groupID = groups.indexOf(group);
+			for (int i = 0; i < groupAgents; i++){
+				AgentGroupProperties ap = new AgentGroupProperties();
+				ap.setGroupProperties(group);
+
+				ap.agentID = i+10*group.groupID;
+				if (UserParameters.activityBased) ap.setActivityProperties();
+				Pedestrian a = new Pedestrian(this, ap);
+				MasonGeometry newGeometry = a.getGeometry();
+				newGeometry.isMovable = true;
+				agents.addGeometry(newGeometry);
+				agentsList.add(a);
+			}
+		}
+	}
+
+
+
 
 	@Override
 	public void finish()
@@ -270,7 +293,7 @@ public class PedSimCity extends SimState {
 				building.DMA = buildingGeometry.getStringAttribute("DMA");
 				building.geometry = buildingGeometry;
 
-				if (UserParameters.fiveElements) {
+				if (UserParameters.activityBased) {
 					Bag nearestNodes = junctions.getObjectsWithinDistance(building.geometry, 500);
 					MasonGeometry closest = null;
 					double lowestDistance = 501.0;
@@ -439,20 +462,5 @@ public class PedSimCity extends SimState {
 	}
 
 
-	public void prepareGroups() {
 
-		List<Double> composition = Arrays.asList(UserParameters.composition);
-		int accumulated = 0;
-		for (double p : composition) {
-
-			int indexOf = composition.indexOf(p);
-			Group group = new Group();
-			group.configureGroup(indexOf);
-			groups.add(group);
-			accumulated += (int) (numAgents*p);
-			if (indexOf == 0) groupBounds.add((int) (numAgents*p));
-			else groupBounds.add(accumulated);
-		}
-		if (groupBounds.get(groupBounds.size() - 1) == numAgents) groupBounds.set(groupBounds.size() - 1, numAgents);
-	}
 }

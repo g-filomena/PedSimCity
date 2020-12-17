@@ -10,6 +10,7 @@ import com.vividsolutions.jts.linearref.LengthIndexedLine;
 
 import sim.app.geo.UrbanSim.EdgeGraph;
 import sim.app.geo.UrbanSim.NodeGraph;
+import sim.app.geo.UrbanSim.NodesLookup;
 import sim.engine.SimState;
 import sim.engine.Steppable;
 import sim.engine.Stoppable;
@@ -59,14 +60,13 @@ public final class Pedestrian implements Steppable {
 
 	//time
 	int minutesSoFar = 0;
-	boolean activityBased = false;
 
 	/** Constructor Function */
 	public Pedestrian(PedSimCity state, AgentProperties ap) {
 		this.ap = ap;
 		this.state = state;
 
-		if (UserParameters.fiveElements) minutesSoFar = UserParameters.startingHour;
+		if (UserParameters.activityBased) minutesSoFar = UserParameters.startingHour;
 
 		originNode = (NodeGraph) ap.OD.get(numTrips).getValue(0);
 		GeometryFactory fact = new GeometryFactory();
@@ -87,7 +87,7 @@ public final class Pedestrian implements Steppable {
 		route.origin = originNode.getID();
 		route.destination = destinationNode.getID();
 
-		if (activityBased) {
+		if (UserParameters.empiricalABM) {
 			CombinedNavigation combinedNavigation = new CombinedNavigation();
 			newPath = combinedNavigation.path(originNode, destinationNode, this.ap);
 		}
@@ -133,37 +133,45 @@ public final class Pedestrian implements Steppable {
 		PedSimCity stateSchedule = (PedSimCity) state;
 		minutesSoFar += UserParameters.minutesPerStep;
 
-		if (activityBased)
-		{
-			if (minutesSoFar == UserParameters.endingHour) {
-				System.out.println("End of the day - calling finish");
-				stateSchedule.finish();
-			}
-			ActivityPlanner activityPlanner = new ActivityPlanner();
-			activityPlanner.checkRoutine(state, this);
-			if (ap.atPlace) return;
+		if (UserParameters.activityBased && minutesSoFar == UserParameters.endingHour) {
+			System.out.println("End of the day - calling finish");
+			stateSchedule.finish();
 		}
-		else {
-			// check that we've been placed on an Edge  //check that we haven't already reached our destination
-			if (reachedDestination || destinationNode == null) {
-				if (reachedDestination)	reachedDestination = false;
-				if (numTrips == ap.OD.size()) {
-					stateSchedule.agentsList.remove(this);
-					if (stateSchedule.agentsList.size() == 0) {
-						System.out.println("calling finish");
-						stateSchedule.finish();
-					}
-					killAgent.stop();
-					return;
+		else if (reachedDestination || destinationNode == null && !UserParameters.activityBased) {
+
+			if (reachedDestination)	reachedDestination = false;
+			if (numTrips == ap.OD.size() || (UserParameters.empiricalABM && this.numTrips == UserParameters.numTrips)) {
+				stateSchedule.agentsList.remove(this);
+				if (stateSchedule.agentsList.size() == 0) {
+					System.out.println("calling finish");
+					stateSchedule.finish();
 				}
-				originNode = (NodeGraph) ap.OD.get(numTrips).getValue(0);
-				updatePosition(originNode.getCoordinate());
-				destinationNode = (NodeGraph) ap.OD.get(numTrips).getValue(1);
-				findNewAStarPath(stateSchedule);
+				killAgent.stop();
 				return;
 			}
+			else if (UserParameters.empiricalABM) {
+				while (originNode == null) originNode = NodesLookup.randomNode(PedSimCity.network);
+				while (destinationNode == null)	destinationNode = NodesLookup.randomNodeBetweenLimits(PedSimCity.network, originNode,
+						UserParameters.minDistance, UserParameters.maxDistance);
+			}
+			else {
+				originNode = (NodeGraph) ap.OD.get(numTrips).getValue(0);
+				destinationNode = (NodeGraph) ap.OD.get(numTrips).getValue(1);
+			}
+			updatePosition(originNode.getCoordinate());
+			findNewAStarPath(stateSchedule);
+			return;
 		}
-		keepWalking();
+		if (UserParameters.activityBased)  {
+			ap.totalTimeAway += UserParameters.minutesPerStep;
+			if (!reachedDestination & !ap.atPlace) keepWalking();
+			else {
+				ActivityPlanner activityPlanner = new ActivityPlanner();
+				activityPlanner.checkRoutine(state, this);
+				if (ap.atPlace) return;
+			}
+		}
+		else keepWalking();
 	}
 
 	/**
@@ -248,15 +256,7 @@ public final class Pedestrian implements Steppable {
 	 **/
 	void updateEdgeData(EdgeGraph edge) {
 		edge = PedSimCity.edgesMap.get(edge.getID()); //in case it was a subgraph edge
-		if (ap.activityBased) {
-			if (ap.group == 1) edge.group1 += 1;
-			else if (ap.group == 2) edge.group2 += 1;
-			else if (ap.group == 3) edge.group3 += 1;
-			else if (ap.group == 4) edge.group4 += 1;
-			else if (ap.group == 5) edge.group5 += 1;
-			else if (ap.group == 6) edge.group6 += 1;
-
-		}
+		if (UserParameters.empiricalABM) edge.densities.replace(ap.groupName, edge.densities.get(ap.groupName)+1);
 		else edge.densities.replace(ap.routeChoice, edge.densities.get(ap.routeChoice)+1);
 	}
 

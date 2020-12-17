@@ -15,8 +15,7 @@ public class AgentProperties {
 
 	public int agentID;
 	public String criteria;
-	double sd_error = 0.10;
-	public int group;
+	public String groupName;
 	double agentKnowledge = 1.0;
 
 	// for general routing
@@ -42,32 +41,12 @@ public class AgentProperties {
 	boolean nodeBasedNavigation = false;
 	boolean activityBased = false;
 
-	// for daily-routine
-	boolean student;
-	boolean worker;
-	boolean flaneur;
-	boolean homeBased;
-	boolean atWork;
-	boolean atHome;
-	boolean atPlace;
-	boolean away;
-	double timeAtHome = 0.0;
-	double timeAway = 0.0;
-	double timeAtWork = 0.0;
-	double thresholdAtHome = 0.0;
-	double thresholdAway = 0.0;
-	double thresholdWandering = 0.0;
-	double totalTimeAway = 0.0;
-	NodeGraph homePlace;
-	NodeGraph workPlace;
-	NodeGraph otherPlace;
-
 	/**
 	 * @param landmarkBasedNavigation using Landmarks y/n;
 	 * @param onlyAnchors when computing global landmarkness, it considers only landmarks anchoring the destination as possible; if false,
 	 * global landmark is considered as a possible distant landmark;
 	 */
-	public void setProperties(String routeChoice, String typeLandmarks, String typeBarriers) {
+	public void setRouteChoice(String routeChoice) {
 
 		this.routeChoice = routeChoice;
 		if (routeChoice.contains("D")) localHeuristic = "roadDistance";
@@ -91,6 +70,7 @@ public class AgentProperties {
 		}
 		if (routeChoice.contains("R")) regionBasedNavigation = true;
 		if (routeChoice.contains("B")) barrierBasedNavigation = true;
+
 		if (agentKnowledge <= UserParameters.noobAgentThreshold) onlyAnchors = false;
 	}
 
@@ -98,6 +78,26 @@ public class AgentProperties {
 		this.OD = OD;
 		if (listSequences != null) this.listSequences = new ArrayList<ArrayList<NodeGraph>> (listSequences);
 	}
+
+	// for daily-routine
+	boolean student;
+	boolean worker;
+	boolean flaneur;
+	boolean homeBased;
+	boolean atWork;
+	boolean atHome;
+	boolean atPlace;
+	boolean away;
+	double timeAtHome = 0.0;
+	double timeAway = 0.0;
+	double timeAtWork = 0.0;
+	double thresholdAtHome = 0.0;
+	double thresholdAway = 0.0;
+	double thresholdWandering = 0.0;
+	double totalTimeAway = 0.0;
+	NodeGraph homePlace;
+	NodeGraph workPlace;
+	NodeGraph otherPlace;
 
 	public void setAway() 	{
 		this.timeAway = 0.0;
@@ -114,9 +114,6 @@ public class AgentProperties {
 		if (this.flaneur) thresholdAtHome = 30 + random.nextInt(2*60);
 		else thresholdAtHome = 60 + random.nextInt(3*60);
 	}
-
-
-
 
 	public void setThresholdAway(String type) {
 
@@ -138,7 +135,7 @@ public class AgentProperties {
 	}
 
 
-	public void setLocations() {
+	public void setActivityProperties() {
 
 		Bag buildingsFiltered = PedSimCity.buildings.filterFeatures("DMA", "live", true);
 		Random random = new Random();
@@ -154,6 +151,12 @@ public class AgentProperties {
 		buildingGeometry = (MasonGeometry) buildingsFiltered.get(random.nextInt(buildingsFiltered.size()));
 		buildingID = (int) buildingGeometry.getUserData();
 		this.workPlace = PedSimCity.buildingsMap.get(buildingID).node;
+
+		double p = random.nextFloat();
+		if (p <= 0.45) worker = true;
+		else if (p <= 0.70) student = true;
+		else if (p <= 0.85 ) flaneur = true;
+		else if (p <= 0.85 ) homeBased = true;
 	}
 
 }

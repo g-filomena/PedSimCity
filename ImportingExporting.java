@@ -33,24 +33,10 @@ public class ImportingExporting {
 
 		if (UserParameters.testingLandmarks) {
 			inputDataDirectory = "landmarksData"+"/"+UserParameters.cityName+"/";
-
-			/// read GPS trajectories distances
-			System.out.println("reading distances");
-			CSVReader readerDistances = new CSVReader(new FileReader(PedSimCity.class.getResource(inputDataDirectory).toString().substring(6)
-					+"/"+UserParameters.cityName+"_tracks_distances.csv"));
-			String[] nextLineDistances;
-
-			int ds = 0;
-			while ((nextLineDistances = readerDistances.readNext()) != null) {
-				ds += 1;
-				if (ds == 1) continue;
-				PedSimCity.distances.add(Float.parseFloat(nextLineDistances[2]));
-			}
-			readerDistances.close();
+			importDistances(inputDataDirectory);
 		}
-
-		if (UserParameters.testingSpecificRoutes) inputDataDirectory = "data/"+UserParameters.cityName+"/";
 		else if (UserParameters.testingRegions) inputDataDirectory = "districtsData/"+UserParameters.cityName+"/";
+		else inputDataDirectory = "data/"+UserParameters.cityName+"/";
 
 		try {
 			URL barriersFile = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_barriers.shp");
@@ -80,7 +66,6 @@ public class ImportingExporting {
 
 		// read the street network shapefiles and create the primal and the dual graph
 		System.out.println("reading the graphs");
-
 		URL roadsFile = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_edges.shp");
 		URL junctionsFile = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_nodes.shp");
 		URL roadsDualFile = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_edgesDual.shp");
@@ -164,7 +149,7 @@ public class ImportingExporting {
 
 			mg.addIntegerAttribute("O", rD.origin);
 			mg.addIntegerAttribute("D", rD.destination);
-			if (UserParameters.fiveElements) mg.addIntegerAttribute("group", rD.group);
+			if (UserParameters.empiricalABM) mg.addIntegerAttribute("group", rD.group);
 			else mg.addStringAttribute("routeChoice", rD.routeChoice);
 
 			//	the sequence of edgesIDs is truncated and split in different fields as a shapefile can handle max 254 characters per field
@@ -212,4 +197,38 @@ public class ImportingExporting {
 		PedSimCity.routesData.clear();
 	}
 
+	public static void importDistances(String inputDataDirectory) throws IOException {
+		/// read GPS trajectories distances
+		System.out.println("reading distances");
+		CSVReader readerDistances = new CSVReader(new FileReader(PedSimCity.class.getResource(inputDataDirectory).toString().substring(6)
+				+"/"+UserParameters.cityName+"_tracks_distances.csv"));
+		String[] nextLineDistances;
+
+		int row = 0;
+		while ((nextLineDistances = readerDistances.readNext()) != null) {
+			row += 1;
+			if (row == 1) continue; // header
+			PedSimCity.distances.add(Float.parseFloat(nextLineDistances[2]));
+		}
+		readerDistances.close();
+	}
+
+	public static void importGroups(String inputDataDirectory) throws IOException {
+		/// read GPS trajectories distances
+		System.out.println("reading groups information");
+		CSVReader readerGroups = new CSVReader(new FileReader(PedSimCity.class.getResource(inputDataDirectory).toString().substring(6)
+				+"/"+UserParameters.cityName+"_tracks_distances.csv"));
+		String[] nextLine;
+
+		int row = 0;
+		while ((nextLine = readerGroups.readNext()) != null) {
+			row += 1;
+			if (row == 1) continue;
+			Group group = new Group();
+			String groupName = "group"+Integer.toString(row);
+			group.setGroup(groupName, nextLine);
+			PedSimCity.groups.add(group);
+		}
+		readerGroups.close();
+	}
 }

@@ -18,7 +18,6 @@ public class ActivityPlanner{
 		ped.ap.setThresholdHome();
 		ped.destinationNode = ped.ap.homePlace;
 		ped.ap.totalTimeAway = 0.0;
-		go(ped);
 	}
 
 	public void goForLeisure(Pedestrian ped) {
@@ -26,7 +25,7 @@ public class ActivityPlanner{
 		ped.destinationNode = NodesLookup.randomNode(PedSimCity.network, PedSimCity.junctions.geometriesList);
 		ped.ap.otherPlace = ped.destinationNode;
 		ped.ap.setThresholdAway("leisure");
-		go(ped);
+		ped.ap.setAway();
 	}
 
 	public void goToWork(Pedestrian ped) {
@@ -34,7 +33,7 @@ public class ActivityPlanner{
 		ped.originNode = ped.destinationNode;
 		ped.ap.setThresholdAway("work");
 		ped.destinationNode = ped.ap.workPlace;
-		go(ped);
+		ped.ap.setAway();
 	}
 
 	public void goForErrands(Pedestrian ped) {
@@ -43,20 +42,13 @@ public class ActivityPlanner{
 		ped.destinationNode = NodesLookup.randomNode(PedSimCity.network, PedSimCity.junctions.geometriesList);
 		ped.ap.otherPlace = ped.destinationNode;
 		ped.ap.setThresholdAway("errand");
-		go(ped);
-	}
-
-	private void go(Pedestrian ped)
-	{
 		ped.ap.setAway();
-		ped.findNewAStarPath(ped.state);
 	}
 
 	public void checkRoutine(SimState state, Pedestrian ped) {
 
 		double minutesSoFar = ped.minutesSoFar;
 
-		ped.ap.totalTimeAway += UserParameters.minutesPerStep;
 		if (ped.reachedDestination) {
 			if (ped.destinationNode == ped.ap.workPlace) ped.ap.atWork = true;
 			if (ped.destinationNode == ped.ap.homePlace) ped.ap.atHome = true;
@@ -64,7 +56,6 @@ public class ActivityPlanner{
 			ped.ap.atPlace = true;
 			ped.reachedDestination = false;
 		}
-		if (!ped.reachedDestination & !ped.ap.atPlace) return;
 
 		if (ped.ap.atWork | ped.ap.away) ped.ap.timeAway += UserParameters.minutesPerStep;
 		else if (ped.ap.atHome) ped.ap.timeAtHome += UserParameters.minutesPerStep;

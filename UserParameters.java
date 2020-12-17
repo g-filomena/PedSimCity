@@ -32,49 +32,14 @@ public class UserParameters {
 	//specify the models in the string RouteChoice
 	static boolean testingModels = true;
 	static String routeChoices[] = {"DS", "AC", "DL", "AL", "ALG", "DLG", "DG", "AG", "DR", "AR", "DRB", "ARB", "TS"};
+	static double minDistance = 500;
+	static double maxDistance = 3000;
+
+
 	// 3) Test specificRoutes (1 agent per routeChoiceModel, specify them above in routeChoices).
 	static boolean testingSpecificRoutes = true;
 	static List<Integer> OR = new ArrayList<Integer>();
 	static List<Integer> DE = new ArrayList<Integer>();
-
-	// 4) Empirical ABM - creating of groups stochastically from clusters of individuals (in development)
-	static boolean fiveElements = false;
-
-	// Landmark Integration
-	static double distanceNodeLandmark = 50.0;
-	public static double distanceAnchors = 1500.0;
-	static double threshold3dVisibility  = 300.0;
-	static double globalLandmarkThreshold = 0.30; //
-	static double localLandmarkThreshold = 0.30; //
-	static double salientNodesPercentile = 0.75; // Threshold Percentile to identify salient nodes
-	public static int nrAnchors = 25;
-
-	// Some researcher-defined parameter
-	static double wayfindingEasinessThreshold = 0.95; //2d Visibility threshold; distanLandmarks usage threshold
-	static double globalLandmarknessWeightDistance = 0.80; //weight Global Landmarkness in combination with edge cost
-	static double globalLandmarknessWeightAngular = 0.90; //weight Global Landmarkness in combination with edge cost
-	static double regionBasedNavigationThreshold = 600; //Region-based navigation Threshold - meters
-	static double thresholdTurn = 0.0;
-	static boolean subGraph = false;
-
-	// Agents/groups parameters
-	static int numAgents = 2000;
-	static int groups = 6;
-	static Double[] composition = {0.30, 0.20, 0.20, 0.10, 0.10, 0.10};
-	static double noobAgentThreshold = 0.25;
-	static double expertAgentThreshold = 0.75;
-	static boolean socialInteraction = false;
-
-
-	// Time related parameters
-	static int minutesPerStep = 10;
-	static int startingHour = 7*minutesPerStep;
-	static int endingHour = 24*minutesPerStep;
-
-	//directories
-	public static String outputFolderDefault = "C:/Users/g_filo01/sciebo/Scripts/PedSimCity-Evaluation/Input/";
-	public static String outputFolder;
-	public static String outputFolderRoutes;
 
 	public static void setTestingMatrix() {
 		Integer[] or = { 2797};
@@ -84,6 +49,43 @@ public class UserParameters {
 		for (int i : or) OR.add(i);
 		for (int i : de) DE.add(i);
 	}
+
+	// 4) Empirical ABM - creating of groups stochastically from clusters of individuals (in development)
+	static boolean empiricalABM = false;
+	static boolean activityBased = false;
+	static int numTrips = 100;
+	// Time related parameters for activityBased simulation
+	static int minutesPerStep = 10;
+	static int startingHour = 7*minutesPerStep;
+	static int endingHour = 24*minutesPerStep;
+
+	// Landmark Integration
+	static double distanceNodeLandmark = 50.0;
+	public static double distanceAnchors = 1500.0;
+	static double threshold3dVisibility  = 300.0;
+	static double globalLandmarkThreshold = 0.30; //
+	static double localLandmarkThreshold = 0.30; //
+	static double salientNodesPercentile = 0.75; // Threshold Percentile to identify salient nodes
+	public static int nrAnchors = 10;
+
+	// Some researcher-defined parameter
+	static double wayfindingEasinessThreshold = 0.95; //2d Visibility threshold; distanLandmarks usage threshold
+	static double globalLandmarknessWeightDistance = 0.80; //weight Global Landmarkness in combination with edge cost
+	static double globalLandmarknessWeightAngular = 0.90; //weight Global Landmarkness in combination with edge cost
+	static double regionBasedNavigationThreshold = 600; //Region-based navigation Threshold - meters
+	static double thresholdTurn = 0.0;
+
+	// Agents/groups parameters
+	static int numAgents = 2000;
+	static double noobAgentThreshold = 0.25;
+	static double expertAgentThreshold = 0.75;
+	static boolean socialInteraction = false;
+	static boolean subGraph = false;
+
+	//directories
+	public static String outputFolderDefault = "C:/Users/g_filo01/sciebo/Scripts/PedSimCity-Evaluation/Input/";
+	public static String outputFolder;
+	public static String outputFolderRoutes;
 
 	public static void setOutputFolder() {
 		if (testingSpecificRoutes) {
