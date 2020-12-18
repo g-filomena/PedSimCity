@@ -47,38 +47,38 @@ public class AgentGroupProperties extends AgentProperties {
 		int i;
 		double remainder = 1.0;
 		List<Integer> processed = new ArrayList<Integer>();
-		//
-		//		while (processed.size() != pHeuristics.size()) {
-		//			do {
-		//				i = random.nextInt(pHeuristics.size());
-		//			} while (processed.contains(i));
-		//			pHeuristics.set(i, pHeuristicsMinMax.get(i).getValue0() + random.nextDouble() * (pHeuristicsMinMax.get(i).getValue1() -
-		//					pHeuristicsMinMax.get(i).getValue0()));
-		//			if (pHeuristics.get(i) > remainder) pHeuristics.set(i, remainder);
-		//			remainder -= pHeuristics.get(i);
-		//			processed.add(i);
-		//			if (processed.size() == pHeuristics.size()) break;
-		//		}
-		//
-		//		for (int n = 0 ; n != pHeuristics.size() ; n++) pHeuristicsMap.put(localHeuristics.get(n), pHeuristics.get(n));
-		//
-		//
-		//		processed.clear();
-		//		int t;
-		//		remainder = 1.0;
-		//		while (processed.size() != pSubGoals.size()) {
-		//			do {
-		//				t = random.nextInt(pSubGoals.size());
-		//			} while (processed.contains(t));
-		//
-		//			pSubGoals.set(t, pSubGoalsMinMax.get(t).getValue0() + random.nextDouble() * (pSubGoalsMinMax.get(t).getValue1() - pSubGoalsMinMax.get(t).getValue0()));
-		//			if (pSubGoals.get(t) > remainder) pSubGoals.set(t, remainder);
-		//			remainder -= pSubGoals.get(t);
-		//			processed.add(t);
-		//			if (processed.size() == pSubGoals.size()) break;
-		//		}
-		//
-		//		for (int n = 0 ; n != pSubGoals.size() ; n++) pSubGoalsMap.put(subGoals.get(n), pSubGoals.get(n));
+
+		while (processed.size() != pHeuristics.size()) {
+			do {
+				i = random.nextInt(pHeuristics.size());
+			} while (processed.contains(i));
+			pHeuristics.set(i, pHeuristicsMinMax.get(i).getValue0() + random.nextDouble() * (pHeuristicsMinMax.get(i).getValue1() -
+					pHeuristicsMinMax.get(i).getValue0()));
+			if (pHeuristics.get(i) > remainder) pHeuristics.set(i, remainder);
+			remainder -= pHeuristics.get(i);
+			processed.add(i);
+			if (processed.size() == pHeuristics.size()) break;
+		}
+
+		for (int n = 0 ; n != pHeuristics.size() ; n++) pHeuristicsMap.put(localHeuristics.get(n), pHeuristics.get(n));
+
+
+		processed.clear();
+		int t;
+		remainder = 1.0;
+		while (processed.size() != pSubGoals.size()) {
+			do {
+				t = random.nextInt(pSubGoals.size());
+			} while (processed.contains(t));
+
+			pSubGoals.set(t, pSubGoalsMinMax.get(t).getValue0() + random.nextDouble() * (pSubGoalsMinMax.get(t).getValue1() - pSubGoalsMinMax.get(t).getValue0()));
+			if (pSubGoals.get(t) > remainder) pSubGoals.set(t, remainder);
+			remainder -= pSubGoals.get(t);
+			processed.add(t);
+			if (processed.size() == pSubGoals.size()) break;
+		}
+
+		for (int n = 0 ; n != pSubGoals.size() ; n++) pSubGoalsMap.put(subGoals.get(n), pSubGoals.get(n));
 
 		// Regions
 		this.pRegionBasedNavigation = group.pRegionBasedNavigationMin + random.nextDouble() * (group.pRegionBasedNavigationMax - group.pRegionBasedNavigationMin);

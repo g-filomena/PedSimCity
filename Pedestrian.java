@@ -95,7 +95,6 @@ public final class Pedestrian implements Steppable {
 		if (UserParameters.empiricalABM) {
 			System.out.println("agent nr. "+this.agentID + " group " + this.agp.groupName);
 			agp.defineRouteChoiceParameters();
-			agp.usingGlobalLandmarks = true;
 			CombinedNavigation combinedNavigation = new CombinedNavigation();
 			newPath = combinedNavigation.path(originNode, destinationNode, agp);
 		}

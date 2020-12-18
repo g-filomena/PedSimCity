@@ -39,9 +39,9 @@ public class DijkstraGlobalLandmarks {
 		this.ap = ap;
 		this.originNode = originNode;
 		this.destinationNode = destinationNode;
+		this.finalDestinationNode = finalDestinationNode;
 		if (segmentsToAvoid != null) this.segmentsToAvoid = new ArrayList<GeomPlanarGraphDirectedEdge>(segmentsToAvoid);
 
-		System.out.println(originNode.region + "  nodeID "+originNode.getID());
 		// If region-based navigation, navigate only within the region subgraph, if origin and destination nodes belong to the same region.
 		if (originNode.region == destinationNode.region && ap.regionBasedNavigation) {
 			graph = PedSimCity.regionsMap.get(originNode.region).primalGraph;

@@ -15,7 +15,7 @@ public class CombinedNavigation{
 	AgentProperties ap = new AgentProperties();
 	ArrayList<GeomPlanarGraphDirectedEdge> completePath =  new ArrayList<GeomPlanarGraphDirectedEdge>();
 	ArrayList<NodeGraph> sequenceNodes = new ArrayList<NodeGraph>();
-	boolean regionBasedNavigation;
+	boolean regionBasedNavigation = false;
 
 	public ArrayList<GeomPlanarGraphDirectedEdge> path(NodeGraph originNode, NodeGraph destinationNode, AgentProperties ap) {
 		this.ap = ap;
@@ -25,8 +25,9 @@ public class CombinedNavigation{
 		//regional routing necessary Yes/No based on threshold? -- does not change the general agent's property
 		if (NodeGraph.nodesDistance(originNode,  destinationNode) < UserParameters.regionBasedNavigationThreshold
 				|| !ap.regionBasedNavigation || originNode.region == destinationNode.region) this.regionBasedNavigation = false;
+		else this.regionBasedNavigation = ap.regionBasedNavigation;
 
-		if (regionBasedNavigation) {
+		if (this.regionBasedNavigation) {
 			RegionBasedNavigation regionsPath = new RegionBasedNavigation();
 			sequenceNodes = regionsPath.sequenceRegions(originNode, destinationNode, ap);
 		}
@@ -42,6 +43,7 @@ public class CombinedNavigation{
 		// pure global landmark navigation (no heuristic, no sub-goals, it allows)
 		else if  (ap.usingGlobalLandmarks && !ap.landmarkBasedNavigation && ap.localHeuristic == "" && !ap.regionBasedNavigation) {
 			System.out.println("returning pure global");
+			System.out.println("destin "+destinationNode);
 			return planner.globalLandmarksPath(originNode, destinationNode, ap);
 		}
 
@@ -61,7 +63,7 @@ public class CombinedNavigation{
 			return planner.angularChangeBasedSequence(sequenceNodes, ap);
 		}
 		else if (ap.usingGlobalLandmarks && ap.localHeuristic == "") {
-			System.out.println("only GL");
+			System.out.println("only GL --- " + sequenceNodes.size());
 			return planner.globalLandmarksPathSequence(sequenceNodes, ap);
 		}
 		else return null;
