@@ -34,13 +34,14 @@ public class CombinedNavigation{
 		// through barrier (sub-goals), already computed above
 		if (ap.barrierBasedNavigation) {;}
 		// through local landmarks or important nodes (sub-goals)
-		else if ((ap.landmarkBasedNavigation && ap.usingLocalLandmarks) || ap.nodeBasedNavigation ) {
+		else if (ap.landmarkBasedNavigation || ap.nodeBasedNavigation ) {
 			// when ap.nodeBasedNavigation ap.landmarkBasedNavigation is false;
 			if (this.regionBasedNavigation) intraRegionMarks();
 			else sequenceNodes = LandmarkNavigation.onRouteMarks(originNode, destinationNode, ap);
 		}
 		// pure global landmark navigation (no heuristic, no sub-goals, it allows)
-		else if  (ap.usingGlobalLandmarks && !ap.usingLocalLandmarks && ap.localHeuristic == "") {
+		else if  (ap.usingGlobalLandmarks && !ap.landmarkBasedNavigation && ap.localHeuristic == "" && !ap.regionBasedNavigation) {
+			System.out.println("returning pure global");
 			return planner.globalLandmarksPath(originNode, destinationNode, ap);
 		}
 
@@ -49,9 +50,20 @@ public class CombinedNavigation{
 			sequenceNodes.add(destinationNode);
 		}
 
-		if (ap.localHeuristic.equals("roadDistance")) return planner.roadDistanceSequence(sequenceNodes, ap);
-		else if (ap.localHeuristic.equals("angularChange") || ap.localHeuristic.equals("turns")) return planner.angularChangeBasedSequence(sequenceNodes, ap);
-		else if (ap.usingGlobalLandmarks && ap.localHeuristic == "") return planner.globalLandmarksPathSequence(sequenceNodes, ap);
+		if (ap.localHeuristic.equals("roadDistance")) {
+			System.out.println("Path: "+ap.localHeuristic +" with regions: "+ ap.regionBasedNavigation + ", local "+ ap.landmarkBasedNavigation +
+					", natural barriers" + ap.usingNaturalBarriers);
+			return planner.roadDistanceSequence(sequenceNodes, ap);
+		}
+		else if (ap.localHeuristic.equals("angularChange") || ap.localHeuristic.equals("turns")) {
+			System.out.println("Path: "+ap.localHeuristic+" with regions: "+ ap.regionBasedNavigation + ", local "+ ap.landmarkBasedNavigation +
+					", natural barriers: " + ap.usingNaturalBarriers);
+			return planner.angularChangeBasedSequence(sequenceNodes, ap);
+		}
+		else if (ap.usingGlobalLandmarks && ap.localHeuristic == "") {
+			System.out.println("only GL");
+			return planner.globalLandmarksPathSequence(sequenceNodes, ap);
+		}
 		else return null;
 	}
 

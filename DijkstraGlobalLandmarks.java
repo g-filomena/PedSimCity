@@ -19,7 +19,7 @@ import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraGlobalLandmarks {
 
-	NodeGraph originNode, destinationNode;
+	NodeGraph originNode, destinationNode, finalDestinationNode;
 	ArrayList<NodeGraph> visitedNodes, unvisitedNodes;
 	HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 	ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid;
@@ -33,7 +33,7 @@ public class DijkstraGlobalLandmarks {
 	 * @param segmentsToAvoid street segments already traversed in previous iterations, if applicable;
 	 * @param ap the agent properties;
 	 */
-	public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode, ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid,
+	public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode, NodeGraph finalDestinationNode, ArrayList<GeomPlanarGraphDirectedEdge> segmentsToAvoid,
 			AgentProperties ap) {
 
 		this.ap = ap;
@@ -41,8 +41,9 @@ public class DijkstraGlobalLandmarks {
 		this.destinationNode = destinationNode;
 		if (segmentsToAvoid != null) this.segmentsToAvoid = new ArrayList<GeomPlanarGraphDirectedEdge>(segmentsToAvoid);
 
+		System.out.println(originNode.region + "  nodeID "+originNode.getID());
 		// If region-based navigation, navigate only within the region subgraph, if origin and destination nodes belong to the same region.
-		if ((originNode.region == destinationNode.region) && (ap.regionBasedNavigation)) {
+		if (originNode.region == destinationNode.region && ap.regionBasedNavigation) {
 			graph = PedSimCity.regionsMap.get(originNode.region).primalGraph;
 			originNode = graph.findNode(originNode.getCoordinate());
 			destinationNode = graph.findNode(destinationNode.getCoordinate());
@@ -83,7 +84,7 @@ public class DijkstraGlobalLandmarks {
 			if (segmentsToAvoid == null);
 			else if (edgesToAvoid.contains(outEdge.getEdge()))	continue;
 
-			double globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode, destinationNode, ap.onlyAnchors);
+			double globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode, finalDestinationNode, ap.onlyAnchors);
 
 			// the global landmarkness from the node is divided by the segment's length so to avoid that the path is not affected
 			// by network (topological) distance

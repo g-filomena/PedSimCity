@@ -134,7 +134,6 @@ public class RoutePlanner {
 	public ArrayList<GeomPlanarGraphDirectedEdge> angularChangeBasedSequence(ArrayList<NodeGraph> sequence,	AgentProperties ap) {
 
 		this.ap = ap;
-		System.out.println(ap.routeChoice);
 		this.sequenceNodes = new ArrayList<NodeGraph> (sequence);
 		// originNode
 		NodeGraph tmpOrigin = originNode = sequenceNodes.get(0);
@@ -228,7 +227,7 @@ public class RoutePlanner {
 	public ArrayList<GeomPlanarGraphDirectedEdge> globalLandmarksPath (NodeGraph originNode, NodeGraph destinationNode, AgentProperties ap) {
 		this.ap = ap;
 		DijkstraGlobalLandmarks pathfinder = new DijkstraGlobalLandmarks();
-		path = pathfinder.dijkstraPath(originNode, destinationNode, null, ap);
+		path = pathfinder.dijkstraPath(originNode, destinationNode, destinationNode, null, ap);
 		return path.edges;
 	}
 
@@ -266,7 +265,7 @@ public class RoutePlanner {
 			}
 
 			DijkstraGlobalLandmarks pathfinder = new DijkstraGlobalLandmarks();
-			path = pathfinder.dijkstraPath(originNode, destinationNode, completePath, ap);
+			path = pathfinder.dijkstraPath(tmpOrigin, tmpDestination, destinationNode, completePath, ap);
 
 			while (path.edges == null && !moveOn) backtracking(tmpDestination);
 			tmpOrigin = tmpDestination;

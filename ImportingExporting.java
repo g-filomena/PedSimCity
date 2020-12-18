@@ -82,6 +82,7 @@ public class ImportingExporting {
 		PedSimCity.junctions.generateGeometriesList();
 		PedSimCity.centroids.generateGeometriesList();
 
+		if (UserParameters.empiricalABM) importGroups(inputDataDirectory);
 		System.out.println("files imported successfully");
 		UserParameters.setOutputFolder();
 	}
@@ -98,8 +99,12 @@ public class ImportingExporting {
 			int rGeoSize = edgesGeometries.size();
 
 			List<String> rC = Arrays.asList(PedSimCity.routeChoiceModels);
+			if (UserParameters.empiricalABM) {
+				rC.clear();
+				for (Group group : PedSimCity.groups) rC.add(group.groupName);
+			}
 			rC.add(0, "edgeID");
-			CSVUtils.writeLine(writerDensitiesData, Arrays.asList("edgeID", "AC", "RB", "BB", "RBB"));
+			CSVUtils.writeLine(writerDensitiesData, rC);
 
 			for (int i = 0; i < rGeoSize; i++) {
 				MasonGeometry segment = (MasonGeometry) edgesGeometries.objs[i];
@@ -217,7 +222,7 @@ public class ImportingExporting {
 		/// read GPS trajectories distances
 		System.out.println("reading groups information");
 		CSVReader readerGroups = new CSVReader(new FileReader(PedSimCity.class.getResource(inputDataDirectory).toString().substring(6)
-				+"/"+UserParameters.cityName+"_tracks_distances.csv"));
+				+"/"+UserParameters.cityName+"_groups.csv"));
 		String[] nextLine;
 
 		int row = 0;
@@ -225,7 +230,7 @@ public class ImportingExporting {
 			row += 1;
 			if (row == 1) continue;
 			Group group = new Group();
-			String groupName = "group"+Integer.toString(row);
+			String groupName = "group"+Integer.toString(Integer.parseInt(nextLine[0]));
 			group.setGroup(groupName, nextLine);
 			PedSimCity.groups.add(group);
 		}

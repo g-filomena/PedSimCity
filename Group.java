@@ -6,18 +6,32 @@ public class Group {
 	String groupName;
 	int groupID;
 	double portion = 0.0;
+	double pRoadDistanceMin = 0.0;
+	double pRoadDistanceMax = 0.0;
+	double pAngularChangeMin = 0.0;
+	double pAngularChangeMax = 0.0;
+	double pTurnsMin = 0.0;
+	double pTurnsMax = 0.0;
+
+	double pRegionBasedNavigationMin = 0.0;
+	double pRegionBasedNavigationMax = 0.0;
+
+	double pLocalLandmarksMin = 0.0;
+	double pLocalLandmarksMax = 0.0;
+	double pBarrierSubGoalsMin = 0.0;
+	double pBarrierSubGoalsMax = 0.0;
+	double pNodeMarksMin = 0.0;
+	double pNodeMarksMax = 0.0;
+
+	double pGlobalLandmarksMin = 0.0;
+	double pGlobalLandmarksMax = 0.0;
+	double pNaturalBarriersMin = 0.0;
+	double pNaturalBarriersMax = 0.0;
+	double pSeveringBarriersMin = 0.0;
+	double pSeveringBarriersMax = 0.0;
+
 	double agentKnowledgeMin = 0.0;
 	double agentKnowledgeMax = 1.0;
-	double pRoadDistance = 0.0;
-	double pAngularChange = 0.0;
-	double pTurns = 0.0;
-	double pRegionBasedNavigation = 0.0;
-	double pLocalLandmarks = 0.0;
-	double pBarrierBasedNavigation = 0.0;
-	double pNodeBasedNavigation = 0.0;
-	double pGlobalLandmarks = 0.0;
-	double pNaturalBarriers = 0.0;
-	double pSeveringBarriers = 0.0;
 
 	public void setGroup(String groupName, String [] attributes) {
 
@@ -25,22 +39,35 @@ public class Group {
 		this.portion = Float.parseFloat(attributes[1]);
 
 		// heuristics
-		this.pRoadDistance = Float.parseFloat(attributes[2]);
-		this.pAngularChange = Float.parseFloat(attributes[3]);
-		this.pTurns = Float.parseFloat(attributes[4]);
+		this.pRoadDistanceMin = Float.parseFloat(attributes[2]);
+		this.pRoadDistanceMax = Float.parseFloat(attributes[3]);
+		this.pAngularChangeMin = Float.parseFloat(attributes[4]);
+		this.pAngularChangeMax = Float.parseFloat(attributes[5]);
+		this.pTurnsMin = Float.parseFloat(attributes[6]);
+		this.pTurnsMax = Float.parseFloat(attributes[7]);
 
 		// Regions
-		this.pRegionBasedNavigation = Float.parseFloat(attributes[5]);
+		this.pRegionBasedNavigationMin = Float.parseFloat(attributes[8]);
+		this.pRegionBasedNavigationMax = Float.parseFloat(attributes[9]);
 
 		// subGoals
-		this.pLocalLandmarks = Float.parseFloat(attributes[6]);
-		this.pBarrierBasedNavigation = Float.parseFloat(attributes[7]);
-		this.pNodeBasedNavigation = Float.parseFloat(attributes[8]);
+		this.pLocalLandmarksMin = Float.parseFloat(attributes[10]);
+		this.pLocalLandmarksMax = Float.parseFloat(attributes[11]);
+		this.pBarrierSubGoalsMin = Float.parseFloat(attributes[12]);
+		this.pBarrierSubGoalsMax = Float.parseFloat(attributes[13]);
+		this.pNodeMarksMin = Float.parseFloat(attributes[14]);
+		this.pNodeMarksMax = Float.parseFloat(attributes[15]);
 
 		// other route properties
-		this.pGlobalLandmarks = Float.parseFloat(attributes[9]);
-		this.pNaturalBarriers = Float.parseFloat(attributes[10]);
-		this.pSeveringBarriers = Float.parseFloat(attributes[11]);
+		this.pGlobalLandmarksMin = Float.parseFloat(attributes[16]);
+		this.pGlobalLandmarksMax = Float.parseFloat(attributes[17]);
+		this.pNaturalBarriersMin = Float.parseFloat(attributes[18]);
+		this.pNaturalBarriersMax = Float.parseFloat(attributes[19]);
+		this.pSeveringBarriersMin = Float.parseFloat(attributes[20]);
+		this.pSeveringBarriersMax = Float.parseFloat(attributes[21]);
+
+		this.agentKnowledgeMin = Float.parseFloat(attributes[22]);
+		this.agentKnowledgeMax = Float.parseFloat(attributes[23]);
 
 	}
 }

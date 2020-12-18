@@ -100,12 +100,20 @@ public class PedSimCity extends SimState {
 		if (UserParameters.testingLandmarks ||  UserParameters.testingRegions ||  UserParameters.testingSpecificRoutes) {
 			UserParameters.empiricalABM = false;
 			UserParameters.activityBased = false;
-		}
 
-		for (String routeChoice : routeChoiceModels) {
-			for (Object o : network.getEdges())	{
-				EdgeGraph edge = (EdgeGraph) o;
-				edge.densities.put(routeChoice, 0);
+			for (String routeChoice : routeChoiceModels) {
+				for (Object o : network.getEdges())	{
+					EdgeGraph edge = (EdgeGraph) o;
+					edge.densities.put(routeChoice, 0);
+				}
+			}
+		}
+		else if (UserParameters.empiricalABM) {
+			for (Group group : groups) {
+				for (Object o : network.getEdges())	{
+					EdgeGraph edge = (EdgeGraph) o;
+					edge.densities.put(group.groupName, 0);
+				}
 			}
 		}
 
@@ -120,7 +128,6 @@ public class PedSimCity extends SimState {
 		// populate
 		if (UserParameters.empiricalABM) populateGroups();
 		else populate();
-		agents.setMBR(MBR);
 
 		// moving
 		for (Pedestrian pedestrian : agentsList) {
@@ -128,6 +135,7 @@ public class PedSimCity extends SimState {
 			pedestrian.setStoppable(stop);
 			schedule.scheduleRepeating(agents.scheduleSpatialIndexUpdater(), Integer.MAX_VALUE, 1.0);
 		}
+		agents.setMBR(MBR);
 	}
 
 
@@ -167,7 +175,6 @@ public class PedSimCity extends SimState {
 			if (buildings != null) {
 				AgentProperties apFictionary = new AgentProperties();
 				apFictionary.landmarkBasedNavigation = true;
-				apFictionary.usingLocalLandmarks = true;
 				apFictionary.typeLandmarks = "local";
 				ArrayList<NodeGraph> sequence = LandmarkNavigation.onRouteMarks(originNode, destinationNode, apFictionary);
 				listSequences.add(sequence);
@@ -180,9 +187,9 @@ public class PedSimCity extends SimState {
 			AgentProperties ap = new AgentProperties();
 			ap.setRouteChoice(routeChoiceModels[i]);
 			ap.setOD(OD, listSequences);
-			ap.agentID = i;
 
 			Pedestrian a = new Pedestrian(this, ap);
+			a.agentID = i;
 			MasonGeometry newGeometry = a.getGeometry();
 			newGeometry.isMovable = true;
 			agents.addGeometry(newGeometry);
@@ -205,11 +212,12 @@ public class PedSimCity extends SimState {
 			group.groupID = groups.indexOf(group);
 			for (int i = 0; i < groupAgents; i++){
 				AgentGroupProperties ap = new AgentGroupProperties();
-				ap.setGroupProperties(group);
+				ap.setPropertiesFromGroup(group);
 
-				ap.agentID = i+10*group.groupID;
 				if (UserParameters.activityBased) ap.setActivityProperties();
 				Pedestrian a = new Pedestrian(this, ap);
+				a.destinationNode = null;
+				a.agentID = i+10*group.groupID;
 				MasonGeometry newGeometry = a.getGeometry();
 				newGeometry.isMovable = true;
 				agents.addGeometry(newGeometry);

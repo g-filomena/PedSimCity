@@ -51,7 +51,6 @@ public class DijkstraAngularChange {
 
 		// If region-based navigation, navigate only within the region subgraph, if origin and destination nodes belong to the same region.
 		// Otherwise, form a subgraph within a convex hull
-
 		if (originNode.region == destinationNode.region && ap.regionBasedNavigation) {
 			graph = PedSimCity.regionsMap.get(originNode.region).dualGraph;
 			originNode = graph.findNode(originNode.getCoordinate());
@@ -110,14 +109,12 @@ public class DijkstraAngularChange {
 			// compute errors in perception of road coasts with stochastic variables
 			double error = 0.0;
 			double tentativeCost = 0.0;
-			if (ap.barrierBasedNavigation) {
-				List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
-				List<Integer> negativeBarriers = targetNode.primalEdge.negativeBarriers;
-				if (positiveBarriers.size() > 0) error = Utilities.fromDistribution(0.70, 0.10, "left");
-				else if (negativeBarriers.size() > 0 && positiveBarriers.size() == 0 ) error = Utilities.fromDistribution(1.30, 0.10, "right");
-				else error = Utilities.fromDistribution(1.0, 0.10, null);
-			}
-			error = Utilities.fromDistribution(1.0, 0.10, null);
+
+			List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
+			List<Integer> negativeBarriers = targetNode.primalEdge.negativeBarriers;
+			if (ap.usingNaturalBarriers && positiveBarriers.size() > 0) error = Utilities.fromDistribution(0.70, 0.10, "left");
+			else if (ap.avoidingSeveringBarriers && negativeBarriers.size() > 0) error = Utilities.fromDistribution(1.30, 0.10, "right");
+			else error = Utilities.fromDistribution(1.0, 0.10, null);
 
 			double edgeCost = commonEdge.getDeflectionAngle() * error;
 			if (edgeCost > 180.0) edgeCost = 180.0;

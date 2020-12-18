@@ -9,9 +9,11 @@ import java.util.List;
  */
 public class UserParameters {
 
-	//General parameters/components
+	//General parameters
 	static String cityName = "Muenster";
 	static int jobs = 1;
+	static int numAgents = 2000; //this is set to 1 agent per route choice model when one of testingLandmarks, testingRegions, testingModels is True
+	static int numTrips = 100; //this is automatically set when one of testingLandmarks (255), testingRegions (2000) is True
 
 	// 1) Run the model to a) evaluate the introduction of landmarks or b) regions and barriers.
 	// set (only) one of the following ones as true, only when replicating the analysis under the specific conditions of the papers (see github repository)
@@ -30,14 +32,14 @@ public class UserParameters {
 
 	// 2) Run the model with the groups of agents of your choice
 	//specify the models in the string RouteChoice
-	static boolean testingModels = true;
+	static boolean testingModels = false;
 	static String routeChoices[] = {"DS", "AC", "DL", "AL", "ALG", "DLG", "DG", "AG", "DR", "AR", "DRB", "ARB", "TS"};
 	static double minDistance = 500;
 	static double maxDistance = 3000;
 
 
 	// 3) Test specificRoutes (1 agent per routeChoiceModel, specify them above in routeChoices).
-	static boolean testingSpecificRoutes = true;
+	static boolean testingSpecificRoutes = false;
 	static List<Integer> OR = new ArrayList<Integer>();
 	static List<Integer> DE = new ArrayList<Integer>();
 
@@ -51,9 +53,11 @@ public class UserParameters {
 	}
 
 	// 4) Empirical ABM - creating of groups stochastically from clusters of individuals (in development)
-	static boolean empiricalABM = false;
+	static boolean empiricalABM = true;
 	static boolean activityBased = false;
-	static int numTrips = 100;
+	static double noobAgentThreshold = 0.25;
+	static double expertAgentThreshold = 0.75;
+
 	// Time related parameters for activityBased simulation
 	static int minutesPerStep = 10;
 	static int startingHour = 7*minutesPerStep;
@@ -75,10 +79,7 @@ public class UserParameters {
 	static double regionBasedNavigationThreshold = 600; //Region-based navigation Threshold - meters
 	static double thresholdTurn = 0.0;
 
-	// Agents/groups parameters
-	static int numAgents = 2000;
-	static double noobAgentThreshold = 0.25;
-	static double expertAgentThreshold = 0.75;
+	// Other parameters
 	static boolean socialInteraction = false;
 	static boolean subGraph = false;
 
@@ -88,7 +89,7 @@ public class UserParameters {
 	public static String outputFolderRoutes;
 
 	public static void setOutputFolder() {
-		if (testingSpecificRoutes) {
+		if (testingSpecificRoutes || testingModels) {
 			outputFolder = outputFolderDefault+"test/"+cityName+"_PedSim_test_";
 			outputFolderRoutes = outputFolderDefault+"test/routes/"+cityName+"_PedSim_test_";
 		}
@@ -99,6 +100,10 @@ public class UserParameters {
 		else if (testingLandmarks) {
 			outputFolder = outputFolderDefault+"landmarkNavigation/"+cityName+"_PedSim_landmarks_";
 			outputFolderRoutes = outputFolderDefault+"landmarkNavigation/routes/"+cityName+"_PedSim_landmarks_";
+		}
+		else if (empiricalABM) {
+			outputFolder = outputFolderDefault+"/"+cityName+"_PedSim_empiricalABM_";
+			outputFolderRoutes = outputFolderDefault+"/routes/"+cityName+"_PedSim_empiricalABM_";
 		}
 	}
 }

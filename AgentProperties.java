@@ -15,7 +15,6 @@ public class AgentProperties {
 
 	public int agentID;
 	public String criteria;
-	public String groupName;
 	double agentKnowledge = 1.0;
 
 	// for general routing
@@ -26,7 +25,6 @@ public class AgentProperties {
 
 	//landmarkNavigation related parameters
 	boolean landmarkBasedNavigation = false;
-	boolean usingLocalLandmarks = false;
 	boolean usingGlobalLandmarks = false;
 	boolean onlyAnchors = true;
 	// for computing the complexity of the environment ["local", "global"]
@@ -37,9 +35,10 @@ public class AgentProperties {
 	boolean barrierBasedNavigation = false;
 	// the ones possibly used as sub-goals ["all", "positive", "negative", "separating"]
 	String typeBarriers = "";
+	boolean usingNaturalBarriers = false;
+	boolean avoidingSeveringBarriers = false;
 
 	boolean nodeBasedNavigation = false;
-	boolean activityBased = false;
 
 	/**
 	 * @param landmarkBasedNavigation using Landmarks y/n;
@@ -55,17 +54,14 @@ public class AgentProperties {
 
 		if (routeChoice.contains("L")) {
 			landmarkBasedNavigation = true;
-			usingLocalLandmarks = true;
 			typeLandmarks = "local"; //for measuring complexity when selecting on-route marks
 		}
 		if (routeChoice.contains("G")) {
-			System.out.println(routeChoice);
 			usingGlobalLandmarks = true;
 			onlyAnchors = true;
 		}
 		if (routeChoice.contains("N")) {
 			nodeBasedNavigation = true;
-			usingLocalLandmarks = false;
 			landmarkBasedNavigation = false;
 		}
 		if (routeChoice.contains("R")) regionBasedNavigation = true;

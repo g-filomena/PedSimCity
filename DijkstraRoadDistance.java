@@ -51,6 +51,7 @@ public class DijkstraRoadDistance {
 		// from the GeomPlanarGraphDirectedEdge get the actual EdgeGraph (safer)
 		if (segmentsToAvoid != null) for (GeomPlanarGraphDirectedEdge e : segmentsToAvoid) edgesToAvoid.add((EdgeGraph) e.getEdge());
 
+
 		// If region-based navigation, navigate only within the region subgraph, if origin and destination nodes belong to the same region.
 		if ((originNode.region == destinationNode.region) && (ap.regionBasedNavigation)) {
 			graph = PedSimCity.regionsMap.get(originNode.region).primalGraph;
@@ -101,13 +102,11 @@ public class DijkstraRoadDistance {
 
 			// compute costs based on the navigation strategies.
 			// compute errors in perception of road coasts with stochastic variables
-			if (ap.barrierBasedNavigation) {
-				List<Integer> positiveBarriers = commonEdge.positiveBarriers;
-				List<Integer> negativeBarriers = commonEdge.negativeBarriers;
-				if (positiveBarriers.size() > 0) error = Utilities.fromDistribution(0.70, 0.10, "left");
-				else if (negativeBarriers.size() > 0 && positiveBarriers.size() == 0 ) error = Utilities.fromDistribution(1.30, 0.10, "right");
-				else error = Utilities.fromDistribution(1.0, 0.10, null);
-			}
+			List<Integer> positiveBarriers = commonEdge.positiveBarriers;
+			List<Integer> negativeBarriers = commonEdge.negativeBarriers;
+
+			if (ap.usingNaturalBarriers && positiveBarriers.size() > 0) error = Utilities.fromDistribution(0.70, 0.10, "left");
+			else if (ap.avoidingSeveringBarriers && negativeBarriers.size() > 0) error = Utilities.fromDistribution(1.30, 0.10, "right");
 			else error = Utilities.fromDistribution(1.0, 0.10, null);
 			double edgeCost = commonEdge.getLength()*error;
 

@@ -22,6 +22,7 @@ public final class Pedestrian implements Steppable {
 
 	private static final long serialVersionUID = -1113018274619047013L;
 	PedSimCity state;
+	Integer agentID;
 
 	// Initial Attributes
 	NodeGraph originNode = null;
@@ -56,6 +57,7 @@ public final class Pedestrian implements Steppable {
 	boolean reachedDestination = false;
 	int numTrips = 0;
 	AgentProperties ap = new AgentProperties();
+	AgentGroupProperties agp = new AgentGroupProperties();
 	Stoppable killAgent;
 
 	//time
@@ -63,17 +65,21 @@ public final class Pedestrian implements Steppable {
 
 	/** Constructor Function */
 	public Pedestrian(PedSimCity state, AgentProperties ap) {
-		this.ap = ap;
+
 		this.state = state;
-
-		if (UserParameters.activityBased) minutesSoFar = UserParameters.startingHour;
-
-		originNode = (NodeGraph) ap.OD.get(numTrips).getValue(0);
 		GeometryFactory fact = new GeometryFactory();
 		agentLocation = new MasonGeometry(fact.createPoint(new Coordinate(10, 10)));
-		Coordinate startCoord = null;
-		startCoord = originNode.getCoordinate();
-		updatePosition(startCoord);
+
+		if (UserParameters.activityBased) minutesSoFar = UserParameters.startingHour;
+		if (UserParameters.empiricalABM) this.agp = (AgentGroupProperties) ap;
+		else this.ap = ap;
+
+		if (!UserParameters.empiricalABM) {
+			originNode = (NodeGraph) ap.OD.get(numTrips).getValue(0);
+			Coordinate startCoord = null;
+			startCoord = originNode.getCoordinate();
+			updatePosition(startCoord);
+		}
 	}
 
 	/**
@@ -82,14 +88,16 @@ public final class Pedestrian implements Steppable {
 	 * @param state the simulation state;
 	 */
 	public void findNewAStarPath(PedSimCity state) {
-
 		RouteData route = new RouteData();
 		route.origin = originNode.getID();
 		route.destination = destinationNode.getID();
 
 		if (UserParameters.empiricalABM) {
+			System.out.println("agent nr. "+this.agentID + " group " + this.agp.groupName);
+			agp.defineRouteChoiceParameters();
+			agp.usingGlobalLandmarks = true;
 			CombinedNavigation combinedNavigation = new CombinedNavigation();
-			newPath = combinedNavigation.path(originNode, destinationNode, this.ap);
+			newPath = combinedNavigation.path(originNode, destinationNode, agp);
 		}
 		else {
 			System.out.println(originNode.getID() + "  "+ destinationNode.getID()+ " "+ap.routeChoice);
@@ -137,10 +145,10 @@ public final class Pedestrian implements Steppable {
 			System.out.println("End of the day - calling finish");
 			stateSchedule.finish();
 		}
-		else if (reachedDestination || destinationNode == null && !UserParameters.activityBased) {
+		else if ((reachedDestination || destinationNode == null) && !UserParameters.activityBased) {
 
 			if (reachedDestination)	reachedDestination = false;
-			if (numTrips == ap.OD.size() || (UserParameters.empiricalABM && this.numTrips == UserParameters.numTrips)) {
+			if ((numTrips == ap.OD.size() && !UserParameters.empiricalABM)  || (UserParameters.empiricalABM && this.numTrips == UserParameters.numTrips)) {
 				stateSchedule.agentsList.remove(this);
 				if (stateSchedule.agentsList.size() == 0) {
 					System.out.println("calling finish");
@@ -256,7 +264,7 @@ public final class Pedestrian implements Steppable {
 	 **/
 	void updateEdgeData(EdgeGraph edge) {
 		edge = PedSimCity.edgesMap.get(edge.getID()); //in case it was a subgraph edge
-		if (UserParameters.empiricalABM) edge.densities.replace(ap.groupName, edge.densities.get(ap.groupName)+1);
+		if (UserParameters.empiricalABM) edge.densities.replace(agp.groupName, edge.densities.get(agp.groupName)+1);
 		else edge.densities.replace(ap.routeChoice, edge.densities.get(ap.routeChoice)+1);
 	}
 
