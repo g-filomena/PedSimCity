@@ -89,7 +89,7 @@ public class DijkstraRoadDistance {
 	}
 
 	void findMinDistances(NodeGraph currentNode) {
-		ArrayList<NodeGraph> adjacentNodes = currentNode.adjacentNodes;
+		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
 		for (NodeGraph targetNode : adjacentNodes) {
 
 			if (visitedNodes.contains(targetNode)) continue;
@@ -148,8 +148,6 @@ public class DijkstraRoadDistance {
 
 	Path reconstructPath(NodeGraph originNode, NodeGraph destinationNode) {
 		Path path = new Path();
-		path.edges = null;
-		path.mapWrappers = null;
 
 		HashMap<NodeGraph, NodeWrapper> mapTraversedWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 		ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges = new ArrayList<GeomPlanarGraphDirectedEdge>();
@@ -172,7 +170,7 @@ public class DijkstraRoadDistance {
 
 		// check that the path has been formulated properly
 		// no path
-		if (mapWrappers.size() == 1) return path;
+		if (mapWrappers.get(destinationNode) == null || mapWrappers.size() <= 1) path.invalidPath();
 		try {
 			while (mapWrappers.get(step).nodeFrom != null) {
 				GeomPlanarGraphDirectedEdge dd = mapWrappers.get(step).edgeFrom;
@@ -183,6 +181,7 @@ public class DijkstraRoadDistance {
 		}
 		// no path
 		catch(java.lang.NullPointerException e)	{return path;}
+
 		path.edges = sequenceEdges;
 		path.mapWrappers = mapTraversedWrappers;
 		return path;

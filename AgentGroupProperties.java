@@ -94,6 +94,7 @@ public class AgentGroupProperties extends AgentProperties {
 
 	public void defineRouteChoiceParameters() {
 
+		this.reset();
 		Random random = new Random();
 		// heuristics
 
@@ -140,6 +141,15 @@ public class AgentGroupProperties extends AgentProperties {
 		if (sbRandom <= this.pSeveringBarriers) this.avoidingSeveringBarriers = true;
 	}
 
+	public void reset() {
+		this.landmarkBasedNavigation = false;
+		this.barrierBasedNavigation = false;
+		this.nodeBasedNavigation = false;
+		this.regionBasedNavigation = false;
+		this.usingGlobalLandmarks = false;
+		this.usingNaturalBarriers = false;
+		this.avoidingSeveringBarriers = false;
+	}
 
 
 

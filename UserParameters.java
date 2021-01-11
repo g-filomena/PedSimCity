@@ -12,8 +12,8 @@ public class UserParameters {
 	//General parameters
 	static String cityName = "Muenster";
 	static int jobs = 1;
-	static int numAgents = 2000; //this is set to 1 agent per route choice model when one of testingLandmarks, testingRegions, testingModels is True
-	static int numTrips = 100; //this is automatically set when one of testingLandmarks (255), testingRegions (2000) is True
+	static int numAgents = 100; //this is set to 1 agent per route choice model when one of testingLandmarks, testingRegions, testingModels is True
+	static int numTrips = 10; //this is automatically set when one of testingLandmarks (255), testingRegions (2000) is True
 
 	// 1) Run the model to a) evaluate the introduction of landmarks or b) regions and barriers.
 	// set (only) one of the following ones as true, only when replicating the analysis under the specific conditions of the papers (see github repository)
@@ -33,7 +33,8 @@ public class UserParameters {
 	// 2) Run the model with the groups of agents of your choice
 	//specify the models in the string RouteChoice
 	static boolean testingModels = false;
-	static String routeChoices[] = {"DS", "AC", "DL", "AL", "ALG", "DLG", "DG", "AG", "DR", "AR", "DRB", "ARB", "TS"};
+	//	static String routeChoices[] = {"DS", "AC", "DL", "AL", "ALG", "DLG", "DG", "AG", "DR", "AR", "DRB", "ARB", "TS"};
+	static String routeChoices[] = {"AL"};
 	static double minDistance = 500;
 	static double maxDistance = 3000;
 
@@ -44,8 +45,8 @@ public class UserParameters {
 	static List<Integer> DE = new ArrayList<Integer>();
 
 	public static void setTestingMatrix() {
-		Integer[] or = { 2797};
-		Integer[] de = {5157};
+		Integer[] or = { 1383};
+		Integer[] de = {3234};
 		OR.clear();
 		DE.clear();
 		for (int i : or) OR.add(i);
@@ -102,8 +103,8 @@ public class UserParameters {
 			outputFolderRoutes = outputFolderDefault+"landmarkNavigation/routes/"+cityName+"_PedSim_landmarks_";
 		}
 		else if (empiricalABM) {
-			outputFolder = outputFolderDefault+"/"+cityName+"_PedSim_empiricalABM_";
-			outputFolderRoutes = outputFolderDefault+"/routes/"+cityName+"_PedSim_empiricalABM_";
+			outputFolder = outputFolderDefault+"/empiricalABM/"+cityName+"_PedSim_";
+			outputFolderRoutes = outputFolderDefault+"/empiricalABM/routes/"+cityName+"_PedSim_";
 		}
 	}
 }

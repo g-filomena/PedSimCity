@@ -100,7 +100,7 @@ public class ImportingExporting {
 
 			List<String> rC = Arrays.asList(PedSimCity.routeChoiceModels);
 			if (UserParameters.empiricalABM) {
-				rC.clear();
+				rC = new ArrayList<String>();
 				for (Group group : PedSimCity.groups) rC.add(group.groupName);
 			}
 			rC.add(0, "edgeID");
@@ -126,6 +126,7 @@ public class ImportingExporting {
 		for (RouteData rD : PedSimCity.routesData) {
 			List<Integer> sequenceEdges = rD.sequenceEdges;
 			List<Coordinate> allCoords = new ArrayList<Coordinate>();
+			NodeGraph lastNode = PedSimCity.nodesMap.get(rD.origin);
 
 			// creating the route geometry
 			for (int i : sequenceEdges) {
@@ -133,18 +134,16 @@ public class ImportingExporting {
 				LineString geometry = (LineString) edge.masonGeometry.geometry;
 				Coordinate [] coords = geometry.getCoordinates();
 				List<Coordinate> coordsCollection = Arrays.asList(coords);
+				if (coords[0].distance(lastNode.getCoordinate()) > coords[coords.length -1].distance(lastNode.getCoordinate())) Collections.reverse(coordsCollection);
+				coordsCollection.set(0, lastNode.getCoordinate());
+				if (lastNode.equals(edge.u)) lastNode = edge.v;
+				else if (lastNode.equals(edge.v)) lastNode = edge.u;
+				else System.out.println("Something is wrong with the sequence in "+ rD.routeID);
 
-				if (i == sequenceEdges.get(0)) {
-					NodeGraph originNode = PedSimCity.nodesMap.get(rD.origin);
-					if (!originNode.getCoordinate().equals(coords[0])) Collections.reverse(coordsCollection);
-					allCoords.addAll(coordsCollection);
-				}
-				else {
-					if (!coords[0].equals(allCoords.get(allCoords.size()-1))) Collections.reverse(coordsCollection);
-					allCoords.addAll(coordsCollection);
-				}
-
+				coordsCollection.set(coordsCollection.size()-1, lastNode.getCoordinate());
+				allCoords.addAll(coordsCollection);
 			}
+
 			int limit = 254;
 			GeometryFactory factory = new GeometryFactory();
 			Coordinate[] allCoordsArray = new Coordinate[allCoords.size()];
@@ -154,6 +153,8 @@ public class ImportingExporting {
 
 			mg.addIntegerAttribute("O", rD.origin);
 			mg.addIntegerAttribute("D", rD.destination);
+			mg.addStringAttribute("routeID", rD.routeID);
+			mg.addStringAttribute("localH", rD.localH);
 			if (UserParameters.empiricalABM) mg.addIntegerAttribute("group", rD.group);
 			else mg.addStringAttribute("routeChoice", rD.routeChoice);
 
@@ -199,7 +200,7 @@ public class ImportingExporting {
 		}
 
 		ShapeFileExporter.write(directory, routes);
-		PedSimCity.routesData.clear();
+		PedSimCity.routesData = new ArrayList<RouteData>();
 	}
 
 	public static void importDistances(String inputDataDirectory) throws IOException {

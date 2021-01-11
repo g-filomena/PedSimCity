@@ -43,17 +43,11 @@ public class Region {
 	 * @param typeLandmarkness the type of landmarks to use when computing the complexity.
 	 */
 	public double computeComplexity(String typeLandmarkness) {
-		if (this.buildings.size() == 0 || this.buildings == null)  this.buildingsComplexity = 0.0;
-		else if (typeLandmarkness == "global" && globalLandmarks.size() > 0 && globalLandmarks != null)
-		{
+		if (this.buildings.size() == 0)  this.buildingsComplexity = 0.0;
+		else if (typeLandmarkness == "global" && globalLandmarks.size() > 0)
 			this.buildingsComplexity = LandmarkNavigation.buildingsComplexity(this.buildings, globalLandmarks);
-		}
-		else if (localLandmarks.size() > 0 && localLandmarks != null)
-		{
-			this.buildingsComplexity = LandmarkNavigation.buildingsComplexity(this.buildings, localLandmarks);
-		}
+		else if (localLandmarks.size() > 0)	this.buildingsComplexity = LandmarkNavigation.buildingsComplexity(this.buildings, localLandmarks);
 		else this.buildingsComplexity = 1.0;
-
 		return this.buildingsComplexity;
 	}
 }

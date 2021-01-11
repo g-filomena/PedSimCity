@@ -65,7 +65,7 @@ public class LandmarkNavigation {
 
 			for (NodeGraph tmpNode : junctions) {
 				if (sequence.contains(tmpNode) || tmpNode == originNode || tmpNode.getEdgeWith(currentNode) != null ||
-						tmpNode.getEdgeWith(destinationNode)!= null || tmpNode.getEdgeWith(originNode)!= null) continue;
+						tmpNode.getEdgeWith(originNode)!= null) continue;
 
 				if (NodeGraph.nodesDistance(currentNode, tmpNode) > searchDistance) continue; //only nodes in range
 				double score;

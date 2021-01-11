@@ -202,6 +202,7 @@ public class PedSimCity extends SimState {
 
 		numAgents = UserParameters.numAgents;
 		int left = numAgents;
+		int counter = 0;
 		for (Group group : groups) {
 			int groupAgents;
 			if (group.equals(groups.get(groups.size()-1))) groupAgents = left;
@@ -217,11 +218,12 @@ public class PedSimCity extends SimState {
 				if (UserParameters.activityBased) ap.setActivityProperties();
 				Pedestrian a = new Pedestrian(this, ap);
 				a.destinationNode = null;
-				a.agentID = i+10*group.groupID;
+				a.agentID = counter;
 				MasonGeometry newGeometry = a.getGeometry();
 				newGeometry.isMovable = true;
 				agents.addGeometry(newGeometry);
 				agentsList.add(a);
+				counter += 1;
 			}
 		}
 	}
@@ -416,7 +418,6 @@ public class PedSimCity extends SimState {
 
 		// Element 4 - Regions: create regions' subgraphs and store other information about regions (landmarks, barriers)
 		if (barriers != null) {
-
 			for (Entry<Integer, Region> entry : regionsMap.entrySet()) {
 				ArrayList<EdgeGraph> edgesRegion = entry.getValue().edges;
 				ArrayList<EdgeGraph> dualEdgesRegion = new ArrayList<EdgeGraph>();
@@ -436,6 +437,7 @@ public class PedSimCity extends SimState {
 
 				SubGraph dualGraph = new SubGraph(dualNetwork, dualEdgesRegion);
 				primalGraph.setSubGraphBarriers();
+				primalGraph.generateSubGraphCentralityMap();
 				regionsMap.get(entry.getKey()).primalGraph = primalGraph;
 				regionsMap.get(entry.getKey()).dualGraph = dualGraph;
 

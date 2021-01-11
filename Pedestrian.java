@@ -55,7 +55,7 @@ public final class Pedestrian implements Steppable {
 	EdgeGraph currentEdge = null;
 	ArrayList<NodeGraph> sequence = new ArrayList<NodeGraph>();
 	boolean reachedDestination = false;
-	int numTrips = 0;
+	Integer numTrips = 0;
 	AgentProperties ap = new AgentProperties();
 	AgentGroupProperties agp = new AgentGroupProperties();
 	Stoppable killAgent;
@@ -88,21 +88,27 @@ public final class Pedestrian implements Steppable {
 	 * @param state the simulation state;
 	 */
 	public void findNewAStarPath(PedSimCity state) {
+
 		RouteData route = new RouteData();
 		route.origin = originNode.getID();
 		route.destination = destinationNode.getID();
+		//		originNode = PedSimCity.nodesMap.get(9406);
+		//		destinationNode = PedSimCity.nodesMap.get(4456);
 
 		if (UserParameters.empiricalABM) {
-			System.out.println("agent nr. "+this.agentID + " group " + this.agp.groupName);
+			System.out.println("   Agent nr. "+this.agentID + " group " + this.agp.groupName + " OD " + originNode.getID()+"  " +destinationNode.getID());
 			agp.defineRouteChoiceParameters();
 			CombinedNavigation combinedNavigation = new CombinedNavigation();
 			newPath = combinedNavigation.path(originNode, destinationNode, agp);
+			route.group = this.agp.groupID;
+			route.localH = this.agp.localHeuristic;
+			route.routeID = this.agentID.toString()+"-"+originNode.getID().toString()+"-"+destinationNode.getID().toString();
 		}
 		else {
 			System.out.println(originNode.getID() + "  "+ destinationNode.getID()+ " "+ap.routeChoice);
 			selectRouteChoice();
 			route.routeChoice = ap.routeChoice;
-			route.routeID = numTrips;
+			//			route.routeID = numTrips;
 		}
 
 		List<Integer> sequenceEdges = new ArrayList<Integer>();
@@ -157,6 +163,7 @@ public final class Pedestrian implements Steppable {
 				return;
 			}
 			else if (UserParameters.empiricalABM) {
+				originNode = destinationNode = null;
 				while (originNode == null) originNode = NodesLookup.randomNode(PedSimCity.network);
 				while (destinationNode == null)	destinationNode = NodesLookup.randomNodeBetweenLimits(PedSimCity.network, originNode,
 						UserParameters.minDistance, UserParameters.maxDistance);
@@ -169,7 +176,7 @@ public final class Pedestrian implements Steppable {
 			findNewAStarPath(stateSchedule);
 			return;
 		}
-		if (UserParameters.activityBased)  {
+		else if (UserParameters.activityBased)  {
 			ap.totalTimeAway += UserParameters.minutesPerStep;
 			if (!reachedDestination & !ap.atPlace) keepWalking();
 			else {

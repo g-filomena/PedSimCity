@@ -1,9 +1,12 @@
 package sim.app.geo.PedSimCity;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import sim.app.geo.UrbanSim.NodeGraph;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
@@ -15,77 +18,104 @@ public class CombinedNavigation{
 	AgentProperties ap = new AgentProperties();
 	ArrayList<GeomPlanarGraphDirectedEdge> completePath =  new ArrayList<GeomPlanarGraphDirectedEdge>();
 	ArrayList<NodeGraph> sequenceNodes = new ArrayList<NodeGraph>();
-	boolean regionBasedNavigation = false;
 
-	public ArrayList<GeomPlanarGraphDirectedEdge> path(NodeGraph originNode, NodeGraph destinationNode, AgentProperties ap) {
-		this.ap = ap;
-		this.sequenceNodes.clear();
+	public ArrayList<GeomPlanarGraphDirectedEdge> path(NodeGraph originNode, NodeGraph destinationNode, AgentProperties agp) {
+		this.ap = agp;
+		this.originNode = originNode;
+		this.destinationNode = destinationNode;
 		RoutePlanner planner = new RoutePlanner();
 
 		//regional routing necessary Yes/No based on threshold? -- does not change the general agent's property
 		if (NodeGraph.nodesDistance(originNode,  destinationNode) < UserParameters.regionBasedNavigationThreshold
-				|| !ap.regionBasedNavigation || originNode.region == destinationNode.region) this.regionBasedNavigation = false;
-		else this.regionBasedNavigation = ap.regionBasedNavigation;
+				|| originNode.region == destinationNode.region) ap.regionBasedNavigation = false;
 
-		if (this.regionBasedNavigation) {
+		if (this.ap.regionBasedNavigation) {
 			RegionBasedNavigation regionsPath = new RegionBasedNavigation();
 			sequenceNodes = regionsPath.sequenceRegions(originNode, destinationNode, ap);
 		}
 
 		// through barrier (sub-goals), already computed above
-		if (ap.barrierBasedNavigation) {;}
+		if (ap.barrierBasedNavigation && !ap.regionBasedNavigation) {
+			BarrierBasedNavigation barriersPath = new BarrierBasedNavigation();
+			sequenceNodes = barriersPath.sequenceBarriers(originNode, destinationNode, ap);
+			System.out.println("using barriers sub-goals");}
+
 		// through local landmarks or important nodes (sub-goals)
 		else if (ap.landmarkBasedNavigation || ap.nodeBasedNavigation ) {
 			// when ap.nodeBasedNavigation ap.landmarkBasedNavigation is false;
-			if (this.regionBasedNavigation) intraRegionMarks();
+			if (ap.regionBasedNavigation && sequenceNodes.size() > 0) intraRegionMarks();
 			else sequenceNodes = LandmarkNavigation.onRouteMarks(originNode, destinationNode, ap);
 		}
 		// pure global landmark navigation (no heuristic, no sub-goals, it allows)
 		else if  (ap.usingGlobalLandmarks && !ap.landmarkBasedNavigation && ap.localHeuristic == "" && !ap.regionBasedNavigation) {
 			System.out.println("returning pure global");
-			System.out.println("destin "+destinationNode);
 			return planner.globalLandmarksPath(originNode, destinationNode, ap);
 		}
+		Set<NodeGraph> set = new HashSet<NodeGraph>(sequenceNodes);
+		if(set.size() < sequenceNodes.size()) System.out.println("DUPLICATES---------------------");
+
+		List<Integer> opo = new ArrayList<Integer>();
+		for (NodeGraph n : sequenceNodes) opo.add(n.getID());
+		System.out.println(Arrays.asList(opo));
 
 		if (sequenceNodes.size() == 0) {
-			sequenceNodes.add(originNode);
-			sequenceNodes.add(destinationNode);
+			System.out.println("Path only heuristic "+ap.localHeuristic);
+			if (ap.localHeuristic.equals("roadDistance")) return planner.roadDistance(originNode, destinationNode, ap);
+			else if (ap.localHeuristic.equals("angularChange") || ap.localHeuristic.equals("turns"))
+				return planner.angularChangeBased(originNode, destinationNode, ap);
+			else if (ap.usingGlobalLandmarks && ap.localHeuristic == "") return planner.globalLandmarksPath(originNode, destinationNode, ap);
 		}
-
 		if (ap.localHeuristic.equals("roadDistance")) {
 			System.out.println("Path: "+ap.localHeuristic +" with regions: "+ ap.regionBasedNavigation + ", local "+ ap.landmarkBasedNavigation +
-					", natural barriers" + ap.usingNaturalBarriers);
+					" or nodeBased " +ap.nodeBasedNavigation);
 			return planner.roadDistanceSequence(sequenceNodes, ap);
 		}
 		else if (ap.localHeuristic.equals("angularChange") || ap.localHeuristic.equals("turns")) {
 			System.out.println("Path: "+ap.localHeuristic+" with regions: "+ ap.regionBasedNavigation + ", local "+ ap.landmarkBasedNavigation +
-					", natural barriers: " + ap.usingNaturalBarriers);
+					" or nodeBased " +ap.nodeBasedNavigation);
 			return planner.angularChangeBasedSequence(sequenceNodes, ap);
 		}
 		else if (ap.usingGlobalLandmarks && ap.localHeuristic == "") {
 			System.out.println("only GL --- " + sequenceNodes.size());
 			return planner.globalLandmarksPathSequence(sequenceNodes, ap);
 		}
-		else return null;
+		else {
+			System.out.println("nothing was assigned here -------------------------------");
+			return null;
+		}
 	}
 
 
 	public void intraRegionMarks() {
 
-		NodeGraph entryGateway = originNode;
+		NodeGraph currentLocation = originNode;
+		ArrayList<NodeGraph> newSequence = new ArrayList<NodeGraph>();
+
 		for (NodeGraph exitGateway : this.sequenceNodes) {
-			if (exitGateway == originNode || entryGateway == destinationNode) continue;
+			if (exitGateway == originNode || currentLocation == destinationNode) continue;
+			newSequence.add(currentLocation);
+			if (currentLocation.region != exitGateway.region) {
+				currentLocation = exitGateway;
+				continue;
+			}
 			ArrayList<NodeGraph> onRouteMarks = new ArrayList<NodeGraph>();
 			// works also for nodeBasedNavigation only:
-			onRouteMarks = onRouteMarksRegion(entryGateway, exitGateway, originNode, destinationNode, ap);
+			onRouteMarks = onRouteMarksRegion(currentLocation, exitGateway, originNode, destinationNode, newSequence, ap);
 
 			if (onRouteMarks.size() == 0 && ap.agentKnowledge <= UserParameters.noobAgentThreshold) {
+				System.out.println("using barriers instead");
 				BarrierBasedNavigation barrierBasedPath = new BarrierBasedNavigation();
-				onRouteMarks = barrierBasedPath.sequenceBarriers(entryGateway, exitGateway, ap.typeBarriers);
+				onRouteMarks = barrierBasedPath.sequenceBarriers(currentLocation, exitGateway, ap);
 			}
-			sequenceNodes.addAll(onRouteMarks);
-			entryGateway = exitGateway;
+
+			newSequence.addAll(onRouteMarks);
+			//			List<Integer> opo = new ArrayList<Integer>();
+			//			for (NodeGraph n : onRouteMarks) opo.add(n.getID());
+			//			System.out.println("control onroutemarks "+Arrays.asList(opo));
+			currentLocation = exitGateway;
 		}
+		newSequence.add(destinationNode);
+		sequenceNodes = newSequence;
 	}
 
 	/**
@@ -99,30 +129,24 @@ public class CombinedNavigation{
 	 * @param typeLandmarkness it indicates whether the wayfinding complexity towards the destination should be computed by using
 	 * 		local or global landmarks;
 	 */
-	public static ArrayList<NodeGraph> onRouteMarksRegion(NodeGraph entryGateway, NodeGraph exitGateway,
-			NodeGraph originNode, NodeGraph destinationNode, AgentProperties ap) {
+	public static ArrayList<NodeGraph> onRouteMarksRegion(NodeGraph currentLocation, NodeGraph exitGateway,
+			NodeGraph originNode, NodeGraph destinationNode, ArrayList<NodeGraph> sequenceSoFar, AgentProperties ap) {
 
 		double percentile = UserParameters.salientNodesPercentile;
 		ArrayList<NodeGraph> sequence = new ArrayList<NodeGraph>();
-		List<Integer> badCandidates = new ArrayList<Integer>();
-		Region region = PedSimCity.regionsMap.get(originNode.region);
+		Region region = PedSimCity.regionsMap.get(currentLocation.region);
 		Map<NodeGraph, Double> knownJunctions =  region.primalGraph.salientNodesNetwork(percentile);
 
 		// If no salient junctions are found, the tolerance increases till the 0.50 percentile;
 		// still no salient junctions are found, the agent continues without landmarks
 		while (knownJunctions == null) {
 			percentile -= 0.05;
-			if (percentile < 0.50) {
-				sequence.add(originNode);
-				sequence.add(destinationNode);
-				return sequence;
-			}
+			if (percentile < 0.50) return sequence;
 			knownJunctions = region.primalGraph.salientNodesNetwork(percentile);
 		}
 		// compute wayfinding complexity and the resulting easinesss
-		double wayfindingEasiness = wayfindingEasinessRegion(entryGateway, exitGateway, originNode, destinationNode, ap.typeLandmarks);
-		double searchDistance = NodeGraph.nodesDistance(entryGateway, entryGateway) * (wayfindingEasiness);
-		NodeGraph currentNode = originNode;
+		double wayfindingEasiness = wayfindingEasinessRegion(currentLocation, exitGateway, originNode, destinationNode, ap.typeLandmarks);
+		double searchDistance = NodeGraph.nodesDistance(currentLocation, exitGateway) * (wayfindingEasiness);
 
 		// while the wayfindingEasiness is lower than the threshold the agent looks for intermediate-points.
 		while (wayfindingEasiness < UserParameters.wayfindingEasinessThreshold) {
@@ -133,48 +157,40 @@ public class CombinedNavigation{
 			double maxCentrality = Collections.max(knownJunctions.values());
 			double minCentrality = Collections.min(knownJunctions.values());
 			for (NodeGraph tmpNode : junctions) {
-				// bad candidates (candidate is destination, or origin, already visited, etc)
-				if (sequence.contains(tmpNode) || tmpNode == entryGateway || tmpNode.getEdgeWith(currentNode) != null ||
-						tmpNode.getEdgeWith(exitGateway)!= null || tmpNode.getEdgeWith(entryGateway)!= null) continue;
+				// bad candidates (candidate is origin or already visited, etc)
+				if (sequence.contains(tmpNode) || tmpNode == currentLocation || tmpNode.getEdgeWith(currentLocation) != null) continue;
+				if (NodeGraph.nodesDistance(currentLocation, tmpNode) > searchDistance) continue; //only nodes in range
+				if (NodeGraph.nodesDistance(tmpNode, exitGateway) > NodeGraph.nodesDistance(currentLocation, exitGateway)) continue;
+				if (sequenceSoFar.contains(tmpNode)) continue;
 
-				if (NodeGraph.nodesDistance(currentNode, tmpNode) > searchDistance) {
-					badCandidates.add(tmpNode.getID());
-					continue; //only nodes in range
-				}
 				double score = 0.0;
 				if (ap.landmarkBasedNavigation) score = LandmarkNavigation.localLandmarkness(tmpNode);
 				else score = (tmpNode.centrality-minCentrality)/(maxCentrality-minCentrality);
-				double currentDistance = NodeGraph.nodesDistance(currentNode, exitGateway);
+				double currentDistance = NodeGraph.nodesDistance(currentLocation, exitGateway);
 				double gain = (currentDistance - NodeGraph.nodesDistance(tmpNode, exitGateway))/currentDistance;
 
-				double tmp = score*0.60 + gain*0.40;
+				double tmp = score*0.50 + gain*0.50;
 				if (tmp > attractivness) {
 					attractivness = tmp;
 					bestNode = tmpNode;
 				}
 			}
 
-			if (bestNode == null || bestNode == destinationNode) break;
+			if (bestNode == null || bestNode == exitGateway || bestNode == destinationNode) break;
 			sequence.add(bestNode);
 
 			percentile = UserParameters.salientNodesPercentile;
 			knownJunctions = region.primalGraph.salientNodesNetwork(percentile);
 			while (knownJunctions == null) {
 				percentile -= 0.05;
-				if (percentile < 0.50) {
-					sequence.add(0, originNode);
-					sequence.add(destinationNode);
-					return sequence;
-				}
+				if (percentile < 0.50) return sequence;
 				knownJunctions = region.primalGraph.salientNodesNetwork(percentile);
 			}
 			wayfindingEasiness = wayfindingEasinessRegion(bestNode, exitGateway, originNode, destinationNode, ap.typeLandmarks);
 			searchDistance = NodeGraph.nodesDistance(bestNode, exitGateway) * wayfindingEasiness;
-			currentNode = bestNode;
+			currentLocation = bestNode;
 			bestNode = null;
 		}
-		sequence.add(0, originNode);
-		sequence.add(destinationNode);
 		return sequence;
 	}
 	/**
@@ -187,16 +203,18 @@ public class CombinedNavigation{
 	 * @param tmpOrigin the intermediate origin node, within the region;
 	 * @param tmpDestination the intermediate destination node, within the region;
 	 */
-	public static double wayfindingEasinessRegion(NodeGraph entryGateway, NodeGraph exitGateway,NodeGraph originNode, NodeGraph destinationNode,  String typeLandmarkness) {
+	public static double wayfindingEasinessRegion(NodeGraph currentLocation, NodeGraph exitGateway,NodeGraph originNode, NodeGraph destinationNode,
+			String typeLandmarkness) {
 
-		double intraRegionDistance = NodeGraph.nodesDistance(entryGateway, exitGateway);
+		double intraRegionDistance = NodeGraph.nodesDistance(currentLocation, exitGateway);
 		double distance = NodeGraph.nodesDistance(originNode, destinationNode);
-		if (intraRegionDistance/distance < 0.10) return 1;
-
 		double distanceComplexity = intraRegionDistance/distance;
-		double buildingsComplexity = PedSimCity.regionsMap.get(entryGateway.region).computeComplexity(typeLandmarkness);
+		if (distanceComplexity < 0.20) return 1.0;
+
+		double buildingsComplexity = PedSimCity.regionsMap.get(currentLocation.region).computeComplexity(typeLandmarkness);
 		double wayfindingComplexity = (distanceComplexity + buildingsComplexity)/2.0;
 		double easiness = 1.0 - wayfindingComplexity;
+		//		System.out.println("buildingsComplexity "+ buildingsComplexity + " distance Complexity " + distanceComplexity);
 		return easiness;
 	}
 }

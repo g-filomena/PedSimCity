@@ -92,7 +92,7 @@ public class DijkstraAngularChange {
 
 	private void findMinDistances(NodeGraph currentNode) {
 
-		ArrayList<NodeGraph> adjacentNodes = currentNode.adjacentNodes;
+		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
 
 		for (NodeGraph targetNode : adjacentNodes) {
 			if (visitedNodes.contains(targetNode)) continue;
@@ -159,10 +159,7 @@ public class DijkstraAngularChange {
 
 
 	public Path reconstructPath(NodeGraph originNode, NodeGraph destinationNode) {
-
 		Path path = new Path();
-		path.edges = null;
-		path.mapWrappers = null;
 
 		HashMap<NodeGraph, NodeWrapper> mapTraversedWrappers =  new HashMap<NodeGraph, NodeWrapper>();
 		ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges = new ArrayList<GeomPlanarGraphDirectedEdge>();
@@ -185,10 +182,11 @@ public class DijkstraAngularChange {
 		}
 
 		// check that the path has been formulated properly
-		if (mapWrappers.size() == 1) return path;
+		if (mapWrappers.get(destinationNode) == null || mapWrappers.size() <= 1) path.invalidPath();
 		try {
 			while (mapWrappers.get(step).nodeFrom != null) {
 				GeomPlanarGraphDirectedEdge de = (GeomPlanarGraphDirectedEdge) step.primalEdge.getDirEdge(0);
+				if (de == null) System.out.println("problem here");
 				step = mapWrappers.get(step).nodeFrom;
 				mapTraversedWrappers.put(step, mapWrappers.get(step));
 				sequenceEdges.add(0, de);
@@ -200,7 +198,10 @@ public class DijkstraAngularChange {
 				}
 			}
 		}
-		catch(java.lang.NullPointerException e)  {return path;}
+		catch(java.lang.NullPointerException e)	{
+
+			return path;
+		}
 
 		path.edges = sequenceEdges;
 		path.mapWrappers = mapTraversedWrappers;

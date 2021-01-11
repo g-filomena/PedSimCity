@@ -15,6 +15,7 @@ public class RoutePlanner {
 
 	boolean moveOn = false;
 	NodeGraph originNode, destinationNode;
+	NodeGraph tmpOrigin;
 	NodeGraph previousJunction = null;
 
 	ArrayList<NodeGraph> sequenceNodes = new ArrayList<NodeGraph>();
@@ -51,9 +52,11 @@ public class RoutePlanner {
 		this.ap = ap;
 		this.sequenceNodes = new ArrayList<NodeGraph> (sequence);
 		// originNode
-		NodeGraph tmpOrigin = sequenceNodes.get(0);
+		this.tmpOrigin = sequenceNodes.get(0);
 		this.destinationNode = sequenceNodes.get(sequenceNodes.size()-1);
 		sequenceNodes.remove(0);
+
+
 
 		for (NodeGraph tmpDestination : sequenceNodes) {
 			moveOn = false;
@@ -75,7 +78,7 @@ public class RoutePlanner {
 			DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
 			path = pathfinder.dijkstraPath(tmpOrigin, tmpDestination, destinationNode, completePath, ap);
 
-			while (path.edges == null && !moveOn) backtracking(tmpDestination);
+			while (path.edges.size() == 0 && !moveOn) backtracking(tmpDestination);
 			tmpOrigin = tmpDestination;
 			if (moveOn) continue;
 			checkSequenceEdges(tmpOrigin, tmpDestination);
@@ -135,24 +138,30 @@ public class RoutePlanner {
 
 		this.ap = ap;
 		this.sequenceNodes = new ArrayList<NodeGraph> (sequence);
+		//		List<Integer> opo = new ArrayList<Integer>();
+		//		for (NodeGraph n : sequenceNodes) opo.add(n.getID());
+		//		System.out.println(Arrays.asList(opo));
+
 		// originNode
-		NodeGraph tmpOrigin = originNode = sequenceNodes.get(0);
+		this.tmpOrigin = originNode = sequenceNodes.get(0);
 		this.destinationNode = sequenceNodes.get(sequenceNodes.size()-1);
 		sequenceNodes.remove(0);
 
 		for (NodeGraph tmpDestination : sequenceNodes) {
-
-
 			moveOn = false; //for path cleaning and already traversed edges
+
 			if (tmpOrigin != originNode) {
-				previousJunction = Path.previousJunction(completePath);
+				path.edges.clear();
+				path.mapWrappers.clear();
 				centroidsToAvoid = Path.centroidsFromPath(completePath);
-			}
-			// check if tmpDestination traversed already
-			if (Path.nodesFromPath(completePath).contains(tmpDestination)) {
-				controlPath(tmpDestination);
-				tmpOrigin = tmpDestination;
-				continue;
+				previousJunction = Path.previousJunction(completePath);
+
+				// check if tmpDestination traversed already
+				if (Path.nodesFromPath(completePath).contains(tmpDestination)) {
+					controlPath(tmpDestination);
+					tmpOrigin = tmpDestination;
+					continue;
+				}
 			}
 
 			// check if edge in between
@@ -163,9 +172,10 @@ public class RoutePlanner {
 				continue;
 			}
 
-			NodeGraph tmpDualOrigin = tmpOrigin.getDualNode(tmpOrigin, tmpDestination, ap.regionBasedNavigation, previousJunction);
+			ArrayList<NodeGraph> dualNodesTO = new ArrayList<NodeGraph> (tmpOrigin.getDualNodes(tmpOrigin, tmpDestination, ap.regionBasedNavigation,
+					previousJunction).keySet());
 
-			while (tmpDualOrigin == null && previousJunction != null) {
+			while (dualNodesTO.size() == 0 && previousJunction != null) {
 				tmpOrigin = (NodeGraph) completePath.get(completePath.size()-1).getFromNode();
 				// remove last one which did not work!
 				completePath.remove(completePath.size()-1);
@@ -179,37 +189,46 @@ public class RoutePlanner {
 					tmpOrigin = tmpDestination;
 					break;
 				}
-				tmpDualOrigin = tmpOrigin.getDualNode(tmpOrigin, tmpDestination, ap.regionBasedNavigation, previousJunction);
+				dualNodesTO = new ArrayList<NodeGraph> (tmpOrigin.getDualNodes(tmpOrigin, tmpDestination, ap.regionBasedNavigation,
+						previousJunction).keySet());
 			}
-			if (tmpOrigin == tmpDestination) continue;
 
-			NodeGraph tmpDualDestination = null;
-			while ((tmpDualDestination == tmpDualOrigin) || (tmpDualDestination == null)) tmpDualDestination = tmpDestination.getDualNode(
-					tmpOrigin, tmpDestination, ap.regionBasedNavigation, previousJunction);
+			ArrayList<NodeGraph> dualNodesTD = null;
+			dualNodesTD = new ArrayList<NodeGraph> (tmpDestination.getDualNodes(tmpOrigin, tmpDestination, ap.regionBasedNavigation, null).keySet());
 
-			// check if just one node separates them
-			if (Path.commonPrimalJunction(tmpDualOrigin, tmpDualDestination) != null) {
-				completePath.add(tmpOrigin.getDirectedEdgeWith(Path.commonPrimalJunction(tmpDualOrigin, tmpDualDestination)));
-				completePath.add(Path.commonPrimalJunction(tmpDualOrigin, tmpDualDestination).getDirectedEdgeWith(tmpDestination));
+			boolean found = false;
+			for (NodeGraph tmpDualOrigin : dualNodesTO) {
+				for (NodeGraph tmpDualDestination : dualNodesTD) {
+					// check if just one node separates them
+					if (Path.commonPrimalJunction(tmpDualOrigin, tmpDualDestination) != null) {
+						GeomPlanarGraphDirectedEdge first = tmpOrigin.getDirectedEdgeWith(Path.commonPrimalJunction(tmpDualOrigin, tmpDualDestination));
+						GeomPlanarGraphDirectedEdge second = Path.commonPrimalJunction(tmpDualOrigin, tmpDualDestination).getDirectedEdgeWith(tmpDestination);
+						path.edges.add(first);
+						path.edges.add(second);
+					}
+					else if (ap.localHeuristic.equals("angularChange")) {
+						DijkstraAngularChange pathfinder = new DijkstraAngularChange();
+						path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, tmpOrigin, ap);
+					}
+					else if (ap.localHeuristic.equals("turns")) {
+						DijkstraTurns pathfinder = new DijkstraTurns();
+						path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, tmpOrigin, ap);
+					}
+					if (path.edges.size() != 0) {
+						found = true;
+						break;
+					}
+				}
+				if (found) break;
+			}
+			while (path.edges.size() == 0 && !moveOn) backtrackingDual(tmpDestination);
+			if (moveOn) {
 				tmpOrigin = tmpDestination;
 				continue;
 			}
 
-			if (ap.localHeuristic.equals("angularChange")) {
-				DijkstraAngularChange pathfinder = new DijkstraAngularChange();
-				path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, tmpOrigin, ap);
-			}
-			else if (ap.localHeuristic.equals("turns")) {
-				DijkstraTurns pathfinder = new DijkstraTurns();
-				path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, tmpOrigin, ap);
-			}
-
-			while (path.edges == null && !moveOn) backtrackingDual(tmpDualOrigin, tmpDualDestination, tmpDestination);
-			if (path.edges == null) continue;
-			tmpOrigin = tmpDestination;
-			if (moveOn) continue;
-
 			cleanDualPath(tmpOrigin, tmpDestination);
+			tmpOrigin = tmpDestination;
 			completePath.addAll(path.edges);
 		}
 		return completePath;
@@ -243,7 +262,7 @@ public class RoutePlanner {
 		this.ap = ap;
 		this.sequenceNodes = new ArrayList<NodeGraph> (sequence);
 		// originNode
-		NodeGraph tmpOrigin = sequenceNodes.get(0);
+		this.tmpOrigin = sequenceNodes.get(0);
 		this.destinationNode = sequenceNodes.get(sequenceNodes.size()-1);
 		sequenceNodes.remove(0);
 
@@ -267,7 +286,7 @@ public class RoutePlanner {
 			DijkstraGlobalLandmarks pathfinder = new DijkstraGlobalLandmarks();
 			path = pathfinder.dijkstraPath(tmpOrigin, tmpDestination, destinationNode, completePath, ap);
 
-			while (path.edges == null && !moveOn) backtracking(tmpDestination);
+			while (path.edges.size() == 0 && !moveOn) backtracking(tmpDestination);
 			tmpOrigin = tmpDestination;
 			if (moveOn) continue;
 			checkSequenceEdges(tmpOrigin, tmpDestination);
@@ -307,7 +326,7 @@ public class RoutePlanner {
 		this.ap = ap;
 		ArrayList<GeomPlanarGraphDirectedEdge> path =  new ArrayList<GeomPlanarGraphDirectedEdge>();
 		BarrierBasedNavigation barrierBasedPath = new BarrierBasedNavigation();
-		ArrayList<NodeGraph> sequenceBarriers = barrierBasedPath.sequenceBarriers(originNode, destinationNode, ap.typeBarriers);
+		ArrayList<NodeGraph> sequenceBarriers = barrierBasedPath.sequenceBarriers(originNode, destinationNode, ap);
 		if (ap.localHeuristic.equals("roadDistance")) path = roadDistanceSequence(sequenceBarriers, ap);
 		else if (ap.localHeuristic.equals("angularChange")) path = angularChangeBasedSequence(sequenceBarriers, ap);
 		return path;
@@ -325,7 +344,7 @@ public class RoutePlanner {
 	private void backtracking (NodeGraph tmpDestination)
 	{
 		// new tmpOrigin
-		NodeGraph tmpOrigin = (NodeGraph) completePath.get(completePath.size()-1).getFromNode();
+		this.tmpOrigin = (NodeGraph) completePath.get(completePath.size()-1).getFromNode();
 		// remove the last problematic segment;
 		completePath.remove(completePath.size()-1);
 
@@ -350,15 +369,15 @@ public class RoutePlanner {
 	 * @param tmpDualDestination the examined dual intermediate destination node;
 	 * @param tmpDestination the examined (primal) intermediate destination node;
 	 */
-	private void backtrackingDual(NodeGraph tmpDualOrigin, NodeGraph tmpDualDestination, NodeGraph tmpDestination)
+	private void backtrackingDual(NodeGraph tmpDestination)
 	{
 		// new tmpOrigin
-		NodeGraph tmpOrigin;
+		System.out.println("backtracking -- from " + this.tmpOrigin.getID() + " to "+ tmpDestination.getID()+ " previous junction "+previousJunction.getID());
 		try {
-			tmpOrigin = (NodeGraph) completePath.get(completePath.size()-1).getFromNode();
+			this.tmpOrigin = (NodeGraph) completePath.get(completePath.size()-1).getFromNode();
 		}
 		catch(java.lang.ArrayIndexOutOfBoundsException e) {
-			path.edges = null;
+			path.edges.clear();
 			return;
 		}
 
@@ -375,15 +394,29 @@ public class RoutePlanner {
 			moveOn = true; // no need to backtracking anymore
 			return;
 		}
-		tmpDualOrigin = tmpOrigin.getDualNode(tmpOrigin, tmpDestination, ap.regionBasedNavigation, previousJunction);
 
-		if (ap.localHeuristic.equals("angularChange")) {
-			DijkstraAngularChange pathfinder = new DijkstraAngularChange();
-			path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, tmpOrigin, ap);
-		}
-		if (ap.localHeuristic.equals("turns")) {
-			DijkstraTurns pathfinder = new DijkstraTurns();
-			path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, tmpOrigin, ap);
+		ArrayList<NodeGraph> dualNodesTO = new ArrayList<NodeGraph> (tmpOrigin.getDualNodes(tmpOrigin, tmpDestination, ap.regionBasedNavigation,
+				previousJunction).keySet());
+		ArrayList<NodeGraph> dualNodesTD = new ArrayList<NodeGraph> (tmpDestination.getDualNodes(tmpOrigin, tmpDestination, ap.regionBasedNavigation,
+				previousJunction).keySet());
+
+		boolean found = false;
+		for (NodeGraph tmpDualOrigin : dualNodesTO) {
+			for (NodeGraph tmpDualDestination : dualNodesTD) {
+				if (ap.localHeuristic.equals("angularChange")) {
+					DijkstraAngularChange pathfinder = new DijkstraAngularChange();
+					path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, tmpOrigin, ap);
+				}
+				else if (ap.localHeuristic.equals("turns")) {
+					DijkstraTurns pathfinder = new DijkstraTurns();
+					path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, tmpOrigin, ap);
+				}
+				if (path.edges.size() != 0) {
+					found = true;
+					break;
+				}
+			}
+			if (found) break;
 		}
 	}
 

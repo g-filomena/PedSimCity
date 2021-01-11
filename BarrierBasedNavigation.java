@@ -38,7 +38,7 @@ public class BarrierBasedNavigation {
 	 * @param typeBarriers the type of barriers to consider, it depends on the agent;
 	 */
 
-	public ArrayList<NodeGraph> sequenceBarriers(NodeGraph originNode, NodeGraph destinationNode, String typeBarriers) {
+	public ArrayList<NodeGraph> sequenceBarriers(NodeGraph originNode, NodeGraph destinationNode, AgentProperties ap) {
 
 		this.edgesMap = PedSimCity.edgesMap;
 		this.currentLocation = originNode;
@@ -54,7 +54,7 @@ public class BarrierBasedNavigation {
 		while (true) {
 
 			// check if there are good barriers in line of movement, all type of barriers
-			Set<Integer> intersectingBarriers = intersectingBarriers(currentLocation, destinationNode, typeBarriers);
+			Set<Integer> intersectingBarriers = intersectingBarriers(currentLocation, destinationNode, ap.typeBarriers);
 			// no barriers
 			if (intersectingBarriers.size() == 0) break;
 
@@ -68,8 +68,10 @@ public class BarrierBasedNavigation {
 			if (intersectingBarriers.size() == 0) break;
 
 			NodeGraph subGoal = null;
+			Region region = null;
 			// given the intersecting barriers, identify the best one and the relative edge close to it
-			Pair<EdgeGraph, Integer> barrierGoal = barrierGoal(intersectingBarriers, currentLocation, destinationNode, null);
+			if (ap.regionBasedNavigation) region = PedSimCity.regionsMap.get(originNode.region);
+			Pair<EdgeGraph, Integer> barrierGoal = barrierGoal(intersectingBarriers, currentLocation, destinationNode, region);
 			if (barrierGoal == null) break;
 			EdgeGraph edgeGoal = barrierGoal.getValue0();
 			int barrier = barrierGoal.getValue1();

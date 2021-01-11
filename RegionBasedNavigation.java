@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map.Entry;
 import java.util.Set;
 
@@ -21,6 +22,8 @@ import sim.app.geo.UrbanSim.NodeGraph;
 import sim.app.geo.UrbanSim.Utilities;
 
 public class RegionBasedNavigation {
+
+
 
 	ArrayList<Integer> visitedRegions = new ArrayList<Integer>();
 	ArrayList<NodeGraph> sequence = new ArrayList<NodeGraph>();
@@ -46,6 +49,7 @@ public class RegionBasedNavigation {
 	 */
 
 	public ArrayList<NodeGraph> sequenceRegions(NodeGraph originNode, NodeGraph destinationNode, AgentProperties ap) {
+
 
 		this.edgesMap = PedSimCity.edgesMap;
 		this.gatewaysMap = PedSimCity.gatewaysMap;
@@ -95,12 +99,10 @@ public class RegionBasedNavigation {
 
 			previousLocation = currentLocation;
 			//only new entry, when the last entry can send the agent directly to the next region
-			if (gateways.getValue0() == gateways.getValue1()) sequence.add(gateways.getValue1());
-			else{
-				sequence.add(gateways.getValue0()); //exit
-				sequence.add(gateways.getValue1()); //entry next region
-			}
-			currentLocation = gateways.getValue1();
+			sequence.add(gateways.getValue0());
+			sequence.add(gateways.getValue1());
+
+			currentLocation = sequence.get(sequence.size()-1);
 			currentRegion = currentLocation.region;
 			visitedRegions.add(currentRegion);
 
@@ -120,6 +122,10 @@ public class RegionBasedNavigation {
 		// if also barrier navigation, insert barrier-sub goals into the sequence
 		if (ap.barrierBasedNavigation) newSequence = regionalBarriers(sequence, ap);
 		else newSequence = sequence;
+
+		//remove duplicates and mantains order
+		Set<NodeGraph> ns = new LinkedHashSet<>(newSequence);
+		newSequence = new ArrayList<NodeGraph>(ns);
 		return newSequence;
 	}
 
