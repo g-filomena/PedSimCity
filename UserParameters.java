@@ -10,14 +10,14 @@ import java.util.List;
 public class UserParameters {
 
 	//General parameters
-	static String cityName = "Muenster";
+	static String cityName = "London";
 	static int jobs = 1;
 	static int numAgents = 100; //this is set to 1 agent per route choice model when one of testingLandmarks, testingRegions, testingModels is True
 	static int numTrips = 10; //this is automatically set when one of testingLandmarks (255), testingRegions (2000) is True
 
 	// 1) Run the model to a) evaluate the introduction of landmarks or b) regions and barriers.
 	// set (only) one of the following ones as true, only when replicating the analysis under the specific conditions of the papers (see github repository)
-	static boolean testingLandmarks = false;
+	static boolean testingLandmarks = true;
 	static boolean testingRegions = false;
 	// Testing Landmarks route choice models: DS = road distance, AC = angular change, DL = road distance + landmarks, AL = angular change + landmarks
 	// LL = road distance + local landmarks, GL = global landmarks

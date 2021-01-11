@@ -13,7 +13,7 @@ The introduction of different urban elements has been tested, in combination wit
 
 It requires:
 * GeoMason and its requirements;
-* [UrbanSim](https://github.com/g-filomena/UrbanSim), a set of supporting functions for urban simulation models.
+* [UrbanMason](https://github.com/g-filomena/urbanmason), a set of supporting functions for urban simulation models.
 
 Before running the model, check the default parameters in the class UserParameters.java so to run the ABM as you please; there, one can also set the local directories for storing the output.
 

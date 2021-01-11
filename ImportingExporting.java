@@ -2,7 +2,6 @@ package sim.app.geo.pedsimcity;
 
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -95,7 +94,7 @@ public class ImportingExporting {
 	}
 
 	// save the simulation output
-	public static void saveResults(int job) throws IOException {
+	public static void saveResults(int job) throws Exception {
 
 		if (UserParameters.testingSpecificRoutes) {;} //densities are not analyzed in this case
 		else {
@@ -210,7 +209,7 @@ public class ImportingExporting {
 		PedSimCity.routesData = new ArrayList<RouteData>();
 	}
 
-	public static void importDistances(String inputDataDirectory) throws IOException {
+	public static void importDistances(String inputDataDirectory) throws Exception {
 		/// read GPS trajectories distances
 		System.out.println("reading distances");
 		CSVReader readerDistances = new CSVReader(new FileReader(PedSimCity.class.getResource(inputDataDirectory).toString().substring(6)
@@ -226,7 +225,7 @@ public class ImportingExporting {
 		readerDistances.close();
 	}
 
-	public static void importGroups(String inputDataDirectory) throws IOException {
+	public static void importGroups(String inputDataDirectory) throws Exception {
 		/// read GPS trajectories distances
 		System.out.println("reading groups information");
 		CSVReader readerGroups = new CSVReader(new FileReader(PedSimCity.class.getResource(inputDataDirectory).toString().substring(6)

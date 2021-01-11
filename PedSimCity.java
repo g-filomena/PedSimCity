@@ -1,6 +1,6 @@
 package sim.app.geo.pedsimcity;
 
-import java.io.IOException;
+//import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -235,7 +235,7 @@ public class PedSimCity extends SimState {
 	public void finish()
 	{
 		try {ImportingExporting.saveResults(this.currentJob);}
-		catch (IOException e) {e.printStackTrace();}
+		catch (Exception e) {e.printStackTrace();}
 		super.finish();
 	}
 
