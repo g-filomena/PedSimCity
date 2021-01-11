@@ -7,17 +7,17 @@
  **/
 
 
-package sim.app.geo.PedSimCity;
+package sim.app.geo.pedsimcity;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import sim.app.geo.UrbanSim.EdgeGraph;
-import sim.app.geo.UrbanSim.NodeGraph;
-import sim.app.geo.UrbanSim.NodeWrapper;
-import sim.app.geo.UrbanSim.Path;
-import sim.app.geo.UrbanSim.SubGraph;
-import sim.app.geo.UrbanSim.Utilities;
+import sim.app.geo.urbanmason.EdgeGraph;
+import sim.app.geo.urbanmason.NodeGraph;
+import sim.app.geo.urbanmason.NodeWrapper;
+import sim.app.geo.urbanmason.Path;
+import sim.app.geo.urbanmason.SubGraph;
+import sim.app.geo.urbanmason.Utilities;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 

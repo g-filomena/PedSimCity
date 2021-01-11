@@ -1,4 +1,4 @@
-package sim.app.geo.PedSimCity;
+package sim.app.geo.pedsimcity;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import sim.app.geo.UrbanSim.NodeGraph;
+import sim.app.geo.urbanmason.NodeGraph;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class CombinedNavigation{

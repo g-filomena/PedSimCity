@@ -1,4 +1,4 @@
-package sim.app.geo.PedSimCity;
+package sim.app.geo.pedsimcity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -6,7 +6,7 @@ import java.util.Random;
 
 import org.javatuples.Pair;
 
-import sim.app.geo.UrbanSim.NodeGraph;
+import sim.app.geo.urbanmason.NodeGraph;
 import sim.util.Bag;
 import sim.util.geo.MasonGeometry;
 

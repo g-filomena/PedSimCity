@@ -1,4 +1,4 @@
-package sim.app.geo.PedSimCity;
+package sim.app.geo.pedsimcity;
 
 import java.io.IOException;
 import java.io.Writer;

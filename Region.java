@@ -1,10 +1,10 @@
-package sim.app.geo.PedSimCity;
+package sim.app.geo.pedsimcity;
 
 import java.util.ArrayList;
 
-import sim.app.geo.UrbanSim.EdgeGraph;
-import sim.app.geo.UrbanSim.SubGraph;
-import sim.app.geo.UrbanSim.VectorLayer;
+import sim.app.geo.urbanmason.EdgeGraph;
+import sim.app.geo.urbanmason.SubGraph;
+import sim.app.geo.urbanmason.VectorLayer;
 import sim.util.Bag;
 
 

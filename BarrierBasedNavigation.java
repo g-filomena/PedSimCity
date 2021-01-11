@@ -4,7 +4,7 @@
  *
  * */
 
-package sim.app.geo.PedSimCity;
+package sim.app.geo.pedsimcity;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -17,10 +17,10 @@ import org.javatuples.Pair;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
 
-import sim.app.geo.UrbanSim.Angles;
-import sim.app.geo.UrbanSim.EdgeGraph;
-import sim.app.geo.UrbanSim.NodeGraph;
-import sim.app.geo.UrbanSim.Utilities;
+import sim.app.geo.urbanmason.Angles;
+import sim.app.geo.urbanmason.EdgeGraph;
+import sim.app.geo.urbanmason.NodeGraph;
+import sim.app.geo.urbanmason.Utilities;
 import sim.util.Bag;
 import sim.util.geo.MasonGeometry;
 

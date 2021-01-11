@@ -1,4 +1,4 @@
-package sim.app.geo.PedSimCity;
+package sim.app.geo.pedsimcity;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -11,14 +11,14 @@ import org.javatuples.Pair;
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.planargraph.DirectedEdgeStar;
 
-import sim.app.geo.UrbanSim.Angles;
-import sim.app.geo.UrbanSim.Building;
-import sim.app.geo.UrbanSim.EdgeGraph;
-import sim.app.geo.UrbanSim.Graph;
-import sim.app.geo.UrbanSim.NodeGraph;
-import sim.app.geo.UrbanSim.NodesLookup;
-import sim.app.geo.UrbanSim.SubGraph;
-import sim.app.geo.UrbanSim.VectorLayer;
+import sim.app.geo.urbanmason.Angles;
+import sim.app.geo.urbanmason.Building;
+import sim.app.geo.urbanmason.EdgeGraph;
+import sim.app.geo.urbanmason.Graph;
+import sim.app.geo.urbanmason.NodeGraph;
+import sim.app.geo.urbanmason.NodesLookup;
+import sim.app.geo.urbanmason.SubGraph;
+import sim.app.geo.urbanmason.VectorLayer;
 import sim.engine.SimState;
 import sim.engine.Stoppable;
 import sim.util.Bag;
@@ -240,7 +240,7 @@ public class PedSimCity extends SimState {
 	}
 
 	// Main function allows simulation to be run in stand-alone, non-GUI mode/
-	public static void main(String[] args) throws IOException
+	public static void main(String[] args) throws Exception
 	{
 		int jobs = UserParameters.jobs;
 		ImportingExporting.importFiles();

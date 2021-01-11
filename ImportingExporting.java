@@ -1,4 +1,4 @@
-package sim.app.geo.PedSimCity;
+package sim.app.geo.pedsimcity;
 
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -16,9 +16,9 @@ import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.LineString;
 
-import sim.app.geo.UrbanSim.EdgeGraph;
-import sim.app.geo.UrbanSim.NodeGraph;
-import sim.app.geo.UrbanSim.VectorLayer;
+import sim.app.geo.urbanmason.EdgeGraph;
+import sim.app.geo.urbanmason.NodeGraph;
+import sim.app.geo.urbanmason.VectorLayer;
 import sim.io.geo.ShapeFileExporter;
 import sim.io.geo.ShapeFileImporter;
 import sim.util.Bag;
@@ -27,7 +27,7 @@ import sim.util.geo.MasonGeometry;
 public class ImportingExporting {
 
 
-	public static void importFiles() throws IOException {
+	public static void importFiles() throws Exception {
 
 		String inputDataDirectory = null;
 
@@ -39,8 +39,9 @@ public class ImportingExporting {
 		else inputDataDirectory = "data/"+UserParameters.cityName+"/";
 
 		try {
-			URL barriersFile = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_barriers.shp");
-			ShapeFileImporter.read(barriersFile, PedSimCity.barriers);
+			URL barriersSHP = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_barriers.shp");
+			URL barriersDBF = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_barriers.dbf");
+			ShapeFileImporter.read(barriersSHP, barriersDBF, PedSimCity.barriers);
 			System.out.println("reading barriers layer");
 			PedSimCity.barriers.generateGeometriesList();
 		}
@@ -50,10 +51,12 @@ public class ImportingExporting {
 		}
 		try {
 			System.out.println("reading buildings and sight lines layers");
-			URL landmarksFile = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_landmarks.shp");
-			URL sightLinesFile = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_sight_lines2D.shp");
-			ShapeFileImporter.read(landmarksFile, PedSimCity.buildings);
-			ShapeFileImporter.read(sightLinesFile, PedSimCity.sightLines);
+			URL landmarksSHP = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_landmarks.shp");
+			URL landmarksDBF = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_landmarks.dbf");
+			URL sightLinesSHP = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_sight_lines2D.shp");
+			URL sightLinesDBF = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_sight_lines2D.dbf");
+			ShapeFileImporter.read(landmarksSHP, landmarksDBF, PedSimCity.buildings);
+			ShapeFileImporter.read(sightLinesSHP, sightLinesDBF, PedSimCity.sightLines);
 			PedSimCity.buildings.generateGeometriesList();
 			PedSimCity.sightLines.generateGeometriesList();
 			PedSimCity.buildings.setID("buildingID");
@@ -66,15 +69,19 @@ public class ImportingExporting {
 
 		// read the street network shapefiles and create the primal and the dual graph
 		System.out.println("reading the graphs");
-		URL roadsFile = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_edges.shp");
-		URL junctionsFile = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_nodes.shp");
-		URL roadsDualFile = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_edgesDual.shp");
-		URL centroidsFile = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_nodesDual.shp");
+		URL roadsSHP = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_edges.shp");
+		URL roadsDBF = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_edges.dbf");
+		URL junctionsSHP = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_nodes.shp");
+		URL junctionsDBF = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_nodes.dbf");
+		URL roadsDualSHP = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_edgesDual.shp");
+		URL roadsDualDBF = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_edgesDual.dbf");
+		URL centroidsSHP = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_nodesDual.shp");
+		URL centroidsDBF = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_nodesDual.dbf");
 
-		ShapeFileImporter.read(roadsFile, PedSimCity.roads);
-		ShapeFileImporter.read(junctionsFile, PedSimCity.junctions);
-		ShapeFileImporter.read(roadsDualFile, PedSimCity.intersectionsDual);
-		ShapeFileImporter.read(centroidsFile, PedSimCity.centroids);
+		ShapeFileImporter.read(roadsSHP, roadsDBF, PedSimCity.roads);
+		ShapeFileImporter.read(junctionsSHP, junctionsDBF, PedSimCity.junctions);
+		ShapeFileImporter.read(roadsDualSHP, roadsDualDBF, PedSimCity.intersectionsDual);
+		ShapeFileImporter.read(centroidsSHP, centroidsDBF, PedSimCity.centroids);
 
 		PedSimCity.network.fromGeomField(PedSimCity.junctions, PedSimCity.roads);
 		PedSimCity.dualNetwork.fromGeomField(PedSimCity.centroids, PedSimCity.intersectionsDual);

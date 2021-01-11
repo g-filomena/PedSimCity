@@ -3,12 +3,12 @@
  *
  */
 
-package sim.app.geo.PedSimCity;
+package sim.app.geo.pedsimcity;
 import java.util.ArrayList;
 
-import sim.app.geo.UrbanSim.EdgeGraph;
-import sim.app.geo.UrbanSim.NodeGraph;
-import sim.app.geo.UrbanSim.Path;
+import sim.app.geo.urbanmason.EdgeGraph;
+import sim.app.geo.urbanmason.NodeGraph;
+import sim.app.geo.urbanmason.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class RoutePlanner {

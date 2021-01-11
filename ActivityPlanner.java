@@ -1,9 +1,9 @@
-package sim.app.geo.PedSimCity;
+package sim.app.geo.pedsimcity;
 
 
 import java.util.Random;
 
-import sim.app.geo.UrbanSim.NodesLookup;
+import sim.app.geo.urbanmason.NodesLookup;
 import sim.engine.SimState;
 
 /**

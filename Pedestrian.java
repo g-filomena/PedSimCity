@@ -1,4 +1,4 @@
-package sim.app.geo.PedSimCity;
+package sim.app.geo.pedsimcity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,9 +8,9 @@ import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.LineString;
 import com.vividsolutions.jts.linearref.LengthIndexedLine;
 
-import sim.app.geo.UrbanSim.EdgeGraph;
-import sim.app.geo.UrbanSim.NodeGraph;
-import sim.app.geo.UrbanSim.NodesLookup;
+import sim.app.geo.urbanmason.EdgeGraph;
+import sim.app.geo.urbanmason.NodeGraph;
+import sim.app.geo.urbanmason.NodesLookup;
 import sim.engine.SimState;
 import sim.engine.Steppable;
 import sim.engine.Stoppable;

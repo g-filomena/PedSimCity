@@ -1,8 +1,8 @@
-package sim.app.geo.PedSimCity;
+package sim.app.geo.pedsimcity;
 
 import org.javatuples.Pair;
 
-import sim.app.geo.UrbanSim.NodeGraph;
+import sim.app.geo.urbanmason.NodeGraph;
 
 public class Gateway {
 
