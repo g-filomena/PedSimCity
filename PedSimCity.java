@@ -293,6 +293,9 @@ public class PedSimCity extends SimState {
 				MasonGeometry landmark = (MasonGeometry) g;
 				globalLandmarks.addGeometry(landmark);
 			}
+			localLandmarks.generateGeometriesList();
+			globalLandmarks.generateGeometriesList();
+
 
 			for (MasonGeometry buildingGeometry : buildings.geometriesList) {
 				Building building = new Building();

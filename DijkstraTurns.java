@@ -99,7 +99,7 @@ public class DijkstraTurns {
 
 			// compute costs based on the navigation strategies.
 			// compute errors in perception of road coasts with stochastic variables
-			double error = 0.0;
+			double error = 1.0;
 			double tentativeCost = 0.0;
 			if (ap.barrierBasedNavigation) {
 				List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
@@ -108,7 +108,7 @@ public class DijkstraTurns {
 				else if ((negativeBarriers != null) && (positiveBarriers == null)) error = Utilities.fromDistribution(1.30, 0.10, "right");
 				else error = Utilities.fromDistribution(1.0, 0.10, null);
 			}
-			else error = Utilities.fromDistribution(1, 0.10, null);
+			//			else error = Utilities.fromDistribution(1, 0.10, null);
 
 			double turnCost = commonEdge.getDeflectionAngle() * error;
 			if (turnCost > 180.0) turnCost = 180.0;

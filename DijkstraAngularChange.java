@@ -18,7 +18,6 @@ import sim.app.geo.urbanmason.NodeGraph;
 import sim.app.geo.urbanmason.NodeWrapper;
 import sim.app.geo.urbanmason.Path;
 import sim.app.geo.urbanmason.SubGraph;
-import sim.app.geo.urbanmason.Utilities;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 public class DijkstraAngularChange {
@@ -107,14 +106,16 @@ public class DijkstraAngularChange {
 			GeomPlanarGraphDirectedEdge outEdge = currentNode.getDirectedEdgeWith(targetNode);
 			// compute costs based on the navigation strategies.
 			// compute errors in perception of road coasts with stochastic variables
-			double error = 0.0;
+			double error = 1.0;
 			double tentativeCost = 0.0;
 
 			List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
 			List<Integer> negativeBarriers = targetNode.primalEdge.negativeBarriers;
-			if (ap.usingNaturalBarriers && positiveBarriers.size() > 0) error = Utilities.fromDistribution(0.70, 0.10, "left");
-			else if (ap.avoidingSeveringBarriers && negativeBarriers.size() > 0) error = Utilities.fromDistribution(1.30, 0.10, "right");
-			else error = Utilities.fromDistribution(1.0, 0.10, null);
+			//						if (ap.usingNaturalBarriers && positiveBarriers.size() > 0) error = Utilities.fromDistribution(0.70, 0.10, "left");
+			//						else if (ap.avoidingSeveringBarriers && negativeBarriers.size() > 0) error = Utilities.fromDistribution(1.30, 0.10, "right");
+			if (ap.usingNaturalBarriers && positiveBarriers.size() > 0) error = 0.85;
+			else if (ap.avoidingSeveringBarriers && negativeBarriers.size() > 0) error = 1.15;
+			//			else error = Utilities.fromDistribution(1.0, 0.10, null);
 
 			double edgeCost = commonEdge.getDeflectionAngle() * error;
 			if (edgeCost > 180.0) edgeCost = 180.0;

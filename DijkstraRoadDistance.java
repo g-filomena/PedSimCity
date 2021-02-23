@@ -17,7 +17,6 @@ import sim.app.geo.urbanmason.NodeGraph;
 import sim.app.geo.urbanmason.NodeWrapper;
 import sim.app.geo.urbanmason.Path;
 import sim.app.geo.urbanmason.SubGraph;
-import sim.app.geo.urbanmason.Utilities;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 
@@ -97,7 +96,7 @@ public class DijkstraRoadDistance {
 			GeomPlanarGraphDirectedEdge outEdge = (GeomPlanarGraphDirectedEdge) commonEdge.getDirEdge(0);
 			if (segmentsToAvoid == null);
 			else if (edgesToAvoid.contains(outEdge.getEdge()))	continue;
-			double error = 0.0;
+			double error = 1.0;
 			double tentativeCost = 0.0;
 
 			// compute costs based on the navigation strategies.
@@ -105,9 +104,12 @@ public class DijkstraRoadDistance {
 			List<Integer> positiveBarriers = commonEdge.positiveBarriers;
 			List<Integer> negativeBarriers = commonEdge.negativeBarriers;
 
-			if (ap.usingNaturalBarriers && positiveBarriers.size() > 0) error = Utilities.fromDistribution(0.70, 0.10, "left");
-			else if (ap.avoidingSeveringBarriers && negativeBarriers.size() > 0) error = Utilities.fromDistribution(1.30, 0.10, "right");
-			else error = Utilities.fromDistribution(1.0, 0.10, null);
+			//			if (ap.usingNaturalBarriers && positiveBarriers.size() > 0) error = Utilities.fromDistribution(0.70, 0.10, "left");
+			//			else if (ap.avoidingSeveringBarriers && negativeBarriers.size() > 0) error = Utilities.fromDistribution(1.30, 0.10, "right");
+
+			if (ap.usingNaturalBarriers && positiveBarriers.size() > 0) error = 0.85;
+			else if (ap.avoidingSeveringBarriers && negativeBarriers.size() > 0) error = 1.15;
+			//			else error = Utilities.fromDistribution(1.0, 0.10, null);
 			double edgeCost = commonEdge.getLength()*error;
 
 			if (ap.usingGlobalLandmarks && NodeGraph.nodesDistance(targetNode, finalDestinationNode) > UserParameters.threshold3dVisibility) {

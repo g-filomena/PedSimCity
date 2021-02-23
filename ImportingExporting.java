@@ -127,7 +127,7 @@ public class ImportingExporting {
 
 		System.out.println("saving Routes");
 		VectorLayer routes = new VectorLayer();
-		String	directory = UserParameters.outputFolderRoutes+"routes_"+(job);
+		String	directory = UserParameters.outputFolderRoutes+"_surveyRoutes_"+(job);
 		int columns = 0;
 		for (RouteData rD : PedSimCity.routesData) {
 			List<Integer> sequenceEdges = rD.sequenceEdges;
@@ -159,8 +159,6 @@ public class ImportingExporting {
 
 			mg.addIntegerAttribute("O", rD.origin);
 			mg.addIntegerAttribute("D", rD.destination);
-			mg.addStringAttribute("routeID", rD.routeID);
-			mg.addStringAttribute("localH", rD.localH);
 			if (UserParameters.empiricalABM) mg.addIntegerAttribute("group", rD.group);
 			else mg.addStringAttribute("routeChoice", rD.routeChoice);
 
