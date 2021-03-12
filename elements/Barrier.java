@@ -1,9 +1,9 @@
-package sim.app.geo.pedsimcity;
+package pedsimcity.elements;
 
 import java.util.ArrayList;
 
-import sim.app.geo.urbanmason.EdgeGraph;
 import sim.util.geo.MasonGeometry;
+import urbanmason.main.EdgeGraph;
 
 public class Barrier {
 

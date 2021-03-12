@@ -6,16 +6,18 @@
  *
  */
 
-package sim.app.geo.pedsimcity;
+package pedsimcity.routeChoice;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import sim.app.geo.urbanmason.EdgeGraph;
-import sim.app.geo.urbanmason.NodeGraph;
-import sim.app.geo.urbanmason.NodeWrapper;
-import sim.app.geo.urbanmason.Path;
-import sim.app.geo.urbanmason.SubGraph;
+import pedsimcity.agents.AgentProperties;
+import pedsimcity.main.PedSimCity;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
+import urbanmason.main.EdgeGraph;
+import urbanmason.main.NodeGraph;
+import urbanmason.main.NodeWrapper;
+import urbanmason.main.Path;
+import urbanmason.main.SubGraph;
 
 public class DijkstraGlobalLandmarks {
 

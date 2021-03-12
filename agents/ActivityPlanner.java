@@ -1,10 +1,12 @@
-package sim.app.geo.pedsimcity;
+package pedsimcity.agents;
 
 
 import java.util.Random;
 
-import sim.app.geo.urbanmason.NodesLookup;
+import pedsimcity.main.PedSimCity;
+import pedsimcity.main.UserParameters;
 import sim.engine.SimState;
+import urbanmason.main.NodesLookup;
 
 /**
  * This class contains functions for scheduling different activities when an entire day is simulate UserParameters.activityPlanner;
