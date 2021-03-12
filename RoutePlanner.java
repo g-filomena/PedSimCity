@@ -3,14 +3,13 @@
  *
  */
 
-package pedsimcity.routeChoice;
+package sim.app.geo.pedsimcity;
 import java.util.ArrayList;
 
-import pedsimcity.agents.AgentProperties;
+import sim.app.geo.urbanmason.EdgeGraph;
+import sim.app.geo.urbanmason.NodeGraph;
+import sim.app.geo.urbanmason.Path;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
-import urbanmason.main.EdgeGraph;
-import urbanmason.main.NodeGraph;
-import urbanmason.main.Path;
 
 public class RoutePlanner {
 
@@ -119,7 +118,7 @@ public class RoutePlanner {
 			path = pathfinder.dijkstraPath(dualOrigin, dualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
 		}
 		else if (ap.localHeuristic.equals("turns")) {
-			DijkstraIntersections pathfinder = new DijkstraIntersections();
+			DijkstraTurns pathfinder = new DijkstraTurns();
 			path = pathfinder.dijkstraPath(dualOrigin, dualDestination, destinationNode, centroidsToAvoid, previousJunction, ap);
 		}
 
@@ -212,7 +211,7 @@ public class RoutePlanner {
 						path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, tmpOrigin, ap);
 					}
 					else if (ap.localHeuristic.equals("turns")) {
-						DijkstraIntersections pathfinder = new DijkstraIntersections();
+						DijkstraTurns pathfinder = new DijkstraTurns();
 						path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, tmpOrigin, ap);
 					}
 					if (path.edges.size() != 0) {
@@ -409,7 +408,7 @@ public class RoutePlanner {
 					path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, tmpOrigin, ap);
 				}
 				else if (ap.localHeuristic.equals("turns")) {
-					DijkstraIntersections pathfinder = new DijkstraIntersections();
+					DijkstraTurns pathfinder = new DijkstraTurns();
 					path = pathfinder.dijkstraPath(tmpDualOrigin, tmpDualDestination, destinationNode, centroidsToAvoid, tmpOrigin, ap);
 				}
 				if (path.edges.size() != 0) {

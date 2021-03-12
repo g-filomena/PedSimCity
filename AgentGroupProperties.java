@@ -1,4 +1,4 @@
-package pedsimcity.agents;
+package sim.app.geo.pedsimcity;
 
 import java.util.ArrayList;
 import java.util.Arrays;

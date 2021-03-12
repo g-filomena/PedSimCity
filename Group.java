@@ -1,11 +1,11 @@
-package pedsimcity.agents;
+package sim.app.geo.pedsimcity;
 
 public class Group {
 
 
-	public String groupName;
-	public int groupID;
-	public double portion = 0.0;
+	String groupName;
+	int groupID;
+	double portion = 0.0;
 	double pRoadDistanceMin = 0.0;
 	double pRoadDistanceMax = 0.0;
 	double pAngularChangeMin = 0.0;

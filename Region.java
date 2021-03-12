@@ -1,12 +1,11 @@
-package pedsimcity.elements;
+package sim.app.geo.pedsimcity;
+
 import java.util.ArrayList;
 
-import pedsimcity.main.UserParameters;
-import pedsimcity.routeChoice.LandmarkNavigation;
+import sim.app.geo.urbanmason.EdgeGraph;
+import sim.app.geo.urbanmason.SubGraph;
+import sim.app.geo.urbanmason.VectorLayer;
 import sim.util.Bag;
-import urbanmason.main.EdgeGraph;
-import urbanmason.main.SubGraph;
-import urbanmason.main.VectorLayer;
 
 
 /**

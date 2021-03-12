@@ -3,7 +3,8 @@
  * This represent the so-called coarse plan that is then refined later on.
  *
  * */
-package pedsimcity.routeChoice;
+
+package sim.app.geo.pedsimcity;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -15,14 +16,10 @@ import java.util.Set;
 
 import org.javatuples.Pair;
 
-import pedsimcity.agents.AgentProperties;
-import pedsimcity.elements.Gateway;
-import pedsimcity.elements.Region;
-import pedsimcity.main.PedSimCity;
-import urbanmason.main.Angles;
-import urbanmason.main.EdgeGraph;
-import urbanmason.main.NodeGraph;
-import urbanmason.main.Utilities;
+import sim.app.geo.urbanmason.Angles;
+import sim.app.geo.urbanmason.EdgeGraph;
+import sim.app.geo.urbanmason.NodeGraph;
+import sim.app.geo.urbanmason.Utilities;
 
 public class RegionBasedNavigation {
 

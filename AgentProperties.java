@@ -1,4 +1,4 @@
-package pedsimcity.agents;
+package sim.app.geo.pedsimcity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -6,41 +6,39 @@ import java.util.Random;
 
 import org.javatuples.Pair;
 
-import pedsimcity.main.PedSimCity;
-import pedsimcity.main.UserParameters;
+import sim.app.geo.urbanmason.NodeGraph;
 import sim.util.Bag;
 import sim.util.geo.MasonGeometry;
-import urbanmason.main.NodeGraph;
 
 
 public class AgentProperties {
 
 	public int agentID;
 	public String criteria;
-	public double agentKnowledge = 1.0;
+	double agentKnowledge = 1.0;
 
 	// for general routing
-	public String localHeuristic = "";
+	String localHeuristic = "";
 	public String routeChoice;
-	public ArrayList<Pair<NodeGraph, NodeGraph>> OD =  new ArrayList<Pair<NodeGraph, NodeGraph>>();
-	public ArrayList<ArrayList<NodeGraph>> listSequences = new ArrayList<ArrayList<NodeGraph>> ();
+	ArrayList<Pair<NodeGraph, NodeGraph>> OD =  new ArrayList<Pair<NodeGraph, NodeGraph>>();
+	ArrayList<ArrayList<NodeGraph>> listSequences = new ArrayList<ArrayList<NodeGraph>> ();
 
 	//landmarkNavigation related parameters
-	public boolean landmarkBasedNavigation = false;
-	public boolean usingGlobalLandmarks = false;
-	public boolean onlyAnchors = true;
+	boolean landmarkBasedNavigation = false;
+	boolean usingGlobalLandmarks = false;
+	boolean onlyAnchors = true;
 	// for computing the complexity of the environment ["local", "global"]
-	public String typeLandmarks = "";
+	String typeLandmarks = "";
 
 	//region- and barrier-based parameters
-	public boolean regionBasedNavigation = false;
-	public boolean barrierBasedNavigation = false;
+	boolean regionBasedNavigation = false;
+	boolean barrierBasedNavigation = false;
 	// the ones possibly used as sub-goals ["all", "positive", "negative", "separating"]
-	public String typeBarriers = "";
-	public boolean usingNaturalBarriers = false;
-	public boolean avoidingSeveringBarriers = false;
+	String typeBarriers = "";
+	boolean usingNaturalBarriers = false;
+	boolean avoidingSeveringBarriers = false;
 
-	public boolean nodeBasedNavigation = false;
+	boolean nodeBasedNavigation = false;
 
 	/**
 	 * @param landmarkBasedNavigation using Landmarks y/n;

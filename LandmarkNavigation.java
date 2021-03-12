@@ -4,7 +4,8 @@
  *
  * @author Gabriele Filomena
  */
-package pedsimcity.routeChoice;
+
+package sim.app.geo.pedsimcity;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -12,16 +13,13 @@ import java.util.Map;
 
 import com.vividsolutions.jts.geom.Geometry;
 
-import pedsimcity.agents.AgentProperties;
-import pedsimcity.main.PedSimCity;
-import pedsimcity.main.UserParameters;
+import sim.app.geo.urbanmason.Building;
+import sim.app.geo.urbanmason.NodeGraph;
+import sim.app.geo.urbanmason.Path;
+import sim.app.geo.urbanmason.VectorLayer;
 import sim.util.Bag;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 import sim.util.geo.MasonGeometry;
-import urbanmason.main.Building;
-import urbanmason.main.NodeGraph;
-import urbanmason.main.Path;
-import urbanmason.main.VectorLayer;
 
 public class LandmarkNavigation {
 

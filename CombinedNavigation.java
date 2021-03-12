@@ -1,4 +1,4 @@
-package pedsimcity.routeChoice;
+package sim.app.geo.pedsimcity;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -8,12 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import pedsimcity.agents.AgentProperties;
-import pedsimcity.elements.Region;
-import pedsimcity.main.PedSimCity;
-import pedsimcity.main.UserParameters;
+import sim.app.geo.urbanmason.NodeGraph;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
-import urbanmason.main.NodeGraph;
 
 public class CombinedNavigation{
 
