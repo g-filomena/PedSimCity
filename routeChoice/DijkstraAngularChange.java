@@ -114,12 +114,13 @@ public class DijkstraAngularChange {
 
 			List<Integer> pBarriers = targetNode.primalEdge.positiveBarriers;
 			List<Integer> nBarriers = targetNode.primalEdge.negativeBarriers;
-			if (ap.onlyMinimising == null && ap.preferenceNaturalBarriers && pBarriers.size() > 0) error = Utilities.fromDistribution(ap.meanNaturalBarriers, 0.10, "left");
-			else if (ap.onlyMinimising == null && ap.aversionSeveringBarriers && nBarriers.size() > 0) error = Utilities.fromDistribution(ap.meanSeveringBarriers, 0.10, "right");
-			else error = Utilities.fromDistribution(1.0, 0.10, null);
+//			if (ap.onlyMinimising == null && ap.preferenceNaturalBarriers && pBarriers.size() > 0) error = Utilities.fromDistribution(ap.meanNaturalBarriers, 0.10, "left");
+//			else if (ap.onlyMinimising == null && ap.aversionSeveringBarriers && nBarriers.size() > 0) error = Utilities.fromDistribution(ap.meanSeveringBarriers, 0.10, "right");
+//			else error = Utilities.fromDistribution(1.0, 0.10, null);
 
-//			if (ap.preferenceNaturalBarriers && pBarriers.size() > 0) error = 0.85;
-//			else if (ap.aversionSeveringBarriers && nBarriers.size() > 0) error = 1.15;
+			if (ap.onlyMinimising == null && ap.preferenceNaturalBarriers && pBarriers.size() > 0) error = 0.85;
+			else if (ap.onlyMinimising == null && ap.aversionSeveringBarriers && nBarriers.size() > 0) error = 1.15;
+			else error = Utilities.fromDistribution(1.0, 0.10, null);
 
 			double edgeCost = commonEdge.getDeflectionAngle() * error;
 			if (edgeCost > 180.0) edgeCost = 180.0;

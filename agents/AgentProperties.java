@@ -69,8 +69,8 @@ public class AgentProperties {
 			barrierBasedNavigation = true;
 			preferenceNaturalBarriers = true;
 			aversionSeveringBarriers = true;
-			meanNaturalBarriers = 1.30;
-			meanSeveringBarriers = 0.70;
+			meanNaturalBarriers = 0.70;
+			meanSeveringBarriers = 1.30;
 		}
 
 		if (agentKnowledge <= UserParameters.noobAgentThreshold) onlyAnchors = false;

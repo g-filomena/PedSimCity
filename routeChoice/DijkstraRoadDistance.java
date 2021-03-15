@@ -104,14 +104,14 @@ public class DijkstraRoadDistance {
 
 			// compute costs based on the navigation strategies.
 			// compute errors in perception of road coasts with stochastic variables
-			List<Integer> pBarriers = targetNode.primalEdge.positiveBarriers;
-			List<Integer> nBarriers = targetNode.primalEdge.negativeBarriers;
-			if (ap.onlyMinimising == null  && ap.preferenceNaturalBarriers && pBarriers.size() > 0) error = Utilities.fromDistribution(ap.meanNaturalBarriers, 0.10, "left");
-			else if (ap.onlyMinimising == null  && ap.aversionSeveringBarriers && nBarriers.size() > 0) error = Utilities.fromDistribution(ap.meanSeveringBarriers, 0.10, "right");
+			List<Integer> pBarriers = commonEdge.positiveBarriers;
+			List<Integer> nBarriers = commonEdge.negativeBarriers;
+//			if (ap.onlyMinimising == null  && ap.preferenceNaturalBarriers && pBarriers.size() > 0) error = Utilities.fromDistribution(ap.meanNaturalBarriers, 0.10, "left");
+//			else if (ap.onlyMinimising == null  && ap.aversionSeveringBarriers && nBarriers.size() > 0) error = Utilities.fromDistribution(ap.meanSeveringBarriers, 0.10, "right");
+//			else error = Utilities.fromDistribution(1.0, 0.10, null);
+			if (ap.onlyMinimising == null && ap.preferenceNaturalBarriers && pBarriers.size() > 0) error = 0.85;
+			else if (ap.onlyMinimising == null && ap.aversionSeveringBarriers && nBarriers.size() > 0) error = 1.15;
 			else error = Utilities.fromDistribution(1.0, 0.10, null);
-//			if (ap.preferenceNaturalBarriers && pBarriers.size() > 0) error = 0.85;
-//			else if (ap.aversionSeveringBarriers && nBarriers.size() > 0) error = 1.15;
-
 			double edgeCost = commonEdge.getLength()*error;
 
 			if (ap.onlyMinimising == null && ap.usingGlobalLandmarks && NodeGraph.nodesDistance(targetNode, finalDestinationNode) > UserParameters.threshold3dVisibility) {

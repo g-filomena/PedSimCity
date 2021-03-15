@@ -30,17 +30,17 @@ public class ImportingExporting {
 	public static void importFiles() throws Exception {
 
 		String inputDataDirectory = null;
-
 		if (UserParameters.testingLandmarks) {
-			inputDataDirectory = "data/landmarksData"+"/"+UserParameters.cityName+"/";
+			inputDataDirectory = "/pedsimcity/data/landmarksData"+"/"+UserParameters.cityName+"/";
 			importDistances(inputDataDirectory);
 		}
-		else if (UserParameters.testingRegions) inputDataDirectory = "data/districtsData/"+UserParameters.cityName+"/";
-		else inputDataDirectory = "data/"+UserParameters.cityName+"/";
+		else if (UserParameters.testingRegions) inputDataDirectory = "/pedsimcity/data/districtsData/"+UserParameters.cityName+"/";
+		else inputDataDirectory = "/pedsimcity/data/"+UserParameters.cityName+"/";
 
 		try {
 			URL barriersSHP = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_barriers.shp");
 			URL barriersDBF = PedSimCity.class.getResource(inputDataDirectory+"/"+UserParameters.cityName+"_barriers.dbf");
+			System.out.println(inputDataDirectory+"/"+UserParameters.cityName+"_barriers.shp");
 			ShapeFileImporter.read(barriersSHP, barriersDBF, PedSimCity.barriers);
 			System.out.println("reading barriers layer");
 			PedSimCity.barriers.generateGeometriesList();

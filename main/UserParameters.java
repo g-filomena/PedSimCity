@@ -34,7 +34,7 @@ public class UserParameters {
 	//specify the models in the string RouteChoice
 	static boolean testingModels = true;
 	//	static String routeChoices[] = {"DS", "AC", "TS"};
-	static String routeChoices[] = {"DS", "AC", "DL", "AL", "ALG", "DLG", "DG", "AG", "DR", "AR", "DRB", "ARB", "TS"};
+	static String routeChoices[] = {"AB", "DB"};
 
 	public static double minDistance = 500;
 	public static double maxDistance = 3000;
@@ -89,7 +89,7 @@ public class UserParameters {
 	public static void setOutputFolder() {
 		if (testingSpecificRoutes || testingModels) {
 			outputFolder = outputFolderDefault+"test/"+cityName+"_PedSim_test_";
-			outputFolderRoutes = outputFolderDefault+"test/routes/"+cityName+"_PedSim_test_";
+			outputFolderRoutes = outputFolderDefault+"test/routes/"+cityName+"_PedSim_test_today";
 		}
 		else if (testingRegions) {
 			outputFolder = outputFolderDefault+"landmarkNavigation/"+cityName+"_PedSim_regions_";
