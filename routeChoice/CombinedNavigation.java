@@ -1,10 +1,8 @@
 package pedsimcity.routeChoice;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -29,66 +27,51 @@ public class CombinedNavigation{
 		this.destinationNode = destinationNode;
 		RoutePlanner planner = new RoutePlanner();
 
+		// only minimisation
+		if (ap.onlyMinimising != null) {
+			if (ap.onlyMinimising.equals("roadDistance")) return planner.roadDistance(originNode, destinationNode, ap);
+			else return planner.angularChangeBased(originNode, destinationNode, ap);
+		}
+
 		//regional routing necessary Yes/No based on threshold? -- does not change the general agent's property
 		if (NodeGraph.nodesDistance(originNode,  destinationNode) < UserParameters.regionBasedNavigationThreshold
 				|| originNode.region == destinationNode.region) ap.regionBasedNavigation = false;
 
-		if (this.ap.regionBasedNavigation) {
+		if (ap.regionBasedNavigation) {
 			RegionBasedNavigation regionsPath = new RegionBasedNavigation();
 			sequenceNodes = regionsPath.sequenceRegions(originNode, destinationNode, ap);
 		}
 
-		// through barrier (sub-goals), already computed above
+		// region+barriers sub-goals already computed above (if applicable); here just barrier sub-goals:
 		if (ap.barrierBasedNavigation && !ap.regionBasedNavigation) {
 			BarrierBasedNavigation barriersPath = new BarrierBasedNavigation();
 			sequenceNodes = barriersPath.sequenceBarriers(originNode, destinationNode, ap);
-			System.out.println("using barriers sub-goals");}
+		}
 
 		// through local landmarks or important nodes (sub-goals)
-		else if (ap.landmarkBasedNavigation || ap.nodeBasedNavigation ) {
-			// when ap.nodeBasedNavigation ap.landmarkBasedNavigation is false;
+		else if (ap.landmarkBasedNavigation) {
 			if (ap.regionBasedNavigation && sequenceNodes.size() > 0) intraRegionMarks();
 			else sequenceNodes = LandmarkNavigation.onRouteMarks(originNode, destinationNode, ap);
 		}
+
 		// pure global landmark navigation (no heuristic, no sub-goals, it allows)
-		else if  (ap.usingGlobalLandmarks && !ap.landmarkBasedNavigation && ap.localHeuristic == "" && !ap.regionBasedNavigation) {
-			System.out.println("returning pure global");
-			return planner.globalLandmarksPath(originNode, destinationNode, ap);
+		else if  (ap.usingGlobalLandmarks && !ap.landmarkBasedNavigation && ap.localHeuristic == null) {
+			if (ap.regionBasedNavigation) return planner.globalLandmarksPathSequence(sequenceNodes, ap); //through regions
+			else return planner.globalLandmarksPath(originNode, destinationNode, ap);
 		}
 		Set<NodeGraph> set = new HashSet<NodeGraph>(sequenceNodes);
-		if(set.size() < sequenceNodes.size()) System.out.println("DUPLICATES---------------------");
+		if(set.size() < sequenceNodes.size()) System.out.println("DUPLICATES");
 
-		List<Integer> opo = new ArrayList<Integer>();
-		for (NodeGraph n : sequenceNodes) opo.add(n.getID());
-		System.out.println(Arrays.asList(opo));
 
 		if (sequenceNodes.size() == 0) {
-			System.out.println("Path only heuristic "+ap.localHeuristic);
 			if (ap.localHeuristic.equals("roadDistance")) return planner.roadDistance(originNode, destinationNode, ap);
-			else if (ap.localHeuristic.equals("angularChange") || ap.localHeuristic.equals("turns"))
-				return planner.angularChangeBased(originNode, destinationNode, ap);
-			else if (ap.usingGlobalLandmarks && ap.localHeuristic == "") return planner.globalLandmarksPath(originNode, destinationNode, ap);
-		}
-		if (ap.localHeuristic.equals("roadDistance")) {
-			System.out.println("Path: "+ap.localHeuristic +" with regions: "+ ap.regionBasedNavigation + ", local "+ ap.landmarkBasedNavigation +
-					" or nodeBased " +ap.nodeBasedNavigation);
-			return planner.roadDistanceSequence(sequenceNodes, ap);
-		}
-		else if (ap.localHeuristic.equals("angularChange") || ap.localHeuristic.equals("turns")) {
-			System.out.println("Path: "+ap.localHeuristic+" with regions: "+ ap.regionBasedNavigation + ", local "+ ap.landmarkBasedNavigation +
-					" or nodeBased " +ap.nodeBasedNavigation);
-			return planner.angularChangeBasedSequence(sequenceNodes, ap);
-		}
-		else if (ap.usingGlobalLandmarks && ap.localHeuristic == "") {
-			System.out.println("only GL --- " + sequenceNodes.size());
-			return planner.globalLandmarksPathSequence(sequenceNodes, ap);
+			else return planner.angularChangeBased(originNode, destinationNode, ap);
 		}
 		else {
-			System.out.println("nothing was assigned here -------------------------------");
-			return null;
+			if (ap.localHeuristic.equals("roadDistance")) return planner.roadDistanceSequence(sequenceNodes, ap);
+			else return planner.angularChangeBasedSequence(sequenceNodes, ap);
 		}
 	}
-
 
 	public void intraRegionMarks() {
 

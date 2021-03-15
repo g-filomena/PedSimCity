@@ -20,6 +20,7 @@ import urbanmason.main.NodeGraph;
 import urbanmason.main.NodeWrapper;
 import urbanmason.main.Path;
 import urbanmason.main.SubGraph;
+import urbanmason.main.Utilities;
 
 
 public class DijkstraRoadDistance {
@@ -103,18 +104,17 @@ public class DijkstraRoadDistance {
 
 			// compute costs based on the navigation strategies.
 			// compute errors in perception of road coasts with stochastic variables
-			List<Integer> positiveBarriers = commonEdge.positiveBarriers;
-			List<Integer> negativeBarriers = commonEdge.negativeBarriers;
+			List<Integer> pBarriers = targetNode.primalEdge.positiveBarriers;
+			List<Integer> nBarriers = targetNode.primalEdge.negativeBarriers;
+			if (ap.onlyMinimising == null  && ap.preferenceNaturalBarriers && pBarriers.size() > 0) error = Utilities.fromDistribution(ap.meanNaturalBarriers, 0.10, "left");
+			else if (ap.onlyMinimising == null  && ap.aversionSeveringBarriers && nBarriers.size() > 0) error = Utilities.fromDistribution(ap.meanSeveringBarriers, 0.10, "right");
+			else error = Utilities.fromDistribution(1.0, 0.10, null);
+//			if (ap.preferenceNaturalBarriers && pBarriers.size() > 0) error = 0.85;
+//			else if (ap.aversionSeveringBarriers && nBarriers.size() > 0) error = 1.15;
 
-			//			if (ap.usingNaturalBarriers && positiveBarriers.size() > 0) error = Utilities.fromDistribution(0.70, 0.10, "left");
-			//			else if (ap.avoidingSeveringBarriers && negativeBarriers.size() > 0) error = Utilities.fromDistribution(1.30, 0.10, "right");
-
-			if (ap.usingNaturalBarriers && positiveBarriers.size() > 0) error = 0.85;
-			else if (ap.avoidingSeveringBarriers && negativeBarriers.size() > 0) error = 1.15;
-			//			else error = Utilities.fromDistribution(1.0, 0.10, null);
 			double edgeCost = commonEdge.getLength()*error;
 
-			if (ap.usingGlobalLandmarks && NodeGraph.nodesDistance(targetNode, finalDestinationNode) > UserParameters.threshold3dVisibility) {
+			if (ap.onlyMinimising == null && ap.usingGlobalLandmarks && NodeGraph.nodesDistance(targetNode, finalDestinationNode) > UserParameters.threshold3dVisibility) {
 				double globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode, finalDestinationNode, ap.onlyAnchors);
 				double nodeLandmarkness = 1.0-globalLandmarkness*UserParameters.globalLandmarknessWeightDistance;
 				double nodeCost = edgeCost*nodeLandmarkness;

@@ -32,10 +32,10 @@ public class ImportingExporting {
 		String inputDataDirectory = null;
 
 		if (UserParameters.testingLandmarks) {
-			inputDataDirectory = "landmarksData"+"/"+UserParameters.cityName+"/";
+			inputDataDirectory = "data/landmarksData"+"/"+UserParameters.cityName+"/";
 			importDistances(inputDataDirectory);
 		}
-		else if (UserParameters.testingRegions) inputDataDirectory = "districtsData/"+UserParameters.cityName+"/";
+		else if (UserParameters.testingRegions) inputDataDirectory = "data/districtsData/"+UserParameters.cityName+"/";
 		else inputDataDirectory = "data/"+UserParameters.cityName+"/";
 
 		try {

@@ -15,7 +15,8 @@ public class AgentProperties {
 	public double agentKnowledge = 1.0;
 
 	// for general routing
-	public String localHeuristic = "";
+	public String localHeuristic = null;
+	public String onlyMinimising = null;
 	public String routeChoice;
 	public ArrayList<Pair<NodeGraph, NodeGraph>> OD =  new ArrayList<Pair<NodeGraph, NodeGraph>>();
 	public ArrayList<ArrayList<NodeGraph>> listSequences = new ArrayList<ArrayList<NodeGraph>> ();
@@ -30,12 +31,12 @@ public class AgentProperties {
 	//region- and barrier-based parameters
 	public boolean regionBasedNavigation = false;
 	public boolean barrierBasedNavigation = false;
+	public double meanNaturalBarriers = 0.0;
+	public double meanSeveringBarriers = 0.0;
+	public boolean preferenceNaturalBarriers = false;
+	public boolean aversionSeveringBarriers = false;
 	// the ones possibly used as sub-goals ["all", "positive", "negative", "separating"]
 	public String typeBarriers = "";
-	public boolean usingNaturalBarriers = false;
-	public boolean avoidingSeveringBarriers = false;
-
-	public boolean nodeBasedNavigation = false;
 
 	/**
 	 * @param landmarkBasedNavigation using Landmarks y/n;
@@ -45,6 +46,11 @@ public class AgentProperties {
 	public void setRouteChoice(String routeChoice) {
 
 		this.routeChoice = routeChoice;
+
+		if (routeChoice == "DS") onlyMinimising = "roadDistance";
+		if (routeChoice == "AC") onlyMinimising = "angularChange";
+		if (routeChoice == "TS") onlyMinimising = "turns";
+
 		if (routeChoice.contains("D")) localHeuristic = "roadDistance";
 		if (routeChoice.contains("A")) localHeuristic = "angularChange";
 		if (routeChoice.contains("T")) localHeuristic = "turns";
@@ -57,12 +63,15 @@ public class AgentProperties {
 			usingGlobalLandmarks = true;
 			onlyAnchors = true;
 		}
-		if (routeChoice.contains("N")) {
-			nodeBasedNavigation = true;
-			landmarkBasedNavigation = false;
-		}
+
 		if (routeChoice.contains("R")) regionBasedNavigation = true;
-		if (routeChoice.contains("B")) barrierBasedNavigation = true;
+		if (routeChoice.contains("B")) {
+			barrierBasedNavigation = true;
+			preferenceNaturalBarriers = true;
+			aversionSeveringBarriers = true;
+			meanNaturalBarriers = 1.30;
+			meanSeveringBarriers = 0.70;
+		}
 
 		if (agentKnowledge <= UserParameters.noobAgentThreshold) onlyAnchors = false;
 	}

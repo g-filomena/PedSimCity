@@ -21,6 +21,7 @@ import urbanmason.main.NodeGraph;
 import urbanmason.main.NodeWrapper;
 import urbanmason.main.Path;
 import urbanmason.main.SubGraph;
+import urbanmason.main.Utilities;
 
 public class DijkstraAngularChange {
 
@@ -111,19 +112,20 @@ public class DijkstraAngularChange {
 			double error = 1.0;
 			double tentativeCost = 0.0;
 
-			List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
-			List<Integer> negativeBarriers = targetNode.primalEdge.negativeBarriers;
-			//						if (ap.usingNaturalBarriers && positiveBarriers.size() > 0) error = Utilities.fromDistribution(0.70, 0.10, "left");
-			//						else if (ap.avoidingSeveringBarriers && negativeBarriers.size() > 0) error = Utilities.fromDistribution(1.30, 0.10, "right");
-			if (ap.usingNaturalBarriers && positiveBarriers.size() > 0) error = 0.85;
-			else if (ap.avoidingSeveringBarriers && negativeBarriers.size() > 0) error = 1.15;
-			//			else error = Utilities.fromDistribution(1.0, 0.10, null);
+			List<Integer> pBarriers = targetNode.primalEdge.positiveBarriers;
+			List<Integer> nBarriers = targetNode.primalEdge.negativeBarriers;
+			if (ap.onlyMinimising == null && ap.preferenceNaturalBarriers && pBarriers.size() > 0) error = Utilities.fromDistribution(ap.meanNaturalBarriers, 0.10, "left");
+			else if (ap.onlyMinimising == null && ap.aversionSeveringBarriers && nBarriers.size() > 0) error = Utilities.fromDistribution(ap.meanSeveringBarriers, 0.10, "right");
+			else error = Utilities.fromDistribution(1.0, 0.10, null);
+
+//			if (ap.preferenceNaturalBarriers && pBarriers.size() > 0) error = 0.85;
+//			else if (ap.aversionSeveringBarriers && nBarriers.size() > 0) error = 1.15;
 
 			double edgeCost = commonEdge.getDeflectionAngle() * error;
 			if (edgeCost > 180.0) edgeCost = 180.0;
 			if (edgeCost < 0.0) edgeCost = 0.0;
 
-			if (ap.usingGlobalLandmarks && NodeGraph.nodesDistance(targetNode, primalDestinationNode) >	UserParameters.threshold3dVisibility) {
+			if (ap.onlyMinimising == null && ap.usingGlobalLandmarks && NodeGraph.nodesDistance(targetNode, primalDestinationNode) >	UserParameters.threshold3dVisibility) {
 				double globalLandmarkness = LandmarkNavigation.globalLandmarknessDualNode(currentNode, targetNode, primalDestinationNode, ap.onlyAnchors);
 				double nodeLandmarkness = 1.0-globalLandmarkness*UserParameters.globalLandmarknessWeightAngular;
 				double nodeCost = nodeLandmarkness*edgeCost;
