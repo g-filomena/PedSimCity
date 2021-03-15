@@ -58,14 +58,8 @@ public class UserParameters {
 
 	// 4) Empirical ABM - creating of groups stochastically from clusters of individuals (in development)
 	public static boolean empiricalABM = false;
-	public static boolean activityBased = false;
 	public static double noobAgentThreshold = 0.25;
 	public static double expertAgentThreshold = 0.75;
-
-	// Time related parameters for activityBased simulation
-	public static int minutesPerStep = 10;
-	public static int startingHour = 7*minutesPerStep;
-	public static int endingHour = 24*minutesPerStep;
 
 	// Landmark Integration
 	public static double distanceNodeLandmark = 50.0;

@@ -75,7 +75,6 @@ public final class Pedestrian implements Steppable {
 		GeometryFactory fact = new GeometryFactory();
 		agentLocation = new MasonGeometry(fact.createPoint(new Coordinate(10, 10)));
 
-		if (UserParameters.activityBased) minutesSoFar = UserParameters.startingHour;
 		if (UserParameters.empiricalABM) this.agp = (AgentGroupProperties) ap;
 		else this.ap = ap;
 
@@ -149,13 +148,8 @@ public final class Pedestrian implements Steppable {
 	public void step(SimState state)
 	{
 		PedSimCity stateSchedule = (PedSimCity) state;
-		minutesSoFar += UserParameters.minutesPerStep;
 
-		if (UserParameters.activityBased && minutesSoFar == UserParameters.endingHour) {
-			System.out.println("End of the day - calling finish");
-			stateSchedule.finish();
-		}
-		else if ((reachedDestination || destinationNode == null) && !UserParameters.activityBased) {
+		if (reachedDestination || destinationNode == null) {
 
 			if (reachedDestination)	reachedDestination = false;
 			if ((numTrips == ap.OD.size() && !UserParameters.empiricalABM)  ||
@@ -181,15 +175,6 @@ public final class Pedestrian implements Steppable {
 			updatePosition(originNode.getCoordinate());
 			findNewAStarPath(stateSchedule);
 			return;
-		}
-		else if (UserParameters.activityBased)  {
-			ap.totalTimeAway += UserParameters.minutesPerStep;
-			if (!reachedDestination & !ap.atPlace) keepWalking();
-			else {
-				ActivityPlanner activityPlanner = new ActivityPlanner();
-				activityPlanner.checkRoutine(state, this);
-				if (ap.atPlace) return;
-			}
 		}
 		else keepWalking();
 	}

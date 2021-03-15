@@ -107,7 +107,6 @@ public class PedSimCity extends SimState {
 		// check consistency settings
 		if (UserParameters.testingLandmarks ||  UserParameters.testingRegions ||  UserParameters.testingSpecificRoutes) {
 			UserParameters.empiricalABM = false;
-			UserParameters.activityBased = false;
 
 			for (String routeChoice : routeChoiceModels) {
 				for (Object o : network.getEdges())	{
@@ -223,7 +222,6 @@ public class PedSimCity extends SimState {
 				AgentGroupProperties ap = new AgentGroupProperties();
 				ap.setPropertiesFromGroup(group);
 
-				if (UserParameters.activityBased) ap.setActivityProperties();
 				Pedestrian a = new Pedestrian(this, ap);
 				a.destinationNode = null;
 				a.agentID = counter;
@@ -313,24 +311,6 @@ public class PedSimCity extends SimState {
 				building.landUse = buildingGeometry.getStringAttribute("land_use");
 				building.DMA = buildingGeometry.getStringAttribute("DMA");
 				building.geometry = buildingGeometry;
-
-				if (UserParameters.activityBased) {
-					Bag nearestNodes = junctions.getObjectsWithinDistance(building.geometry, 500);
-					MasonGeometry closest = null;
-					double lowestDistance = 501.0;
-
-					for (Object nN : nearestNodes) {
-						MasonGeometry node = (MasonGeometry) nN;
-						double distance = node.geometry.distance(buildingGeometry.geometry);
-
-						if (distance < lowestDistance) {
-							closest = node;
-							lowestDistance = node.geometry.distance(buildingGeometry.geometry);
-						}
-					}
-					if (closest == null) building.node = null;
-					else building.node = network.findNode(closest.getGeometry().getCoordinate());
-				}
 				buildingsMap.put(building.buildingID, building);
 			}
 
