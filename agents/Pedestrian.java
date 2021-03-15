@@ -1,4 +1,4 @@
-package sim.app.geo.pedsimcity;
+package pedsimcity.agents;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,25 +8,30 @@ import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.LineString;
 import com.vividsolutions.jts.linearref.LengthIndexedLine;
 
-import sim.app.geo.urbanmason.EdgeGraph;
-import sim.app.geo.urbanmason.NodeGraph;
-import sim.app.geo.urbanmason.NodesLookup;
+import pedsimcity.main.PedSimCity;
+import pedsimcity.main.RouteData;
+import pedsimcity.main.UserParameters;
+import pedsimcity.routeChoice.CombinedNavigation;
+import pedsimcity.routeChoice.RoutePlanner;
 import sim.engine.SimState;
 import sim.engine.Steppable;
 import sim.engine.Stoppable;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 import sim.util.geo.MasonGeometry;
 import sim.util.geo.PointMoveTo;
+import urbanmason.main.EdgeGraph;
+import urbanmason.main.NodeGraph;
+import urbanmason.main.NodesLookup;
 
 public final class Pedestrian implements Steppable {
 
 	private static final long serialVersionUID = -1113018274619047013L;
 	PedSimCity state;
-	Integer agentID;
+	public Integer agentID;
 
 	// Initial Attributes
 	NodeGraph originNode = null;
-	NodeGraph destinationNode = null;
+	public NodeGraph destinationNode = null;
 	ArrayList<GeomPlanarGraphDirectedEdge> path =  new ArrayList<GeomPlanarGraphDirectedEdge>();
 
 	// point that denotes agent's position
@@ -153,7 +158,8 @@ public final class Pedestrian implements Steppable {
 		else if ((reachedDestination || destinationNode == null) && !UserParameters.activityBased) {
 
 			if (reachedDestination)	reachedDestination = false;
-			if ((numTrips == ap.OD.size() && !UserParameters.empiricalABM)  || (UserParameters.empiricalABM && this.numTrips == UserParameters.numTrips)) {
+			if ((numTrips == ap.OD.size() && !UserParameters.empiricalABM)  ||
+					(UserParameters.empiricalABM && this.numTrips == UserParameters.numTrips)) {
 				stateSchedule.agentsList.remove(this);
 				if (stateSchedule.agentsList.size() == 0) {
 					System.out.println("calling finish");

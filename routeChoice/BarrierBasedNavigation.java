@@ -4,7 +4,7 @@
  *
  * */
 
-package sim.app.geo.pedsimcity;
+package pedsimcity.routeChoice;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -17,12 +17,16 @@ import org.javatuples.Pair;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
 
-import sim.app.geo.urbanmason.Angles;
-import sim.app.geo.urbanmason.EdgeGraph;
-import sim.app.geo.urbanmason.NodeGraph;
-import sim.app.geo.urbanmason.Utilities;
+import pedsimcity.agents.AgentProperties;
+import pedsimcity.elements.Barrier;
+import pedsimcity.elements.Region;
+import pedsimcity.main.PedSimCity;
 import sim.util.Bag;
 import sim.util.geo.MasonGeometry;
+import urbanmason.main.Angles;
+import urbanmason.main.EdgeGraph;
+import urbanmason.main.NodeGraph;
+import urbanmason.main.Utilities;
 
 public class BarrierBasedNavigation {
 

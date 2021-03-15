@@ -1,4 +1,4 @@
-package sim.app.geo.pedsimcity;
+package pedsimcity.main;
 
 //import java.io.IOException;
 import java.util.ArrayList;
@@ -11,19 +11,27 @@ import org.javatuples.Pair;
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.planargraph.DirectedEdgeStar;
 
-import sim.app.geo.urbanmason.Angles;
-import sim.app.geo.urbanmason.Building;
-import sim.app.geo.urbanmason.EdgeGraph;
-import sim.app.geo.urbanmason.Graph;
-import sim.app.geo.urbanmason.NodeGraph;
-import sim.app.geo.urbanmason.NodesLookup;
-import sim.app.geo.urbanmason.SubGraph;
-import sim.app.geo.urbanmason.VectorLayer;
+import pedsimcity.agents.AgentGroupProperties;
+import pedsimcity.agents.AgentProperties;
+import pedsimcity.agents.Group;
+import pedsimcity.agents.Pedestrian;
+import pedsimcity.elements.Barrier;
+import pedsimcity.elements.Gateway;
+import pedsimcity.elements.Region;
+import pedsimcity.routeChoice.LandmarkNavigation;
 import sim.engine.SimState;
 import sim.engine.Stoppable;
 import sim.util.Bag;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 import sim.util.geo.MasonGeometry;
+import urbanmason.main.Angles;
+import urbanmason.main.Building;
+import urbanmason.main.EdgeGraph;
+import urbanmason.main.Graph;
+import urbanmason.main.NodeGraph;
+import urbanmason.main.NodesLookup;
+import urbanmason.main.SubGraph;
+import urbanmason.main.VectorLayer;
 
 /**
  * The  simulation core.
@@ -75,7 +83,7 @@ public class PedSimCity extends SimState {
 
 	// agents
 	public static VectorLayer agents = new VectorLayer();
-	ArrayList<Pedestrian> agentsList = new ArrayList<Pedestrian>();
+	public ArrayList<Pedestrian> agentsList = new ArrayList<Pedestrian>();
 	public static String routeChoiceModels[];
 
 	/** Constructor */

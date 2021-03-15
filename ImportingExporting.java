@@ -1,4 +1,4 @@
-package sim.app.geo.pedsimcity;
+package pedsimcity.main;
 
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -15,13 +15,14 @@ import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.LineString;
 
-import sim.app.geo.urbanmason.EdgeGraph;
-import sim.app.geo.urbanmason.NodeGraph;
-import sim.app.geo.urbanmason.VectorLayer;
+import pedsimcity.agents.Group;
 import sim.io.geo.ShapeFileExporter;
 import sim.io.geo.ShapeFileImporter;
 import sim.util.Bag;
 import sim.util.geo.MasonGeometry;
+import urbanmason.main.EdgeGraph;
+import urbanmason.main.NodeGraph;
+import urbanmason.main.VectorLayer;
 
 public class ImportingExporting {
 

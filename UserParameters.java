@@ -1,4 +1,4 @@
-package sim.app.geo.pedsimcity;
+package pedsimcity.main;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,7 +13,7 @@ public class UserParameters {
 	static String cityName = "Muenster";
 	static int jobs = 1;
 	static int numAgents = 100; //this is set to 1 agent per route choice model when one of testingLandmarks, testingRegions, testingModels is True
-	static int numTrips = 10; //this is automatically set when one of testingLandmarks (255), testingRegions (2000) is True
+	public static int numTrips = 10; //this is automatically set when one of testingLandmarks (255), testingRegions (2000) is True
 
 	// 1) Run the model to a) evaluate the introduction of landmarks or b) regions and barriers.
 	// set (only) one of the following ones as true, only when replicating the analysis under the specific conditions of the papers (see github repository)
@@ -36,8 +36,8 @@ public class UserParameters {
 	//	static String routeChoices[] = {"DS", "AC", "TS"};
 	static String routeChoices[] = {"DS", "AC", "DL", "AL", "ALG", "DLG", "DG", "AG", "DR", "AR", "DRB", "ARB", "TS"};
 
-	static double minDistance = 500;
-	static double maxDistance = 3000;
+	public static double minDistance = 500;
+	public static double maxDistance = 3000;
 
 
 	// 3) Test specificRoutes (1 agent per routeChoiceModel, specify them above in routeChoices).
@@ -57,35 +57,35 @@ public class UserParameters {
 	}
 
 	// 4) Empirical ABM - creating of groups stochastically from clusters of individuals (in development)
-	static boolean empiricalABM = false;
-	static boolean activityBased = false;
-	static double noobAgentThreshold = 0.25;
-	static double expertAgentThreshold = 0.75;
+	public static boolean empiricalABM = false;
+	public static boolean activityBased = false;
+	public static double noobAgentThreshold = 0.25;
+	public static double expertAgentThreshold = 0.75;
 
 	// Time related parameters for activityBased simulation
-	static int minutesPerStep = 10;
-	static int startingHour = 7*minutesPerStep;
-	static int endingHour = 24*minutesPerStep;
+	public static int minutesPerStep = 10;
+	public static int startingHour = 7*minutesPerStep;
+	public static int endingHour = 24*minutesPerStep;
 
 	// Landmark Integration
-	static double distanceNodeLandmark = 50.0;
+	public static double distanceNodeLandmark = 50.0;
 	public static double distanceAnchors = 1500;
-	static double threshold3dVisibility  = 300;
-	static double globalLandmarkThreshold = 0.30; //
-	static double localLandmarkThreshold = 0.30; //
-	static double salientNodesPercentile = 0.75; // Threshold Percentile to identify salient nodes
+	public static double threshold3dVisibility  = 300;
+	public static double globalLandmarkThreshold = 0.30; //
+	public static double localLandmarkThreshold = 0.30; //
+	public static double salientNodesPercentile = 0.75; // Threshold Percentile to identify salient nodes
 	public static int nrAnchors = 25;
 
 	// Some researcher-defined parameter
-	static double wayfindingEasinessThreshold = 0.95; //2d Visibility threshold; distanLandmarks usage threshold
-	static double globalLandmarknessWeightDistance = 0.80; //weight Global Landmarkness in combination with edge cost
-	static double globalLandmarknessWeightAngular = 0.90; //weight Global Landmarkness in combination with edge cost
-	static double regionBasedNavigationThreshold = 600; //Region-based navigation Threshold - meters
-	static double thresholdTurn = 0.00;
+	public static double wayfindingEasinessThreshold = 0.95; //2d Visibility threshold; distanLandmarks usage threshold
+	public static double globalLandmarknessWeightDistance = 0.80; //weight Global Landmarkness in combination with edge cost
+	public static double globalLandmarknessWeightAngular = 0.90; //weight Global Landmarkness in combination with edge cost
+	public static double regionBasedNavigationThreshold = 600; //Region-based navigation Threshold - meters
+	public static double thresholdTurn = 0.00;
 
 	// Other parameters
-	static boolean socialInteraction = false;
-	static boolean subGraph = false;
+	public static boolean socialInteraction = false;
+	public static boolean subGraph = false;
 
 	//directories
 	public static String outputFolderDefault = "C:/Users/g_filo01/sciebo/Scripts/PedSimCity-Evaluation/Input/";

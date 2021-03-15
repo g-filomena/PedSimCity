@@ -1,4 +1,4 @@
-package sim.app.geo.pedsimcity;
+package pedsimcity.main;
 
 import java.util.List;
 
@@ -9,13 +9,13 @@ import java.util.List;
 
 public class RouteData {
 
-	Integer origin;
-	Integer destination;
-	String routeChoice;
-	List<Integer> sequenceEdges;
-	String routeID;
-	int group;
-	String localH;
-	String rB;
-	String lB;
+	public Integer origin;
+	public Integer destination;
+	public String routeChoice;
+	public List<Integer> sequenceEdges;
+	public String routeID;
+	public int group;
+	public String localH;
+	public String rB;
+	public String lB;
 }
