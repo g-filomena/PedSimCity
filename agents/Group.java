@@ -2,7 +2,6 @@ package pedsimcity.agents;
 
 public class Group {
 
-
 	public String groupName;
 	public int groupID;
 	public double portion = 0.0;
@@ -40,12 +39,14 @@ public class Group {
 	double agentKnowledge = 0.0;
 	double agentKnowledgeSD = 1.0;
 
-	public void setGroup(String groupName, String [] attributes) {
+	public void setGroup(String groupName, String[] attributes) {
 
 		this.groupName = groupName;
+		if (this.groupName.equals("null"))
+			return;
 		this.portion = Float.parseFloat(attributes[1]);
 
-		//onlyMinimisation
+		// onlyMinimisation
 		this.pOnlyRoadDistance = Float.parseFloat(attributes[2]);
 		this.pOnlyRoadDistanceSD = Float.parseFloat(attributes[3]);
 		this.pOnlyAngularChange = Float.parseFloat(attributes[4]);
@@ -83,10 +84,3 @@ public class Group {
 
 	}
 }
-
-
-
-
-
-
-
