@@ -27,169 +27,193 @@ public class DijkstraIntersections {
 
 	NodeGraph originNode, destinationNode, primalDestinationNode, previousJunction;
 	ArrayList<NodeGraph> visitedNodes, unvisitedNodes, centroidsToAvoid;
-	HashMap<NodeGraph, NodeWrapper> mapWrappers =  new HashMap<NodeGraph, NodeWrapper>();
+	HashMap<NodeGraph, NodeWrapper> mapWrappers = new HashMap<>();
 	SubGraph graph = new SubGraph();
-	// it contemplates an attempt where navigation takes place by the convex-hull method (see below).
+	// it contemplates an attempt where navigation takes place by the convex-hull
+	// method (see below).
 	AgentProperties ap = new AgentProperties();
 
 	/**
-	 * @param originNode the origin node (dual graph);
-	 * @param destinationNode the destination node (dual graph);
+	 * @param originNode            the origin node (dual graph);
+	 * @param destinationNode       the destination node (dual graph);
 	 * @param primalDestinationNode the actual final, primal destination Node;
-	 * @param centroidsToAvoid the centroids (dual nodes, representing segments) already traversed in previous iterations, if applicable;
-	 * @param previousJunction the previous primal junction, if any;
-	 * @param ap the set of the properties that describe the agent;
+	 * @param centroidsToAvoid      the centroids (dual nodes, representing
+	 *                              segments) already traversed in previous
+	 *                              iterations, if applicable;
+	 * @param previousJunction      the previous primal junction, if any;
+	 * @param ap                    the set of the properties that describe the
+	 *                              agent;
 	 */
-
-	public Path dijkstraPath (NodeGraph originNode, NodeGraph destinationNode, NodeGraph primalDestinationNode,
+	public Path dijkstraPath(NodeGraph originNode, NodeGraph destinationNode, NodeGraph primalDestinationNode,
 			ArrayList<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, AgentProperties ap) {
 
 		this.ap = ap;
 		this.originNode = originNode;
 		this.destinationNode = destinationNode;
 		this.primalDestinationNode = primalDestinationNode;
-		if (centroidsToAvoid != null) this.centroidsToAvoid = new ArrayList<NodeGraph>(centroidsToAvoid);
+		if (centroidsToAvoid != null)
+			this.centroidsToAvoid = new ArrayList<>(centroidsToAvoid);
 		this.previousJunction = previousJunction;
 
-		// If region-based navigation, navigate only within the region subgraph, if origin and destination nodes belong to the same region.
+		// If region-based navigation, navigate only within the region subgraph, if
+		// origin and destination nodes belong to the same region.
 
-		if ((originNode.region == destinationNode.region) && (ap.regionBasedNavigation)) {
-			graph = PedSimCity.regionsMap.get(originNode.region).dualGraph;
-			originNode = graph.findNode(originNode.getCoordinate());
-			destinationNode = graph.findNode(destinationNode.getCoordinate());
-			if (centroidsToAvoid != null) centroidsToAvoid = graph.getChildNodes(centroidsToAvoid);
+		if (originNode.region == destinationNode.region && ap.regionBasedNavigation) {
+			this.graph = PedSimCity.regionsMap.get(originNode.region).dualGraph;
+			originNode = this.graph.findNode(originNode.getCoordinate());
+			destinationNode = this.graph.findNode(destinationNode.getCoordinate());
+			if (centroidsToAvoid != null)
+				centroidsToAvoid = this.graph.getChildNodes(centroidsToAvoid);
 			// primalJunction is always the same;
 		}
 
-		visitedNodes = new ArrayList<NodeGraph>();
-		unvisitedNodes = new ArrayList<NodeGraph>();
-		unvisitedNodes.add(originNode);
+		this.visitedNodes = new ArrayList<>();
+		this.unvisitedNodes = new ArrayList<>();
+		this.unvisitedNodes.add(originNode);
 
 		// NodeWrapper = container for the metainformation about a Node
-		NodeWrapper NodeWrapper = new NodeWrapper(originNode);
+		final NodeWrapper NodeWrapper = new NodeWrapper(originNode);
 		NodeWrapper.gx = 0.0;
-		if (previousJunction != null) NodeWrapper.commonPrimalJunction = previousJunction;
-		mapWrappers.put(originNode, NodeWrapper);
+		if (previousJunction != null)
+			NodeWrapper.commonPrimalJunction = previousJunction;
+		this.mapWrappers.put(originNode, NodeWrapper);
 
 		// add centroids to avoid in the visited set
-		if (centroidsToAvoid != null) for (NodeGraph c : centroidsToAvoid) visitedNodes.add(c);
+		if (centroidsToAvoid != null)
+			for (final NodeGraph c : centroidsToAvoid)
+				this.visitedNodes.add(c);
 
-		while (unvisitedNodes.size() > 0) {
+		while (this.unvisitedNodes.size() > 0) {
 			// at the beginning it takes originNode
-			NodeGraph currentNode = getClosest(unvisitedNodes);
-			visitedNodes.add(currentNode);
-			unvisitedNodes.remove(currentNode);
-			findMinDistances(currentNode);
+			final NodeGraph currentNode = this.getClosest(this.unvisitedNodes);
+			this.visitedNodes.add(currentNode);
+			this.unvisitedNodes.remove(currentNode);
+			this.findMinDistances(currentNode);
 		}
-		return reconstructPath(originNode, destinationNode);
+		return this.reconstructPath(originNode, destinationNode);
 	}
 
 	private void findMinDistances(NodeGraph currentNode) {
-		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
-		for (NodeGraph targetNode : adjacentNodes) {
-			if (visitedNodes.contains(targetNode)) continue;
-
-			/**
-			 * Check if the current and the possible next centroid share in the primal graph the same junction as the current with
-			 * its previous centroid --> if yes move on. This essential means that the in the primal graph you would go back to an
-			 * already traversed node; but the dual graph wouldn't know.
-			 */
-			if (Path.commonPrimalJunction(targetNode, currentNode) == mapWrappers.get(currentNode).commonPrimalJunction)
+		final ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
+		for (final NodeGraph targetNode : adjacentNodes) {
+			if (this.visitedNodes.contains(targetNode))
 				continue;
 
-			EdgeGraph commonEdge = currentNode.getEdgeWith(targetNode);
+			/**
+			 * Check if the current and the possible next centroid share in the primal graph
+			 * the same junction as the current with its previous centroid --> if yes move
+			 * on. This essential means that the in the primal graph you would go back to an
+			 * already traversed node; but the dual graph wouldn't know.
+			 */
+			if (Path.commonPrimalJunction(targetNode,
+					currentNode) == this.mapWrappers.get(currentNode).commonPrimalJunction)
+				continue;
+
+			final EdgeGraph commonEdge = currentNode.getEdgeWith(targetNode);
 
 			// compute costs based on the navigation strategies.
 			// compute errors in perception of road coasts with stochastic variables
 			double error = 1.0;
 			double tentativeCost = 0.0;
-			if (ap.barrierBasedNavigation) {
-				List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
-				List<Integer> negativeBarriers = targetNode.primalEdge.negativeBarriers;
-				if (positiveBarriers != null) error = Utilities.fromDistribution(0.70, 0.10, "left");
-				else if ((negativeBarriers != null) && (positiveBarriers == null)) error = Utilities.fromDistribution(1.30, 0.10, "right");
-				else error = Utilities.fromDistribution(1.0, 0.10, null);
+			if (this.ap.barrierBasedNavigation) {
+				final List<Integer> positiveBarriers = targetNode.primalEdge.positiveBarriers;
+				final List<Integer> negativeBarriers = targetNode.primalEdge.negativeBarriers;
+				if (positiveBarriers != null)
+					error = Utilities.fromDistribution(0.70, 0.10, "left");
+				else if (negativeBarriers != null && positiveBarriers == null)
+					error = Utilities.fromDistribution(1.30, 0.10, "right");
+				else
+					error = Utilities.fromDistribution(1.0, 0.10, null);
 			}
-			//			else error = Utilities.fromDistribution(1, 0.10, null);
+			// else error = Utilities.fromDistribution(1, 0.10, null);
 
 			double turnCost = commonEdge.getDeflectionAngle() * error;
-			if (turnCost > 180.0) turnCost = 180.0;
-			if (turnCost < 0.0) turnCost = 0.0;
-			GeomPlanarGraphDirectedEdge outEdge = currentNode.getDirectedEdgeWith(targetNode);
-			if (turnCost <= UserParameters.thresholdTurn) tentativeCost = getBest(currentNode);
-			else{
+			if (turnCost > 180.0)
+				turnCost = 180.0;
+			if (turnCost < 0.0)
+				turnCost = 0.0;
+			final GeomPlanarGraphDirectedEdge outEdge = currentNode.getDirectedEdgeWith(targetNode);
+			if (turnCost <= UserParameters.thresholdTurn)
+				tentativeCost = this.getBest(currentNode);
+			else {
 				double edgeCost = 1.0;
-				if (ap.usingGlobalLandmarks && NodeGraph.nodesDistance(targetNode, primalDestinationNode) >	UserParameters.threshold3dVisibility) {
-					double globalLandmarkness = LandmarkNavigation.globalLandmarknessDualNode(currentNode, targetNode, primalDestinationNode, ap.onlyAnchors);
-					double nodeLandmarkness = 1.0-globalLandmarkness*UserParameters.globalLandmarknessWeightAngular;
-					edgeCost = nodeLandmarkness*1;
+				if (this.ap.usingGlobalLandmarks && NodeGraph.nodesDistance(targetNode,
+						this.primalDestinationNode) > UserParameters.threshold3dVisibility) {
+					final double globalLandmarkness = LandmarkNavigation.globalLandmarknessDualNode(currentNode,
+							targetNode, this.primalDestinationNode, this.ap.onlyAnchors);
+					final double nodeLandmarkness = 1.0
+							- globalLandmarkness * UserParameters.globalLandmarknessWeightAngular;
+					edgeCost = nodeLandmarkness * 1;
 				}
-				tentativeCost = getBest(currentNode)+edgeCost; //no turn
+				tentativeCost = this.getBest(currentNode) + edgeCost; // no turn
 			}
 
-			if (getBest(targetNode) > tentativeCost) {
-				NodeWrapper NodeWrapper = mapWrappers.get(targetNode);
-				if (NodeWrapper == null) NodeWrapper = new NodeWrapper(targetNode);
+			if (this.getBest(targetNode) > tentativeCost) {
+				NodeWrapper NodeWrapper = this.mapWrappers.get(targetNode);
+				if (NodeWrapper == null)
+					NodeWrapper = new NodeWrapper(targetNode);
 				NodeWrapper.nodeFrom = currentNode;
 				NodeWrapper.edgeFrom = outEdge;
 				NodeWrapper.commonPrimalJunction = Path.commonPrimalJunction(currentNode, targetNode);
 				NodeWrapper.gx = tentativeCost;
-				mapWrappers.put(targetNode, NodeWrapper);
-				unvisitedNodes.add(targetNode);
+				this.mapWrappers.put(targetNode, NodeWrapper);
+				this.unvisitedNodes.add(targetNode);
 			}
 		}
 	}
 
-
 	private NodeGraph getClosest(ArrayList<NodeGraph> nodes) {
 
 		NodeGraph closest = null;
-		for (NodeGraph node : nodes) {
-			if (closest == null) closest = node;
-			else if (getBest(node) < getBest(closest)) closest = node;
-		}
+		for (final NodeGraph node : nodes)
+			if (closest == null)
+				closest = node;
+			else if (this.getBest(node) < this.getBest(closest))
+				closest = node;
 		return closest;
 	}
 
 	Double getBest(NodeGraph target) {
 
-		if (mapWrappers.get(target) == null) return Double.MAX_VALUE;
-		else return mapWrappers.get(target).gx;
+		if (this.mapWrappers.get(target) == null)
+			return Double.MAX_VALUE;
+		else
+			return this.mapWrappers.get(target).gx;
 	}
-
 
 	public Path reconstructPath(NodeGraph originNode, NodeGraph destinationNode) {
 
-		Path path = new Path();
+		final Path path = new Path();
 
-		HashMap<NodeGraph, NodeWrapper> mapTraversedWrappers =  new HashMap<NodeGraph, NodeWrapper>();
-		ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges = new ArrayList<GeomPlanarGraphDirectedEdge>();
+		final HashMap<NodeGraph, NodeWrapper> mapTraversedWrappers = new HashMap<>();
+		final ArrayList<GeomPlanarGraphDirectedEdge> sequenceEdges = new ArrayList<>();
 		NodeGraph step = destinationNode;
-		mapTraversedWrappers.put(destinationNode, mapWrappers.get(destinationNode));
+		mapTraversedWrappers.put(destinationNode, this.mapWrappers.get(destinationNode));
 
 		// check that the path has been formulated properly
-		if (mapWrappers.get(destinationNode) == null || mapWrappers.size() <= 1) path.invalidPath();
+		if (this.mapWrappers.get(destinationNode) == null || this.mapWrappers.size() <= 1)
+			path.invalidPath();
 		try {
 
-			while (mapWrappers.get(step).nodeFrom != null) {
-				GeomPlanarGraphDirectedEdge de = (GeomPlanarGraphDirectedEdge) step.primalEdge.getDirEdge(0);
-				step = mapWrappers.get(step).nodeFrom;
-				mapTraversedWrappers.put(step, mapWrappers.get(step));
+			while (this.mapWrappers.get(step).nodeFrom != null) {
+				final GeomPlanarGraphDirectedEdge de = (GeomPlanarGraphDirectedEdge) step.primalEdge.getDirEdge(0);
+				step = this.mapWrappers.get(step).nodeFrom;
+				mapTraversedWrappers.put(step, this.mapWrappers.get(step));
 				sequenceEdges.add(0, de);
 
 				if (step == originNode) {
-					GeomPlanarGraphDirectedEdge lastDe = (GeomPlanarGraphDirectedEdge) step.primalEdge.getDirEdge(0);
+					final GeomPlanarGraphDirectedEdge lastDe = (GeomPlanarGraphDirectedEdge) step.primalEdge
+							.getDirEdge(0);
 					sequenceEdges.add(0, lastDe);
 					break;
 				}
 			}
+		} catch (final java.lang.NullPointerException e) {
+			return path;
 		}
-		catch(java.lang.NullPointerException e)	{return path;}
 
 		path.edges = sequenceEdges;
 		path.mapWrappers = mapTraversedWrappers;
 		return path;
 	}
 }
-
-

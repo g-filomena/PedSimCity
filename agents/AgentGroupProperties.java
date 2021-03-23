@@ -14,27 +14,27 @@ import urbanmason.main.Utilities;
 public class AgentGroupProperties extends AgentProperties {
 
 	String groupName;
-	int groupID;
 	double portion = 0.0;
-	double agentKnowledge = 0.0;
+	public double agentKnowledge = 0.0;
 	double pRegionBasedNavigation = 0.0;
 	double pGlobalLandmarks = 0.0;
 
-	ArrayList<Double> pOnlyMinimisation = new ArrayList<>(Arrays.asList(0.0, 0.0, 0.0));
-	ArrayList<Double> pHeuristics = new ArrayList<>(Arrays.asList(0.0, 0.0, 0.0));
+	ArrayList<Double> pOnlyMinimisation = new ArrayList<>(Arrays.asList(0.0, 0.0));
+	ArrayList<Double> pHeuristics = new ArrayList<>(Arrays.asList(0.0, 0.0));
 	ArrayList<Double> pSubGoals = new ArrayList<>(Arrays.asList(0.0, 0.0));
 
 	HashMap<String, Double> pOnlyMinimisationMap = new HashMap<>();
 	HashMap<String, Double> pHeuristicsMap = new HashMap<>();
 	HashMap<String, Double> pSubGoalsMap = new HashMap<>();
 
-	List<String> onlyMinimisation = Arrays.asList("roadDistance", "angularChange", "turns");
-	List<String> localHeuristics = Arrays.asList("roadDistance", "angularChange");
-	List<String> subGoals = Arrays.asList("localLandmarks", "barrierSubGoals");
+	ArrayList<String> onlyMinimisation = new ArrayList<>(Arrays.asList("roadDistance", "angularChange"));
+	ArrayList<String> localHeuristics = new ArrayList<>(Arrays.asList("roadDistance", "angularChange"));
+	ArrayList<String> subGoals = new ArrayList<>(Arrays.asList("localLandmarks", "barrierSubGoals"));
 
 	public void setPropertiesFromGroup(Group group) {
 
 		this.groupName = group.groupName;
+
 		if (this.groupName.equals("null"))
 			return;
 
@@ -95,8 +95,8 @@ public class AgentGroupProperties extends AgentProperties {
 		List<String> keys = new ArrayList<>(this.pOnlyMinimisationMap.keySet());
 		Collections.shuffle(keys);
 		for (final String key : keys) {
-			final double pHeuristic = this.pOnlyMinimisationMap.get(key);
-			final double pValue = pHeuristic + limit;
+			final double pOnlyHeuristic = this.pOnlyMinimisationMap.get(key);
+			final double pValue = pOnlyHeuristic + limit;
 			if (phRandom <= pValue) {
 				this.onlyMinimising = key;
 				break;
@@ -104,7 +104,7 @@ public class AgentGroupProperties extends AgentProperties {
 			limit = pValue;
 		}
 
-		if (this.onlyMinimising != null)
+		if (this.onlyMinimising != "")
 			return;
 
 		keys = new ArrayList<>(this.pHeuristicsMap.keySet());
@@ -118,6 +118,8 @@ public class AgentGroupProperties extends AgentProperties {
 			}
 			limit = pValue;
 		}
+		if (this.localHeuristic.equals(""))
+			this.localHeuristic = keys.get(1);
 
 		keys.clear();
 		keys = new ArrayList<>(this.pSubGoalsMap.keySet());
@@ -145,19 +147,21 @@ public class AgentGroupProperties extends AgentProperties {
 		if (glRandom <= this.pGlobalLandmarks)
 			this.usingGlobalLandmarks = true;
 
-		if (this.meanNaturalBarriers != 1.00)
+		if (this.meanNaturalBarriers < 0.95)
 			this.preferenceNaturalBarriers = true;
-		if (this.meanSeveringBarriers != 1.00)
+		if (this.meanSeveringBarriers > 1.05)
 			this.aversionSeveringBarriers = true;
 	}
 
 	public void reset() {
-		this.onlyMinimisation = null;
-		this.localHeuristics = null;
+		this.onlyMinimising = "";
+		this.localHeuristic = "";
 		this.landmarkBasedNavigation = false;
 		this.barrierBasedNavigation = false;
 		this.regionBasedNavigation = false;
 		this.usingGlobalLandmarks = false;
+		this.preferenceNaturalBarriers = false;
+		this.aversionSeveringBarriers = false;
 	}
 
 	public void fromUniform() {
@@ -166,8 +170,9 @@ public class AgentGroupProperties extends AgentProperties {
 
 		double remainder = 1.0;
 		for (final String s : this.onlyMinimisation) {
-			this.pOnlyMinimisationMap.put(s, udRandom.nextDouble());
-			if (this.pOnlyMinimisationMap.get(s) > remainder)
+			final double probability = udRandom.nextDouble();
+			this.pOnlyMinimisationMap.put(s, probability);
+			if (probability > remainder)
 				this.pOnlyMinimisationMap.replace(s, remainder);
 			remainder -= this.pOnlyMinimisationMap.get(s);
 			if (remainder < 0.0)
@@ -212,6 +217,7 @@ public class AgentGroupProperties extends AgentProperties {
 		final Random random = new Random();
 
 		remainder = 1.0;
+
 		while (processed.size() != probabilities.size()) {
 			do
 				t = random.nextInt(probabilities.size());

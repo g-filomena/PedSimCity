@@ -75,12 +75,10 @@ public final class Pedestrian implements Steppable {
 		this.state = state;
 		final GeometryFactory fact = new GeometryFactory();
 		this.agentLocation = new MasonGeometry(fact.createPoint(new Coordinate(10, 10)));
-
 		if (UserParameters.empiricalABM)
 			this.agp = (AgentGroupProperties) ap;
 		else
 			this.ap = ap;
-
 		if (!UserParameters.empiricalABM) {
 			this.originNode = (NodeGraph) ap.OD.get(this.numTrips).getValue(0);
 			Coordinate startCoord = null;
@@ -106,7 +104,7 @@ public final class Pedestrian implements Steppable {
 			this.agp.defineRouteChoiceParameters();
 			final CombinedNavigation combinedNavigation = new CombinedNavigation();
 			this.newPath = combinedNavigation.path(this.originNode, this.destinationNode, this.agp);
-			route.group = this.agp.groupID;
+			route.group = this.agp.groupName;
 			route.localH = this.agp.localHeuristic;
 			route.routeID = this.agentID.toString() + "-" + this.originNode.getID().toString() + "-"
 					+ this.destinationNode.getID().toString();
@@ -269,9 +267,9 @@ public final class Pedestrian implements Steppable {
 	void updateEdgeData(EdgeGraph edge) {
 		edge = PedSimCity.edgesMap.get(edge.getID()); // in case it was a subgraph edge
 		if (UserParameters.empiricalABM)
-			edge.densities.replace(this.agp.groupName, edge.densities.get(this.agp.groupName) + 1);
+			edge.volumes.replace(this.agp.groupName, edge.volumes.get(this.agp.groupName) + 1);
 		else
-			edge.densities.replace(this.ap.routeChoice, edge.densities.get(this.ap.routeChoice) + 1);
+			edge.volumes.replace(this.ap.routeChoice, edge.volumes.get(this.ap.routeChoice) + 1);
 	}
 
 	public void setStoppable(Stoppable a) {

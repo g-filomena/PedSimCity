@@ -116,13 +116,13 @@ public class PedSimCity extends SimState {
 			for (final String routeChoice : routeChoiceModels)
 				for (final Object o : network.getEdges()) {
 					final EdgeGraph edge = (EdgeGraph) o;
-					edge.densities.put(routeChoice, 0);
+					edge.volumes.put(routeChoice, 0);
 				}
 		} else if (UserParameters.empiricalABM)
 			for (final Group group : groups)
 				for (final Object o : network.getEdges()) {
 					final EdgeGraph edge = (EdgeGraph) o;
-					edge.densities.put(group.groupName, 0);
+					edge.volumes.put(group.groupName, 0);
 				}
 
 		super.start();
@@ -214,17 +214,18 @@ public class PedSimCity extends SimState {
 		this.numAgents = UserParameters.numAgents;
 		int left = this.numAgents;
 		int counter = 0;
+
 		for (final Group group : groups) {
 			int groupAgents;
-			if (group.groupName.equals("homogeneous") || group.groupName.equals("null"))
-				groupAgents = UserParameters.numAgents;
-			else if (group.equals(groups.get(groups.size() - 1)))
+
+			if (group.groupName.equals("population") || group.groupName.equals("null"))
+				groupAgents = this.numAgents;
+			else if (group.equals(groups.get(groups.size() - 3)))
 				groupAgents = left;
 			else {
 				groupAgents = (int) (this.numAgents * group.portion);
 				left -= groupAgents;
 			}
-			group.groupID = groups.indexOf(group);
 
 			for (int i = 0; i < groupAgents; i++) {
 				final AgentGroupProperties ap = new AgentGroupProperties();
@@ -239,7 +240,10 @@ public class PedSimCity extends SimState {
 				this.agentsList.add(a);
 				counter += 1;
 			}
+
 		}
+
+		System.out.println("agentList " + this.agentsList.size());
 	}
 
 	@Override

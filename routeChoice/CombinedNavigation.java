@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import pedsimcity.agents.AgentGroupProperties;
 import pedsimcity.agents.AgentProperties;
 import pedsimcity.elements.Region;
 import pedsimcity.main.PedSimCity;
@@ -17,19 +18,19 @@ public class CombinedNavigation {
 
 	NodeGraph originNode, destinationNode;
 
-	AgentProperties ap = new AgentProperties();
+	AgentGroupProperties ap = new AgentGroupProperties();
 	ArrayList<GeomPlanarGraphDirectedEdge> completePath = new ArrayList<>();
 	ArrayList<NodeGraph> sequenceNodes = new ArrayList<>();
 
 	public ArrayList<GeomPlanarGraphDirectedEdge> path(NodeGraph originNode, NodeGraph destinationNode,
-			AgentProperties agp) {
+			AgentGroupProperties agp) {
 		this.ap = agp;
 		this.originNode = originNode;
 		this.destinationNode = destinationNode;
 		final RoutePlanner planner = new RoutePlanner();
 
 		// only minimisation
-		if (this.ap.onlyMinimising != null)
+		if (!this.ap.onlyMinimising.equals(""))
 			if (this.ap.onlyMinimising.equals("roadDistance"))
 				return planner.roadDistance(originNode, destinationNode, this.ap);
 			else
@@ -62,7 +63,7 @@ public class CombinedNavigation {
 		}
 
 		// pure global landmark navigation (no heuristic, no sub-goals, it allows)
-		else if (this.ap.usingGlobalLandmarks && !this.ap.landmarkBasedNavigation && this.ap.localHeuristic == null)
+		else if (this.ap.usingGlobalLandmarks && !this.ap.landmarkBasedNavigation && this.ap.localHeuristic.equals(""))
 			if (this.ap.regionBasedNavigation)
 				return planner.globalLandmarksPathSequence(this.sequenceNodes, this.ap); // through regions
 			else
@@ -101,11 +102,11 @@ public class CombinedNavigation {
 			onRouteMarks = onRouteMarksRegion(currentLocation, exitGateway, this.originNode, this.destinationNode,
 					newSequence, this.ap);
 
-			if (onRouteMarks.size() == 0 && this.ap.agentKnowledge <= UserParameters.noobAgentThreshold) {
-				System.out.println("using barriers instead");
-				final BarrierBasedNavigation barrierBasedPath = new BarrierBasedNavigation();
-				onRouteMarks = barrierBasedPath.sequenceBarriers(currentLocation, exitGateway, this.ap);
-			}
+//			if (onRouteMarks.size() == 0 && this.ap.agentKnowledge <= UserParameters.noobAgentThreshold) {
+//				System.out.println("using barriers instead");
+//				final BarrierBasedNavigation barrierBasedPath = new BarrierBasedNavigation();
+//				onRouteMarks = barrierBasedPath.sequenceBarriers(currentLocation, exitGateway, this.ap);
+//			}
 
 			newSequence.addAll(onRouteMarks);
 			// List<Integer> opo = new ArrayList<Integer>();

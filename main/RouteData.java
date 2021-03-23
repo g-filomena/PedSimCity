@@ -14,7 +14,7 @@ public class RouteData {
 	public String routeChoice;
 	public List<Integer> sequenceEdges;
 	public String routeID;
-	public int group;
+	public String group;
 	public String localH;
 	public String rB;
 	public String lB;
