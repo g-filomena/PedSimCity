@@ -16,22 +16,23 @@ import pedsimcity.agents.AgentProperties;
 import pedsimcity.agents.Group;
 import pedsimcity.agents.Pedestrian;
 import pedsimcity.elements.Barrier;
+import pedsimcity.elements.Building;
 import pedsimcity.elements.Gateway;
 import pedsimcity.elements.Region;
+import pedsimcity.graph.EdgeGraph;
+import pedsimcity.graph.Graph;
+import pedsimcity.graph.NodeGraph;
+import pedsimcity.graph.SubGraph;
 import pedsimcity.routeChoice.LandmarkNavigation;
+import pedsimcity.utilities.Angles;
+import pedsimcity.utilities.NodesLookup;
+import pedsimcity.utilities.RouteData;
+import pedsimcity.utilities.VectorLayer;
 import sim.engine.SimState;
 import sim.engine.Stoppable;
 import sim.util.Bag;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 import sim.util.geo.MasonGeometry;
-import urbanmason.main.Angles;
-import urbanmason.main.Building;
-import urbanmason.main.EdgeGraph;
-import urbanmason.main.Graph;
-import urbanmason.main.NodeGraph;
-import urbanmason.main.NodesLookup;
-import urbanmason.main.SubGraph;
-import urbanmason.main.VectorLayer;
 
 /**
  * The simulation core.
@@ -96,29 +97,29 @@ public class PedSimCity extends SimState {
 
 	@Override
 	public void start() {
-		if (UserParameters.testingSpecificRoutes)
+		if (UserParameters.testingSpecificRoutes && !UserParameters.empiricalABM)
 			routeChoiceModels = UserParameters.routeChoices;
 		else if (UserParameters.testingRegions)
 			routeChoiceModels = UserParameters.routeChoicesRegions;
 		else if (UserParameters.testingLandmarks)
 			routeChoiceModels = UserParameters.routeChoicesLandmarks;
 		else
-			routeChoiceModels = UserParameters.routeChoicesLandmarks;
-		if (UserParameters.testingRegions || UserParameters.testingLandmarks || UserParameters.testingSpecificRoutes)
+			routeChoiceModels = UserParameters.routeChoices;
+
+		if (UserParameters.testingRegions || UserParameters.testingLandmarks
+				|| UserParameters.testingSpecificRoutes && !UserParameters.empiricalABM)
 			this.numAgents = routeChoiceModels.length;
 		else
 			this.numAgents = UserParameters.numAgents;
 
 		// check consistency settings
-		if (UserParameters.testingLandmarks || UserParameters.testingRegions || UserParameters.testingSpecificRoutes) {
-			UserParameters.empiricalABM = false;
-
+		if (!UserParameters.empiricalABM)
 			for (final String routeChoice : routeChoiceModels)
 				for (final Object o : network.getEdges()) {
 					final EdgeGraph edge = (EdgeGraph) o;
 					edge.volumes.put(routeChoice, 0);
 				}
-		} else if (UserParameters.empiricalABM)
+		else
 			for (final Group group : groups)
 				for (final Object o : network.getEdges()) {
 					final EdgeGraph edge = (EdgeGraph) o;
@@ -158,12 +159,14 @@ public class PedSimCity extends SimState {
 			numTripsScenario = 2000;
 		else if (UserParameters.testingLandmarks)
 			numTripsScenario = distances.size();
-		final ArrayList<ArrayList<NodeGraph>> listSequences = new ArrayList<>();
+		else if (UserParameters.testingModels)
+			numTripsScenario = UserParameters.numTrips;
 
 		for (int i = 0; i < numTripsScenario; i++) {
 			NodeGraph originNode = null;
 			NodeGraph destinationNode = null;
-			if (UserParameters.testingSpecificRoutes) {
+
+			if (UserParameters.testingSpecificRoutes && !UserParameters.empiricalABM) {
 				originNode = nodesMap.get(UserParameters.OR.get(i));
 				destinationNode = nodesMap.get(UserParameters.DE.get(i));
 			} else if (UserParameters.testingLandmarks) {
@@ -183,14 +186,6 @@ public class PedSimCity extends SimState {
 							UserParameters.minDistance, UserParameters.maxDistance);
 			}
 
-			if (buildings != null) {
-				final AgentProperties apFictionary = new AgentProperties();
-				apFictionary.landmarkBasedNavigation = true;
-				apFictionary.typeLandmarks = "local";
-				final ArrayList<NodeGraph> sequence = LandmarkNavigation.onRouteMarks(originNode, destinationNode,
-						apFictionary);
-				listSequences.add(sequence);
-			}
 			final Pair<NodeGraph, NodeGraph> pair = new Pair<>(originNode, destinationNode);
 			this.OD.add(pair);
 		}
@@ -198,12 +193,13 @@ public class PedSimCity extends SimState {
 		for (int i = 0; i < this.numAgents; i++) {
 			final AgentProperties ap = new AgentProperties();
 			ap.setRouteChoice(routeChoiceModels[i]);
-			ap.setOD(this.OD, listSequences);
+			ap.OD = this.OD;
 
 			final Pedestrian a = new Pedestrian(this, ap);
-			a.agentID = i;
 			final MasonGeometry newGeometry = a.getGeometry();
 			newGeometry.isMovable = true;
+			a.agentID = i;
+
 			agents.addGeometry(newGeometry);
 			this.agentsList.add(a);
 		}
@@ -212,38 +208,125 @@ public class PedSimCity extends SimState {
 	public void populateGroups() {
 
 		this.numAgents = UserParameters.numAgents;
-		int left = this.numAgents;
+		final int numODs = this.numAgents * UserParameters.numTrips;
+		NodeGraph originNode = null;
+		NodeGraph destinationNode = null;
+
+		if (!UserParameters.testingSpecificRoutes && !UserParameters.usingDMA)
+			for (int i = 0; i < numODs; i++) {
+
+				while (originNode == null)
+					originNode = NodesLookup.randomNode(network);
+				while (destinationNode == null)
+//				destinationNode = NodesLookup.randomNodeBetweenLimits(network, originNode,
+//						UserParameters.minDistance, UserParameters.maxDistance);
+					destinationNode = NodesLookup.randomSalientNodeBetweenLimits(network, originNode,
+							UserParameters.minDistance, UserParameters.maxDistance, 0.75);
+
+				final Pair<NodeGraph, NodeGraph> pair = new Pair<>(originNode, destinationNode);
+				this.OD.add(pair);
+				originNode = destinationNode = null;
+			}
+
+		else if (UserParameters.usingDMA) {
+			UserParameters.setDMAmap();
+			final HashMap<String, Integer> nrDestinationsDMA = new HashMap<>();
+			final int left = numODs;
+			String DMA = "";
+			for (final String s : UserParameters.destinationsDMA.keySet()) {
+				int nr = (int) (UserParameters.destinationsDMA.get(s) * numODs);
+				if (nr > left)
+					nr = left;
+				nrDestinationsDMA.put(s, nr);
+			}
+
+			for (int i = 0; i < numODs; i++) {
+				while (originNode == null)
+					originNode = NodesLookup.randomNodeDMA(network, null, 0.0, 0.0, "live");
+
+				for (final String s : nrDestinationsDMA.keySet()) {
+					final int nr = nrDestinationsDMA.get(s);
+					if (nr < 1)
+						continue;
+					else {
+						DMA = s;
+						nrDestinationsDMA.put(s, nr - 1);
+						break;
+					}
+				}
+
+				while (destinationNode == null)
+					destinationNode = NodesLookup.randomNodeDMA(network, originNode, UserParameters.minDistance,
+							UserParameters.maxDistance, DMA);
+
+				final Pair<NodeGraph, NodeGraph> pair = new Pair<>(originNode, destinationNode);
+				this.OD.add(pair);
+				originNode = destinationNode = null;
+			}
+		}
+
+		else if (UserParameters.testingSpecificRoutes) {
+			UserParameters.setTestingMatrix();
+			for (int nA = 0; nA < this.numAgents; nA++)
+				for (final int oR : UserParameters.OR) {
+					originNode = nodesMap.get(oR);
+					final int ix = UserParameters.OR.indexOf(oR);
+					destinationNode = nodesMap.get(UserParameters.DE.get(ix));
+					final Pair<NodeGraph, NodeGraph> pair = new Pair<>(originNode, destinationNode);
+					this.OD.add(pair);
+				}
+		}
+
 		int counter = 0;
+		final ArrayList<Group> actualGroups = new ArrayList<>();
+		ArrayList<Pair<NodeGraph, NodeGraph>> configurationOD = new ArrayList<>(this.OD);
+		int groupAgents;
+		int left = this.numAgents;
 
 		for (final Group group : groups) {
-			int groupAgents;
+			if (!group.groupName.equals("population") && !group.groupName.equals("nullGroup"))
+				actualGroups.add(group);
 
-			if (group.groupName.equals("population") || group.groupName.equals("null"))
+			if (group.groupName.equals("population") || group.groupName.equals("nullGroup")) {
 				groupAgents = this.numAgents;
-			else if (group.equals(groups.get(groups.size() - 3)))
+				configurationOD = new ArrayList<>(this.OD);
+			} else if (actualGroups.size() == groups.size() - 2)
 				groupAgents = left;
 			else {
 				groupAgents = (int) (this.numAgents * group.portion);
 				left -= groupAgents;
 			}
+			final int numTripsGroup = groupAgents * UserParameters.numTrips;
+			final ArrayList<Pair<NodeGraph, NodeGraph>> groupOD = new ArrayList<>(
+					configurationOD.subList(0, numTripsGroup));
+
+			int lowLimit = 0;
+			int upLimit = UserParameters.numTrips;
 
 			for (int i = 0; i < groupAgents; i++) {
-				final AgentGroupProperties ap = new AgentGroupProperties();
-				ap.setPropertiesFromGroup(group);
+				ArrayList<Pair<NodeGraph, NodeGraph>> agentODs = new ArrayList<>();
+				if (UserParameters.numTrips == 1)
+					agentODs.add(groupOD.get(i));
+				else
+					agentODs = new ArrayList<>(groupOD.subList(lowLimit, upLimit));
 
-				final Pedestrian a = new Pedestrian(this, ap);
-				a.destinationNode = null;
-				a.agentID = counter;
+				final AgentGroupProperties agp = new AgentGroupProperties(group);
+				agp.OD = agentODs;
+				final Pedestrian a = new Pedestrian(this, agp);
 				final MasonGeometry newGeometry = a.getGeometry();
 				newGeometry.isMovable = true;
+				a.agentID = counter;
+
 				agents.addGeometry(newGeometry);
 				this.agentsList.add(a);
 				counter += 1;
+				lowLimit = upLimit;
+				upLimit = lowLimit + UserParameters.numTrips;
 			}
-
+			configurationOD = new ArrayList<>(configurationOD.subList(numTripsGroup, configurationOD.size()));
+			System.out.println(
+					group.groupName + " nr. agents: " + groupAgents + "  -- nr of OD pairs: " + groupOD.size());
 		}
-
-		System.out.println("agentList " + this.agentsList.size());
 	}
 
 	@Override
@@ -291,6 +374,7 @@ public class PedSimCity extends SimState {
 				node.centrality = nodeGeometry.getDoubleAttribute("Bc_multi");
 			} catch (final java.lang.NullPointerException e) {
 				node.centrality = nodeGeometry.getDoubleAttribute("Bc_Rd");
+				node.reachCentrality = nodeGeometry.getIntegerAttribute("Rc400").floatValue();
 			}
 			// set adjacent edges and nodes
 			node.setNeighbouringComponents();
@@ -325,6 +409,27 @@ public class PedSimCity extends SimState {
 				building.landUse = buildingGeometry.getStringAttribute("land_use");
 				building.DMA = buildingGeometry.getStringAttribute("DMA");
 				building.geometry = buildingGeometry;
+
+				if (UserParameters.empiricalABM) {
+					final Bag nearestNodes = junctions.getObjectsWithinDistance(building.geometry, 500);
+					MasonGeometry closest = null;
+					double lowestDistance = 501.0;
+
+					for (final Object nN : nearestNodes) {
+						final MasonGeometry node = (MasonGeometry) nN;
+						final double distance = node.geometry.distance(buildingGeometry.geometry);
+
+						if (distance < lowestDistance) {
+							closest = node;
+							lowestDistance = node.geometry.distance(buildingGeometry.geometry);
+						}
+					}
+					if (closest == null)
+						building.node = null;
+					else
+						building.node = network.findNode(closest.getGeometry().getCoordinate());
+
+				}
 				buildingsMap.put(building.buildingID, building);
 			}
 
@@ -339,6 +444,17 @@ public class PedSimCity extends SimState {
 			System.out.println("incorporating global landmarks");
 			network.setGlobalLandmarkness(globalLandmarks, buildingsMap, UserParameters.distanceAnchors,
 					sightLinesLight, UserParameters.nrAnchors);
+
+			network.getNodes().forEach((node) -> {
+
+				final Bag nearestBuildings = buildings.getObjectsWithinDistance(node.masonGeometry.geometry, 100);
+				for (final Object b : nearestBuildings) {
+					final MasonGeometry building = (MasonGeometry) b;
+					final int buildingID = building.getIntegerAttribute("buildingID");
+					final String DMA = buildingsMap.get(buildingID).DMA;
+					node.DMA = DMA;
+				}
+			});
 		}
 
 		// Identify gateways
@@ -471,9 +587,11 @@ public class PedSimCity extends SimState {
 				barrier.masonGeometry = barrierGeometry;
 				barrier.type = barrierGeometry.getStringAttribute("type");
 				final ArrayList<EdgeGraph> edgesAlong = new ArrayList<>();
-				for (final EdgeGraph edge : network.edgesGraph)
+
+				for (final EdgeGraph edge : network.getEdges())
 					if (edge.barriers != null && edge.barriers.contains(barrierID))
 						edgesAlong.add(edge);
+
 				barrier.edgesAlong = edgesAlong;
 				barrier.type = barrierGeometry.getStringAttribute("type");
 				barriersMap.put(barrierID, barrier);

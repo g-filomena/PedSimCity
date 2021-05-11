@@ -2,12 +2,13 @@ package pedsimcity.elements;
 
 import org.javatuples.Pair;
 
-import urbanmason.main.NodeGraph;
+import pedsimcity.graph.NodeGraph;
 
 public class Gateway {
 
 	public NodeGraph exit;
 	public NodeGraph entry;
+
 	public Pair<NodeGraph, NodeGraph> gatewayID;
 	public Integer nodeID;
 	public Integer regionTo;

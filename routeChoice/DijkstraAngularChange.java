@@ -13,15 +13,15 @@ import java.util.HashMap;
 import java.util.List;
 
 import pedsimcity.agents.AgentProperties;
+import pedsimcity.graph.EdgeGraph;
+import pedsimcity.graph.NodeGraph;
+import pedsimcity.graph.SubGraph;
 import pedsimcity.main.PedSimCity;
 import pedsimcity.main.UserParameters;
+import pedsimcity.utilities.NodeWrapper;
+import pedsimcity.utilities.Path;
+import pedsimcity.utilities.Utilities;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
-import urbanmason.main.EdgeGraph;
-import urbanmason.main.NodeGraph;
-import urbanmason.main.NodeWrapper;
-import urbanmason.main.Path;
-import urbanmason.main.SubGraph;
-import urbanmason.main.Utilities;
 
 public class DijkstraAngularChange {
 
@@ -128,16 +128,19 @@ public class DijkstraAngularChange {
 
 			final List<Integer> pBarriers = targetNode.primalEdge.positiveBarriers;
 			final List<Integer> nBarriers = targetNode.primalEdge.negativeBarriers;
-//			if (ap.onlyMinimising == null && ap.preferenceNaturalBarriers && pBarriers.size() > 0) error = Utilities.fromDistribution(ap.meanNaturalBarriers, 0.10, "left");
-//			else if (ap.onlyMinimising == null && ap.aversionSeveringBarriers && nBarriers.size() > 0) error = Utilities.fromDistribution(ap.meanSeveringBarriers, 0.10, "right");
-//			else error = Utilities.fromDistribution(1.0, 0.10, null);
 
-			if (this.ap.onlyMinimising == null && this.ap.preferenceNaturalBarriers && pBarriers.size() > 0)
-				error = 0.85;
-			else if (this.ap.onlyMinimising == null && this.ap.aversionSeveringBarriers && nBarriers.size() > 0)
-				error = 1.15;
+			if (this.ap.onlyMinimising.equals("") && this.ap.preferenceNaturalBarriers && pBarriers.size() > 0)
+				error = Utilities.fromDistribution(this.ap.naturalBarriers, this.ap.naturalBarriersSD, "left");
+			else if (this.ap.onlyMinimising.equals("") && this.ap.aversionSeveringBarriers && nBarriers.size() > 0)
+				error = Utilities.fromDistribution(this.ap.severingBarriers, this.ap.severingBarriersSD, "right");
 			else
 				error = Utilities.fromDistribution(1.0, 0.10, null);
+//			if (this.ap.onlyMinimising.equals("") && this.ap.preferenceNaturalBarriers && pBarriers.size() > 0)
+//				error = 0.50;
+//			else if (this.ap.onlyMinimising.equals("") && this.ap.aversionSeveringBarriers && nBarriers.size() > 0)
+//				error = 1.50;
+//			else
+//				error = Utilities.fromDistribution(1.0, 0.10, null);
 
 			double edgeCost = commonEdge.getDeflectionAngle() * error;
 			if (edgeCost > 180.0)
@@ -145,8 +148,13 @@ public class DijkstraAngularChange {
 			if (edgeCost < 0.0)
 				edgeCost = 0.0;
 
-			if (this.ap.onlyMinimising == null && this.ap.usingGlobalLandmarks && NodeGraph.nodesDistance(targetNode,
-					this.primalDestinationNode) > UserParameters.threshold3dVisibility) {
+			if (this.ap.localHeuristic.equals("turns")) {
+				if (edgeCost <= UserParameters.thresholdTurn)
+					tentativeCost = this.getBest(currentNode);
+				else
+					tentativeCost = this.getBest(currentNode) + 1;
+			} else if (this.ap.onlyMinimising.equals("") && this.ap.usingDistantLandmarks && NodeGraph
+					.nodesDistance(targetNode, this.primalDestinationNode) > UserParameters.threshold3dVisibility) {
 				final double globalLandmarkness = LandmarkNavigation.globalLandmarknessDualNode(currentNode, targetNode,
 						this.primalDestinationNode, this.ap.onlyAnchors);
 				final double nodeLandmarkness = 1.0

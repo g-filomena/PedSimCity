@@ -1,4 +1,4 @@
-package pedsimcity.main;
+package pedsimcity.utilities;
 
 import java.io.IOException;
 import java.io.Writer;

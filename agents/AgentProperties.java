@@ -4,8 +4,7 @@ import java.util.ArrayList;
 
 import org.javatuples.Pair;
 
-import pedsimcity.main.UserParameters;
-import urbanmason.main.NodeGraph;
+import pedsimcity.graph.NodeGraph;
 
 public class AgentProperties {
 
@@ -18,11 +17,10 @@ public class AgentProperties {
 	public String onlyMinimising = "";
 	public String routeChoice;
 	public ArrayList<Pair<NodeGraph, NodeGraph>> OD = new ArrayList<>();
-	public ArrayList<ArrayList<NodeGraph>> listSequences = new ArrayList<>();
 
 	// landmarkNavigation related parameters
 	public boolean landmarkBasedNavigation = false;
-	public boolean usingGlobalLandmarks = false;
+	public boolean usingDistantLandmarks = false;
 	public boolean onlyAnchors = true;
 	// for computing the complexity of the environment ["local", "global"]
 	public String typeLandmarks = "";
@@ -30,8 +28,10 @@ public class AgentProperties {
 	// region- and barrier-based parameters
 	public boolean regionBasedNavigation = false;
 	public boolean barrierBasedNavigation = false;
-	public double meanNaturalBarriers = 0.0;
-	public double meanSeveringBarriers = 0.0;
+	public double naturalBarriers = 0.0;
+	public double naturalBarriersSD = 0.10;
+	public double severingBarriers = 0.0;
+	public double severingBarriersSD = 0.10;
 	public boolean preferenceNaturalBarriers = false;
 	public boolean aversionSeveringBarriers = false;
 	// the ones possibly used as sub-goals ["all", "positive", "negative",
@@ -69,27 +69,25 @@ public class AgentProperties {
 			this.typeLandmarks = "local"; // for measuring complexity when selecting on-route marks
 		}
 		if (routeChoice.contains("G")) {
-			this.usingGlobalLandmarks = true;
+			this.usingDistantLandmarks = true;
 			this.onlyAnchors = true;
 		}
 
 		if (routeChoice.contains("R"))
 			this.regionBasedNavigation = true;
+
 		if (routeChoice.contains("B")) {
 			this.barrierBasedNavigation = true;
 			this.preferenceNaturalBarriers = true;
 			this.aversionSeveringBarriers = true;
-			this.meanNaturalBarriers = 0.70;
-			this.meanSeveringBarriers = 1.30;
+			this.naturalBarriers = 0.70;
+			this.severingBarriers = 1.30;
+			this.typeBarriers = "all";
 		}
-
-		if (this.agentKnowledge <= UserParameters.noobAgentThreshold)
-			this.onlyAnchors = false;
 	}
 
 	public void setOD(ArrayList<Pair<NodeGraph, NodeGraph>> OD, ArrayList<ArrayList<NodeGraph>> listSequences) {
 		this.OD = OD;
-		if (listSequences != null)
-			this.listSequences = new ArrayList<>(listSequences);
+
 	}
 }

@@ -14,15 +14,15 @@ import java.util.Map;
 import com.vividsolutions.jts.geom.Geometry;
 
 import pedsimcity.agents.AgentProperties;
+import pedsimcity.elements.Building;
+import pedsimcity.graph.NodeGraph;
 import pedsimcity.main.PedSimCity;
 import pedsimcity.main.UserParameters;
+import pedsimcity.utilities.Path;
+import pedsimcity.utilities.VectorLayer;
 import sim.util.Bag;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 import sim.util.geo.MasonGeometry;
-import urbanmason.main.Building;
-import urbanmason.main.NodeGraph;
-import urbanmason.main.Path;
-import urbanmason.main.VectorLayer;
 
 public class LandmarkNavigation {
 
@@ -142,32 +142,26 @@ public class LandmarkNavigation {
 	 *                        destination should be considered distant landmarks;
 	 */
 
-	static double globalLandmarknessNode(NodeGraph targetNode, NodeGraph destinationNode, boolean onlyAnchors) {
+	public static double globalLandmarknessNode(NodeGraph targetNode, NodeGraph destinationNode, boolean onlyAnchors) {
 
 		// get the distant landmarks
 		ArrayList<Building> distantLandmarks = new ArrayList<>();
 		distantLandmarks = targetNode.distantLandmarks;
+
 		if (distantLandmarks.size() == 0)
 			return 0.0;
 
-		if (!onlyAnchors) {
-			final List<Double> distantScores = new ArrayList<>();
-			for (final Building landmark : distantLandmarks)
-				distantScores.add(landmark.globalLandmarkness);
-			return Collections.max(distantScores);
-		}
-
-		// get the anchors
+		// get the anchors of the destination
 		ArrayList<Building> anchors = new ArrayList<>();
 		anchors = destinationNode.anchors;
-		if (onlyAnchors & anchors.size() == 0)
-			return 0.0;
 		double nodeGlobalScore = 0.0;
-		// identify the best landmark, considering also the distance anchor-destination
 
 		for (final Building landmark : distantLandmarks) {
 			double score = 0.0;
-			if (anchors.contains(landmark)) {
+			{
+				if (onlyAnchors && anchors.size() != 0 && !anchors.contains(landmark))
+					continue;
+
 				score = landmark.globalLandmarkness;
 				// distance factor
 
@@ -177,6 +171,8 @@ public class LandmarkNavigation {
 				if (distanceWeight > 1.0)
 					distanceWeight = 1.0;
 				score = score * distanceWeight;
+				if (onlyAnchors && anchors.size() == 0)
+					score = score * 0.90;
 			}
 			if (score > nodeGlobalScore)
 				nodeGlobalScore = score;
@@ -194,8 +190,8 @@ public class LandmarkNavigation {
 	 *                        destination should be considered distant landmarks;
 	 */
 
-	static double globalLandmarknessDualNode(NodeGraph centroid, NodeGraph targetCentroid, NodeGraph destinationNode,
-			boolean onlyAnchors) {
+	public static double globalLandmarknessDualNode(NodeGraph centroid, NodeGraph targetCentroid,
+			NodeGraph destinationNode, boolean onlyAnchors) {
 
 		// current real segment: identifying the node
 		final GeomPlanarGraphDirectedEdge streetSegment = (GeomPlanarGraphDirectedEdge) targetCentroid.primalEdge
@@ -204,43 +200,7 @@ public class LandmarkNavigation {
 		if (Path.commonPrimalJunction(centroid, targetCentroid) == targetNode)
 			targetNode = (NodeGraph) streetSegment.getFromNode();
 
-		// get the distant landmarks
-		ArrayList<Building> distantLandmarks = new ArrayList<>();
-		distantLandmarks = targetNode.distantLandmarks;
-		if (distantLandmarks.size() == 0)
-			return 0.0;
-
-		if (!onlyAnchors) {
-			final List<Double> distantScores = new ArrayList<>();
-			for (final Building landmark : distantLandmarks)
-				distantScores.add(landmark.globalLandmarkness);
-			return Collections.max(distantScores);
-		}
-
-		// get the anchors of the destination
-		ArrayList<Building> anchors = new ArrayList<>();
-		anchors = destinationNode.anchors;
-		if (onlyAnchors & anchors.size() == 0)
-			return 0.0;
-		double nodeGlobalScore = 0.0;
-
-		// identify the best landmark, considering also the anchor-destination distance
-		for (final Building landmark : distantLandmarks) {
-			double score = 0.0;
-			if (anchors.contains(landmark)) {
-				score = landmark.globalLandmarkness;
-				// distance factor
-				final double distanceLandmark = destinationNode.distances.get(anchors.indexOf(landmark));
-				double distanceWeight = NodeGraph.nodesDistance(targetNode, destinationNode) / distanceLandmark;
-
-				if (distanceWeight > 1.0)
-					distanceWeight = 1.0;
-				score = score * distanceWeight;
-			}
-			if (score > nodeGlobalScore)
-				nodeGlobalScore = score;
-		}
-		return nodeGlobalScore;
+		return globalLandmarknessNode(targetNode, destinationNode, onlyAnchors);
 	}
 
 	/**

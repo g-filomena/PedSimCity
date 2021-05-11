@@ -13,15 +13,15 @@ import java.util.HashMap;
 import java.util.List;
 
 import pedsimcity.agents.AgentProperties;
+import pedsimcity.graph.EdgeGraph;
+import pedsimcity.graph.NodeGraph;
+import pedsimcity.graph.SubGraph;
 import pedsimcity.main.PedSimCity;
 import pedsimcity.main.UserParameters;
+import pedsimcity.utilities.NodeWrapper;
+import pedsimcity.utilities.Path;
+import pedsimcity.utilities.Utilities;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
-import urbanmason.main.EdgeGraph;
-import urbanmason.main.NodeGraph;
-import urbanmason.main.NodeWrapper;
-import urbanmason.main.Path;
-import urbanmason.main.SubGraph;
-import urbanmason.main.Utilities;
 
 public class DijkstraRoadDistance {
 
@@ -119,23 +119,28 @@ public class DijkstraRoadDistance {
 			// compute errors in perception of road coasts with stochastic variables
 			final List<Integer> pBarriers = commonEdge.positiveBarriers;
 			final List<Integer> nBarriers = commonEdge.negativeBarriers;
-//			if (ap.onlyMinimising == null  && ap.preferenceNaturalBarriers && pBarriers.size() > 0) error = Utilities.fromDistribution(ap.meanNaturalBarriers, 0.10, "left");
-//			else if (ap.onlyMinimising == null  && ap.aversionSeveringBarriers && nBarriers.size() > 0) error = Utilities.fromDistribution(ap.meanSeveringBarriers, 0.10, "right");
-//			else error = Utilities.fromDistribution(1.0, 0.10, null);
-			if (this.ap.onlyMinimising == null && this.ap.preferenceNaturalBarriers && pBarriers.size() > 0)
-				error = 0.85;
-			else if (this.ap.onlyMinimising == null && this.ap.aversionSeveringBarriers && nBarriers.size() > 0)
-				error = 1.15;
+			if (this.ap.onlyMinimising.equals("") && this.ap.preferenceNaturalBarriers && pBarriers.size() > 0)
+				error = Utilities.fromDistribution(this.ap.naturalBarriers, this.ap.naturalBarriersSD, "left");
+			else if (!this.ap.onlyMinimising.equals("") && this.ap.aversionSeveringBarriers && nBarriers.size() > 0)
+				error = Utilities.fromDistribution(this.ap.severingBarriers, this.ap.severingBarriersSD, "right");
 			else
 				error = Utilities.fromDistribution(1.0, 0.10, null);
+
+//			if (this.ap.onlyMinimising.equals("") && this.ap.preferenceNaturalBarriers && pBarriers.size() > 0)
+//				error = 0.50;
+//			else if (this.ap.onlyMinimising.equals("") && this.ap.aversionSeveringBarriers && nBarriers.size() > 0)
+//				error = 1.50;
+//			else
+//				error = Utilities.fromDistribution(1.0, 0.10, null);
 			final double edgeCost = commonEdge.getLength() * error;
 
-			if (this.ap.onlyMinimising == null && this.ap.usingGlobalLandmarks && NodeGraph.nodesDistance(targetNode,
-					this.finalDestinationNode) > UserParameters.threshold3dVisibility) {
+			if (this.ap.onlyMinimising.equals("") && this.ap.usingDistantLandmarks && NodeGraph
+					.nodesDistance(targetNode, this.finalDestinationNode) > UserParameters.threshold3dVisibility) {
 				final double globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode,
 						this.finalDestinationNode, this.ap.onlyAnchors);
 				final double nodeLandmarkness = 1.0
 						- globalLandmarkness * UserParameters.globalLandmarknessWeightDistance;
+
 				final double nodeCost = edgeCost * nodeLandmarkness;
 				tentativeCost = this.getBest(currentNode) + nodeCost;
 			} else
@@ -202,7 +207,13 @@ public class DijkstraRoadDistance {
 			path.invalidPath();
 		try {
 			while (this.mapWrappers.get(step).nodeFrom != null) {
-				final GeomPlanarGraphDirectedEdge dd = this.mapWrappers.get(step).edgeFrom;
+				final GeomPlanarGraphDirectedEdge dd;
+				if (this.ap.regionBasedNavigation && originNode.region == destinationNode.region) {
+					final NodeGraph nodeTo = this.graph.getParentNode(step);
+					final NodeGraph nodeFrom = this.graph.getParentNode(this.mapWrappers.get(step).nodeFrom);
+					dd = nodeFrom.getDirectedEdgeWith(nodeTo);
+				} else
+					dd = this.mapWrappers.get(step).edgeFrom;
 				step = this.mapWrappers.get(step).nodeFrom;
 				sequenceEdges.add(0, dd);
 				mapTraversedWrappers.put(step, this.mapWrappers.get(step));
@@ -212,7 +223,9 @@ public class DijkstraRoadDistance {
 		catch (final java.lang.NullPointerException e) {
 			return path;
 		}
+		if (this.subGraph) {
 
+		}
 		path.edges = sequenceEdges;
 		path.mapWrappers = mapTraversedWrappers;
 		return path;

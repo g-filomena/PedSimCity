@@ -13,6 +13,11 @@ public class Group {
 	double pOnlyTurns = 0.0;
 	double pOnlyTurnsSD = 0.0;
 
+	double pNotUsingElements = 0.0;
+	double pNotUsingElementsSD = 0.0;
+	double pUsingElements = 0.0;
+	double pUsingElementsSD = 0.0;
+
 	// local heuristics
 	double pRoadDistance = 0.0;
 	double pRoadDistanceSD = 0.0;
@@ -28,12 +33,19 @@ public class Group {
 	double pBarrierSubGoalsSD = 0.0;
 
 	// other route properties
-	double pGlobalLandmarks = 0.0;
-	double pGlobalLandmarksSD = 0.0;
-	double meanNaturalBarriers = 0.0;
-	double meanNaturalBarriersSD = 0.0;
-	double meanSeveringBarriers = 0.0;
-	double meanSeveringBarriersSD = 0.0;
+	double pDistantLandmarks = 0.0;
+	double pDistantLandmarksSD = 0.0;
+	double naturalBarriers = 0.0;
+	double naturalBarriersSD = 0.0;
+	double severingBarriers = 0.0;
+	double severingBarriersSD = 0.0;
+
+	double pNoRegionBasedNavigation = 0.0;
+	double pNoRegionBasedNavigationSD = 0.0;
+	double pNoSubGoals = 0.0;
+	double pNoSubGoalsSD = 0.0;
+	double pNoDistantLandmarks = 0.0;
+	double pNoDistantLandmarksSD = 0.0;
 
 	double agentKnowledge = 0.0;
 	double agentKnowledgeSD = 1.0;
@@ -41,7 +53,7 @@ public class Group {
 	public void setGroup(String groupName, String[] attributes) {
 
 		this.groupName = groupName;
-		if (this.groupName.equals("null"))
+		if (this.groupName.equals("nullGroup"))
 			return;
 
 		// onlyMinimisation
@@ -67,16 +79,28 @@ public class Group {
 		this.pBarrierSubGoalsSD = Float.parseFloat(attributes[14]);
 
 		// other route properties
-		this.pGlobalLandmarks = Float.parseFloat(attributes[15]);
-		this.pGlobalLandmarksSD = Float.parseFloat(attributes[16]);
+		this.pDistantLandmarks = Float.parseFloat(attributes[15]);
+		this.pDistantLandmarksSD = Float.parseFloat(attributes[16]);
 
-		this.meanNaturalBarriers = Float.parseFloat(attributes[17]);
-		this.meanNaturalBarriersSD = Float.parseFloat(attributes[18]);
-		this.meanSeveringBarriers = Float.parseFloat(attributes[19]);
-		this.meanSeveringBarriersSD = Float.parseFloat(attributes[20]);
+		this.pUsingElements = Float.parseFloat(attributes[37]);
+		this.pUsingElementsSD = Float.parseFloat(attributes[38]);
+		this.pNotUsingElements = Float.parseFloat(attributes[39]);
+		this.pNotUsingElementsSD = Float.parseFloat(attributes[40]);
+
+		this.pNoRegionBasedNavigation = Float.parseFloat(attributes[21]);
+		this.pNoRegionBasedNavigationSD = Float.parseFloat(attributes[22]);
+		this.pNoSubGoals = Float.parseFloat(attributes[23]);
+		this.pNoSubGoalsSD = Float.parseFloat(attributes[24]);
+		this.pNoDistantLandmarks = Float.parseFloat(attributes[25]);
+		this.pNoDistantLandmarksSD = Float.parseFloat(attributes[26]);
+
+		this.naturalBarriers = Float.parseFloat(attributes[33]);
+		this.naturalBarriersSD = Float.parseFloat(attributes[34]);
+		this.severingBarriers = Float.parseFloat(attributes[35]);
+		this.severingBarriersSD = Float.parseFloat(attributes[36]);
 
 		if (this.groupName.equals("population"))
 			return;
-		this.portion = Float.parseFloat(attributes[21]);
+		this.portion = Float.parseFloat(attributes[41]);
 	}
 }

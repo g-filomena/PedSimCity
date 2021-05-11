@@ -1,6 +1,8 @@
 package pedsimcity.agents;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import com.vividsolutions.jts.geom.Coordinate;
@@ -8,20 +10,19 @@ import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.LineString;
 import com.vividsolutions.jts.linearref.LengthIndexedLine;
 
+import pedsimcity.graph.EdgeGraph;
+import pedsimcity.graph.NodeGraph;
 import pedsimcity.main.PedSimCity;
-import pedsimcity.main.RouteData;
 import pedsimcity.main.UserParameters;
 import pedsimcity.routeChoice.CombinedNavigation;
-import pedsimcity.routeChoice.RoutePlanner;
+import pedsimcity.utilities.NodesLookup;
+import pedsimcity.utilities.RouteData;
 import sim.engine.SimState;
 import sim.engine.Steppable;
 import sim.engine.Stoppable;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 import sim.util.geo.MasonGeometry;
 import sim.util.geo.PointMoveTo;
-import urbanmason.main.EdgeGraph;
-import urbanmason.main.NodeGraph;
-import urbanmason.main.NodesLookup;
 
 public final class Pedestrian implements Steppable {
 
@@ -31,7 +32,7 @@ public final class Pedestrian implements Steppable {
 
 	// Initial Attributes
 	NodeGraph originNode = null;
-	public NodeGraph destinationNode = null;
+	NodeGraph destinationNode = null;
 	ArrayList<GeomPlanarGraphDirectedEdge> path = new ArrayList<>();
 
 	// point that denotes agent's position
@@ -59,13 +60,11 @@ public final class Pedestrian implements Steppable {
 	ArrayList<GeomPlanarGraphDirectedEdge> newPath = null;
 
 	EdgeGraph currentEdge = null;
-	ArrayList<NodeGraph> sequence = new ArrayList<>();
 	boolean reachedDestination = false;
 	Integer numTrips = 0;
 	AgentProperties ap = new AgentProperties();
-	AgentGroupProperties agp = new AgentGroupProperties();
+	AgentGroupProperties agp;
 	Stoppable killAgent;
-
 	// time
 	int minutesSoFar = 0;
 
@@ -73,13 +72,13 @@ public final class Pedestrian implements Steppable {
 	public Pedestrian(PedSimCity state, AgentProperties ap) {
 
 		this.state = state;
-		final GeometryFactory fact = new GeometryFactory();
-		this.agentLocation = new MasonGeometry(fact.createPoint(new Coordinate(10, 10)));
+		this.ap = ap;
 		if (UserParameters.empiricalABM)
 			this.agp = (AgentGroupProperties) ap;
-		else
-			this.ap = ap;
-		if (!UserParameters.empiricalABM) {
+		final GeometryFactory fact = new GeometryFactory();
+		this.agentLocation = new MasonGeometry(fact.createPoint(new Coordinate(10, 10)));
+
+		if (ap.OD.size() > 0) {
 			this.originNode = (NodeGraph) ap.OD.get(this.numTrips).getValue(0);
 			Coordinate startCoord = null;
 			startCoord = this.originNode.getCoordinate();
@@ -94,45 +93,41 @@ public final class Pedestrian implements Steppable {
 	 */
 	public void findNewAStarPath(PedSimCity state) {
 
-		final RouteData route = new RouteData();
-		route.origin = this.originNode.getID();
-		route.destination = this.destinationNode.getID();
-
 		if (UserParameters.empiricalABM) {
-			System.out.println("   Agent nr. " + this.agentID + " group " + this.agp.groupName + " OD "
-					+ this.originNode.getID() + "  " + this.destinationNode.getID());
+
 			this.agp.defineRouteChoiceParameters();
+			System.out.println(
+					"   Agent nr. " + this.agentID + " group " + this.agp.groupName + " OD " + this.originNode.getID()
+							+ "  " + this.destinationNode.getID() + " only minimising " + this.agp.onlyMinimising
+							+ " heuristic " + this.agp.localHeuristic + " regions " + this.agp.regionBasedNavigation
+							+ " local landmarks " + this.agp.landmarkBasedNavigation + " barrier sub-goals "
+							+ this.agp.barrierBasedNavigation + " distant landmarks " + this.agp.usingDistantLandmarks
+							+ " barriers " + this.agp.naturalBarriers + "  " + this.agp.aversionSeveringBarriers);
+
 			final CombinedNavigation combinedNavigation = new CombinedNavigation();
 			this.newPath = combinedNavigation.path(this.originNode, this.destinationNode, this.agp);
-			route.group = this.agp.groupName;
-			route.localH = this.agp.localHeuristic;
-			route.routeID = this.agentID.toString() + "-" + this.originNode.getID().toString() + "-"
-					+ this.destinationNode.getID().toString();
+
 		} else {
 			System.out
 					.println(this.originNode.getID() + "  " + this.destinationNode.getID() + " " + this.ap.routeChoice);
 			this.selectRouteChoice();
-			route.routeChoice = this.ap.routeChoice;
-			// route.routeID = numTrips;
 		}
 
 		final List<Integer> sequenceEdges = new ArrayList<>();
-
 		for (final GeomPlanarGraphDirectedEdge o : this.newPath) {
 			// update edge data
 			this.updateEdgeData((EdgeGraph) o.getEdge());
 			final int edgeID = ((EdgeGraph) o.getEdge()).getID();
 			sequenceEdges.add(edgeID);
 		}
-		route.sequenceEdges = sequenceEdges;
-		PedSimCity.routesData.add(route);
+		this.storeRouteData(sequenceEdges);
+
 		this.indexOnPath = 0;
 		this.path = this.newPath;
 
 		// set up how to traverse this first link
 		final EdgeGraph firstEdge = (EdgeGraph) this.newPath.get(0).getEdge();
 		this.setupEdge(firstEdge); // Sets the Agent up to proceed along an Edge
-
 		// update the current position for this link
 		this.updatePosition(this.segment.extractPoint(this.currentIndex));
 		this.numTrips += 1;
@@ -153,16 +148,14 @@ public final class Pedestrian implements Steppable {
 
 			if (this.reachedDestination)
 				this.reachedDestination = false;
-			if (this.numTrips == this.ap.OD.size() && !UserParameters.empiricalABM
-					|| UserParameters.empiricalABM && this.numTrips == UserParameters.numTrips) {
+			if (this.numTrips == this.ap.OD.size() && this.ap.OD.size() > 0
+					|| this.ap.OD.size() == 0 && this.numTrips == UserParameters.numTrips) {
 				stateSchedule.agentsList.remove(this);
-				if (stateSchedule.agentsList.size() == 0) {
-					System.out.println("calling finish");
+				if (stateSchedule.agentsList.size() == 0)
 					stateSchedule.finish();
-				}
 				this.killAgent.stop();
 				return;
-			} else if (UserParameters.empiricalABM) {
+			} else if (this.ap.OD.size() == 0) {
 				this.originNode = this.destinationNode = null;
 				while (this.originNode == null)
 					this.originNode = NodesLookup.randomNode(PedSimCity.network);
@@ -265,11 +258,11 @@ public final class Pedestrian implements Steppable {
 	 * @param EdgeGraph the edge;
 	 **/
 	void updateEdgeData(EdgeGraph edge) {
-		edge = PedSimCity.edgesMap.get(edge.getID()); // in case it was a subgraph edge
+		final EdgeGraph originalEdge = PedSimCity.edgesMap.get(edge.getID()); // in case it was a subgraph edge
 		if (UserParameters.empiricalABM)
-			edge.volumes.replace(this.agp.groupName, edge.volumes.get(this.agp.groupName) + 1);
+			originalEdge.volumes.replace(this.agp.groupName, originalEdge.volumes.get(this.agp.groupName) + 1);
 		else
-			edge.volumes.replace(this.ap.routeChoice, edge.volumes.get(this.ap.routeChoice) + 1);
+			originalEdge.volumes.replace(this.ap.routeChoice, originalEdge.volumes.get(this.ap.routeChoice) + 1);
 	}
 
 	public void setStoppable(Stoppable a) {
@@ -285,30 +278,9 @@ public final class Pedestrian implements Steppable {
 	 * It select the route choice model and it calls the path formulation algorithm
 	 */
 	public void selectRouteChoice() {
-		final RoutePlanner planner = new RoutePlanner();
-		this.sequence = this.ap.listSequences.get(this.numTrips);
-		// only minimisation
-		if (this.ap.routeChoice.equals("DS"))
-			this.newPath = planner.roadDistance(this.originNode, this.destinationNode, this.ap);
-		else if (this.ap.routeChoice.equals("AC"))
-			this.newPath = planner.angularChangeBased(this.originNode, this.destinationNode, this.ap);
-		else if (this.ap.routeChoice.equals("TS"))
-			this.newPath = planner.angularChangeBased(this.originNode, this.destinationNode, this.ap);
-		// minimisation plus only global landmarks
-		else if (this.ap.routeChoice.equals("DG"))
-			this.newPath = planner.roadDistance(this.originNode, this.destinationNode, this.ap);
-		else if (this.ap.routeChoice.equals("AG"))
-			this.newPath = planner.angularChangeBased(this.originNode, this.destinationNode, this.ap);
-		// minimisation plus local and (optionally) global landmarks
-		else if (this.ap.routeChoice.contains("D") && this.ap.routeChoice.contains("L"))
-			this.newPath = planner.roadDistanceSequence(this.sequence, this.ap);
-		else if (this.ap.routeChoice.contains("A") && this.ap.routeChoice.contains("L"))
-			this.newPath = planner.angularChangeBasedSequence(this.sequence, this.ap);
-		// anything with regions and/or barriers, or just barriers
-		else if (this.ap.routeChoice.contains("R"))
-			this.newPath = planner.regionBarrierBasedPath(this.originNode, this.destinationNode, this.ap);
-		else if (this.ap.routeChoice.contains("B"))
-			this.newPath = planner.barrierBasedPath(this.originNode, this.destinationNode, this.ap);
+
+		final CombinedNavigation combinedNavigation = new CombinedNavigation();
+		this.newPath = combinedNavigation.path(this.originNode, this.destinationNode, this.ap);
 	}
 
 	/** It computes the agents' speed */
@@ -360,6 +332,59 @@ public final class Pedestrian implements Steppable {
 		if (PedSimCity.edgesVolume.get(newEdge) == null)
 			PedSimCity.edgesVolume.put(newEdge, new ArrayList<Pedestrian>());
 		PedSimCity.edgesVolume.get(newEdge).add(this);
+	}
+
+	public void storeRouteData(List<Integer> sequenceEdges) {
+
+		final RouteData route = new RouteData();
+		route.origin = this.originNode.getID();
+		route.destination = this.destinationNode.getID();
+
+		if (UserParameters.empiricalABM) {
+			route.group = this.agp.groupName;
+			route.routeID = this.originNode.getID().toString() + "-" + this.destinationNode.getID().toString();
+			route.barrierSubGoals = this.ap.barrierBasedNavigation ? 1 : 0;
+			route.distantLandmarks = this.ap.usingDistantLandmarks ? 1 : 0;
+			route.regionBased = this.ap.regionBasedNavigation ? 1 : 0;
+			route.routeMarks = this.ap.landmarkBasedNavigation ? 1 : 0;
+			route.onlyMinimisation = this.ap.onlyMinimising;
+			route.localHeuristic = this.ap.localHeuristic;
+			route.naturalBarriers = this.ap.naturalBarriers;
+			route.severingBarriers = this.ap.severingBarriers;
+		} else
+			route.routeChoice = this.ap.routeChoice;
+
+		final List<Coordinate> allCoords = new ArrayList<>();
+		NodeGraph lastNode = this.originNode;
+		for (final int i : sequenceEdges) {
+			final EdgeGraph edge = PedSimCity.edgesMap.get(i);
+			final LineString geometry = (LineString) edge.masonGeometry.geometry;
+			final Coordinate[] coords = geometry.getCoordinates();
+			final List<Coordinate> coordsCollection = Arrays.asList(coords);
+
+			if (coords[0].distance(lastNode.getCoordinate()) > coords[coords.length - 1]
+					.distance(lastNode.getCoordinate()))
+				Collections.reverse(coordsCollection);
+			coordsCollection.set(0, lastNode.getCoordinate());
+			if (lastNode.equals(edge.u))
+				lastNode = edge.v;
+			else if (lastNode.equals(edge.v))
+				lastNode = edge.u;
+			else
+				System.out.println("Something is wrong with the sequence in this ");
+			coordsCollection.set(coordsCollection.size() - 1, lastNode.getCoordinate());
+			allCoords.addAll(coordsCollection);
+		}
+
+		route.sequenceEdges = sequenceEdges;
+		PedSimCity.routesData.add(route);
+
+		final GeometryFactory factory = new GeometryFactory();
+		final Coordinate[] allCoordsArray = new Coordinate[allCoords.size()];
+		for (int i = 0; i <= allCoords.size() - 1; i++)
+			allCoordsArray[i] = allCoords.get(i);
+		final LineString lineGeometry = factory.createLineString(allCoordsArray);
+		route.lineGeometry = lineGeometry;
 	}
 
 }

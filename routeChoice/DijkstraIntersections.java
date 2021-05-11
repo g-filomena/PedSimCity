@@ -13,15 +13,15 @@ import java.util.HashMap;
 import java.util.List;
 
 import pedsimcity.agents.AgentProperties;
+import pedsimcity.graph.EdgeGraph;
+import pedsimcity.graph.NodeGraph;
+import pedsimcity.graph.SubGraph;
 import pedsimcity.main.PedSimCity;
 import pedsimcity.main.UserParameters;
+import pedsimcity.utilities.NodeWrapper;
+import pedsimcity.utilities.Path;
+import pedsimcity.utilities.Utilities;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
-import urbanmason.main.EdgeGraph;
-import urbanmason.main.NodeGraph;
-import urbanmason.main.NodeWrapper;
-import urbanmason.main.Path;
-import urbanmason.main.SubGraph;
-import urbanmason.main.Utilities;
 
 public class DijkstraIntersections {
 
@@ -137,7 +137,7 @@ public class DijkstraIntersections {
 				tentativeCost = this.getBest(currentNode);
 			else {
 				double edgeCost = 1.0;
-				if (this.ap.usingGlobalLandmarks && NodeGraph.nodesDistance(targetNode,
+				if (this.ap.usingDistantLandmarks && NodeGraph.nodesDistance(targetNode,
 						this.primalDestinationNode) > UserParameters.threshold3dVisibility) {
 					final double globalLandmarkness = LandmarkNavigation.globalLandmarknessDualNode(currentNode,
 							targetNode, this.primalDestinationNode, this.ap.onlyAnchors);

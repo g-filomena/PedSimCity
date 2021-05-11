@@ -2,8 +2,8 @@ package pedsimcity.elements;
 
 import java.util.ArrayList;
 
+import pedsimcity.graph.EdgeGraph;
 import sim.util.geo.MasonGeometry;
-import urbanmason.main.EdgeGraph;
 
 public class Barrier {
 

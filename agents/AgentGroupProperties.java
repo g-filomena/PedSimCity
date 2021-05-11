@@ -2,155 +2,257 @@ package pedsimcity.agents;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 
 import org.javatuples.Pair;
 
-import urbanmason.main.Utilities;
+import pedsimcity.utilities.Utilities;
 
 public class AgentGroupProperties extends AgentProperties {
 
 	String groupName;
 	double portion = 0.0;
 	public double agentKnowledge = 0.0;
-	double pRegionBasedNavigation = 0.0;
-	double pGlobalLandmarks = 0.0;
+	Group group;
+	public boolean usingElements = false;
 
+	ArrayList<Double> pElements = new ArrayList<>(Arrays.asList(0.0, 0.0));
 	ArrayList<Double> pOnlyMinimisation = new ArrayList<>(Arrays.asList(0.0, 0.0));
 	ArrayList<Double> pHeuristics = new ArrayList<>(Arrays.asList(0.0, 0.0));
-	ArrayList<Double> pSubGoals = new ArrayList<>(Arrays.asList(0.0, 0.0));
+	ArrayList<Double> pRegionBased = new ArrayList<>(Arrays.asList(0.0, 0.0));
+	ArrayList<Double> pSubGoals = new ArrayList<>(Arrays.asList(0.0, 0.0, 0.0));
+	ArrayList<Double> pDistantLandmarks = new ArrayList<>(Arrays.asList(0.0, 0.0));
 
+	HashMap<String, Double> pElementsMap = new HashMap<>();
 	HashMap<String, Double> pOnlyMinimisationMap = new HashMap<>();
 	HashMap<String, Double> pHeuristicsMap = new HashMap<>();
+	HashMap<String, Double> pRegionBasedMap = new HashMap<>();
 	HashMap<String, Double> pSubGoalsMap = new HashMap<>();
+	HashMap<String, Double> pDistantLandmarksMap = new HashMap<>();
 
+	ArrayList<String> elements = new ArrayList<>(Arrays.asList("usingElements", "notUsingElements"));
 	ArrayList<String> onlyMinimisation = new ArrayList<>(Arrays.asList("roadDistance", "angularChange"));
 	ArrayList<String> localHeuristics = new ArrayList<>(Arrays.asList("roadDistance", "angularChange"));
-	ArrayList<String> subGoals = new ArrayList<>(Arrays.asList("localLandmarks", "barrierSubGoals"));
+	ArrayList<String> subGoals = new ArrayList<>(Arrays.asList("localLandmarks", "barrierSubGoals", "noSubGoals"));
+	ArrayList<String> regionBased = new ArrayList<>(Arrays.asList("regionBased", "notRegionBased"));
+	ArrayList<String> distantLandmarks = new ArrayList<>(Arrays.asList("usingDistant", "notUsingDistant"));
 
-	public void setPropertiesFromGroup(Group group) {
+	public AgentGroupProperties() {
+	}
 
-		this.groupName = group.groupName;
+	public AgentGroupProperties(Group group) {
+		this.group = group;
+		this.groupName = this.group.groupName;
+	}
 
-		if (this.groupName.equals("null"))
+	public void setParametersFromGroup() {
+
+		if (this.groupName.equals("nullGroup"))
 			return;
 
+		final Pair<Double, Double> pUsingElements = new Pair<>(this.group.pUsingElements, this.group.pUsingElementsSD);
+		final Pair<Double, Double> pNotUsingElements = new Pair<>(this.group.pNotUsingElements,
+				this.group.pNotUsingElementsSD);
+		final ArrayList<Pair<Double, Double>> pElementsDis = new ArrayList<>(
+				Arrays.asList(pUsingElements, pNotUsingElements));
+		this.updateProbabilities(this.pElements, pElementsDis);
+		for (int n = 0; n != this.pElements.size(); n++)
+			this.pElementsMap.put(this.elements.get(n), this.pElements.get(n));
+
 		// only minimisation
-		final Pair<Double, Double> pOnlyRoadDistance = new Pair<>(group.pOnlyRoadDistance, group.pOnlyRoadDistanceSD);
-		final Pair<Double, Double> pOnlyAngularChange = new Pair<>(group.pOnlyAngularChange,
-				group.pOnlyAngularChangeSD);
+		final Pair<Double, Double> pOnlyRoadDistance = new Pair<>(this.group.pOnlyRoadDistance,
+				this.group.pOnlyRoadDistanceSD);
+		final Pair<Double, Double> pOnlyAngularChange = new Pair<>(this.group.pOnlyAngularChange,
+				this.group.pOnlyAngularChangeSD);
 		final ArrayList<Pair<Double, Double>> pOnlyMinimisationDis = new ArrayList<>(
 				Arrays.asList(pOnlyRoadDistance, pOnlyAngularChange));
-
-		this.pOnlyMinimisation = this.setProbabilities(this.pOnlyMinimisation, pOnlyMinimisationDis);
+		this.updateProbabilities(this.pOnlyMinimisation, pOnlyMinimisationDis);
 		for (int n = 0; n != this.pOnlyMinimisation.size(); n++)
 			this.pOnlyMinimisationMap.put(this.onlyMinimisation.get(n), this.pOnlyMinimisation.get(n));
 
 		// heuristics
-		final Pair<Double, Double> pRoadDistance = new Pair<>(group.pRoadDistance, group.pRoadDistanceSD);
-		final Pair<Double, Double> pAngularChange = new Pair<>(group.pAngularChange, group.pAngularChangeSD);
+		final Pair<Double, Double> pRoadDistance = new Pair<>(this.group.pRoadDistance, this.group.pRoadDistanceSD);
+		final Pair<Double, Double> pAngularChange = new Pair<>(this.group.pAngularChange, this.group.pAngularChangeSD);
 		final ArrayList<Pair<Double, Double>> pHeuristicsDis = new ArrayList<>(
 				Arrays.asList(pRoadDistance, pAngularChange));
-		this.pHeuristics = this.setProbabilities(this.pHeuristics, pHeuristicsDis);
-
+		this.updateProbabilities(this.pHeuristics, pHeuristicsDis);
 		for (int n = 0; n != this.pHeuristics.size(); n++)
 			this.pHeuristicsMap.put(this.localHeuristics.get(n), this.pHeuristics.get(n));
 
+		// Coarse plan
+		final Pair<Double, Double> pRegionBasedNavigation = new Pair<>(this.group.pRegionBasedNavigation,
+				this.group.pRegionBasedNavigationSD);
+		final Pair<Double, Double> pNoRegionBasedNavigation = new Pair<>(this.group.pRegionBasedNavigation,
+				this.group.pNoRegionBasedNavigationSD);
+		final ArrayList<Pair<Double, Double>> pRegionsDis = new ArrayList<>(
+				Arrays.asList(pRegionBasedNavigation, pNoRegionBasedNavigation));
+		this.updateProbabilities(this.pRegionBased, pRegionsDis);
+		for (int n = 0; n != this.pRegionBased.size(); n++)
+			this.pRegionBasedMap.put(this.regionBased.get(n), this.pRegionBased.get(n));
+
 		// subgoals
-		final Pair<Double, Double> pLocalLandmarks = new Pair<>(group.pLocalLandmarks, group.pLocalLandmarksSD);
-		final Pair<Double, Double> pBarrierSubGoals = new Pair<>(group.pBarrierSubGoals, group.pBarrierSubGoalsSD);
+		final Pair<Double, Double> pLocalLandmarks = new Pair<>(this.group.pLocalLandmarks,
+				this.group.pLocalLandmarksSD);
+		final Pair<Double, Double> pBarrierSubGoals = new Pair<>(this.group.pBarrierSubGoals,
+				this.group.pBarrierSubGoalsSD);
+		final Pair<Double, Double> pNoSubGoals = new Pair<>(this.group.pNoSubGoals, this.group.pNoSubGoalsSD);
 		final ArrayList<Pair<Double, Double>> pSubGoalsDis = new ArrayList<>(
-				Arrays.asList(pLocalLandmarks, pBarrierSubGoals));
-
-		this.pSubGoals = this.setProbabilities(this.pSubGoals, pSubGoalsDis);
-
+				Arrays.asList(pLocalLandmarks, pBarrierSubGoals, pNoSubGoals));
+		this.updateProbabilities(this.pSubGoals, pSubGoalsDis);
 		for (int n = 0; n != this.pSubGoals.size(); n++)
 			this.pSubGoalsMap.put(this.subGoals.get(n), this.pSubGoals.get(n));
 
-		// Coarse plan
-		this.pRegionBasedNavigation = Utilities.fromDistribution(group.pRegionBasedNavigation,
-				group.pRegionBasedNavigationSD, null);
+		// distant landmarks
+		final Pair<Double, Double> pDistantLandmarks = new Pair<>(this.group.pDistantLandmarks,
+				this.group.pDistantLandmarksSD);
+		final Pair<Double, Double> pNoDistantLandmarks = new Pair<>(this.group.pNoDistantLandmarks,
+				this.group.pNoDistantLandmarksSD);
+		final ArrayList<Pair<Double, Double>> pDistantLandmarksDis = new ArrayList<>(
+				Arrays.asList(pDistantLandmarks, pNoDistantLandmarks));
+		this.updateProbabilities(this.pDistantLandmarks, pDistantLandmarksDis);
+		for (int n = 0; n != this.pDistantLandmarks.size(); n++)
+			this.pDistantLandmarksMap.put(this.distantLandmarks.get(n), this.pDistantLandmarks.get(n));
 
 		// other route properties
-		this.pGlobalLandmarks = Utilities.fromDistribution(group.pGlobalLandmarks, group.pGlobalLandmarksSD, null);
-		this.meanNaturalBarriers = Utilities.fromDistribution(group.meanNaturalBarriers, group.meanNaturalBarriersSD,
-				null);
-		this.meanSeveringBarriers = Utilities.fromDistribution(group.meanSeveringBarriers, group.meanSeveringBarriersSD,
-				null);
+
+		this.naturalBarriers = this.rescale(0.0, 1.0, 1.00, 0.00, this.group.naturalBarriers);
+		this.naturalBarriersSD = this.group.naturalBarriersSD;
+		this.severingBarriers = this.rescale(0.0, 1.0, 1.00, 2.00, this.group.severingBarriers);
+		this.severingBarriersSD = this.group.severingBarriersSD;
+
 	}
 
 	public void defineRouteChoiceParameters() {
 
 		this.reset();
-		final Random random = new Random();
-		final double phRandom = random.nextDouble();
-		if (this.groupName.equals("null"))
+
+		if (this.groupName.equals("nullGroup"))
 			this.fromUniform();
+		else
+			this.setParametersFromGroup();
 
+		if (this.naturalBarriers < 0.95)
+			this.preferenceNaturalBarriers = true;
+		if (this.severingBarriers > 1.05)
+			this.aversionSeveringBarriers = true;
+
+		final Random random = new Random();
+
+		// using elements or not
+		List<String> keys = new ArrayList<>(this.pElementsMap.keySet());
+		System.out.println(this.pElementsMap.toString());
+		double pRandom = random.nextDouble() * this.pElementsMap.values().stream().mapToDouble(d -> d).sum();
 		double limit = 0.0;
-
-		List<String> keys = new ArrayList<>(this.pOnlyMinimisationMap.keySet());
-		Collections.shuffle(keys);
 		for (final String key : keys) {
-			final double pOnlyHeuristic = this.pOnlyMinimisationMap.get(key);
-			final double pValue = pOnlyHeuristic + limit;
-			if (phRandom <= pValue) {
-				this.onlyMinimising = key;
+			final double p = this.pElementsMap.get(key);
+			if (pRandom <= p + limit) {
+				if (key.equals("usingElements"))
+					this.usingElements = true;
 				break;
 			}
-			limit = pValue;
+			limit += p;
 		}
 
-		if (this.onlyMinimising != "")
+		// minimisation approaches
+		if (!this.usingElements) {
+			keys.clear();
+			keys = new ArrayList<>(this.pOnlyMinimisationMap.keySet());
+			pRandom = random.nextDouble() * this.pOnlyMinimisationMap.values().stream().mapToDouble(d -> d).sum();
+			limit = 0.0;
+			for (final String key : keys) {
+				final double p = this.pOnlyMinimisationMap.get(key);
+				if (pRandom <= p + limit) {
+					this.onlyMinimising = key;
+					break;
+				}
+				limit += p;
+			}
 			return;
+		}
 
+		// local minimisation heuristic
+		keys.clear();
 		keys = new ArrayList<>(this.pHeuristicsMap.keySet());
-		Collections.shuffle(keys);
+		pRandom = random.nextDouble() * this.pHeuristicsMap.values().stream().mapToDouble(d -> d).sum();
+
+		limit = 0.0;
 		for (final String key : keys) {
-			final double pHeuristic = this.pHeuristicsMap.get(key);
-			final double pValue = pHeuristic + limit;
-			if (phRandom <= pValue) {
+			final double p = this.pHeuristicsMap.get(key);
+			if (pRandom <= p + limit) {
 				this.localHeuristic = key;
 				break;
 			}
-			limit = pValue;
+			limit += p;
 		}
-		if (this.localHeuristic.equals(""))
-			this.localHeuristic = keys.get(1);
 
+		// regions
 		keys.clear();
-		keys = new ArrayList<>(this.pSubGoalsMap.keySet());
-		Collections.shuffle(keys);
-		final double psRandom = random.nextDouble();
+		keys = new ArrayList<>(this.pRegionBasedMap.keySet());
+		pRandom = random.nextDouble() * this.pRegionBasedMap.values().stream().mapToDouble(d -> d).sum();
 		limit = 0.0;
 		for (final String key : keys) {
-			final double pHeuristic = this.pSubGoalsMap.get(key);
-			final double pValue = pHeuristic + limit;
-			if (psRandom <= pValue) {
-				if (key.equals("localLandmarks"))
-					this.landmarkBasedNavigation = true;
-				if (key.equals("barrierSubGoals"))
-					this.barrierBasedNavigation = true;
+			final double p = this.pRegionBasedMap.get(key);
+			if (pRandom <= p + limit) {
+				if (key.equals("regionBased"))
+					this.regionBasedNavigation = true;
 				break;
 			}
-			limit = pHeuristic;
+			limit += p;
 		}
 
-		// other route properties
-		final double rbRandom = random.nextDouble();
-		if (rbRandom <= this.pRegionBasedNavigation)
-			this.regionBasedNavigation = true;
-		final double glRandom = random.nextDouble();
-		if (glRandom <= this.pGlobalLandmarks)
-			this.usingGlobalLandmarks = true;
+		// subgoals
+		keys.clear();
+		keys = new ArrayList<>(this.pSubGoalsMap.keySet());
+		pRandom = random.nextDouble() * this.pSubGoalsMap.values().stream().mapToDouble(d -> d).sum();
+		limit = 0.0;
+		for (final String key : keys) {
+			final double p = this.pSubGoalsMap.get(key);
+			if (pRandom <= p + limit) {
+				if (key.equals("localLandmarks"))
+					this.landmarkBasedNavigation = true;
+				if (key.equals("barrierSubGoals")) {
+					this.barrierBasedNavigation = true;
+					this.typeBarriers = "separating";
+				}
+				break;
+			}
+			limit += p;
+		}
 
-		if (this.meanNaturalBarriers < 0.95)
-			this.preferenceNaturalBarriers = true;
-		if (this.meanSeveringBarriers > 1.05)
-			this.aversionSeveringBarriers = true;
+		// global landmarks
+		keys.clear();
+		keys = new ArrayList<>(this.pDistantLandmarksMap.keySet());
+		pRandom = random.nextDouble() * this.pDistantLandmarksMap.values().stream().mapToDouble(d -> d).sum();
+		limit = 0.0;
+		for (final String key : keys) {
+			final double p = this.pDistantLandmarksMap.get(key);
+			if (pRandom <= p + limit) {
+				if (key.equals("usingDistant"))
+					this.usingDistantLandmarks = true;
+				break;
+			}
+			limit += p;
+		}
+
+		if (this.usingElements && !this.landmarkBasedNavigation && !this.usingDistantLandmarks
+				&& !this.regionBasedNavigation && !this.barrierBasedNavigation) {
+			this.usingElements = false;
+			keys.clear();
+			keys = new ArrayList<>(this.pOnlyMinimisationMap.keySet());
+			pRandom = random.nextDouble() * this.pOnlyMinimisationMap.values().stream().mapToDouble(d -> d).sum();
+			limit = 0.0;
+			for (final String key : keys) {
+				final double p = this.pOnlyMinimisationMap.get(key);
+				if (pRandom <= p + limit) {
+					this.onlyMinimising = key;
+					break;
+				}
+				limit += p;
+			}
+		}
+
 	}
 
 	public void reset() {
@@ -159,83 +261,46 @@ public class AgentGroupProperties extends AgentProperties {
 		this.landmarkBasedNavigation = false;
 		this.barrierBasedNavigation = false;
 		this.regionBasedNavigation = false;
-		this.usingGlobalLandmarks = false;
+		this.usingDistantLandmarks = false;
 		this.preferenceNaturalBarriers = false;
 		this.aversionSeveringBarriers = false;
+		this.usingElements = false;
 	}
 
 	public void fromUniform() {
 
-		final Random udRandom = new Random();
+		this.complementaryUniform(this.elements, this.pElementsMap);
+		this.complementaryUniform(this.onlyMinimisation, this.pOnlyMinimisationMap);
+		this.complementaryUniform(this.localHeuristics, this.pHeuristicsMap);
+		this.complementaryUniform(this.regionBased, this.pRegionBasedMap);
+		this.complementaryUniform(this.subGoals, this.pSubGoalsMap);
+		this.complementaryUniform(this.distantLandmarks, this.pDistantLandmarksMap);
 
-		double remainder = 1.0;
-		for (final String s : this.onlyMinimisation) {
-			final double probability = udRandom.nextDouble();
-			this.pOnlyMinimisationMap.put(s, probability);
-			if (probability > remainder)
-				this.pOnlyMinimisationMap.replace(s, remainder);
-			remainder -= this.pOnlyMinimisationMap.get(s);
-			if (remainder < 0.0)
-				remainder = 0.0;
-		}
-
-		remainder = 1.0;
-		for (final String s : this.localHeuristics) {
-			this.pHeuristicsMap.put(s, udRandom.nextDouble());
-			if (this.pHeuristicsMap.get(s) > remainder)
-				this.pHeuristicsMap.replace(s, remainder);
-			remainder -= this.pHeuristicsMap.get(s);
-			if (remainder < 0.0)
-				remainder = 0.0;
-		}
-
-		remainder = 1.0;
-		for (final String s : this.subGoals) {
-			this.pSubGoalsMap.put(s, udRandom.nextDouble());
-			if (this.pSubGoalsMap.get(s) > remainder)
-				this.pSubGoalsMap.replace(s, remainder);
-			remainder -= this.pSubGoalsMap.get(s);
-			if (remainder < 0.0)
-				remainder = 0.0;
-		}
-
-		// Coarse plan
-		this.pRegionBasedNavigation = udRandom.nextDouble();
-
-		// other route properties
-		this.pGlobalLandmarks = udRandom.nextDouble();
-		this.meanNaturalBarriers = 0.40 + Math.random() * (1.00 - 0.40);
-		this.meanSeveringBarriers = 1.00 + Math.random() * (1.60 - 1.00);
+		this.naturalBarriers = 0.00 + Math.random() * (1.00 - 0.00);
+		this.severingBarriers = 1.00 + Math.random() * (2.00 - 1.00);
 	}
 
-	public ArrayList<Double> setProbabilities(ArrayList<Double> probabilities,
-			ArrayList<Pair<Double, Double>> pDistribution) {
+	public void updateProbabilities(ArrayList<Double> probabilities, ArrayList<Pair<Double, Double>> pDistribution) {
 
-		int t;
-		double remainder = 1.0;
-		final List<Integer> processed = new ArrayList<>();
-		final Random random = new Random();
-
-		remainder = 1.0;
-
-		while (processed.size() != probabilities.size()) {
-			do
-				t = random.nextInt(probabilities.size());
-			while (processed.contains(t));
-
-			final double p = Utilities.fromDistribution(pDistribution.get(t).getValue0(),
-					pDistribution.get(t).getValue1(), null);
-			probabilities.set(t, p);
-			if (p > remainder)
-				probabilities.set(t, remainder);
-			remainder -= probabilities.get(t);
-			if (remainder < 0.0)
-				remainder = 0.0;
-			processed.add(t);
-			if (processed.size() == probabilities.size())
-				break;
+		for (final Double d : probabilities) {
+			final int index = probabilities.indexOf(d);
+			final double p = Utilities.fromDistribution(pDistribution.get(index).getValue0(),
+					pDistribution.get(index).getValue1(), null);
+			probabilities.set(index, p);
 		}
-		return probabilities;
 	}
 
+	public double rescale(double oldMin, double oldMax, double newMin, double newMax, double value) {
+
+		final double oldRange = oldMax - oldMin;
+		final double newRange = newMax - newMin;
+		return (value - oldMin) * newRange / oldRange + newMin;
+	}
+
+	public void complementaryUniform(ArrayList<String> variables, HashMap<String, Double> map) {
+
+		final double probability = 1.0 / variables.size();
+		for (final String s : variables)
+			map.put(s, probability);
+	}
 }

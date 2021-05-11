@@ -20,18 +20,20 @@ import com.vividsolutions.jts.geom.Geometry;
 import pedsimcity.agents.AgentProperties;
 import pedsimcity.elements.Barrier;
 import pedsimcity.elements.Region;
+import pedsimcity.graph.EdgeGraph;
+import pedsimcity.graph.NodeGraph;
 import pedsimcity.main.PedSimCity;
+import pedsimcity.utilities.Angles;
+import pedsimcity.utilities.Utilities;
 import sim.util.Bag;
 import sim.util.geo.MasonGeometry;
-import urbanmason.main.Angles;
-import urbanmason.main.EdgeGraph;
-import urbanmason.main.NodeGraph;
-import urbanmason.main.Utilities;
 
 public class BarrierBasedNavigation {
 
 	NodeGraph currentLocation;
+	NodeGraph destinationNode;
 	HashMap<Integer, EdgeGraph> edgesMap;
+	final ArrayList<NodeGraph> sequence = new ArrayList<>();
 
 	/**
 	 * It returns a sequence of nodes, wherein, besides the origin and the
@@ -50,10 +52,9 @@ public class BarrierBasedNavigation {
 		this.currentLocation = originNode;
 
 		// sub-goals
-		final ArrayList<NodeGraph> sequence = new ArrayList<>();
-		sequence.add(originNode);
+		this.sequence.add(originNode);
 		this.currentLocation = originNode;
-
+		this.destinationNode = destinationNode;
 		// it stores the barriers that the agent has already been exposed to
 		final ArrayList<Integer> adjacentBarriers = new ArrayList<>();
 
@@ -72,7 +73,7 @@ public class BarrierBasedNavigation {
 				if (edge.barriers != null)
 					adjacentBarriers.addAll(edge.barriers);
 
-			// disregard barriers that have been already walked along
+//			// disregard barriers that have been already walked along
 			final Set<Integer> visitedBarriers = new HashSet<>(adjacentBarriers);
 			intersectingBarriers.removeAll(visitedBarriers);
 			if (intersectingBarriers.size() == 0)
@@ -84,7 +85,8 @@ public class BarrierBasedNavigation {
 			// close to it
 			if (ap.regionBasedNavigation)
 				region = PedSimCity.regionsMap.get(originNode.region);
-			final Pair<EdgeGraph, Integer> barrierGoal = barrierGoal(intersectingBarriers, this.currentLocation,
+
+			final Pair<EdgeGraph, Integer> barrierGoal = this.barrierGoal(intersectingBarriers, this.currentLocation,
 					destinationNode, region);
 			if (barrierGoal == null)
 				break;
@@ -99,12 +101,12 @@ public class BarrierBasedNavigation {
 			else
 				subGoal = v;
 
-			sequence.add(subGoal);
+			this.sequence.add(subGoal);
 			this.currentLocation = subGoal;
 			adjacentBarriers.add(barrier);
 		}
-		sequence.add(destinationNode);
-		return sequence;
+		this.sequence.add(destinationNode);
+		return this.sequence;
 	}
 
 	/**
@@ -132,11 +134,12 @@ public class BarrierBasedNavigation {
 
 			if (typeBarriers.equals("all"))
 				intersectingGeometries.add(geoBarrier);
-			else if (typeBarriers.equals("positive") & barrierType.equals("park") || barrierType.equals("water"))
+			else if (typeBarriers.equals("positive") && (barrierType.equals("park") || barrierType.equals("water")))
 				intersectingGeometries.add(geoBarrier);
-			else if (typeBarriers.equals("negative") && barrierType.equals("railway") || barrierType.equals("road"))
+			else if (typeBarriers.equals("negative") && (barrierType.equals("railway") || barrierType.equals("road")
+					|| barrierType.equals("secondary_road")))
 				intersectingGeometries.add(geoBarrier);
-			else if (typeBarriers.equals("separating") && !barrierType.equals("parks"))
+			else if (typeBarriers.equals("separating") && !barrierType.equals("park"))
 				intersectingGeometries.add(geoBarrier);
 			else if (typeBarriers.equals(barrierType))
 				intersectingGeometries.add(geoBarrier);
@@ -160,9 +163,11 @@ public class BarrierBasedNavigation {
 	 *                             agent is navigateing through regions;
 	 */
 
-	public static Pair<EdgeGraph, Integer> barrierGoal(Set<Integer> intersectingBarriers, NodeGraph currentLocation,
+	public Pair<EdgeGraph, Integer> barrierGoal(Set<Integer> intersectingBarriers, NodeGraph currentLocation,
 			NodeGraph destinationNode, Region region) {
 
+		this.currentLocation = currentLocation;
+		this.destinationNode = destinationNode;
 		final HashMap<Integer, Double> possibleBarriers = new HashMap<>();
 		// create search-space
 		final Geometry viewField = Angles.viewField(currentLocation, destinationNode, 70.0);
@@ -170,11 +175,19 @@ public class BarrierBasedNavigation {
 		// for each barrier, check whether they are within the region/area considered
 		// and within the search-space, and if
 		// it complies with the criteria
+
 		for (final int barrierID : intersectingBarriers) {
+
 			final MasonGeometry barrierGeometry = PedSimCity.barriersMap.get(barrierID).masonGeometry;
-			final Coordinate intersection = viewField.intersection(barrierGeometry.geometry).getCoordinate();
-			final double distanceIntersection = Utilities.euclideanDistance(currentLocation.getCoordinate(),
-					intersection);
+			final Coordinate[] intersections = viewField.intersection(barrierGeometry.geometry).getCoordinates();
+			double distanceIntersection = Double.MAX_VALUE;
+
+			for (final Coordinate c : intersections) {
+				final double tmpDistance = Utilities.euclideanDistance(currentLocation.getCoordinate(), c);
+				if (tmpDistance < distanceIntersection)
+					distanceIntersection = tmpDistance;
+			}
+
 			if (distanceIntersection > Utilities.euclideanDistance(currentLocation.getCoordinate(),
 					destinationNode.getCoordinate()))
 				continue;
@@ -191,8 +204,11 @@ public class BarrierBasedNavigation {
 			regionBasedNavigation = true;
 
 		// sorted by distance (further away first)
-		final LinkedHashMap<Integer, Double> validSorted = (LinkedHashMap<Integer, Double>) Utilities
+		LinkedHashMap<Integer, Double> validSorted = (LinkedHashMap<Integer, Double>) Utilities
 				.sortByValue(possibleBarriers, true);
+		if (regionBasedNavigation)
+			validSorted = (LinkedHashMap<Integer, Double>) Utilities.sortByValue(possibleBarriers, true);
+
 		ArrayList<EdgeGraph> regionEdges = null;
 		// the edges of the current region
 		if (regionBasedNavigation)
@@ -200,27 +216,27 @@ public class BarrierBasedNavigation {
 
 		final ArrayList<Integer> withinBarriers = new ArrayList<>();
 		final ArrayList<EdgeGraph> possibleEdgeGoals = new ArrayList<>();
+
+		int waterCounter = 0;
+		int parkCounter = 0;
+
 		for (final int barrierID : validSorted.keySet()) {
 			final Barrier barrier = PedSimCity.barriersMap.get(barrierID);
 			final String type = barrier.type;
 
 			// identify edges that are along the identified barrier
 			final ArrayList<EdgeGraph> edgesAlong = barrier.edgesAlong;
-			final HashMap<EdgeGraph, Double> thisBarrierEdgeGoals = new HashMap<>();
+			HashMap<EdgeGraph, Double> thisBarrierEdgeGoals = new HashMap<>();
 
 			// keep only edges, along the identified barrier, within the the current region
-			if (regionBasedNavigation)
+			if (regionBasedNavigation) {
 				edgesAlong.retainAll(regionEdges);
+				if (edgesAlong.size() == 0)
+					continue;
+			}
 
 			// verify if also the edge meets the criterion
-			for (final EdgeGraph edge : edgesAlong) {
-				final double distanceEdge = Utilities.euclideanDistance(currentLocation.getCoordinate(),
-						edge.getCoordsCentroid());
-				if (distanceEdge > Utilities.euclideanDistance(currentLocation.getCoordinate(),
-						destinationNode.getCoordinate()))
-					continue;
-				thisBarrierEdgeGoals.put(edge, distanceEdge);
-			}
+			thisBarrierEdgeGoals = this.checkRequirementsSubGoal(edgesAlong);
 			// if the barrier doensn't have decent edges around
 			if (thisBarrierEdgeGoals.size() == 0)
 				continue;
@@ -233,14 +249,11 @@ public class BarrierBasedNavigation {
 
 			// compare it with the previous barrier-edges pairs, on the basis of the type.
 			// Positive barriers are preferred.
-			int waterCounter = 0;
-			int parkCounter = 0;
-
 			if (type.equals("water")) {
 				withinBarriers.add(waterCounter, barrierID);
 				possibleEdgeGoals.add(waterCounter, possibleEdgeGoal);
 				waterCounter += 1;
-				parkCounter = waterCounter + 1;
+				parkCounter += 1;
 			} else if (type.equals("park")) {
 				withinBarriers.add(parkCounter, barrierID);
 				possibleEdgeGoals.add(parkCounter, possibleEdgeGoal);
@@ -257,7 +270,28 @@ public class BarrierBasedNavigation {
 		edgeGoal = possibleEdgeGoals.get(0);
 		final int barrier = withinBarriers.get(0);
 		final Pair<EdgeGraph, Integer> pair = new Pair<>(edgeGoal, barrier);
-
 		return pair;
 	}
+
+	private HashMap<EdgeGraph, Double> checkRequirementsSubGoal(ArrayList<EdgeGraph> edgesAlong) {
+
+		final HashMap<EdgeGraph, Double> thisBarrierEdgeGoals = new HashMap<>();
+
+		for (final EdgeGraph edge : edgesAlong) {
+
+			final double distanceToEdge = Utilities.euclideanDistance(this.currentLocation.getCoordinate(),
+					edge.getCoordsCentroid());
+			if (distanceToEdge > Utilities.euclideanDistance(this.currentLocation.getCoordinate(),
+					this.destinationNode.getCoordinate()))
+				continue;
+			for (final NodeGraph n : this.sequence)
+				if (n.getEdges().contains(edge))
+					continue;
+			if (this.currentLocation.getEdges().contains(edge))
+				continue;
+			thisBarrierEdgeGoals.put(edge, distanceToEdge);
+		}
+		return thisBarrierEdgeGoals;
+	}
+
 }

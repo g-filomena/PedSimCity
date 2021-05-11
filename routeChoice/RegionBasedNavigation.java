@@ -18,11 +18,11 @@ import org.javatuples.Pair;
 import pedsimcity.agents.AgentProperties;
 import pedsimcity.elements.Gateway;
 import pedsimcity.elements.Region;
+import pedsimcity.graph.EdgeGraph;
+import pedsimcity.graph.NodeGraph;
 import pedsimcity.main.PedSimCity;
-import urbanmason.main.Angles;
-import urbanmason.main.EdgeGraph;
-import urbanmason.main.NodeGraph;
-import urbanmason.main.Utilities;
+import pedsimcity.utilities.Angles;
+import pedsimcity.utilities.Utilities;
 
 public class RegionBasedNavigation {
 
@@ -76,7 +76,6 @@ public class RegionBasedNavigation {
 			// exit- entry next region
 			final Pair<NodeGraph, NodeGraph> gateways = this.nextGateways(this.currentLocation, this.currentRegion,
 					999999);
-
 			// no gateway has been identified, go back, if possible
 			if (gateways == null)
 				if (this.previousLocation != null) {
@@ -192,7 +191,8 @@ public class RegionBasedNavigation {
 			NodeGraph subGoal = null;
 			// given the intersecting barriers, identify the best one and the relative edge
 			// close to it
-			final Pair<EdgeGraph, Integer> barrierGoal = BarrierBasedNavigation.barrierGoal(intersectingBarriers,
+			final BarrierBasedNavigation barrierBasedNavigation = new BarrierBasedNavigation();
+			final Pair<EdgeGraph, Integer> barrierGoal = barrierBasedNavigation.barrierGoal(intersectingBarriers,
 					gateway, this.destinationNode, region);
 			if (barrierGoal == null)
 				continue;
@@ -277,7 +277,6 @@ public class RegionBasedNavigation {
 		// check compliance with criteria
 		final double locationDestinationAngle = Angles.angle(currentLocation, this.destinationNode);
 		final double distanceTarget = NodeGraph.nodesDistance(currentLocation, this.destinationNode);
-
 		for (final Gateway gd : possibleGates) {
 			if (this.badExits.contains(gd.gatewayID))
 				continue;
@@ -291,21 +290,21 @@ public class RegionBasedNavigation {
 			final double exitDestintionAngle = Angles.angle(gd.exit, this.destinationNode);
 			final double differenceExitEntry = Angles.differenceAngles(locationExitAngle, exitDestintionAngle);
 			final double distanceFromGate = NodeGraph.nodesDistance(currentLocation, gd.exit);
+
 			double cost = 0.0;
+			final boolean entryInDirection = Angles.isInDirection(locationDestinationAngle, exitEntryAngle, 140.0);
+			final boolean exitInDirection = Angles.isInDirection(locationDestinationAngle, locationExitAngle, 140.0);
 
 			// criteria are not met
-			if (gd.exit == currentLocation && !Angles.isInDirection(locationDestinationAngle, exitEntryAngle, 140)) {
+			if (gd.exit == currentLocation && !entryInDirection) {
 				cost = Angles.differenceAngles(exitEntryAngle, locationDestinationAngle);
 				otherGates.put(gd.gatewayID, cost); // use as alternatives
 				continue;
-			}
-
-			else if (gd.exit != currentLocation && (distanceFromGate > distanceTarget
-					|| !Angles.isInDirection(locationDestinationAngle, locationExitAngle, 140)
-					|| !Angles.isInDirection(locationDestinationAngle, exitEntryAngle, 140))) {
+			} else if (gd.exit != currentLocation
+					&& (distanceFromGate > distanceTarget || !exitInDirection || !entryInDirection)) {
 				cost = Angles.differenceAngles(locationExitAngle, locationDestinationAngle);
 				if (cost > 90)
-					continue; // too much
+					continue;
 				cost += differenceExitEntry;
 				otherGates.put(gd.gatewayID, cost); // use as alternatives
 				continue;

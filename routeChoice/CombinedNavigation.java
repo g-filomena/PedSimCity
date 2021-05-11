@@ -2,29 +2,26 @@ package pedsimcity.routeChoice;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
-import pedsimcity.agents.AgentGroupProperties;
 import pedsimcity.agents.AgentProperties;
 import pedsimcity.elements.Region;
+import pedsimcity.graph.NodeGraph;
 import pedsimcity.main.PedSimCity;
 import pedsimcity.main.UserParameters;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
-import urbanmason.main.NodeGraph;
 
 public class CombinedNavigation {
 
 	NodeGraph originNode, destinationNode;
 
-	AgentGroupProperties ap = new AgentGroupProperties();
+	AgentProperties ap = new AgentProperties();
 	ArrayList<GeomPlanarGraphDirectedEdge> completePath = new ArrayList<>();
 	ArrayList<NodeGraph> sequenceNodes = new ArrayList<>();
 
 	public ArrayList<GeomPlanarGraphDirectedEdge> path(NodeGraph originNode, NodeGraph destinationNode,
-			AgentGroupProperties agp) {
-		this.ap = agp;
+			AgentProperties ap) {
+		this.ap = ap;
 		this.originNode = originNode;
 		this.destinationNode = destinationNode;
 		final RoutePlanner planner = new RoutePlanner();
@@ -55,23 +52,20 @@ public class CombinedNavigation {
 		}
 
 		// through local landmarks or important nodes (sub-goals)
-		else if (this.ap.landmarkBasedNavigation) {
+		else if (this.ap.landmarkBasedNavigation)
 			if (this.ap.regionBasedNavigation && this.sequenceNodes.size() > 0)
 				this.intraRegionMarks();
 			else
 				this.sequenceNodes = LandmarkNavigation.onRouteMarks(originNode, destinationNode, this.ap);
-		}
 
-		// pure global landmark navigation (no heuristic, no sub-goals, it allows)
-		else if (this.ap.usingGlobalLandmarks && !this.ap.landmarkBasedNavigation && this.ap.localHeuristic.equals(""))
-			if (this.ap.regionBasedNavigation)
-				return planner.globalLandmarksPathSequence(this.sequenceNodes, this.ap); // through regions
+		// pure global landmark navigation (no minimisation heuristic)
+		else if (this.ap.usingDistantLandmarks && this.ap.localHeuristic.equals("")) {
+			;
+			if (this.ap.regionBasedNavigation || this.ap.landmarkBasedNavigation)
+				return planner.globalLandmarksPathSequence(this.sequenceNodes, this.ap);
 			else
 				return planner.globalLandmarksPath(originNode, destinationNode, this.ap);
-
-		final Set<NodeGraph> set = new HashSet<>(this.sequenceNodes);
-		if (set.size() < this.sequenceNodes.size())
-			System.out.println("DUPLICATES");
+		}
 
 		if (this.sequenceNodes.size() == 0) {
 			if (this.ap.localHeuristic.equals("roadDistance"))
