@@ -119,19 +119,14 @@ public class DijkstraRoadDistance {
 			// compute errors in perception of road coasts with stochastic variables
 			final List<Integer> pBarriers = commonEdge.positiveBarriers;
 			final List<Integer> nBarriers = commonEdge.negativeBarriers;
+
 			if (this.ap.onlyMinimising.equals("") && this.ap.preferenceNaturalBarriers && pBarriers.size() > 0)
 				error = Utilities.fromDistribution(this.ap.naturalBarriers, this.ap.naturalBarriersSD, "left");
-			else if (!this.ap.onlyMinimising.equals("") && this.ap.aversionSeveringBarriers && nBarriers.size() > 0)
+			else if (this.ap.onlyMinimising.equals("") && this.ap.aversionSeveringBarriers && nBarriers.size() > 0)
 				error = Utilities.fromDistribution(this.ap.severingBarriers, this.ap.severingBarriersSD, "right");
 			else
 				error = Utilities.fromDistribution(1.0, 0.10, null);
 
-//			if (this.ap.onlyMinimising.equals("") && this.ap.preferenceNaturalBarriers && pBarriers.size() > 0)
-//				error = 0.50;
-//			else if (this.ap.onlyMinimising.equals("") && this.ap.aversionSeveringBarriers && nBarriers.size() > 0)
-//				error = 1.50;
-//			else
-//				error = Utilities.fromDistribution(1.0, 0.10, null);
 			final double edgeCost = commonEdge.getLength() * error;
 
 			if (this.ap.onlyMinimising.equals("") && this.ap.usingDistantLandmarks && NodeGraph

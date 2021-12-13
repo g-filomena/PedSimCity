@@ -13,9 +13,9 @@ public class UserParameters {
 	// General parameters
 	static String cityName = "Muenster";
 	static int jobs = 10;
-	static int numAgents = 903; // this is set to 1 agent per route choice model when one of testingLandmarks,
-								// testingRegions, testingModels is True
-	public static int numTrips = 1; // this is automatically set when one of testingLandmarks (255), testingRegions
+	static int numAgents = 1000; // this is set to 1 agent per route choice model when one of testingLandmarks,
+									// testingRegions, testingModels is True
+	public static int numTrips = 3; // this is automatically set when one of testingLandmarks (255), testingRegions
 									// (2000) is True
 	public static boolean segmentsAvoidance = true;
 
@@ -44,22 +44,20 @@ public class UserParameters {
 	// specify the models in the string RouteChoice
 	static boolean testingModels = false;
 	// static String routeChoices[] = {"DS", "AC", "TS"};
-	static String routeChoices[] = { "DGL", "DS" };
+	static String routeChoices[] = { "DG", "AG" };
 
 	public static double minDistance = 500;
 	public static double maxDistance = 2500;
 
 	// 3) Test specificRoutes (1 agent per routeChoiceModel, specify them above in
 	// routeChoices).
-	static boolean testingSpecificRoutes = true;
+	static boolean testingSpecificRoutes = false;
 	static List<Integer> OR = new ArrayList<>();
 	static List<Integer> DE = new ArrayList<>();
 
 	public static void setTestingMatrix() {
-		final Integer[] or = { 12368 };
-		final Integer[] de = { 258 };
-//		final Integer[] or = { 8803, 12368, 5176 };
-//		final Integer[] de = { 12470, 258, 11158 };
+		final Integer[] or = { 8803, 10540, 5176 };
+		final Integer[] de = { 12470, 258, 11158 };
 
 		OR.clear();
 		DE.clear();
@@ -72,7 +70,8 @@ public class UserParameters {
 	// 4) Empirical ABM - creating of groups stochastically from clusters of
 	// individuals (in development)
 	public static boolean empiricalABM = true;
-	public static boolean usingDMA = false;
+	public static boolean usingDMA = true;
+	public static boolean shortestPathOnly = true;
 	public static HashMap<String, Double> destinationsDMA = new HashMap<>();
 
 //	public static double noobAgentThreshold = 0.25;
@@ -85,10 +84,14 @@ public class UserParameters {
 	public static double globalLandmarkThreshold = 0.30; //
 	public static double localLandmarkThreshold = 0.30; //
 	public static double salientNodesPercentile = 0.75; // Threshold Percentile to identify salient nodes
-	public static int nrAnchors = 25;
+	public static int nrAnchors = 25; // to speed-up, it can be higher; it can be lower for more prototypical
+										// landmarks only
 
 	// Some researcher-defined parameter
 	public static double wayfindingEasinessThreshold = 0.95; // 2d Visibility threshold; distanLandmarks usage threshold
+	public static double wayfindingEasinessThresholdRegions = 0.85; // 2d Visibility threshold; distanLandmarks usage
+																	// threshold
+
 	public static double globalLandmarknessWeightDistance = 0.85; // weight Global Landmarkness in combination with edge
 																	// cost
 	public static double globalLandmarknessWeightAngular = 0.95; // weight Global Landmarkness in combination with edge
@@ -124,8 +127,9 @@ public class UserParameters {
 			outputFolder = outputFolderDefault + "/empiricalABM/" + cityName + "_PedSim_empirical_";
 			outputFolderRoutes = outputFolderDefault + "/empiricalABM/routes/" + cityName + "_PedSim_empirical_";
 		} else if (empiricalABM && usingDMA) {
-			outputFolder = outputFolderDefault + "/empiricalABM/" + cityName + "_PedSim_empirical_DMA_";
-			outputFolderRoutes = outputFolderDefault + "/empiricalABM/routes/" + cityName + "_PedSim_empirical_DMA_";
+			outputFolder = outputFolderDefault + "/empiricalABM/" + cityName + "_PedSim_empirical_DMA_211002_";
+			outputFolderRoutes = outputFolderDefault + "/empiricalABM/routes/" + cityName
+					+ "_PedSim_empirical_DMA_211002_";
 		} else if (empiricalABM && testingSpecificRoutes) {
 			outputFolder = outputFolderDefault + "/empiricalABM/" + cityName + "_PedSim_empirical_OD_";
 			outputFolderRoutes = outputFolderDefault + "/empiricalABM/routes/" + cityName + "_PedSim_empirical_OD_";

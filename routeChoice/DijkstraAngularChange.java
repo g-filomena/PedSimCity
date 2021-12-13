@@ -135,12 +135,6 @@ public class DijkstraAngularChange {
 				error = Utilities.fromDistribution(this.ap.severingBarriers, this.ap.severingBarriersSD, "right");
 			else
 				error = Utilities.fromDistribution(1.0, 0.10, null);
-//			if (this.ap.onlyMinimising.equals("") && this.ap.preferenceNaturalBarriers && pBarriers.size() > 0)
-//				error = 0.50;
-//			else if (this.ap.onlyMinimising.equals("") && this.ap.aversionSeveringBarriers && nBarriers.size() > 0)
-//				error = 1.50;
-//			else
-//				error = Utilities.fromDistribution(1.0, 0.10, null);
 
 			double edgeCost = commonEdge.getDeflectionAngle() * error;
 			if (edgeCost > 180.0)

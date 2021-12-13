@@ -95,20 +95,11 @@ public class CombinedNavigation {
 			// works also for nodeBasedNavigation only:
 			onRouteMarks = onRouteMarksRegion(currentLocation, exitGateway, this.originNode, this.destinationNode,
 					newSequence, this.ap);
-
-//			if (onRouteMarks.size() == 0 && this.ap.agentKnowledge <= UserParameters.noobAgentThreshold) {
-//				System.out.println("using barriers instead");
-//				final BarrierBasedNavigation barrierBasedPath = new BarrierBasedNavigation();
-//				onRouteMarks = barrierBasedPath.sequenceBarriers(currentLocation, exitGateway, this.ap);
-//			}
-
 			newSequence.addAll(onRouteMarks);
-			// List<Integer> opo = new ArrayList<Integer>();
-			// for (NodeGraph n : onRouteMarks) opo.add(n.getID());
-			// System.out.println("control onroutemarks "+Arrays.asList(opo));
 			currentLocation = exitGateway;
 		}
 		newSequence.add(this.destinationNode);
+
 		this.sequenceNodes = newSequence;
 	}
 
@@ -151,7 +142,7 @@ public class CombinedNavigation {
 
 		// while the wayfindingEasiness is lower than the threshold the agent looks for
 		// intermediate-points.
-		while (wayfindingEasiness < UserParameters.wayfindingEasinessThreshold) {
+		while (wayfindingEasiness < UserParameters.wayfindingEasinessThresholdRegions) {
 			NodeGraph bestNode = null;
 			double attractivness = 0.0;
 
@@ -224,15 +215,13 @@ public class CombinedNavigation {
 		final double intraRegionDistance = NodeGraph.nodesDistance(currentLocation, exitGateway);
 		final double distance = NodeGraph.nodesDistance(originNode, destinationNode);
 		final double distanceComplexity = intraRegionDistance / distance;
-		if (distanceComplexity < 0.20)
+		if (distanceComplexity < 0.25)
 			return 1.0;
 
 		final double buildingsComplexity = PedSimCity.regionsMap.get(currentLocation.region)
-				.computeComplexity(typeLandmarkness);
+				.computeComplexity(currentLocation, exitGateway, typeLandmarkness);
 		final double wayfindingComplexity = (distanceComplexity + buildingsComplexity) / 2.0;
 		final double easiness = 1.0 - wayfindingComplexity;
-		// System.out.println("buildingsComplexity "+ buildingsComplexity + " distance
-		// Complexity " + distanceComplexity);
 		return easiness;
 	}
 }

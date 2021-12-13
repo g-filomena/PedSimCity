@@ -20,7 +20,6 @@ import pedsimcity.main.PedSimCity;
 import pedsimcity.main.UserParameters;
 import pedsimcity.utilities.Path;
 import pedsimcity.utilities.VectorLayer;
-import sim.util.Bag;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 import sim.util.geo.MasonGeometry;
 
@@ -214,13 +213,13 @@ public class LandmarkNavigation {
 	 * @param typeLandmarkness "global" or "local" landmarks can be used to compute
 	 *                         the complexity of the space;
 	 */
-	public static double wayfindingEasiness(NodeGraph originNode, NodeGraph destinationNode, String typeLandmarkness) {
+	public static double wayfindingEasiness(NodeGraph node, NodeGraph destinationNode, String typeLandmarkness) {
 
-		final double distanceComplexity = NodeGraph.nodesDistance(originNode, destinationNode)
+		final double distanceComplexity = NodeGraph.nodesDistance(node, destinationNode)
 				/ Math.max(PedSimCity.roads.MBR.getHeight(), PedSimCity.roads.MBR.getWidth());
 
-		final Bag buildings = getBuildings(originNode, destinationNode, 999999);
-		Bag landmarks = new Bag();
+		final ArrayList<MasonGeometry> buildings = getBuildings(node, destinationNode, 999999);
+		ArrayList<MasonGeometry> landmarks = new ArrayList<>();
 
 		// global or local landmarks, different thresholds
 		if (typeLandmarkness.equals("global"))
@@ -246,7 +245,7 @@ public class LandmarkNavigation {
 	 * @param buildings the set of buildings;
 	 * @param landmarks the set of landmarks;
 	 */
-	public static double buildingsComplexity(Bag buildings, Bag landmarks) {
+	public static double buildingsComplexity(ArrayList<MasonGeometry> buildings, ArrayList<MasonGeometry> landmarks) {
 		return ((double) buildings.size() - landmarks.size()) / buildings.size();
 	}
 
@@ -259,9 +258,9 @@ public class LandmarkNavigation {
 	 * @param region          the regionID, when identifying buildings within a
 	 *                        region;
 	 */
-	public static Bag getBuildings(NodeGraph originNode, NodeGraph destinationNode, int region) {
+	public static ArrayList<MasonGeometry> getBuildings(NodeGraph originNode, NodeGraph destinationNode, int region) {
 
-		Bag buildings = new Bag();
+		ArrayList<MasonGeometry> buildings = new ArrayList<>();
 
 		// between the origin and the destination
 		if (originNode != null) {
@@ -279,15 +278,15 @@ public class LandmarkNavigation {
 
 	/**
 	 * It returns landmarks (local or global) amongst a set of buildings
-	 * (VectorLayer), on the basis of the passe threshold
+	 * (VectorLayer), on the basis of the passed threshold
 	 *
 	 * @param buildings the set of buildings;
 	 * @param threshold the threshold, from 0 to 1;
 	 * @param type      "local" or "global";
 	 */
-	public static Bag getLandmarks(VectorLayer buildings, double threshold, String type) {
+	public static ArrayList<MasonGeometry> getLandmarks(VectorLayer buildings, double threshold, String type) {
 
-		final Bag landmarks = new Bag();
+		final ArrayList<MasonGeometry> landmarks = new ArrayList<>();
 		buildings.generateGeometriesList();
 
 		String attribute;
@@ -311,9 +310,10 @@ public class LandmarkNavigation {
 	 * @param threshold the threshold, from 0 to 1;
 	 * @param type      "local" or "global";
 	 */
-	public static Bag getLandmarks(Bag buildings, double threshold, String type) {
+	public static ArrayList<MasonGeometry> getLandmarks(ArrayList<MasonGeometry> buildings, double threshold,
+			String type) {
 
-		final Bag landmarks = new Bag();
+		final ArrayList<MasonGeometry> landmarks = new ArrayList<>();
 
 		String attribute;
 		if (type.equals("local"))

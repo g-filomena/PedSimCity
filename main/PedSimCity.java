@@ -383,21 +383,18 @@ public class PedSimCity extends SimState {
 		// generate the centrality map of the graph
 		network.generateCentralityMap();
 		// Element 2 - Landmarks -
+
 		if (buildings != null) {
-
-			final Bag bagLocal = LandmarkNavigation.getLandmarks(buildings, UserParameters.localLandmarkThreshold,
-					"local");
-			for (final Object l : bagLocal) {
-				final MasonGeometry landmark = (MasonGeometry) l;
+			ArrayList<MasonGeometry> localList = new ArrayList<>();
+			localList = LandmarkNavigation.getLandmarks(buildings, UserParameters.localLandmarkThreshold, "local");
+			for (final MasonGeometry landmark : localList)
 				localLandmarks.addGeometry(landmark);
-			}
 
-			final Bag bagGlobal = LandmarkNavigation.getLandmarks(buildings, UserParameters.globalLandmarkThreshold,
-					"global");
-			for (final Object g : bagGlobal) {
-				final MasonGeometry landmark = (MasonGeometry) g;
+			ArrayList<MasonGeometry> globalList = new ArrayList<>();
+			globalList = LandmarkNavigation.getLandmarks(buildings, UserParameters.globalLandmarkThreshold, "global");
+			for (final MasonGeometry landmark : globalList)
 				globalLandmarks.addGeometry(landmark);
-			}
+
 			localLandmarks.generateGeometriesList();
 			globalLandmarks.generateGeometriesList();
 
@@ -563,6 +560,7 @@ public class PedSimCity extends SimState {
 				final SubGraph dualGraph = new SubGraph(dualNetwork, dualEdgesRegion);
 				primalGraph.setSubGraphBarriers();
 				primalGraph.generateSubGraphCentralityMap();
+				regionsMap.get(entry.getKey()).regionID = entry.getKey();
 				regionsMap.get(entry.getKey()).primalGraph = primalGraph;
 				regionsMap.get(entry.getKey()).dualGraph = dualGraph;
 
@@ -573,10 +571,9 @@ public class PedSimCity extends SimState {
 					for (final EdgeGraph edge : edgesRegion)
 						regionNetwork.addGeometry(edge.masonGeometry);
 					regionsMap.get(entry.getKey()).regionNetwork = regionNetwork;
-					final Bag buildings = LandmarkNavigation.getBuildings(null, null, entry.getKey());
-					regionsMap.get(entry.getKey()).buildings = buildings;
+					regionsMap.get(entry.getKey()).buildings = LandmarkNavigation.getBuildings(null, null,
+							entry.getKey());
 					regionsMap.get(entry.getKey()).assignLandmarks();
-					regionsMap.get(entry.getKey()).computeComplexity("local");
 				}
 			}
 
