@@ -103,7 +103,7 @@ public class PedSimCity extends SimState {
 			routeChoiceModels = UserParameters.routeChoicesRegions;
 		else if (UserParameters.testingLandmarks)
 			routeChoiceModels = UserParameters.routeChoicesLandmarks;
-		else
+		else if (!UserParameters.empiricalABM)
 			routeChoiceModels = UserParameters.routeChoices;
 
 		if (UserParameters.testingRegions || UserParameters.testingLandmarks
@@ -162,6 +162,7 @@ public class PedSimCity extends SimState {
 		else if (UserParameters.testingModels)
 			numTripsScenario = UserParameters.numTrips;
 
+		// Building the OD Matrix
 		for (int i = 0; i < numTripsScenario; i++) {
 			NodeGraph originNode = null;
 			NodeGraph destinationNode = null;
@@ -218,10 +219,8 @@ public class PedSimCity extends SimState {
 				while (originNode == null)
 					originNode = NodesLookup.randomNode(network);
 				while (destinationNode == null)
-//				destinationNode = NodesLookup.randomNodeBetweenLimits(network, originNode,
-//						UserParameters.minDistance, UserParameters.maxDistance);
-					destinationNode = NodesLookup.randomSalientNodeBetweenLimits(network, originNode,
-							UserParameters.minDistance, UserParameters.maxDistance, 0.75);
+					destinationNode = NodesLookup.randomNodeBetweenLimits(network, originNode,
+											UserParameters.minDistance, UserParameters.maxDistance);
 
 				final Pair<NodeGraph, NodeGraph> pair = new Pair<>(originNode, destinationNode);
 				this.OD.add(pair);
@@ -345,6 +344,15 @@ public class PedSimCity extends SimState {
 		ImportingExporting.importFiles();
 		prepareLayers();
 
+		if (UserParameters.testingLandmarks)
+			System.out.println("Modelling the effect of Landmarks");
+		if (UserParameters.testingRegions)
+			System.out.println("Modelling the effect of urban subdvisions");
+		if (UserParameters.testingModels)
+			System.out.println("Modelling the effect of user-defined elements");
+		if (UserParameters.empiricalABM)
+			System.out.println("Empirical Based Agent-Based Model");
+
 		for (int job = 0; job < jobs; job++) {
 			System.out.println("Run nr.. " + job);
 			for (final Object o : network.getEdges()) {
@@ -362,7 +370,6 @@ public class PedSimCity extends SimState {
 	static public void prepareLayers() {
 
 		// Element 1 - Nodes: assign scores and attributes to nodes
-
 		for (final MasonGeometry nodeGeometry : junctions.geometriesList) {
 			// street junctions and betweenness centrality
 			final NodeGraph node = network.findNode(nodeGeometry.geometry.getCoordinate());
@@ -382,8 +389,8 @@ public class PedSimCity extends SimState {
 		}
 		// generate the centrality map of the graph
 		network.generateCentralityMap();
-		// Element 2 - Landmarks -
 
+		// Element 2 - Landmarks -
 		if (buildings != null) {
 			ArrayList<MasonGeometry> localList = new ArrayList<>();
 			localList = LandmarkNavigation.getLandmarks(buildings, UserParameters.localLandmarkThreshold, "local");
@@ -505,10 +512,9 @@ public class PedSimCity extends SimState {
 			final int edgeID = edge.getIntegerAttribute("edgeID");
 			edge.setID(edgeID);
 
+			// add edges to the regions' information
 			if (barriers != null) {
 				edge.setBarriers();
-				// add edges to the regions' information
-
 				if (edge.u.region == edge.v.region) {
 					final int region = edge.u.region;
 					edge.region = region;

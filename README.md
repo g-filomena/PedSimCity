@@ -8,13 +8,26 @@ The model is built on Mason and [GeoMason 1.6](https://cs.gmu.edu/~eclab/project
 A basic conceptual model of the ABM was presented at the [2018 Agile Conference](https://agile-online.org/conference_paper/cds/agile_2018/shortpapers/64%20short_paper_64.pdf).
 
 The introduction of different urban elements has been tested, in combination with existing route choice models:
-* Landmark-based navigation: London - [landmarkBased branch](https://github.com/g-filomena/pedSimCity/tree/LandmarkBased) - Methods, results and evaluation are documented in *Modelling the effect of landmarks on pedestrian dynamics* (in publication in *Computers, Environment and Urban Systems*).
-* Region- and barrier-based navigation: London and Paris - [regionBased branch](https://github.com/g-filomena/pedSimCity/tree/RegionBased) - Methods and results, along with a validation are documented in *Perception of urban subdivisions in pedestrian movement simulation* (in publication in *PLoS ONE*).
+* Landmark-based navigation: London - [landmarkBased branch](https://github.com/g-filomena/pedSimCity/tree/LandmarkBased) - Methods, results and evaluation are documented in *Modelling the effect of landmarks on pedestrian dynamics*, published in [Computers, Environment and Urban Systems](https://doi.org/10.1016/j.compenvurbsys.2020.101573).
+* Region- and barrier-based navigation: London and Paris - [regionBased branch](https://github.com/g-filomena/pedSimCity/tree/RegionBased) - Methods and results, along with a validation are documented in *Perception of urban subdivisions in pedestrian movement simulation*, published in [PLoS ONE](https://doi.org/10.1371/journal.pone.0244099).
 
-It requires:
-* GeoMason and its requirements;
-* [UrbanMason](https://github.com/g-filomena/urbanmason), a set of supporting functions for urban simulation models.
+The role of the elements modelled was combined in the Empirical based Agent-Based Model (Master Branch). The ABM, the qualitative study conducted to calibrate it, and its evaluation are documented in *Empirical characterisation of agents’ spatial behaviour in pedestrian movement simulation*, published in [Journal of Environmental Psychology](https://www.sciencedirect.com/science/article/pii/S0272494422000524).
+It is built on and it requires:
+* JTS (https://github.com/locationtech/jts)
+* Mason and GeoMason (see https://cs.gmu.edu/~eclab/projects/mason/extensions/geomason/)
 
+Along with:
+* Apache Commons Lang (https://commons.apache.org/proper/commons-lang/download_lang.cgi)
+* OpenCsv (see: http://opencsv.sourceforge.net download https://sourceforge.net/projects/opencsv/)
+* Java Tuples (https://www.javatuples.org)
+
+Instructions for using it in Eclipse:
+
+
+
+Instruction for running the model as is for the included case study areas: Paris, London or Muenster
 Before running the model, check the default parameters in the class UserParameters.java so to run the ABM as you please; there, one can also set the local directories for storing the output.
+
+
 
 The core of the simulation (the simulation state, the scheduler and the agent basic movement functions) is based on *Gridlock*, by Sarah Wise, Mark Coletti, and Andrew Crooks, a GeoMason example.

@@ -13,10 +13,10 @@ public class UserParameters {
 	// General parameters
 	static String cityName = "Muenster";
 	static int jobs = 10;
-	static int numAgents = 1000; // this is set to 1 agent per route choice model when one of testingLandmarks,
-									// testingRegions, testingModels is True
-	public static int numTrips = 3; // this is automatically set when one of testingLandmarks (255), testingRegions
-									// (2000) is True
+	static int numAgents = 1000; // this is set to 1 agent per route choice model when one amongst [testingLandmarks,
+	// testingRegions, testingModels] is True
+	public static int numTrips = 3; // this is automatically set to 255 (testingLandmarks) or 2000  (testingRegions)
+
 	public static boolean segmentsAvoidance = true;
 
 	// 1) Run the model to a) evaluate the introduction of landmarks or b) regions
@@ -71,11 +71,10 @@ public class UserParameters {
 	// individuals (in development)
 	public static boolean empiricalABM = true;
 	public static boolean usingDMA = true;
-	public static boolean shortestPathOnly = true;
 	public static HashMap<String, Double> destinationsDMA = new HashMap<>();
 
-//	public static double noobAgentThreshold = 0.25;
-//	public static double expertAgentThreshold = 0.75;
+	//	public static double noobAgentThreshold = 0.25;
+	//	public static double expertAgentThreshold = 0.75;
 
 	// Landmark Integration
 	public static double distanceNodeLandmark = 50.0;
@@ -85,17 +84,17 @@ public class UserParameters {
 	public static double localLandmarkThreshold = 0.30; //
 	public static double salientNodesPercentile = 0.75; // Threshold Percentile to identify salient nodes
 	public static int nrAnchors = 25; // to speed-up, it can be higher; it can be lower for more prototypical
-										// landmarks only
+	// landmarks only
 
 	// Some researcher-defined parameter
 	public static double wayfindingEasinessThreshold = 0.95; // 2d Visibility threshold; distanLandmarks usage threshold
 	public static double wayfindingEasinessThresholdRegions = 0.85; // 2d Visibility threshold; distanLandmarks usage
-																	// threshold
+	// threshold
 
 	public static double globalLandmarknessWeightDistance = 0.85; // weight Global Landmarkness in combination with edge
-																	// cost
+	// cost
 	public static double globalLandmarknessWeightAngular = 0.95; // weight Global Landmarkness in combination with edge
-																	// cost
+	// cost
 	public static double regionBasedNavigationThreshold = 500; // Region-based navigation Threshold - meters
 	public static double thresholdTurn = 0.00;
 
@@ -127,9 +126,9 @@ public class UserParameters {
 			outputFolder = outputFolderDefault + "/empiricalABM/" + cityName + "_PedSim_empirical_";
 			outputFolderRoutes = outputFolderDefault + "/empiricalABM/routes/" + cityName + "_PedSim_empirical_";
 		} else if (empiricalABM && usingDMA) {
-			outputFolder = outputFolderDefault + "/empiricalABM/" + cityName + "_PedSim_empirical_DMA_211002_";
+			outputFolder = outputFolderDefault + "/empiricalABM/" + cityName + "_PedSim_empirical_DMA_124";
 			outputFolderRoutes = outputFolderDefault + "/empiricalABM/routes/" + cityName
-					+ "_PedSim_empirical_DMA_211002_";
+					+ "_PedSim_empirical_DMA_124";
 		} else if (empiricalABM && testingSpecificRoutes) {
 			outputFolder = outputFolderDefault + "/empiricalABM/" + cityName + "_PedSim_empirical_OD_";
 			outputFolderRoutes = outputFolderDefault + "/empiricalABM/routes/" + cityName + "_PedSim_empirical_OD_";

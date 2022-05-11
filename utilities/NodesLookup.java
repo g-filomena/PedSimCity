@@ -172,8 +172,8 @@ public class NodesLookup {
 
 	/**
 	 * Given a graph, the function returns a random node whose distance from a
-	 * passed origin node is within certain limits. The returned node belongs to a
-	 * region different from the origin node's region.
+	 * passed origin node is within certain limits. The returned node's centrality is higher or equal to the value
+	 * at the passed percentile. This is to allow the modeller to only employ salient junctions.
 	 *
 	 * @param network    a graph;
 	 * @param originNode a node;
@@ -199,13 +199,14 @@ public class NodesLookup {
 
 	/**
 	 * Given a graph, the function returns a random node whose distance from a
-	 * passed origin node is within certain limits. The returned node belongs to a
-	 * region different from the origin node's region.
+	 * passed origin node is within certain limits. The returned node belongs to a certain category amongst "live", "work", "visit",
+	 * depending on the string DMA that was passed.
 	 *
 	 * @param network    a graph;
 	 * @param originNode a node;
 	 * @param lowerLimit the minimum distance from the origin node;
 	 * @param upperLimit the maximum distance from the origin node;
+	 * @param DMA 		 the desired node's category;
 	 */
 	public static NodeGraph randomNodeDMA(Graph network, NodeGraph originNode, double lowerLimit, double upperLimit,
 			String DMA) {

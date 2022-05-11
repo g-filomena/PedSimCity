@@ -96,6 +96,7 @@ public final class Pedestrian implements Steppable {
 		if (UserParameters.empiricalABM) {
 
 			this.agp.defineRouteChoiceParameters();
+
 			System.out.println(
 					"   Agent nr. " + this.agentID + " group " + this.agp.groupName + " OD " + this.originNode.getID()
 							+ "  " + this.destinationNode.getID() + " only minimising " + this.agp.onlyMinimising
@@ -103,15 +104,10 @@ public final class Pedestrian implements Steppable {
 							+ " local landmarks " + this.agp.landmarkBasedNavigation + " barrier sub-goals "
 							+ this.agp.barrierBasedNavigation + " distant landmarks " + this.agp.usingDistantLandmarks
 							+ " barriers " + this.agp.naturalBarriers + "  " + this.agp.aversionSeveringBarriers);
-
 			final CombinedNavigation combinedNavigation = new CombinedNavigation();
 			this.newPath = combinedNavigation.path(this.originNode, this.destinationNode, this.agp);
-
-		} else {
-			System.out
-					.println(this.originNode.getID() + "  " + this.destinationNode.getID() + " " + this.ap.routeChoice);
+		} else
 			this.selectRouteChoice();
-		}
 
 		final List<Integer> sequenceEdges = new ArrayList<>();
 		for (final GeomPlanarGraphDirectedEdge o : this.newPath) {
@@ -371,7 +367,7 @@ public final class Pedestrian implements Steppable {
 			else if (lastNode.equals(edge.v))
 				lastNode = edge.u;
 			else
-				System.out.println("Something is wrong with the sequence in this ");
+				System.out.println("Something is wrong with the sequence in this agent");
 			coordsCollection.set(coordsCollection.size() - 1, lastNode.getCoordinate());
 			allCoords.addAll(coordsCollection);
 		}

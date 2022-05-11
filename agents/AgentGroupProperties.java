@@ -8,7 +8,6 @@ import java.util.Random;
 
 import org.javatuples.Pair;
 
-import pedsimcity.main.UserParameters;
 import pedsimcity.utilities.Utilities;
 
 public class AgentGroupProperties extends AgentProperties {
@@ -153,19 +152,9 @@ public class AgentGroupProperties extends AgentProperties {
 
 		this.reset();
 
-		if (this.groupName.equals("population"))
-			if (UserParameters.shortestPathOnly) {
-				this.onlyMinimising = "angularChange";
-				return;
-			}
-
-		if (this.groupName.equals("nullGroup")) {
-			if (UserParameters.shortestPathOnly) {
-				this.onlyMinimising = "roadDistance";
-				return;
-			}
+		if (this.groupName.equals("nullGroup"))
 			this.fromUniform();
-		} else
+		else
 			this.setParametersFromGroup();
 
 		final Random random = new Random();
@@ -201,12 +190,10 @@ public class AgentGroupProperties extends AgentProperties {
 			return;
 		}
 
-		if (!UserParameters.shortestPathOnly) {
-			if (this.naturalBarriers < 0.95)
-				this.preferenceNaturalBarriers = true;
-			if (this.severingBarriers > 1.05)
-				this.aversionSeveringBarriers = true;
-		}
+		if (this.naturalBarriers < 0.95)
+			this.preferenceNaturalBarriers = true;
+		if (this.severingBarriers > 1.05)
+			this.aversionSeveringBarriers = true;
 
 		// local minimisation heuristic
 		keys.clear();
