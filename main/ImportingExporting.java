@@ -113,12 +113,14 @@ public class ImportingExporting {
 		final FileWriter writerVolumesData = new FileWriter(csvSegments);
 		final int rGeoSize = edgesGeometries.size();
 
-		ArrayList<String> header = new ArrayList<>(Arrays.asList(PedSimCity.routeChoiceModels));
+		ArrayList<String> header = new ArrayList<>();
 		if (UserParameters.empiricalABM) {
 			header = new ArrayList<>();
 			for (final Group group : PedSimCity.groups)
 				header.add(group.groupName);
 		}
+		else
+			header = new ArrayList<>(Arrays.asList(PedSimCity.routeChoiceModels));
 		header.add(0, "edgeID");
 		CSVUtils.writeLine(writerVolumesData, header);
 

@@ -24,6 +24,12 @@ Along with:
 * [Java Tuples](https://www.javatuples.org)
 
 Instructions for using it in Eclipse:
+1. Create a new project in Eclipse and give it a name.
+2. Download *pedsimcity*, unzip it and place it wherever it is convenient. Rename the main folder as *pedsimcity* if it is not names so already
+3. Right click on your project on the left-hand side Package Explorer. Select *Build Path*, *Link Source* and then just select the folder *pedsimcity*.
+4. For all the libraries, download the JAR files and install them in the sequence described above by right clicking on your project *Build Path*, *Add External Archives*.
+
+If you do not like to have Mason and Geomason installed from the JAR files, which would include all the example models too and which would not allow you to edit and have a look at their source code, you can download them from 
 
 
 

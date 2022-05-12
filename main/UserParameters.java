@@ -13,7 +13,7 @@ public class UserParameters {
 	// General parameters
 	static String cityName = "Muenster";
 	static int jobs = 10;
-	static int numAgents = 1000; // this is set to 1 agent per route choice model when one amongst [testingLandmarks,
+	static int numAgents = 301; // this is set to 1 agent per route choice model when one amongst [testingLandmarks,
 	// testingRegions, testingModels] is True
 	public static int numTrips = 3; // this is automatically set to 255 (testingLandmarks) or 2000  (testingRegions)
 
@@ -103,7 +103,7 @@ public class UserParameters {
 	public static boolean subGraph = false;
 
 	// directories
-	public static String outputFolderDefault = "C:/Users/g_filo01/sciebo/Scripts/PedSimCity-Evaluation/Input/";
+	public static String outputFolderDefault = "C:/Users/gabri/sciebo/Scripts/PedSimCity-Evaluation/Input/";
 	public static String outputFolder;
 	public static String outputFolderRoutes;
 
