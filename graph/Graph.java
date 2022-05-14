@@ -69,7 +69,7 @@ public class Graph extends GeomPlanarGraph {
 	}
 
 	/**
-	 * It adds an EdgeGraph and its NodeGraphs to the graph. It also stores the
+	 * It adds an edge and its nodes to the graph. It also stores the
 	 * geometries of the junctions, for convenience.
 	 *
 	 * @param wrappedLine the MasonGeometry corresponding to a street segment;
@@ -106,7 +106,7 @@ public class Graph extends GeomPlanarGraph {
 	}
 
 	/**
-	 * It returns the NodeGraph corresponding to the given coordinate.
+	 * It returns the node corresponding to the given coordinate.
 	 *
 	 * @param pt the coordinates;
 	 * @note Override as the original methods returns a Node;
@@ -123,7 +123,7 @@ public class Graph extends GeomPlanarGraph {
 	}
 
 	/**
-	 * It finds the NodeGraph corresponding to the given coordinates.
+	 * It finds the node corresponding to the given coordinates.
 	 *
 	 * @param pt the coordinates;
 	 * @note Override as the original methods returns a Node;
@@ -159,7 +159,7 @@ public class Graph extends GeomPlanarGraph {
 	}
 
 	/**
-	 * It generates the centrality map of the nodes of this graph. Namely a <NodeGraph, centrality> map.
+	 * It generates the centrality map of the nodes of this graph. Namely, a <NodeGraph, centrality> map.
 	 *
 	 */
 	public void generateCentralityMap() {
@@ -180,18 +180,40 @@ public class Graph extends GeomPlanarGraph {
 	}
 
 	/**
-	 * It returns a Map of salient nodes in the graph, on the basis of centrality values. The
+	 * It returns a Map of the salient nodes (in terms of centrality) in the graph. The
 	 * returned Map is in the format <NodeGraph, Double>, where the values represent
 	 * centrality values. The percentile determines the threshold used to identify
-	 * salient nodes. For example, if 0.75 is provided, only the nodes whose
-	 * centrality value is higher than the value at the 75th percentile are
-	 * returned. This is computed within the space (smallest enclosing circle)
-	 * between two given nodes; The keys represent NodeGraph in the SubGraph (child
-	 * nodes).
+	 * salient nodes.
+	 * For example, if 0.75 is provided, only the nodes whose  centrality value is higher than the value at
+	 * the 75th percentile are returned.
+	 * This is computed within entire graph.
+	 *
+	 * @param percentile the percentile used to identify salient nodes;
+	 */
+	public Map<NodeGraph, Double> salientNodesNetwork(double percentile) {
+		int position;
+		position = (int) (this.centralityMap.size() * percentile);
+		final double boundary = new ArrayList<>(this.centralityMap.values()).get(position);
+		final Map<NodeGraph, Double> valueFilteredMap = this.centralityMap.entrySet().stream()
+				.filter(entry -> entry.getValue() >= boundary)
+				.collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
+		if (valueFilteredMap.size() == 0 || valueFilteredMap == null)
+			return null;
+		else
+			return valueFilteredMap;
+	}
+
+	/**
+	 * It returns a Map of the salient nodes (in terms of centrality) in the graph that are also contained in
+	 * the closest enclosing circle between two given nodes. The returned Map is in the format
+	 * <NodeGraph, Double>, where  the values represent centrality values. The percentile determines the
+	 * threshold used to identify salient nodes.
+
 	 *
 	 * @param node       a node;
 	 * @param otherNode  an other node;
 	 * @param percentile the percentile use to identify salient nodes;
+	 * @note the keys of the returned map represent NodeGraph in the SubGraph (child nodes);
 	 */
 	public Map<NodeGraph, Double> salientNodesWithinSpace(NodeGraph node, NodeGraph otherNode, double percentile) {
 		ArrayList<NodeGraph> containedNodes = new ArrayList<>();
@@ -218,30 +240,7 @@ public class Graph extends GeomPlanarGraph {
 	}
 
 	/**
-	 * It returns a Map of salient nodes, on the basis of centrality values. The
-	 * returned Map is in the format <NodeGraph, Double>, where the values represent
-	 * centrality values. The percentile determines the threshold used to identify
-	 * salient nodes. For example, if 0.75 is provided, only the nodes whose
-	 * centrality value is higher than the value at the 75th percentile are
-	 * returned. This is computed within the entire graph.
-	 *
-	 * @param percentile the percentile used to identify salient nodes;
-	 */
-	public Map<NodeGraph, Double> salientNodesNetwork(double percentile) {
-		int position;
-		position = (int) (this.centralityMap.size() * percentile);
-		final double boundary = new ArrayList<>(this.centralityMap.values()).get(position);
-		final Map<NodeGraph, Double> valueFilteredMap = this.centralityMap.entrySet().stream()
-				.filter(entry -> entry.getValue() >= boundary)
-				.collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
-		if (valueFilteredMap.size() == 0 || valueFilteredMap == null)
-			return null;
-		else
-			return valueFilteredMap;
-	}
-
-	/**
-	 * It returns a list of nodes contained within a given geometry.
+	 * It returns a list of nodes in the graph that are within a given geometry.
 	 *
 	 * @param g the given geometry;
 	 */
@@ -258,7 +257,7 @@ public class Graph extends GeomPlanarGraph {
 	}
 
 	/**
-	 * It returns a list of edges contained within a given geometry.
+	 * It returns a list of edges in the graph that are within a given geometry.
 	 *
 	 * @param g the given geometry;
 	 */
@@ -275,23 +274,27 @@ public class Graph extends GeomPlanarGraph {
 	}
 
 	/**
-	 * It returns the list of edges contained in the graph.
+	 * It returns the list of edges in the graph.
 	 *
-	 * @param g the given geometry;
 	 */
 	@Override
 	public ArrayList<EdgeGraph> getEdges() {
 		return this.edgesGraph;
 	}
 
+	/**
+	 * It returns the list of nodes in the graph.
+	 *
+	 */
 	@Override
 	public ArrayList<NodeGraph> getNodes() {
 		return this.nodesGraph;
 	}
 
 	/**
-	 * Given a certain map of nodes and values, and an ArrayList of fewer nodes, It returns the initial map
-	 * filtered on the basis of the passed ArrayList.
+	 * Given a certain map <NodeGraph, Double> of the nodes in the graph and an ArrayList of fewer nodes,
+	 * it returns the initial map, filtered on the basis of the passed ArrayList. That is, only the nodes
+	 * in the ArrayList are kept in the map.
 	 *
 	 *
 	 * @param map the map to filter;
@@ -310,17 +313,20 @@ public class Graph extends GeomPlanarGraph {
 	}
 
 	/**
-	 * Given two nodes, it returns all the nodes contained
+	 * Given two nodes in the graph, it returns all the edges contained in a convex hull obtained from the
+	 * buffers built around the two nodes. The radius of the buffers is equal to 1.5 times
+	 * the distance between the nodes.
 	 *
-	 * @param percentile the percentile used to identify salient nodes;
+	 * @param node;
+	 * @param otherNode;
 	 */
-	public ArrayList<EdgeGraph> edgesWithinSpace(NodeGraph originNode, NodeGraph destinationNode) {
+	public ArrayList<EdgeGraph> edgesWithinSpace(NodeGraph node, NodeGraph otherNode) {
 
-		Double radius = NodeGraph.nodesDistance(originNode, destinationNode) * 1.50;
+		Double radius = NodeGraph.nodesDistance(node, otherNode) * 1.50;
 		if (radius < 500)
 			radius = 500.0;
-		final Geometry bufferOrigin = originNode.masonGeometry.geometry.buffer(radius);
-		final Geometry bufferDestination = destinationNode.masonGeometry.geometry.buffer(radius);
+		final Geometry bufferOrigin = node.masonGeometry.geometry.buffer(radius);
+		final Geometry bufferDestination = otherNode.masonGeometry.geometry.buffer(radius);
 		final Geometry convexHull = bufferOrigin.union(bufferDestination).convexHull();
 
 		final ArrayList<EdgeGraph> containedEdges = this.getContainedEdges(convexHull);
@@ -328,17 +334,17 @@ public class Graph extends GeomPlanarGraph {
 	}
 
 	/**
-	 * Given a node, a lower and an upper limit, it returns all the nodes whose distance from the given node
-	 * is between the lower and the upper limit.
+	 * Given a node in the graph, it returns all the nodes whose distance from the given node
+	 * is between the given lower and the upper limits.
 	 *
-	 * @param originNode;
+	 * @param node;
 	 * @param lowerLimit;
 	 * @param upperLimit;
 	 */
-	public ArrayList<NodeGraph> getNodesBetweenLimits(NodeGraph originNode, double lowerLimit, double upperLimit) {
+	public ArrayList<NodeGraph> getNodesBetweenLimits(NodeGraph node, double lowerLimit, double upperLimit) {
 
 		final ArrayList<NodeGraph> containedNodes = new ArrayList<>();
-		final MasonGeometry originGeometry = originNode.masonGeometry;
+		final MasonGeometry originGeometry = node.masonGeometry;
 		final Bag containedGeometries = this.junctions.featuresBetweenLimits(originGeometry.geometry, lowerLimit,
 				upperLimit);
 		for (final Object o : containedGeometries)
@@ -347,26 +353,26 @@ public class Graph extends GeomPlanarGraph {
 	}
 
 	/**
-	 * Given a node of the graph, a lower and an upper limit, it returns all the nodes whose distance from
-	 * the given node is between the lower and the upper limit. Moreover, such nodes's centrality is higher
-	 * than the value at the passed percentile
-	 *
-	 * @param originNode;
+	 * Given a node in the graph, it returns all the nodes whose distance from
+	 * the given node is between the given lower and the upper limits.
+	 * Moreover, the centrality values of these nodes are higher than the value at the passed percentile.
+	 * 	 *
+	 * @param node;
 	 * @param lowerLimit;
 	 * @param upperLimit;
 	 * @param percentile the percentile to use as threshold;
 	 */
-	public ArrayList<NodeGraph> getSalientNodesBetweenLimits(NodeGraph originNode, double lowerLimit,
+	public ArrayList<NodeGraph> getSalientNodesBetweenLimits(NodeGraph node, double lowerLimit,
 			double upperLimit, double percentile) {
 
 		final ArrayList<NodeGraph> containedNodes = new ArrayList<>();
 		final ArrayList<NodeGraph> containedSalientNodes = new ArrayList<>();
-		final MasonGeometry originGeometry = originNode.masonGeometry;
+		final MasonGeometry originGeometry = node.masonGeometry;
 		final Bag containedGeometries = this.junctions.featuresBetweenLimits(originGeometry.geometry, lowerLimit,
 				upperLimit);
 		for (final Object o : containedGeometries)
 			containedNodes.add(this.findNode(((MasonGeometry) o).geometry.getCoordinate()));
-		final ArrayList<NodeGraph> salientNodes = new ArrayList<>(this.salientNodesNetworkReach(percentile).keySet());
+		final ArrayList<NodeGraph> salientNodes = new ArrayList<>(this.salientNodesNetwork(percentile).keySet());
 
 		for (final NodeGraph n : containedNodes)
 			if (salientNodes.contains(n))
@@ -379,21 +385,23 @@ public class Graph extends GeomPlanarGraph {
 	 * the given node is between the lower and the upper limit. Moreover, the returned nodes must be in
 	 * a different region from the originNode.
 	 *
-	 * @param originNode;
+	 * @param node;
 	 * @param lowerLimit;
 	 * @param upperLimit;
 	 */
-	public ArrayList<NodeGraph> getNodesBetweenLimitsOtherRegion(NodeGraph originNode, double lowerLimit,
+	public ArrayList<NodeGraph> getNodesBetweenLimitsOtherRegion(NodeGraph node, double lowerLimit,
 			double upperLimit) {
 		ArrayList<NodeGraph> containedNodes = new ArrayList<>();
-		containedNodes = this.getNodesBetweenLimits(originNode, lowerLimit, upperLimit);
-		return this.filterOutRegion(containedNodes, originNode.region);
+		containedNodes = this.getNodesBetweenLimits(node, lowerLimit, upperLimit);
+		return this.filterOutRegion(containedNodes, node.region);
 	}
 
 	/**
-
+	 * Given an ArrayList of nodes and a regionID representing a region, it returns a list of nodes
+	 * from the given list that belong to the region.
 	 *
-	 * @param percentile the percentile used to identify salient nodes;
+	 * @param nodes the list of nodes;
+	 * @param region the regionID of the desired region;
 	 */
 	public ArrayList<NodeGraph> filterOutRegion(ArrayList<NodeGraph> nodes, int region) {
 		final ArrayList<NodeGraph> newNodes = new ArrayList<>(nodes);
