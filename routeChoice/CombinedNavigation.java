@@ -124,7 +124,7 @@ public class CombinedNavigation {
 		double percentile = UserParameters.salientNodesPercentile;
 		final ArrayList<NodeGraph> sequence = new ArrayList<>();
 		final Region region = PedSimCity.regionsMap.get(currentLocation.region);
-		Map<NodeGraph, Double> knownJunctions = region.primalGraph.salientNodesNetwork(percentile);
+		Map<NodeGraph, Double> knownJunctions = region.primalGraph.salientNodesGraph(percentile);
 
 		// If no salient junctions are found, the tolerance increases till the 0.50
 		// percentile;
@@ -133,7 +133,7 @@ public class CombinedNavigation {
 			percentile -= 0.05;
 			if (percentile < 0.50)
 				return sequence;
-			knownJunctions = region.primalGraph.salientNodesNetwork(percentile);
+			knownJunctions = region.primalGraph.salientNodesGraph(percentile);
 		}
 		// compute wayfinding complexity and the resulting easinesss
 		double wayfindingEasiness = wayfindingEasinessRegion(currentLocation, exitGateway, originNode, destinationNode,
@@ -182,12 +182,12 @@ public class CombinedNavigation {
 			sequence.add(bestNode);
 
 			percentile = UserParameters.salientNodesPercentile;
-			knownJunctions = region.primalGraph.salientNodesNetwork(percentile);
+			knownJunctions = region.primalGraph.salientNodesGraph(percentile);
 			while (knownJunctions == null) {
 				percentile -= 0.05;
 				if (percentile < 0.50)
 					return sequence;
-				knownJunctions = region.primalGraph.salientNodesNetwork(percentile);
+				knownJunctions = region.primalGraph.salientNodesGraph(percentile);
 			}
 			wayfindingEasiness = wayfindingEasinessRegion(bestNode, exitGateway, originNode, destinationNode,
 					ap.typeLandmarks);
