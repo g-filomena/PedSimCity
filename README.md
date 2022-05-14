@@ -34,7 +34,7 @@ The Mason and Geomason installations include all the example models and do not a
 
 Instruction for running the ABM as is for the included case study areas: Paris (regions and barriers), London (landmarks, regions, barriers) or Muenster (landmarks, regions, barriers, empirical-based).
 1. Open the class *UserParameters.java* and get familiar with it.
-2. Specify the following parameter values, so to run the ABM as desired: e.g. number of ABM runs, nr. agents per scenario, nr. trips per agent (these values are pre-defined when modelling the effect of landmarks and urban subdivisions).
+2. Specify the following parameter values, so to run the ABM as desired: e.g. number of ```jobs```, ```numAgents``` per scenario, ```numTrips``` per agent (these values are pre-defined when modelling the effect of landmarks and urban subdivisions).
 2. Set the ```cityName```.
 2. Set the local directories for storing the simulation output (this is important).
 * Choose whether to model the effect of landmarks (```testingLandmarks```), regions and barriers (```testingRegions```). These settings run the ABM with pre-defined set of scenarios (and route choice models assigned to each scenario) as described in the corresponding papers.
