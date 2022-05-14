@@ -20,9 +20,9 @@ import sim.util.geo.GeomPlanarGraphDirectedEdge;
 import sim.util.geo.MasonGeometry;
 
 /**
- * A node of a planar graph that extends the Node class (JTS), with further and
+ * A node of a planar graph that extends the Node class (JTS), with additional and
  * more straightforward functions. This is one of the main components, along
- * with EdgeGraph, of graphs belonging to the class Graph.
+ * with EdgeGraph, of the graphs belonging to the class Graph.
  *
  */
 public class NodeGraph extends Node {
@@ -69,7 +69,7 @@ public class NodeGraph extends Node {
 	}
 
 	/**
-	 * It returns the list of the EdgeGraphs that depart from the node;
+	 * It returns the list of the edges that depart from this node;
 	 *
 	 */
 	public ArrayList<EdgeGraph> getEdges() {
@@ -77,7 +77,7 @@ public class NodeGraph extends Node {
 	}
 
 	/**
-	 * It returns the list of the NodeGraphs that are reachable from this node;
+	 * It returns the list of the node that are reachable from this node;
 	 *
 	 */
 	public ArrayList<NodeGraph> getAdjacentNodes() {
@@ -85,7 +85,7 @@ public class NodeGraph extends Node {
 	}
 
 	/**
-	 * It sets some list useful for identifying the neighbouring components of this
+	 * It sets some lists useful for identifying the neighbouring components of this
 	 * node.
 	 *
 	 */
@@ -98,7 +98,7 @@ public class NodeGraph extends Node {
 	}
 
 	/**
-	 * It returns the list of directed edges that depart from the node (out-going)
+	 * It returns the list of directed edges that depart from the node (out-going).
 	 *
 	 */
 	public ArrayList<GeomPlanarGraphDirectedEdge> getOutDirectedEdges() {
@@ -123,10 +123,8 @@ public class NodeGraph extends Node {
 	}
 
 	/**
-	 * It identifies a list of all the adjacent nodes to this node (i.e. sharing an
+	 * It identifies a list of all the nodes adjacent to this node (i.e. sharing an
 	 * edge with this node).
-	 * 
-	 * @return
 	 *
 	 */
 	private void setAdjacentNodes() {
@@ -166,7 +164,7 @@ public class NodeGraph extends Node {
 	}
 
 	/**
-	 * It returns a list of integer representing all the adjacent regions to this
+	 * It returns a list of integers representing all the adjacent regions to this
 	 * node, if any.
 	 *
 	 */
