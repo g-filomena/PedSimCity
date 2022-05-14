@@ -180,17 +180,17 @@ public class Graph extends GeomPlanarGraph {
 	}
 
 	/**
-	 * It returns a Map of the salient nodes (in terms of centrality) in the graph. The
+	 * It returns a Map of the salient nodes (in terms of network centrality) in the graph. The
 	 * returned Map is in the format <NodeGraph, Double>, where the values represent
 	 * centrality values. The percentile determines the threshold used to identify
 	 * salient nodes.
 	 * For example, if 0.75 is provided, only the nodes whose  centrality value is higher than the value at
 	 * the 75th percentile are returned.
-	 * This is computed within entire graph.
+	 * This is computed within the entire graph.
 	 *
 	 * @param percentile the percentile used to identify salient nodes;
 	 */
-	public Map<NodeGraph, Double> salientNodesNetwork(double percentile) {
+	public Map<NodeGraph, Double> salientNodesGraph(double percentile) {
 		int position;
 		position = (int) (this.centralityMap.size() * percentile);
 		final double boundary = new ArrayList<>(this.centralityMap.values()).get(position);
@@ -204,7 +204,7 @@ public class Graph extends GeomPlanarGraph {
 	}
 
 	/**
-	 * It returns a Map of the salient nodes (in terms of centrality) in the graph that are also contained in
+	 * It returns a Map of the salient nodes (in terms of network centrality) in the graph that are also contained in
 	 * the closest enclosing circle between two given nodes. The returned Map is in the format
 	 * <NodeGraph, Double>, where  the values represent centrality values. The percentile determines the
 	 * threshold used to identify salient nodes.
@@ -372,7 +372,7 @@ public class Graph extends GeomPlanarGraph {
 				upperLimit);
 		for (final Object o : containedGeometries)
 			containedNodes.add(this.findNode(((MasonGeometry) o).geometry.getCoordinate()));
-		final ArrayList<NodeGraph> salientNodes = new ArrayList<>(this.salientNodesNetwork(percentile).keySet());
+		final ArrayList<NodeGraph> salientNodes = new ArrayList<>(this.salientNodesGraph(percentile).keySet());
 
 		for (final NodeGraph n : containedNodes)
 			if (salientNodes.contains(n))
