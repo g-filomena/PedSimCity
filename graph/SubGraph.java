@@ -17,11 +17,11 @@ import pedsimcity.utilities.Utilities;
 import sim.util.geo.GeomPlanarGraphDirectedEdge;
 
 /**
- * This class represents sub graphs derived from a graph. It establish links
- * between the graph component and the corresponding child components, allowing
+ * This class represents sub graphs derived from a graph. It establishes links
+ * between the components of the parent graph and the corresponding child components, allowing
  * faster operations and the creation of "regional" or "district" graphs.
  *
- * Navigation throughout a SubGraph is straightforward and can be easily
+ * Agent navigation throughout a SubGraph is straightforward and can be easily
  * retraced to the parent graph.
  */
 
@@ -33,14 +33,14 @@ public class SubGraph extends Graph {
 	Graph parentGraph = new Graph();
 
 	/**
-	 * The SubGraph constructor, when passing the parent graph and the list of
-	 * EdgeGraphs in the parent graph that should be included in the SubGraph.
+	 * The SubGraph constructor It takes the parent graph and the list of
+	 * edges in the parent graph that should be included in the SubGraph.
 	 *
 	 * @param parentGraph the original parent graph.
 	 * @param edges       the list of edges to include.
 	 */
 	public SubGraph(Graph parentGraph, ArrayList<EdgeGraph> edges) {
-		// this.parentGraph = parentGraph;
+		this.parentGraph = parentGraph;
 		for (final EdgeGraph edge : edges)
 			this.addFromOtherGraph(parentGraph, edge);
 		for (final NodeGraph node : this.getNodesList())
@@ -51,7 +51,7 @@ public class SubGraph extends Graph {
 	}
 
 	/**
-	 * It adds an EdgeGraph and the corresponding nodes to the SubGraph, with all
+	 * It adds an edge and the corresponding nodes to the SubGraph, with all
 	 * the necessary attributes.
 	 *
 	 * @param parentGraph the parent graph;
@@ -90,7 +90,7 @@ public class SubGraph extends Graph {
 	}
 
 	/**
-	 * It maps the nodes of the SubGraph with its parent graph's nodes.
+	 * It maps the nodes of the SubGraph to the nodes of the parent graph.
 	 *
 	 */
 	private class SubGraphNodesMap {
@@ -110,7 +110,7 @@ public class SubGraph extends Graph {
 	}
 
 	/**
-	 * It maps the edges of the SubGraph with its parent graph's edges.
+	 * It maps the edges of the SubGraph to the edges of the parent graph.
 	 *
 	 */
 	private class SubGraphEdgesMap {
@@ -268,7 +268,7 @@ public class SubGraph extends Graph {
 	}
 
 	/**
-	 * It stores information about landmark at nodes, within the SubGraph.
+	 * It stores information about landmark at nodes, within this SubGraph.
 	 *
 	 */
 	public void setSubGraphLandmarks() {
@@ -307,19 +307,19 @@ public class SubGraph extends Graph {
 	}
 
 	/**
-	 * It returns a Map of salient nodes, on the basis of centrality values in the
+	 * It returns a Map of salient nodes (in terms of network centrality) in the
 	 * parent graph. The returned Map is in the format <NodeGraph, Double>, where
 	 * the values represent centrality values. The percentile determines the
 	 * threshold used to identify salient nodes. For example, if 0.75 is provided,
 	 * only the nodes whose centrality value is higher than the value at the 75th
 	 * percentile are returned.
 	 *
-	 * The keys represent NodeGraph in the parent Graph (parent nodes).
-	 * 
-	 * @param percentile the percentile use to identify salient nodes;
+	 *
+	 * @param percentile the percentile used to identify salient nodes;
+	 * @note The keys represent NodeGraph in the parent Graph (parent nodes).
 	 */
 	public ArrayList<NodeGraph> globalSalientNodesInSubGraph(double percentile) {
-		final Map<NodeGraph, Double> salientParentGraph = this.parentGraph.salientNodesNetwork(percentile);
+		final Map<NodeGraph, Double> salientParentGraph = this.parentGraph.salientNodesGraph(percentile);
 		final ArrayList<NodeGraph> salientParentNodes = new ArrayList<>(salientParentGraph.keySet());
 		salientParentNodes.retainAll(this.getParentNodes());
 		return salientParentNodes;
@@ -327,17 +327,17 @@ public class SubGraph extends Graph {
 
 	@Override
 	/**
-	 * It returns a Map of salient nodes, on the basis of centrality values. The
+	 *It returns a Map of the salient nodes (in terms network of centrality) in the graph. The
 	 * returned Map is in the format <NodeGraph, Double>, where the values represent
 	 * centrality values. The percentile determines the threshold used to identify
-	 * salient nodes. For example, if 0.75 is provided, only the nodes whose
-	 * centrality value is higher than the value at the 75th percentile are
-	 * returned. This is computed within the SubGraph. The keys represent NodeGraph
-	 * in the SubGraph (child nodes).
+	 * salient nodes.
+	 * For example, if 0.75 is provided, only the nodes whose  centrality value is higher than the value at
+	 * the 75th percentile are returned. This is computed within the SubGraph.
 	 *
 	 * @param percentile the percentile use to identify salient nodes;
+	 * @note the keys represent NodeGraph in the SubGraph (child nodes);
 	 */
-	public Map<NodeGraph, Double> salientNodesNetwork(double percentile) {
+	public Map<NodeGraph, Double> salientNodesGraph(double percentile) {
 		int position;
 		double min_value = 0.0;
 
