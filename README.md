@@ -1,7 +1,7 @@
 ## PedSimCity: An Agent-Based Model for simulating pedestrian movement in large urban areas
 
 This model incoporates simplified cognitive maps of the urban environment in the architecture of the agents
-In particular, a computational approach to Kevyn Lynch's The Image of the City (see related paper in [Cities](https://www.sciencedirect.com/science/article/pii/S0264275118309776)) is employed to incorporate salient urban element in the route-choice approaches of the agents.
+In particular, a computational approach to Kevyn Lynch's The Image of the City (see related paper in [Cities](https://www.sciencedirect.com/science/article/pii/S0264275118309776)) is employed to incorporate salient urban element in the route choice approaches of the agents.
 
 The model is built on Mason and [GeoMason 1.6](https://cs.gmu.edu/~eclab/projects/mason/extensions/geomason/).
 
@@ -23,19 +23,28 @@ Along with:
 * [OpenCsv](http://opencsv.sourceforge.net)
 * [Java Tuples](https://www.javatuples.org)
 
-Instructions for using it in Eclipse:
-1. Create a new project in Eclipse and give it a name.
-2. Download *pedsimcity*, unzip it and place it wherever it is convenient. Rename the main folder as *pedsimcity* if it is not names so already
-3. Right click on your project on the left-hand side Package Explorer. Select *Build Path*, *Link Source* and then just select the folder *pedsimcity*.
+Instructions for using PedSimCity in Eclipse:
+1. Create a new project in Eclipse.
+2. Download *pedsimcity*, unzip it and place it wherever it is convenient. Rename the main folder as *pedsimcity*, if it is not named so already
+3. Right click on the project on the left-hand side *Package Explorer*. Select *Build Path*, *Link Source*, navigate to its directory, and then select the folder *pedsimcity* previously created.
 4. For all the libraries, download the JAR files and install them in the sequence described above by right clicking on your project *Build Path*, *Add External Archives*.
 
-If you do not like to have Mason and Geomason installed from the JAR files, which would include all the example models too and which would not allow you to edit and have a look at their source code, you can download them from 
+The Mason and Geomason installations include all the example models and do not allow one to edit the source code. 
+'It is possible to obtain them from https://github.com/eclab/mason (follow the instructions there for installation)
 
+Instruction for running the ABM as is for the included case study areas: Paris (regions and barriers), London (landmarks, regions, barriers) or Muenster (landmarks, regions, barriers, empirical-based).
+1. Open the class *UserParameters.java* and get familiar with it.
+2. Specify the following parameter values, so to run the ABM as desired: e.g. number of ABM runs, nr. agents per scenario, nr. trips per agent (these values are pre-defined when modelling the effect of landmarks and urban subdivisions).
+2. Set the *cityName*.
+2. Set the local directories for storing the simulation output (this is important).
+* Choose whether to model the effect of landmarks (*testingLandmarks*), regions and barriers (*testingRegions*). These settings run the ABM with pre-defined set of scenarios (and route choice models assigned to each scenario) as described in the corresponding papers.
+* Alternatively one can choose to define their own scenarios. To do so, *testingModels* needs to be *True* and the Array *routeChoices* needs to be filled with the desired route choice models (see the *UserParameters* class for details).
+* To run the empirical based agent-based model, *empiricalABM* should be set to *True*. If *usingDMA* is *True*, the model will also select destination nodes on the basis of empirical data regarding walking trip purposes (see the paper for details).
 
-
-Instruction for running the model as is for the included case study areas: Paris, London or Muenster
-Before running the model, check the default parameters in the class UserParameters.java so to run the ABM as you please; there, one can also set the local directories for storing the output.
-
-
+Other aspects to note:
+* *testingSpecificRoutes* allows the user to prevent the model to define the Origin-Destination (OD) Matrix. In this case the user can input the desired OD pairs manually in the list *or* and *de* (use the corresponding *nodeID* of the junctions).
+* One may have to define the number of ABM runs, the agents per scenario, as well as the number of trips per agent. 
+* *testingLandmarks*, *testingRegions*, *testingModels*, and *empiricalABM* are mutually exclusive. However, they can all be combined with *testingSpecificRoutes*
+* Check that the route choice models to be included refer to elements for which the case study's data is available (e.g. do not model landmarks for Paris).
 
 The core of the simulation (the simulation state, the scheduler and the agent basic movement functions) is based on *Gridlock*, by Sarah Wise, Mark Coletti, and Andrew Crooks, a GeoMason example.
