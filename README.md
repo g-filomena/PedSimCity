@@ -30,15 +30,15 @@ Instructions for using PedSimCity in Eclipse:
 4. For all the libraries, download the JAR files and install them in the sequence described above by right clicking on your project *Build Path*, *Add External Archives*.
 
 The Mason and Geomason installations include all the example models and do not allow one to edit the source code. 
-'It is possible to obtain them from https://github.com/eclab/mason (follow the instructions there for installation)
+'It is possible to obtain them from https://github.com/eclab/mason (see there the instructions for installing the packages).
 
 Instruction for running the ABM as is for the included case study areas: Paris (regions and barriers), London (landmarks, regions, barriers) or Muenster (landmarks, regions, barriers, empirical-based).
 1. Open the class *UserParameters.java* and get familiar with it.
 2. Specify the following parameter values, so to run the ABM as desired: e.g. number of ABM runs, nr. agents per scenario, nr. trips per agent (these values are pre-defined when modelling the effect of landmarks and urban subdivisions).
 2. Set the *cityName*.
 2. Set the local directories for storing the simulation output (this is important).
-* Choose whether to model the effect of landmarks (*testingLandmarks*), regions and barriers (*testingRegions*). These settings run the ABM with pre-defined set of scenarios (and route choice models assigned to each scenario) as described in the corresponding papers.
-* Alternatively one can choose to define their own scenarios. To do so, *testingModels* needs to be *True* and the Array *routeChoices* needs to be filled with the desired route choice models (see the *UserParameters* class for details).
+* Choose whether to model the effect of landmarks (```testingLandmarks```), regions and barriers (```testingRegions```). These settings run the ABM with pre-defined set of scenarios (and route choice models assigned to each scenario) as described in the corresponding papers.
+* Alternatively one can choose to define their own scenarios. To do so, ```testingModels``` needs to be ```True``` and the Array *routeChoices* needs to be filled with the desired route choice models (see the *UserParameters* class for details).
 * To run the empirical based agent-based model, *empiricalABM* should be set to *True*. If *usingDMA* is *True*, the model will also select destination nodes on the basis of empirical data regarding walking trip purposes (see the paper for details).
 
 Other aspects to note:
