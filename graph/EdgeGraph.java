@@ -130,7 +130,7 @@ public class EdgeGraph extends GeomPlanarGraphEdge {
 	}
 
 	/**
-	 * Set the barriers of an EdgeGraph
+	 * Set the barriers of an edge.
 	 *
 	 */
 	public void setBarriers() {
@@ -194,7 +194,7 @@ public class EdgeGraph extends GeomPlanarGraphEdge {
 	}
 
 //	public NodeGraph getCommonNode(EdgeGraph edge) {
-//		
+//
 //		if (this.u.nodeID == edge.v.nodeID || this.u.nodeID == edge.u.nodeID) return this.u;
 //		if (this.v.nodeID == edge.v.nodeID || this.v.nodeID == edge.u.nodeID) return this.u;
 //		else return null;
