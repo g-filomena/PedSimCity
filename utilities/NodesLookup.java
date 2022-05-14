@@ -103,7 +103,8 @@ public class NodesLookup {
 	 * @param originNode a node;
 	 * @param distances  the list of possible distances used to identify the node;
 	 */
-	public static NodeGraph randomNodeFromDistancesSet(Graph network, NodeGraph originNode, List<Float> distances) {
+	public static NodeGraph randomNodeFromDistancesSet(Graph network, NodeGraph originNode,
+			List<Float> distances) {
 
 		final Random random = new Random();
 		final int pD = random.nextInt(distances.size());
@@ -174,11 +175,16 @@ public class NodesLookup {
 	 * Given a graph, the function returns a random node whose distance from a
 	 * passed origin node is within certain limits. The returned node's centrality is higher or equal to the value
 	 * at the passed percentile. This is to allow the modeller to only employ salient junctions.
+	 * The percentile determines the threshold used to identify salient nodes.
+	 *
+	 * For example, if 0.75 is provided, only the nodes whose centrality value is higher than the value at the 75th percentile are
+	 * considered. This is computed within the entire graph.
 	 *
 	 * @param network    a graph;
 	 * @param originNode a node;
 	 * @param lowerLimit the minimum distance from the origin node;
 	 * @param upperLimit the maximum distance from the origin node;
+	 * @param percentile the percentile used to identify salient nodes;
 	 */
 	public static NodeGraph randomSalientNodeBetweenLimits(Graph network, NodeGraph originNode, double lowerLimit,
 			double upperLimit, double percentile) {
