@@ -15,7 +15,7 @@ The role of the landmarks, barriers and region in combined and modelled toghethe
 
 
 The ABM is built on and it requires:
-* [JTS] (https://github.com/locationtech/jts)
+* [JTS](https://github.com/locationtech/jts)
 * [Mason and GeoMason](https://cs.gmu.edu/~eclab/projects/mason/extensions/geomason/)
 
 Along with:
@@ -42,7 +42,7 @@ Instruction for running the ABM as is for the included case study areas: Paris (
 * To run the empirical based agent-based model, ```empiricalABM``` should be set to ```True```. If ```usingDMA``` is ```True```, the model will also select destination nodes on the basis of empirical data regarding walking trip purposes (see the paper for details).
 
 Other aspects to note:
-* ```testingSpecificRoutes``` allows the user to prevent the model to define the Origin-Destination (OD) Matrix. In this case the user can input the desired OD pairs manually in the list ```or``` and ```de``` (use the corresponding *nodeID* of the junctions).
+* ```testingSpecificRoutes``` allows the user to prevent the model to define the Origin-Destination (OD) Matrix. In this case the user can input the desired OD pairs manually in the lists ```or``` and ```de``` (using the corresponding *nodeID* of the junctions).
 * One may have to define the number of ABM runs, the agents per scenario, as well as the number of trips per agent. 
 * ```testingLandmarks```, ```testingRegions```, ```testingModels```, and ```empiricalABM``` are mutually exclusive. However, they can all be combined with ```testingSpecificRoutes```
 * Check that the route choice models to be included refer to elements for which the case study's data is available (e.g. do not model landmarks for Paris).
