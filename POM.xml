@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>uk.ac.liv.gdsl</groupId>
+    <artifactId>pedsimcity</artifactId>
+    <version>1.0</version>
+
+    <properties>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+    </properties>
+
+    <dependencies>
+        <!-- JavaTuples -->
+        <dependency>
+            <groupId>org.javatuples</groupId>
+            <artifactId>javatuples</artifactId>
+            <version>1.2</version>
+        </dependency>
+
+		<dependency>
+            <groupId>org.locationtech.jts</groupId>
+            <artifactId>jts-core</artifactId>
+            <version>1.19.0</version>
+		</dependency>
+		
+		<dependency>
+		  <groupId>org.slf4j</groupId>
+		  <artifactId>slf4j-api</artifactId>
+		  <version>1.7.32</version>
+		</dependency>
+
+        <!-- Apache Commons Lang -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.12.0</version>
+        </dependency>
+
+        <!-- OpenCSV -->
+        <dependency>
+            <groupId>com.opencsv</groupId>
+            <artifactId>opencsv</artifactId>
+            <version>5.7.1</version>
+        </dependency>
+	
+       <!-- GeoMason-light -->
+		<dependency>
+            <groupId>uk.ac.liv.gdsl</groupId>
+            <artifactId>GeoMason-light</artifactId>
+            <version>1.1</version>
+        </dependency>
+
+       <!-- Mason -->
+        <!-- <dependency> -->
+            <!-- <groupId>edu.gmu.eclab</groupId> -->
+            <!-- <artifactId>mason</artifactId> -->
+            <!-- <version>21</version> -->
+            <!-- <scope>system</scope> -->
+			<!-- <systemPath>${project.basedir}/lib/mason-21.jar</systemPath> -->
+        <!-- </dependency> -->
+    </dependencies>
+
+    <build>
+        <!-- <sourceDirectory>src/main/java</sourceDirectory> -->
+        <plugins>
+            
+			<!-- UTF -->
+			<plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+					<encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>	
+			
+			<!--Main Class -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>3.2.2</version>
+				<configuration>
+					<archive>
+						<manifest>
+							<addClasspath>true</addClasspath>
+							<classpathPrefix>lib/</classpathPrefix>
+							<mainClass>pedSim.applet.PedSimCityApplet</mainClass>
+						</manifest>
+					</archive>
+				</configuration>
+			</plugin>
+		
+			<!--Add jars -->
+			<plugin>
+				<groupId>com.googlecode.addjars-maven-plugin</groupId>
+				<artifactId>addjars-maven-plugin</artifactId>
+				<version>1.0.5</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>add-jars</goal>
+						</goals>
+						<configuration>
+							<resources>
+								<resource>
+									<directory>${basedir}/lib</directory>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		
+			<!-- Assembly -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>3.3.0</version>
+				<executions>
+					<execution>
+						<id>make-assembly</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<descriptorRefs>
+								<descriptorRef>jar-with-dependencies</descriptorRef>
+							</descriptorRefs>
+							<archive>
+								<manifest>
+									<mainClass>pedSim.applet.PedSimCityApplet</mainClass>
+								</manifest>
+							</archive>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+    </build>
+</project>
