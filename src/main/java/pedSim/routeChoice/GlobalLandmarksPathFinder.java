@@ -52,7 +52,7 @@ public class GlobalLandmarksPathFinder extends PathFinder {
 		for (final NodeGraph tmpDestination : this.sequenceNodes) {
 			moveOn = false;
 			// check if this tmpDestination has been traversed already
-			if (Route.nodesFromEdgesSequence(completeSequence).contains(tmpDestination)) {
+			if (route.nodesFromEdgesSequence(completeSequence).contains(tmpDestination)) {
 				controlPath(tmpDestination);
 				tmpOrigin = tmpDestination;
 				continue;
