@@ -2,6 +2,7 @@ package pedSim.routeChoice;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -29,8 +30,7 @@ public class LandmarkNavigation {
 	NodeGraph destinationNode;
 	ArrayList<NodeGraph> sequence = new ArrayList<>();
 	ArrayList<NodeGraph> inRegionSequence = new ArrayList<>();
-	Map<NodeGraph, Double> knownJunctions;
-	Map<NodeGraph, Double> regionKnownJunctions;
+	private Map<NodeGraph, Double> knownJunctions = new HashMap<NodeGraph, Double>();
 	private AgentCognitiveMap cognitiveMap;
 	private Agent agent;
 
@@ -60,7 +60,8 @@ public class LandmarkNavigation {
 
 		sequence = new ArrayList<>();
 		knownJunctions(originNode);
-		if (knownJunctions == null)
+
+		if (knownJunctions.isEmpty())
 			return sequence;
 		// compute wayfinding easinesss and the resulting research space
 		double wayfindingEasiness = Complexity.wayfindingEasiness(originNode, destinationNode, agent);
@@ -71,8 +72,7 @@ public class LandmarkNavigation {
 		// intermediate-points.
 		while (wayfindingEasiness < Parameters.wayfindingEasinessThreshold) {
 			NodeGraph bestNode = findOnRouteMark(currentNode, knownJunctions, searchDistance);
-
-			if (bestNode == null || bestNode == destinationNode)
+			if (bestNode == null || bestNode.equals(currentNode))
 				break;
 			sequence.add(bestNode);
 			knownJunctions(bestNode);
@@ -99,14 +99,13 @@ public class LandmarkNavigation {
 	public void knownJunctions(NodeGraph node) {
 
 		double percentile = Parameters.salientNodesPercentile;
-		Map<NodeGraph, Double> knownJunctions = PedSimCity.network.salientNodesWithinSpace(node, this.destinationNode,
-				percentile);
+		knownJunctions = PedSimCity.network.salientNodesWithinSpace(node, this.destinationNode, percentile);
 
 		// If no salient junctions are found, the tolerance increases till the 0.50
 		// percentile;
 		// if still no salient junctions are found, the agent continues without
 		// landmarks
-		while (knownJunctions == null) {
+		while (knownJunctions.isEmpty()) {
 			percentile -= 0.05;
 			if (percentile < 0.50) {
 				sequence.add(0, originNode);
@@ -209,7 +208,7 @@ public class LandmarkNavigation {
 
 		Region region = PedSimCity.regionsMap.get(currentNode.regionID);
 		regionKnownJunctions(region);
-		if (knownJunctions == null)
+		if (knownJunctions.isEmpty())
 			return inRegionSequence;
 		// compute wayfinding complexity and the resulting easinesss
 		double wayfindingEasiness = Complexity.wayfindingEasinessRegion(currentNode, exitGateway, originNode,
@@ -226,7 +225,7 @@ public class LandmarkNavigation {
 				break;
 			inRegionSequence.add(bestNode);
 			regionKnownJunctions(region);
-			if (knownJunctions == null)
+			if (knownJunctions.isEmpty())
 				return inRegionSequence;
 
 			wayfindingEasiness = Complexity.wayfindingEasinessRegion(bestNode, originNode, destinationNode, exitGateway,
@@ -247,16 +246,16 @@ public class LandmarkNavigation {
 	private void regionKnownJunctions(Region region) {
 
 		double percentile = Parameters.salientNodesPercentile;
-		Map<NodeGraph, Double> regionKnownJunctions = region.primalGraph.salientNodes;
+		knownJunctions = region.primalGraph.salientNodes;
 
 		// If no salient junctions are found, the tolerance increases till the 0.50
 		// percentile;
 		// still no salient junctions are found, the agent continues without landmarks
-		while (regionKnownJunctions == null) {
+		while (knownJunctions.isEmpty()) {
 			percentile -= 0.05;
 			if (percentile < 0.50)
 				break;
-			regionKnownJunctions = region.primalGraph.subGraphSalientNodes(percentile);
+			knownJunctions = region.primalGraph.subGraphSalientNodes(percentile);
 		}
 	}
 
@@ -391,7 +390,8 @@ public class LandmarkNavigation {
 		// current real segment: identifying the node
 		DirectedEdge streetSegment = targetCentroid.primalEdge.getDirEdge(0);
 		NodeGraph targetNode = (NodeGraph) streetSegment.getToNode(); // targetNode
-		if (Route.commonPrimalJunction(centroid, targetCentroid).equals(targetNode))
+		Route route = new Route();
+		if (route.commonPrimalJunction(centroid, targetCentroid).equals(targetNode))
 			targetNode = (NodeGraph) streetSegment.getFromNode();
 
 		return globalLandmarknessNode(targetNode, destinationNode);
