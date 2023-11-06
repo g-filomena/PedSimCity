@@ -42,6 +42,8 @@ public class Dijkstra {
 	Graph graph;
 	Agent agent;
 
+	Route route = new Route();
+
 	protected static final double MAX_DEFLECTION_ANGLE = 180.00;
 	protected static final double MIN_DEFLECTION_ANGLE = 0;
 
@@ -135,9 +137,9 @@ public class Dijkstra {
 		if (subGraph != null) {
 			originNode = subGraph.findNode(originNode.getCoordinate());
 			destinationNode = subGraph.findNode(destinationNode.getCoordinate());
-			this.graph = subGraph;
+			graph = subGraph;
 		} else
-			this.graph = PedSimCity.network;
+			graph = PedSimCity.network;
 	}
 
 	/**
@@ -275,7 +277,7 @@ public class Dijkstra {
 			NodeWrapper nodeWrapper = nodeWrappersMap.computeIfAbsent(targetNode, NodeWrapper::new);
 			nodeWrapper.nodeFrom = currentNode;
 			nodeWrapper.directedEdgeFrom = outEdge;
-			nodeWrapper.commonPrimalJunction = Route.commonPrimalJunction(currentNode, targetNode);
+			nodeWrapper.commonPrimalJunction = route.commonPrimalJunction(currentNode, targetNode);
 			nodeWrapper.gx = tentativeCost;
 			nodeWrappersMap.put(targetNode, nodeWrapper);
 			unvisitedNodes.add(targetNode);
