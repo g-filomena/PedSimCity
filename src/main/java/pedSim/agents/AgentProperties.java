@@ -1,5 +1,6 @@
 package pedSim.agents;
 
+import pedSim.utilities.StringEnum;
 import pedSim.utilities.StringEnum.BarrierType;
 import pedSim.utilities.StringEnum.LandmarkType;
 import pedSim.utilities.StringEnum.RouteChoice;
@@ -64,9 +65,8 @@ public class AgentProperties {
 		onlyMinimising = false;
 		minimisingDistance = routeChoice == RouteChoice.ROAD_DISTANCE;
 		minimisingAngular = routeChoice == RouteChoice.ANGULAR_CHANGE;
-		minimisingTurns = routeChoice == RouteChoice.TURNS;
 
-		onlyMinimising = minimisingDistance || minimisingAngular || minimisingTurns;
+		onlyMinimising = minimisingDistance || minimisingAngular;
 		if (onlyMinimising)
 			return;
 
@@ -79,6 +79,15 @@ public class AgentProperties {
 		barrierBasedNavigation = containsBarrier(routeChoice);
 		usingLocalLandmarks = containsLocal(routeChoice);
 		usingDistantLandmarks = containsGlobal(routeChoice);
+
+		if (routeChoice.toString().contains("LANDMARKS")) {
+			usingDistantLandmarks = true;
+			if (!routeChoice.toString().contains("DISTANT"))
+				usingLocalLandmarks = true;
+		}
+
+		if (usingLocalLandmarks)
+			landmarkType = StringEnum.LandmarkType.LOCAL;
 
 		if (barrierBasedNavigation) {
 			preferenceNaturalBarriers = true;
@@ -105,7 +114,7 @@ public class AgentProperties {
 	 * @param routeChoice The route choice to check.
 	 * @return True if "ANGLE" is found in the route choice, false otherwise.
 	 */
-	public static boolean containsAngular(RouteChoice routeChoice) {
+	public boolean containsAngular(RouteChoice routeChoice) {
 		return routeChoice.toString().contains("ANGLE");
 	}
 
@@ -115,7 +124,7 @@ public class AgentProperties {
 	 * @param routeChoice The route choice to check.
 	 * @return True if "REGION" is found in the route choice, false otherwise.
 	 */
-	public static boolean containsRegion(RouteChoice routeChoice) {
+	public boolean containsRegion(RouteChoice routeChoice) {
 		return routeChoice.toString().contains("REGION");
 	}
 
@@ -125,7 +134,7 @@ public class AgentProperties {
 	 * @param routeChoice The route choice to check.
 	 * @return True if "BARRIER" is found in the route choice, false otherwise.
 	 */
-	public static boolean containsBarrier(RouteChoice routeChoice) {
+	public boolean containsBarrier(RouteChoice routeChoice) {
 		return routeChoice.toString().contains("BARRIER");
 	}
 
@@ -135,7 +144,7 @@ public class AgentProperties {
 	 * @param routeChoice The route choice to check.
 	 * @return True if "LOCAL" is found in the route choice, false otherwise.
 	 */
-	public static boolean containsLocal(RouteChoice routeChoice) {
+	public boolean containsLocal(RouteChoice routeChoice) {
 		return routeChoice.toString().contains("LOCAL");
 	}
 
@@ -145,7 +154,7 @@ public class AgentProperties {
 	 * @param routeChoice The route choice to check.
 	 * @return True if "DISTANT" is found in the route choice, false otherwise.
 	 */
-	public static boolean containsGlobal(RouteChoice routeChoice) {
+	public boolean containsGlobal(RouteChoice routeChoice) {
 		return routeChoice.toString().contains("DISTANT");
 	}
 }
