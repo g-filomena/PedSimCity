@@ -8,6 +8,7 @@ import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -18,7 +19,6 @@ import pedSim.utilities.RouteData;
 import pedSim.utilities.StringEnum;
 import pedSim.utilities.StringEnum.RouteChoice;
 import sim.field.geo.VectorLayer;
-import sim.graph.EdgeGraph;
 import sim.io.geo.ShapeFileExporter;
 import sim.util.geo.CSVUtils;
 import sim.util.geo.MasonGeometry;
@@ -29,13 +29,15 @@ import sim.util.geo.MasonGeometry;
  */
 public class Export {
 
-	private static String userName = System.getProperty("user.name");
+	private String userName = System.getProperty("user.name");
 	// Constants for file paths and directories
-	public static String outputDirectory;
-	public static String outputRoutesDirectory;
+	public String outputDirectory;
+	public String outputRoutesDirectory;
 	private static final Logger LOGGER = Logger.getLogger(Export.class.getName());
 	private static int nrColumns;
 	private static final int FIELD_LIMIT = 254;
+	int job;
+	FlowHandler flowHandler;
 
 	/**
 	 * Saves simulation results to specified output directories.
@@ -43,20 +45,22 @@ public class Export {
 	 * @param job The identifier of the current job.
 	 * @throws Exception If there is an error while saving the results.
 	 */
-	public static void saveResults(int job) throws Exception {
+	public void saveResults(FlowHandler flowHandler) throws Exception {
 		outputDirectory = "C:" + File.separator + "Users" + File.separator + userName + File.separator + "PedSimCity"
 				+ File.separator + "Output";
 		outputRoutesDirectory = outputDirectory;
+		this.flowHandler = flowHandler;
+		this.job = flowHandler.job;
 		setOutputPath();
-		savePedestrianVolumes(job);
-		saveRoutes(job);
+		savePedestrianVolumes();
+		saveRoutes();
 		LOGGER.info("Job nr " + job + ": Files successfully exported.");
 	}
 
 	/**
 	 * Sets the output path based on the program's configuration.
 	 */
-	private static void setOutputPath() {
+	private void setOutputPath() {
 		if (Parameters.empirical)
 			outputDirectory += File.separator + "empirical";
 		else if (Parameters.testingSubdivisions)
@@ -69,13 +73,12 @@ public class Export {
 		outputRoutesDirectory = outputDirectory + File.separator + "routes";
 		outputDirectory += File.separator + "streetVolumes";
 		verifyOutputPath();
-		System.out.print(outputDirectory);
 	}
 
 	/**
 	 * Verifies and creates the specified output directory.
 	 */
-	private static void verifyOutputPath() {
+	private void verifyOutputPath() {
 		String username = System.getProperty("user.name");
 		outputDirectory = String.format(outputDirectory, username);
 		outputRoutesDirectory = String.format(outputRoutesDirectory, username);
@@ -88,7 +91,7 @@ public class Export {
 	 *
 	 * @param directory The directory path to be created.
 	 */
-	private static void createDirectory(String directory) {
+	private void createDirectory(String directory) {
 
 		File outputCheck = new File(directory);
 		if (!outputCheck.exists()) {
@@ -107,14 +110,14 @@ public class Export {
 	 * @param job The job identifier.
 	 * @throws Exception If there is an error while saving the data.
 	 */
-	private static void savePedestrianVolumes(int job) throws Exception {
+	private void savePedestrianVolumes() throws Exception {
 
 		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
 		String currentDate = LocalDate.now().format(formatter);
-
-		final ArrayList<MasonGeometry> edgesGeometries = PedSimCity.roads.getGeometries();
 		final String csvSegments = outputDirectory + File.separator + currentDate + "_" + job + ".csv";
 		final FileWriter writerVolumesData = new FileWriter(csvSegments);
+
+		HashMap<Integer, HashMap<String, Integer>> volumesMap = flowHandler.volumesMap;
 
 		ArrayList<String> headers;
 		if (Parameters.empirical) {
@@ -131,13 +134,13 @@ public class Export {
 		headers.add(0, "edgeID");
 		CSVUtils.writeLine(writerVolumesData, headers);
 
-		for (MasonGeometry masonGeometry : edgesGeometries) {
-			final EdgeGraph edgeID = PedSimCity.edgesMap.get(masonGeometry.getIntegerAttribute("edgeID"));
-
+		for (int edgeID : volumesMap.keySet()) {
+			HashMap<String, Integer> edgeVolumes = volumesMap.get(edgeID);
 			final List<String> row = new ArrayList<>();
+
 			for (final String columnHeader : headers) {
 				if (columnHeader.equals("edgeID")) {
-					row.add(0, Integer.toString(edgeID.getID()));
+					row.add(0, Integer.toString(edgeID));
 					continue;
 				}
 				int index = headers.indexOf(columnHeader) - 1;
@@ -146,7 +149,7 @@ public class Export {
 					value = headers.get(index + 1);
 				else
 					value = Parameters.routeChoiceModels[index].toString();
-				row.add(Integer.toString(edgeID.volumes.get(value)));
+				row.add(Integer.toString(edgeVolumes.get(value)));
 			}
 			CSVUtils.writeLine(writerVolumesData, row);
 		}
@@ -160,15 +163,15 @@ public class Export {
 	 * @param job The job identifier.
 	 * @throws Exception If there is an error while saving the data.
 	 */
-	private static void saveRoutes(int job) throws Exception {
+	private void saveRoutes() throws Exception {
 
 		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
 		String currentDate = LocalDate.now().format(formatter);
 		final VectorLayer routes = new VectorLayer();
-		final String directory = outputRoutesDirectory + File.separator + currentDate + "_" + job;
+		final String directory = outputRoutesDirectory + File.separator + currentDate + "_" + flowHandler.job;
 		nrColumns = 0;
 
-		for (final RouteData routeData : PedSimCity.routesData) {
+		for (final RouteData routeData : flowHandler.routesData) {
 			MasonGeometry masonGeometry = new MasonGeometry(routeData.lineGeometry);
 			masonGeometry.addIntegerAttribute("O", routeData.origin);
 			masonGeometry.addIntegerAttribute("D", routeData.destination);
@@ -194,9 +197,7 @@ public class Export {
 						route.addAttribute("edgeIDs_" + counter, "None");
 			}
 		}
-		System.out.println(routes.getGeometries().get(1).getAttributes());
 		ShapeFileExporter.write(directory, routes);
-		PedSimCity.routesData = new ArrayList<>();
 	}
 
 	/**
