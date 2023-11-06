@@ -89,7 +89,7 @@ public class Populate {
 				destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, junctions, originNode, 1000,
 						3000);
 			} else if (Parameters.testingModels) {
-				originNode = NodesLookup.randomNode(network);
+				originNode = NodesLookup.randomNodeFromList(network, PedSimCity.startingNodes);
 				destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, junctions, originNode,
 						Parameters.minDistance, Parameters.maxDistance);
 			}
@@ -128,8 +128,8 @@ public class Populate {
 		agent.OD = new LinkedList<>(thisAgentODs);
 		agentGeometry.isMovable = true;
 		agent.agentID = agentID;
-		PedSimCity.agents.addGeometry(agentGeometry);
-		PedSimCity.agentsList.add(agent);
+		state.agents.addGeometry(agentGeometry);
+		state.agentsList.add(agent);
 	}
 
 	/**
