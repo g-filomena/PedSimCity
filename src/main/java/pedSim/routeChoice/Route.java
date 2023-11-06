@@ -43,7 +43,7 @@ public class Route {
 	 *                              representing the path.
 	 * @return The previous junction node.
 	 */
-	public static NodeGraph previousJunction(ArrayList<DirectedEdge> sequenceDirectedEdges) {
+	public NodeGraph previousJunction(ArrayList<DirectedEdge> sequenceDirectedEdges) {
 		// from global graph
 		if (sequenceDirectedEdges.size() == 1)
 			return (NodeGraph) sequenceDirectedEdges.get(0).getFromNode();
@@ -63,7 +63,7 @@ public class Route {
 	 *                              representing the path.
 	 * @return A list of primal nodes.
 	 */
-	public static ArrayList<NodeGraph> nodesFromEdgesSequence(ArrayList<DirectedEdge> directedEdgesSequence) {
+	public ArrayList<NodeGraph> nodesFromEdgesSequence(ArrayList<DirectedEdge> directedEdgesSequence) {
 		final ArrayList<NodeGraph> nodes = new ArrayList<>();
 		for (final DirectedEdge planarDirectedEdge : directedEdgesSequence) {
 			nodes.add(((EdgeGraph) planarDirectedEdge.getEdge()).fromNode);
@@ -79,7 +79,7 @@ public class Route {
 	 *                              representing the path.
 	 * @return A list of centroids (dual nodes).
 	 */
-	public static ArrayList<NodeGraph> centroidsFromEdgesSequence(ArrayList<DirectedEdge> sequenceDirectedEdges) {
+	public ArrayList<NodeGraph> centroidsFromEdgesSequence(ArrayList<DirectedEdge> sequenceDirectedEdges) {
 		final ArrayList<NodeGraph> centroids = new ArrayList<>();
 		for (final DirectedEdge planarDirectedEdge : sequenceDirectedEdges)
 			centroids.add(((EdgeGraph) planarDirectedEdge.getEdge()).getDual());
@@ -94,7 +94,7 @@ public class Route {
 	 * @param otherCentroid Another dual node.
 	 * @return The common primal junction node.
 	 */
-	public static NodeGraph commonPrimalJunction(NodeGraph centroid, NodeGraph otherCentroid) {
+	public NodeGraph commonPrimalJunction(NodeGraph centroid, NodeGraph otherCentroid) {
 
 		final EdgeGraph edge = centroid.primalEdge;
 		final EdgeGraph otherEdge = otherCentroid.primalEdge;
