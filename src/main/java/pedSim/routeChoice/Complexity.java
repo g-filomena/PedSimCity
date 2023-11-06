@@ -34,12 +34,15 @@ public class Complexity {
 		final double distanceComplexity = GraphUtils.nodesDistance(node, destinationNode)
 				/ Math.max(PedSimCity.roads.MBR.getHeight(), PedSimCity.roads.MBR.getWidth());
 
+		double buildingsComplexity = 1.0;
 		final ArrayList<MasonGeometry> buildings = Building.getBuildings(node, destinationNode);
 		ArrayList<MasonGeometry> landmarks = getAgentLandmarks(agent, null);
-
-		double buildingsComplexity = buildings.size() == 0 ? 0.0 : buildingsComplexity(buildings, landmarks);
-		final double wayfindingComplexity = (distanceComplexity + buildingsComplexity) / 2.0;
-		final double easiness = 1.0 - wayfindingComplexity;
+		if (!buildings.isEmpty()) {
+			landmarks.retainAll(buildings);
+			buildingsComplexity = buildingsComplexity(buildings, landmarks);
+		}
+		double wayfindingComplexity = (distanceComplexity + buildingsComplexity) / 2.0;
+		double easiness = 1.0 - wayfindingComplexity;
 		return easiness;
 	}
 
@@ -96,7 +99,8 @@ public class Complexity {
 		ArrayList<MasonGeometry> buildings = new ArrayList<>();
 		buildings = Building.getBuildingsWithinRegion(region);
 		if (buildings.isEmpty())
-			return 0.0;
+			return 1.0;
+
 		LandmarkType agentLandmarkType = agent.getProperties().landmarkType;
 		if (agentLandmarkType.equals(LandmarkType.LOCAL))
 			landmarks = agent.cognitiveMap.getRegionLocalLandmarks(region);
