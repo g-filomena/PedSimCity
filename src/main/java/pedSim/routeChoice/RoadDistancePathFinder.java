@@ -26,8 +26,7 @@ public class RoadDistancePathFinder extends PathFinder {
 
 		this.agent = agent;
 		final DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
-		partialSequence = pathfinder.dijkstraAlgorithm(originNode, destinationNode, destinationNode, null,
-				agent);
+		partialSequence = pathfinder.dijkstraAlgorithm(originNode, destinationNode, destinationNode, null, agent);
 		route.directedEdgesSequence = partialSequence;
 		route.routeSequences();
 		return route;
@@ -50,17 +49,19 @@ public class RoadDistancePathFinder extends PathFinder {
 
 		this.agent = agent;
 		this.sequenceNodes = new ArrayList<>(sequenceNodes);
+
 		// originNode
 		originNode = this.sequenceNodes.get(0);
 		tmpOrigin = originNode;
-		destinationNode = this.sequenceNodes.get(this.sequenceNodes.size() - 1);
+		destinationNode = sequenceNodes.get(sequenceNodes.size() - 1);
 		this.sequenceNodes.remove(0);
 
 		for (final NodeGraph currentNode : this.sequenceNodes) {
 			moveOn = false;
 			tmpDestination = currentNode;
+
 			// check if this tmpDestination has been traversed already
-			if (Route.nodesFromEdgesSequence(completeSequence).contains(tmpDestination)) {
+			if (route.nodesFromEdgesSequence(completeSequence).contains(tmpDestination)) {
 				controlPath(tmpDestination);
 				tmpOrigin = tmpDestination;
 				continue;
@@ -68,11 +69,11 @@ public class RoadDistancePathFinder extends PathFinder {
 
 			if (haveEdgesBetween())
 				continue;
+
 			segmentsToAvoid = new HashSet<>(completeSequence);
 			final DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
 			partialSequence = pathfinder.dijkstraAlgorithm(tmpOrigin, tmpDestination, destinationNode, segmentsToAvoid,
 					agent);
-
 			while (partialSequence.isEmpty() && !moveOn)
 				backtracking(tmpDestination);
 
@@ -86,6 +87,8 @@ public class RoadDistancePathFinder extends PathFinder {
 			completeSequence.addAll(partialSequence);
 			tmpOrigin = tmpDestination;
 		}
+		route.directedEdgesSequence = completeSequence;
+		route.routeSequences();
 		return route;
 	}
 }
