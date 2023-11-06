@@ -8,7 +8,6 @@ import org.locationtech.jts.planargraph.DirectedEdge;
 
 import pedSim.agents.Agent;
 import pedSim.engine.Parameters;
-import pedSim.routeChoice.Route;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
 
@@ -41,8 +40,8 @@ public class DijkstraAngularChange extends Dijkstra {
 			NodeGraph finalDestinationNode, HashSet<NodeGraph> centroidsToAvoid, NodeGraph previousJunction,
 			Agent agent) {
 
-		initialiseDual(originNode, destinationNode, finalDestinationNode, centroidsToAvoid, previousJunction,
-				agent, Parameters.subGraph);
+		initialiseDual(originNode, destinationNode, finalDestinationNode, centroidsToAvoid, previousJunction, agent,
+				Parameters.subGraph);
 
 		visitedNodes = new HashSet<>();
 		unvisitedNodes = new HashSet<>();
@@ -98,7 +97,7 @@ public class DijkstraAngularChange extends Dijkstra {
 			// --> if yes move on. This essentially means that the in the primal graph you
 			// would go back to an
 			// already traversed node; but the dual graph wouldn't know.
-			if (Route.commonPrimalJunction(targetNode, currentNode)
+			if (route.commonPrimalJunction(targetNode, currentNode)
 					.equals(nodeWrappersMap.get(currentNode).commonPrimalJunction))
 				continue;
 
