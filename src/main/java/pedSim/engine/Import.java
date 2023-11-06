@@ -2,6 +2,7 @@ package pedSim.engine;
 
 import java.io.File;
 import java.io.FileReader;
+import java.net.URL;
 import java.util.logging.Logger;
 
 import com.opencsv.CSVReader;
@@ -36,62 +37,40 @@ public class Import {
 		// Determine the input data directory based on the simulation parameters
 		ClassLoader classLoader = getClass().getClassLoader();
 		String resourcePath = Parameters.cityName + File.separator;
-
+		if (Parameters.javaProject)
+			resourcePath = "C:\\Users\\gfilo\\OneDrive - The University of Liverpool\\Scripts\\pedsimcity\\src\\main\\resources\\"
+					+ resourcePath;
 		if (Parameters.cityName.equals("London")) {
 			if (Parameters.testingLandmarks)
 				resourcePath += "landmarks";
 			else if (Parameters.testingSubdivisions)
 				resourcePath += "subdivisions";
 		}
-		resourcePath = "C:\\Users\\gfilo\\OneDrive - The University of Liverpool\\Scripts\\pedsimcity\\src\\main\\resources\\"
-				+ resourcePath;
-		System.out.println(resourcePath);
-//		URL resourceURL = classLoader.getResource(resourcePath);
-//		dataDirectory = resourceURL.getPath();
-		dataDirectory = resourcePath;
+
+		URL resourceURL = null;
+		if (Parameters.javaProject)
+			dataDirectory = resourcePath;
+		else {
+			resourceURL = classLoader.getResource(resourcePath);
+			dataDirectory = resourceURL.getPath();
+		}
+
 		System.out.println(dataDirectory);
-
 		if (Parameters.testingLandmarks) {
-				try {
-					importDistances();
-					readLandmarksAndSightLines();
-					LOGGER.info("Landmarks and Sight Lines successfully imported.");
-				} catch (Exception e) {
-					handleImportError("landmarks and sight lines", e);
-				}
-		}
-		else if (Parameters.testingSubdivisions) {
-			// Import various data files
-			try {
-				readBarriers();
-				LOGGER.info("Barriers successfully imported.");
-			} catch (Exception e) {
-				handleImportError("Reading Barriers", e);
-			}
-		}
+			importDistances();
+			readLandmarksAndSightLines();
+		} else if (Parameters.testingSubdivisions)
+			readBarriers();
 		else if (Parameters.empirical) {
-			// Import various data files
-			try {
-				readBarriers();
-				readLandmarksAndSightLines();
-				importEmpiricalGroups();
-				LOGGER.info("Data successfully imported.");
-			} catch (Exception e) {
-				handleImportError("Reading Barriers", e);
-			}
+			readLandmarksAndSightLines();
+			readBarriers();
+			importEmpiricalGroups();
+		} else if (Parameters.testingModels) {
+			readLandmarksAndSightLines();
+			readBarriers();
 		}
-
 		// Read the street network shapefiles and create the primal and the dual graph
-		try {
-			readGraphs();
-			LOGGER.info("Graphs successfully imported.");
-		} catch (Exception e) {
-			handleImportError("graphs", e);
-			PedSimCity.roads = null;
-			PedSimCity.junctions = null;
-			PedSimCity.intersectionsDual = null;
-			PedSimCity.centroids = null;
-		}
+		readGraphs();
 	}
 
 	/**
@@ -116,12 +95,22 @@ public class Import {
 	}
 
 	/**
-	 * Reads and imports barriers data for the simulation.
+	 * Reads and imports road network graphs required for the simulation.
 	 *
 	 * @throws Exception If an error occurs during the import process.
 	 */
-	private void readBarriers() throws Exception {
-		VectorLayer.readShapefile(dataDirectory + File.separator + "barriers", PedSimCity.barriers);
+	private void readGraphs() throws Exception {
+		try {
+			VectorLayer.readShapefile(dataDirectory + File.separator + "edges", PedSimCity.roads);
+			VectorLayer.readShapefile(dataDirectory + File.separator + "nodes", PedSimCity.junctions);
+			VectorLayer.readShapefile(dataDirectory + File.separator + "edgesDual", PedSimCity.intersectionsDual);
+			VectorLayer.readShapefile(dataDirectory + File.separator + "nodesDual", PedSimCity.centroids);
+			PedSimCity.network.fromStreetJunctionsSegments(PedSimCity.junctions, PedSimCity.roads);
+			PedSimCity.dualNetwork.fromStreetJunctionsSegments(PedSimCity.centroids, PedSimCity.intersectionsDual);
+			LOGGER.info("Graphs successfully imported.");
+		} catch (Exception e) {
+			handleImportError("Importing Graphs failed", e);
+		}
 	}
 
 	/**
@@ -130,25 +119,28 @@ public class Import {
 	 * @throws Exception If an error occurs during the import process.
 	 */
 	private void readLandmarksAndSightLines() throws Exception {
-		VectorLayer.readShapefile(dataDirectory + File.separator + "landmarks", PedSimCity.buildings);
-		VectorLayer.readShapefile(dataDirectory + File.separator + "sight_lines2D", PedSimCity.sightLines);
-		PedSimCity.buildings.setID("buildingID");
+		try {
+			VectorLayer.readShapefile(dataDirectory + File.separator + "landmarks", PedSimCity.buildings);
+			VectorLayer.readShapefile(dataDirectory + File.separator + "sight_lines2D", PedSimCity.sightLines);
+			PedSimCity.buildings.setID("buildingID");
+			LOGGER.info("Landmarks successfully imported.");
+		} catch (Exception e) {
+			handleImportError("Importing Landmarks Failed", e);
+		}
 	}
 
 	/**
-	 * Reads and imports road network graphs required for the simulation.
+	 * Reads and imports barriers data for the simulation.
 	 *
 	 * @throws Exception If an error occurs during the import process.
 	 */
-	private void readGraphs() throws Exception {
-
-		VectorLayer.readShapefile(dataDirectory + File.separator + "edges", PedSimCity.roads);
-		VectorLayer.readShapefile(dataDirectory + File.separator + "nodes", PedSimCity.junctions);
-		VectorLayer.readShapefile(dataDirectory + File.separator + "edgesDual", PedSimCity.intersectionsDual);
-		VectorLayer.readShapefile(dataDirectory + File.separator + "nodesDual", PedSimCity.centroids);
-
-		PedSimCity.network.fromStreetJunctionsSegments(PedSimCity.junctions, PedSimCity.roads);
-		PedSimCity.dualNetwork.fromStreetJunctionsSegments(PedSimCity.centroids, PedSimCity.intersectionsDual);
+	private void readBarriers() throws Exception {
+		try {
+			VectorLayer.readShapefile(dataDirectory + File.separator + "barriers", PedSimCity.barriers);
+			LOGGER.info("Barriers successfully imported.");
+		} catch (Exception e) {
+			handleImportError("Importing Barriers Failed", e);
+		}
 	}
 
 	/**
