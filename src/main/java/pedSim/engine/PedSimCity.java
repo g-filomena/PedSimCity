@@ -12,8 +12,6 @@ import pedSim.agents.EmpiricalAgentsGroup;
 import pedSim.cognitiveMap.Barrier;
 import pedSim.cognitiveMap.Gateway;
 import pedSim.cognitiveMap.Region;
-import pedSim.utilities.RouteData;
-import pedSim.utilities.StringEnum.RouteChoice;
 import sim.engine.SimState;
 import sim.engine.Stoppable;
 import sim.field.geo.VectorLayer;
@@ -52,8 +50,6 @@ public class PedSimCity extends SimState {
 	public static HashMap<Integer, EdgeGraph> edgesMap = new HashMap<>();
 
 	public static HashMap<Integer, NodeGraph> centroidsMap = new HashMap<>();
-	public static ArrayList<RouteData> routesData = new ArrayList<>();
-	public static HashMap<EdgeGraph, ArrayList<Agent>> edgesVolume = new HashMap<>();
 
 	// OD related variables
 	public static List<Float> distances = new ArrayList<>();
@@ -61,13 +57,13 @@ public class PedSimCity extends SimState {
 	// used only when loading OD sets
 
 	public int currentJob;
+
+	public FlowHandler flowHandler;
 	public static ArrayList<EmpiricalAgentsGroup> empiricalGroups = new ArrayList<>();
-
-	// agents
-	public static VectorLayer agents = new VectorLayer();
-	public static ArrayList<Agent> agentsList = new ArrayList<>();
-
 	public static Envelope MBR = null;
+
+	public VectorLayer agents;
+	public ArrayList<Agent> agentsList;
 
 	/**
 	 * Constructs a new instance of the PedSimCity simulation environment.
@@ -78,6 +74,13 @@ public class PedSimCity extends SimState {
 	public PedSimCity(long seed, int job) {
 		super(seed);
 		this.currentJob = job;
+		this.flowHandler = new FlowHandler(job);
+		this.agentsList = new ArrayList<>();
+		this.agents = new VectorLayer(); // create a new vector layer for each job
+	}
+
+	public List<Agent> getAgentsList() {
+		return agentsList;
 	}
 
 	/**
@@ -87,37 +90,10 @@ public class PedSimCity extends SimState {
 	 */
 	@Override
 	public void start() {
-		Parameters.defineMode();
-		initializeEdgeVolumes();
 		super.start();
 		prepareEnvironment();
 		populateEnvironment();
 		startMovingAgents();
-	}
-
-	/**
-	 * Initialises the edge volumes for the simulation. This method assigns initial
-	 * volume values to edges based on the selected route choice models or empirical
-	 * agent groups. If the simulation is not empirical, it initialises volumes
-	 * based on the route choice models. If the simulation is empirical-based, it
-	 * initialises volumes based on empirical agent groups.
-	 */
-	private void initializeEdgeVolumes() {
-		if (!Parameters.empirical) {
-			for (RouteChoice routeChoice : Parameters.routeChoiceModels) {
-				for (Object o : network.getEdges()) {
-					EdgeGraph edge = (EdgeGraph) o;
-					edge.volumes.put(routeChoice.toString(), 0);
-				}
-			}
-		} else {
-			for (EmpiricalAgentsGroup empiricalGroup : empiricalGroups) {
-				for (Object o : network.getEdges()) {
-					EdgeGraph edge = (EdgeGraph) o;
-					edge.volumes.put(empiricalGroup.groupName, 0);
-				}
-			}
-		}
 	}
 
 	/**
@@ -127,9 +103,9 @@ public class PedSimCity extends SimState {
 	 */
 	private void prepareEnvironment() {
 		MBR = roads.getMBR();
-		if (!buildings.getGeometries().isEmpty());
+		if (!buildings.getGeometries().isEmpty())
 			MBR.expandToInclude(buildings.getMBR());
-		if (!barriers.getGeometries().isEmpty());
+		if (!barriers.getGeometries().isEmpty())
 			MBR.expandToInclude(barriers.getMBR());
 		roads.setMBR(MBR);
 	}
@@ -146,8 +122,8 @@ public class PedSimCity extends SimState {
 		if (Parameters.empirical)
 			populate.populateEmpiricalGroups(this);
 		else {
-			// Populate.populate();
 		}
+		// Populate.populate();
 	}
 
 	/**
@@ -155,7 +131,7 @@ public class PedSimCity extends SimState {
 	 * repeated movement updates and sets up the spatial index for agents.
 	 */
 	private void startMovingAgents() {
-		for (Agent agent : agentsList) {
+		for (Agent agent : this.agentsList) {
 			Stoppable stop = schedule.scheduleRepeating(agent);
 			agent.setStoppable(stop);
 			schedule.scheduleRepeating(agents.scheduleSpatialIndexUpdater(), Integer.MAX_VALUE, 1.0);
@@ -168,8 +144,10 @@ public class PedSimCity extends SimState {
 	 */
 	@Override
 	public void finish() {
+
 		try {
-			Export.saveResults(this.currentJob);
+			Export export = new Export();
+			export.saveResults(flowHandler);
 		} catch (final Exception e) {
 			e.printStackTrace();
 		}
@@ -185,15 +163,13 @@ public class PedSimCity extends SimState {
 	 */
 	public static void main(String[] args) throws Exception {
 
+		Parameters.defineMode();
 		Import importer = new Import();
 		importer.importFiles();
 		Environment.prepare();
 
 		for (int job = 0; job < Parameters.jobs; job++) {
 			System.out.println("Run nr.. " + job);
-			for (EdgeGraph edge : network.getEdges())
-				edge.resetVolumes();
-
 			final SimState state = new PedSimCity(System.currentTimeMillis(), job);
 			state.start();
 			while (state.schedule.step(state)) {
