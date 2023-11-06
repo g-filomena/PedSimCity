@@ -34,7 +34,7 @@ public class AngularChangePathFinder extends PathFinder {
 		while (dualDestination == dualOrigin || dualDestination == null)
 			dualDestination = destinationNode.getDualNode(originNode, destinationNode, false, previousJunction);
 
-		NodeGraph commonJunction = Route.commonPrimalJunction(dualOrigin, dualDestination);
+		NodeGraph commonJunction = route.commonPrimalJunction(dualOrigin, dualDestination);
 		if (commonJunction != null) {
 			route.directedEdgesSequence.add(PedSimCity.network.getDirectedEdgeBetween(originNode, commonJunction));
 			route.directedEdgesSequence.add(PedSimCity.network.getDirectedEdgeBetween(commonJunction, destinationNode));
@@ -80,11 +80,11 @@ public class AngularChangePathFinder extends PathFinder {
 			partialSequence = new ArrayList<DirectedEdge>();
 
 			if (tmpOrigin != originNode) {
-				centroidsToAvoid = Route.centroidsFromEdgesSequence(completeSequence);
-				previousJunction = Route.previousJunction(completeSequence);
+				centroidsToAvoid = route.centroidsFromEdgesSequence(completeSequence);
+				previousJunction = route.previousJunction(completeSequence);
 
 				// check if tmpDestination traversed already
-				if (Route.nodesFromEdgesSequence(completeSequence).contains(tmpDestination)) {
+				if (route.nodesFromEdgesSequence(completeSequence).contains(tmpDestination)) {
 					controlPath(tmpDestination);
 					tmpOrigin = tmpDestination;
 					continue;
@@ -110,15 +110,15 @@ public class AngularChangePathFinder extends PathFinder {
 //				dualNodesOrigin = getDualNodes(tmpOrigin, previousJunction);
 //			}
 			// check again given the new tmpOrigin
-			if (haveEdgesBetween())
-				continue;
+//			if (haveEdgesBetween())
+//				continue;
 
 			ArrayList<NodeGraph> dualNodesDestination = getDualNodes(tmpDestination, null);
 
 			for (final NodeGraph tmpDualOrigin : dualNodesOrigin) {
 				for (final NodeGraph tmpDualDestination : dualNodesDestination) {
 					// check if just one node separates them
-					NodeGraph commonJunction = Route.commonPrimalJunction(tmpDualOrigin, tmpDualDestination);
+					NodeGraph commonJunction = route.commonPrimalJunction(tmpDualOrigin, tmpDualDestination);
 
 					if (commonJunction != null) {
 						addEdgesCommonJunction(commonJunction);
