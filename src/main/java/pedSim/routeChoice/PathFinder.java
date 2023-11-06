@@ -31,7 +31,7 @@ public class PathFinder {
 
 	ArrayList<DirectedEdge> completeSequence = new ArrayList<>();
 	ArrayList<DirectedEdge> partialSequence = new ArrayList<>();
-	
+
 	Agent agent;
 	Route route = new Route();
 	protected boolean regionBased = false;
@@ -110,7 +110,7 @@ public class PathFinder {
 		completeSequence.remove(completeSequence.size() - 1);
 		centroidsToAvoid.remove(centroidsToAvoid.size() - 1);
 		// take new previous junction
-		previousJunction = Route.previousJunction(completeSequence);
+		previousJunction = route.previousJunction(completeSequence);
 		// check if there's a segment between the new tmpOrigin and the destination
 		final DirectedEdge edge = PedSimCity.network.getDirectedEdgeBetween(tmpOrigin, tmpDestination);
 
@@ -161,10 +161,10 @@ public class PathFinder {
 	 */
 	protected void controlPath(NodeGraph destinationNode) {
 		for (final DirectedEdge directedEdge : completeSequence)
-			if (directedEdge.getToNode() == destinationNode) {
+			if (directedEdge.getToNode().equals(destinationNode)) {
 				int lastIndex = completeSequence.indexOf(directedEdge);
 				completeSequence = new ArrayList<>(completeSequence.subList(0, lastIndex + 1));
-				if (Route.previousJunction(completeSequence) == destinationNode)
+				if (route.previousJunction(completeSequence).equals(destinationNode))
 					completeSequence.remove(completeSequence.size() - 1);
 				return;
 			}
@@ -185,10 +185,10 @@ public class PathFinder {
 		final NodeGraph firstDualNode = ((EdgeGraph) partialSequence.get(0).getEdge()).dualNode;
 		final NodeGraph secondDualNode = ((EdgeGraph) partialSequence.get(1).getEdge()).dualNode;
 
-		if (Route.previousJunction(partialSequence).equals(tmpDestination))
+		if (route.previousJunction(partialSequence).equals(tmpDestination))
 			partialSequence.remove(partialSequence.size() - 1);
 		// check presence of a unnecessary edge at the beginning of the path
-		if (Route.commonPrimalJunction(firstDualNode, secondDualNode).equals(tmpOrigin))
+		if (route.commonPrimalJunction(firstDualNode, secondDualNode).equals(tmpOrigin))
 			partialSequence.remove(0);
 		checkEdgesSequence(tmpOrigin);
 	}
