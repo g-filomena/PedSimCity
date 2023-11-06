@@ -11,7 +11,6 @@ import org.locationtech.jts.linearref.LengthIndexedLine;
 import org.locationtech.jts.planargraph.DirectedEdge;
 
 import pedSim.cognitiveMap.AgentCognitiveMap;
-import pedSim.engine.Flow;
 import pedSim.engine.Parameters;
 import pedSim.engine.PedSimCity;
 import pedSim.routeChoice.Route;
@@ -65,7 +64,7 @@ public final class Agent implements Steppable {
 	int indexOnEdgesSequence = 0;
 	int pathDirection = 1;
 	protected LengthIndexedLine segment = null;
-	public Route route;
+	public Route route = new Route();
 
 	/**
 	 * Constructor Function. Creates a new agent with the specified agent
@@ -120,7 +119,7 @@ public final class Agent implements Steppable {
 	public void updateAgentPosition(Coordinate c) {
 		PointMoveTo pointMoveTo = new PointMoveTo();
 		pointMoveTo.setCoordinate(c);
-		PedSimCity.agents.setGeometryLocation(agentLocation, pointMoveTo);
+		state.agents.setGeometryLocation(agentLocation, pointMoveTo);
 	}
 
 	/**
@@ -131,10 +130,10 @@ public final class Agent implements Steppable {
 	@Override
 	public void step(SimState state) {
 
-		final PedSimCity stateSchedule = (PedSimCity) state;
+//		PedSimCity stateSchedule = this.state;
 		if (reachedDestination || destinationNode == null)
 			try {
-				handleReachedDestination(stateSchedule);
+				handleReachedDestination();
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -148,11 +147,11 @@ public final class Agent implements Steppable {
 	 * @param stateSchedule the simulation state.
 	 * @throws Exception
 	 */
-	protected void handleReachedDestination(PedSimCity stateSchedule) throws Exception {
+	protected void handleReachedDestination() throws Exception {
 
 		reachedDestination = false;
 		if (tripsDone == OD.size()) {
-			removeAgent(stateSchedule);
+			removeAgent();
 			return;
 		} else
 			selectNodesFromOD();
@@ -167,11 +166,11 @@ public final class Agent implements Steppable {
 	 *
 	 * @param stateSchedule the simulation state.
 	 */
-	private void removeAgent(PedSimCity stateSchedule) {
-		PedSimCity.agentsList.remove(this);
+	private void removeAgent() {
+		state.agentsList.remove(this);
 		killAgent.stop();
-		if (PedSimCity.agentsList.isEmpty())
-			stateSchedule.finish();
+		if (state.agentsList.isEmpty())
+			state.finish();
 	}
 
 	/**
@@ -183,13 +182,13 @@ public final class Agent implements Steppable {
 	}
 
 	/**
-	 * Initialises the {@code directedEdgesSequence} (the path) for the agent.
+	 * Initialises the directedEdgesSequence (the path) for the agent.
 	 */
 	public void initialisePath() {
 		this.directedEdgesSequence = route.directedEdgesSequence;
 		// set up how to traverse this first link
 		indexOnEdgesSequence = 0;
-		final EdgeGraph firstEdge = (EdgeGraph) directedEdgesSequence.get(0).getEdge();
+		EdgeGraph firstEdge = (EdgeGraph) directedEdgesSequence.get(0).getEdge();
 		// Sets the Agent up to proceed along an Edge
 		setupEdge(firstEdge);
 		// update the current position for this link
@@ -203,8 +202,8 @@ public final class Agent implements Steppable {
 	 */
 	public void updateData() {
 		getSequenceEdges();
-		Flow.updateEdgeData(this, directedEdgesSequence);
-		Flow.storeRouteData(this, edgeIDsSequence);
+		state.flowHandler.updateEdgeData(this, directedEdgesSequence);
+		state.flowHandler.storeRouteData(this, edgeIDsSequence);
 	}
 
 	/**
@@ -223,6 +222,7 @@ public final class Agent implements Steppable {
 		System.out.println(" - origin  " + originNode.getID() + " destination " + destinationNode.getID());
 		final RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
 		route = planner.definePath();
+		System.out.println(route.directedEdgesSequence.size());
 	}
 
 	/**
@@ -248,7 +248,7 @@ public final class Agent implements Steppable {
 
 		// check to see if the progress has taken the current index beyond its goal
 		// given the direction of movement. If so, proceed to the next edge
-		if (this.linkDirection == 1 && currentIndex > endIndex) {
+		if (linkDirection == 1 && currentIndex > endIndex) {
 			final Coordinate currentPos = segment.extractPoint(endIndex);
 			updateAgentPosition(currentPos);
 			transitionToNextEdge(currentIndex - endIndex);
