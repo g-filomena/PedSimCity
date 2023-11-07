@@ -18,6 +18,8 @@ import sim.util.geo.MasonGeometry;
  */
 public class Complexity {
 
+	Building buildingsHandler = new Building();
+
 	/**
 	 * Computes the wayfinding easiness within a space between two nodes on the
 	 * basis of: a) the ratio between the distance between the passed nodes and a
@@ -29,14 +31,14 @@ public class Complexity {
 	 * @param agent           The agent navigating the space.
 	 * @return The wayfinding easiness value.
 	 */
-	public static double wayfindingEasiness(NodeGraph node, NodeGraph destinationNode, Agent agent) {
+	public double wayfindingEasiness(NodeGraph node, NodeGraph destinationNode, Agent agent) {
 
-		final double distanceComplexity = GraphUtils.nodesDistance(node, destinationNode)
+		final double distanceComplexity = GraphUtils.getCachedNodesDistance(node, destinationNode)
 				/ Math.max(PedSimCity.roads.MBR.getHeight(), PedSimCity.roads.MBR.getWidth());
 
 		double buildingsComplexity = 1.0;
-		final ArrayList<MasonGeometry> buildings = Building.getBuildings(node, destinationNode);
-		ArrayList<MasonGeometry> landmarks = getAgentLandmarks(agent, null);
+		ArrayList<MasonGeometry> buildings = new ArrayList<>(buildingsHandler.getBuildings(node, destinationNode));
+		ArrayList<MasonGeometry> landmarks = new ArrayList<>(getAgentLandmarks(agent, null));
 		if (!buildings.isEmpty()) {
 			landmarks.retainAll(buildings);
 			buildingsComplexity = buildingsComplexity(buildings, landmarks);
@@ -59,11 +61,11 @@ public class Complexity {
 	 * @param agentProperties The properties of the agent.
 	 * @return The wayfinding easiness value within the region.
 	 */
-	public static double wayfindingEasinessRegion(NodeGraph currentNode, NodeGraph exitGateway, NodeGraph originNode,
+	public double wayfindingEasinessRegion(NodeGraph currentNode, NodeGraph exitGateway, NodeGraph originNode,
 			NodeGraph destinationNode, Agent agentProperties) {
 
-		double intraRegionDistance = GraphUtils.nodesDistance(currentNode, exitGateway);
-		double distance = GraphUtils.nodesDistance(originNode, destinationNode);
+		double intraRegionDistance = GraphUtils.getCachedNodesDistance(currentNode, exitGateway);
+		double distance = GraphUtils.getCachedNodesDistance(originNode, destinationNode);
 		double distanceComplexity = intraRegionDistance / distance;
 		if (distanceComplexity < 0.25)
 			return 1.0;
@@ -81,7 +83,7 @@ public class Complexity {
 	 * @param landmarks The set of landmarks in the area.
 	 * @return The complexity value of the area.
 	 */
-	public static double buildingsComplexity(ArrayList<MasonGeometry> buildings, ArrayList<MasonGeometry> landmarks) {
+	public double buildingsComplexity(ArrayList<MasonGeometry> buildings, ArrayList<MasonGeometry> landmarks) {
 		return ((double) buildings.size() - landmarks.size()) / buildings.size();
 	}
 
@@ -93,19 +95,18 @@ public class Complexity {
 	 * @param agent  The agent navigating the region.
 	 * @return The building-based complexity of the region.
 	 */
-	public static double buildingsRegionComplexity(Region region, Agent agent) {
+	public double buildingsRegionComplexity(Region region, Agent agent) {
 
-		ArrayList<MasonGeometry> landmarks = new ArrayList<>();
-		ArrayList<MasonGeometry> buildings = new ArrayList<>();
-		buildings = Building.getBuildingsWithinRegion(region);
+		ArrayList<MasonGeometry> landmarks;
+		ArrayList<MasonGeometry> buildings = new ArrayList<>(buildingsHandler.getBuildingsWithinRegion(region));
 		if (buildings.isEmpty())
 			return 1.0;
 
 		LandmarkType agentLandmarkType = agent.getProperties().landmarkType;
 		if (agentLandmarkType.equals(LandmarkType.LOCAL))
-			landmarks = agent.cognitiveMap.getRegionLocalLandmarks(region);
+			landmarks = new ArrayList<>(agent.cognitiveMap.getRegionLocalLandmarks(region));
 		else
-			landmarks = agent.cognitiveMap.getRegionGlobalLandmarks(region);
+			landmarks = new ArrayList<>(agent.cognitiveMap.getRegionGlobalLandmarks(region));
 
 		return buildingsComplexity(buildings, landmarks);
 	}
@@ -118,7 +119,7 @@ public class Complexity {
 	 * @param region The region for which landmarks are retrieved (can be null).
 	 * @return A list of landmarks for the agent.
 	 */
-	public static ArrayList<MasonGeometry> getAgentLandmarks(Agent agent, Region region) {
+	public ArrayList<MasonGeometry> getAgentLandmarks(Agent agent, Region region) {
 
 		LandmarkType agentLandmarkType = agent.getProperties().landmarkType;
 		if (region != null) {
