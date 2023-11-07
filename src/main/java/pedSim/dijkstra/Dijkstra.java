@@ -31,7 +31,7 @@ public class Dijkstra {
 	protected HashSet<NodeGraph> visitedNodes;
 	protected HashSet<NodeGraph> unvisitedNodes;
 
-	HashSet<NodeGraph> centroidsToAvoid;
+	HashSet<NodeGraph> centroidsToAvoid = new HashSet<>();
 	HashSet<DirectedEdge> segmentsToAvoid = new HashSet<>();
 	HashSet<EdgeGraph> edgesToAvoid = new HashSet<>();
 	HashMap<NodeGraph, NodeWrapper> nodeWrappersMap = new HashMap<>();
@@ -319,7 +319,7 @@ public class Dijkstra {
 		nodeWrappersMap.clear();
 		originNode = subGraph.getParentNode(originNode);
 		destinationNode = subGraph.getParentNode(destinationNode);
-		if (centroidsToAvoid != null)
+		if (!centroidsToAvoid.isEmpty())
 			centroidsToAvoid = new HashSet<>(subGraph.getParentNodes(new ArrayList<>(centroidsToAvoid)));
 	}
 
@@ -353,8 +353,8 @@ public class Dijkstra {
 	 * @return True if the landmark condition is met; otherwise, false.
 	 */
 	private boolean landmarkCondition(NodeGraph targetNode) {
-		return (!agentProperties.onlyMinimising && agentProperties.usingDistantLandmarks
-				&& GraphUtils.nodesDistance(targetNode, finalDestinationNode) > Parameters.threshold3dVisibility);
+		return (!agentProperties.onlyMinimising && agentProperties.usingDistantLandmarks && GraphUtils
+				.getCachedNodesDistance(targetNode, finalDestinationNode) > Parameters.threshold3dVisibility);
 	}
 
 	/**
