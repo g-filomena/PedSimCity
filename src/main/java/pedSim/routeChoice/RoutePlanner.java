@@ -143,7 +143,7 @@ public class RoutePlanner {
 	 * agent properties.
 	 */
 	private void verifyRegionBasedNavigation() {
-		if (GraphUtils.nodesDistance(originNode, destinationNode) < Parameters.regionBasedNavigationThreshold
+		if (GraphUtils.getCachedNodesDistance(originNode, destinationNode) < Parameters.regionBasedNavigationThreshold
 				|| originNode.regionID == destinationNode.regionID) {
 			agentProperties.regionBasedNavigation = false;
 		}
