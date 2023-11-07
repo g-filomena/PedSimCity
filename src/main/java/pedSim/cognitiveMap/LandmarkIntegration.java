@@ -6,9 +6,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
+import pedSim.engine.PedSimCity;
 import sim.field.geo.VectorLayer;
 import sim.graph.Building;
-import sim.graph.Graph;
 import sim.graph.NodeGraph;
 import sim.graph.SubGraph;
 import sim.util.geo.AttributeValue;
@@ -18,17 +18,6 @@ import sim.util.geo.MasonGeometry;
  * Manages the integration of landmarks into a graph.
  */
 public class LandmarkIntegration {
-
-	private Graph graph;
-
-	/**
-	 * Constructs a LandmarkIntegration object for a given graph.
-	 *
-	 * @param graph the graph to which landmarks will be integrated.
-	 */
-	public LandmarkIntegration(Graph graph) {
-		this.graph = graph;
-	}
 
 	/**
 	 * It assigns to each node in the graph a list of local landmarks.
@@ -40,15 +29,15 @@ public class LandmarkIntegration {
 	 *                       building to be considered a local landmark at the
 	 *                       junction;
 	 */
-	public void setLocalLandmarkness(VectorLayer localLandmarks, HashMap<Integer, Building> buildingsMap,
+	public static void setLocalLandmarkness(VectorLayer localLandmarks, HashMap<Integer, Building> buildingsMap,
 			double radius) {
 
-		final Collection<NodeGraph> nodes = this.graph.nodesMap.values();
+		Collection<NodeGraph> nodes = PedSimCity.network.nodesMap.values();
 
 		nodes.forEach((node) -> {
 			ArrayList<MasonGeometry> containedLandmarks = localLandmarks
 					.featuresWithinDistance(node.masonGeometry.geometry, radius);
-			for (final MasonGeometry masonGeometry : containedLandmarks)
+			for (MasonGeometry masonGeometry : containedLandmarks)
 				node.adjacentBuildings.add(buildingsMap.get((int) masonGeometry.getUserData()));
 		});
 	}
@@ -67,22 +56,22 @@ public class LandmarkIntegration {
 	 * @param nrAnchors      the max number of anchors per node, sorted by global
 	 *                       landmarkness;
 	 */
-	public void setGlobalLandmarkness(VectorLayer globalLandmarks, HashMap<Integer, Building> buildingsMap,
+	public static void setGlobalLandmarkness(VectorLayer globalLandmarks, HashMap<Integer, Building> buildingsMap,
 			double radiusAnchors, VectorLayer sightLines, int nrAnchors) {
 
-		final Collection<NodeGraph> nodes = this.graph.nodesMap.values();
+		Collection<NodeGraph> nodes = PedSimCity.network.nodesMap.values();
 
 		nodes.forEach((node) -> {
-			final MasonGeometry nodeGeometry = node.masonGeometry;
+			MasonGeometry nodeGeometry = node.masonGeometry;
 			ArrayList<Building> anchors = new ArrayList<>(); //
 			ArrayList<Double> distances = new ArrayList<>();
 
 			ArrayList<MasonGeometry> containedLandmarks = globalLandmarks
 					.featuresWithinDistance(node.masonGeometry.geometry, radiusAnchors);
-			final List<Double> gScores = new ArrayList<>();
+			List<Double> gScores = new ArrayList<>();
 
 			if (nrAnchors != -1) {
-				for (final MasonGeometry masonGeometry : containedLandmarks) {
+				for (MasonGeometry masonGeometry : containedLandmarks) {
 					gScores.add(masonGeometry.getDoubleAttribute("gScore_sc"));
 
 				}
@@ -90,11 +79,11 @@ public class LandmarkIntegration {
 				Collections.reverse(gScores);
 			}
 
-			for (final Object landmark : containedLandmarks) {
-				final MasonGeometry building = (MasonGeometry) landmark;
+			for (Object landmark : containedLandmarks) {
+				MasonGeometry building = (MasonGeometry) landmark;
 				if (nrAnchors != 999999 & building.getDoubleAttribute("gScore_sc") < gScores.get(nrAnchors - 1))
 					continue;
-				final int buildingID = (int) building.getUserData();
+				int buildingID = (int) building.getUserData();
 				anchors.add(buildingsMap.get(buildingID));
 				distances.add(building.geometry.distance(nodeGeometry.geometry));
 			}
@@ -103,10 +92,10 @@ public class LandmarkIntegration {
 			node.attributes.put("distances", new AttributeValue(distances));
 		});
 
-		final ArrayList<MasonGeometry> sightLinesGeometries = sightLines.getGeometries();
-		for (final MasonGeometry sightLine : sightLinesGeometries) {
-			final Building building = buildingsMap.get(sightLine.getIntegerAttribute("buildingID"));
-			final NodeGraph node = this.graph.nodesMap.get(sightLine.getIntegerAttribute("nodeID"));
+		ArrayList<MasonGeometry> sightLinesGeometries = sightLines.getGeometries();
+		for (MasonGeometry sightLine : sightLinesGeometries) {
+			Building building = buildingsMap.get(sightLine.getIntegerAttribute("buildingID"));
+			NodeGraph node = PedSimCity.network.nodesMap.get(sightLine.getIntegerAttribute("nodeID"));
 			if (node != null)
 				node.visibleBuildings3d.add(building);
 		}
@@ -120,10 +109,10 @@ public class LandmarkIntegration {
 	 * @param subGraph The SubGraph for which the landmark information is being set.
 	 */
 	public static void setSubGraphLandmarks(SubGraph subGraph) {
-		final ArrayList<NodeGraph> childNodes = subGraph.getNodesList();
+		ArrayList<NodeGraph> childNodes = subGraph.getNodesList();
 
-		for (final NodeGraph node : childNodes) {
-			final NodeGraph parentNode = subGraph.getParentNode(node);
+		for (NodeGraph node : childNodes) {
+			NodeGraph parentNode = subGraph.getParentNode(node);
 			node.visibleBuildings2d = parentNode.visibleBuildings2d;
 			node.visibleBuildings3d = parentNode.visibleBuildings3d;
 			node.adjacentBuildings = parentNode.adjacentBuildings;
