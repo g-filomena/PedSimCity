@@ -43,7 +43,8 @@ public class Environment {
 		if (!PedSimCity.barriers.getGeometries().isEmpty())
 			prepareRegionsBarriers();
 
-		CognitiveMap.setCommunityCognitiveMap();
+		CognitiveMap cognitiveMap = new CognitiveMap();
+		cognitiveMap.setCommunityCognitiveMap();
 	}
 
 	/**
