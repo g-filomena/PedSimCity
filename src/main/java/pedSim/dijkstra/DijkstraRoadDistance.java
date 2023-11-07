@@ -46,14 +46,13 @@ public class DijkstraRoadDistance extends Dijkstra {
 	public ArrayList<DirectedEdge> dijkstraAlgorithm(NodeGraph originNode, NodeGraph destinationNode,
 			NodeGraph finalDestinationNode, HashSet<DirectedEdge> segmentsToAvoid, Agent agent) {
 
-		initialise(originNode, destinationNode, finalDestinationNode, segmentsToAvoid, agent,
-				Parameters.subGraph);
+		initialise(originNode, destinationNode, finalDestinationNode, segmentsToAvoid, agent, Parameters.subGraph);
 		visitedNodes = new HashSet<>();
 		unvisitedNodes = new HashSet<>();
 		unvisitedNodes.add(this.originNode);
 
 		// NodeWrapper = container for the metainformation about a Node
-		final NodeWrapper nodeWrapper = new NodeWrapper(this.originNode);
+		NodeWrapper nodeWrapper = new NodeWrapper(this.originNode);
 		nodeWrapper.gx = 0.0;
 		nodeWrappersMap.put(this.originNode, nodeWrapper);
 		runDijkstra();
@@ -65,7 +64,7 @@ public class DijkstraRoadDistance extends Dijkstra {
 	 */
 	private void runDijkstra() {
 		while (!unvisitedNodes.isEmpty()) {
-			final NodeGraph currentNode = getClosest(unvisitedNodes);
+			NodeGraph currentNode = getClosest(unvisitedNodes);
 			visitedNodes.add(currentNode);
 			unvisitedNodes.remove(currentNode);
 			findMinDistances(currentNode);
@@ -80,19 +79,19 @@ public class DijkstraRoadDistance extends Dijkstra {
 	 *                    adjacent nodes.
 	 */
 	private void findMinDistances(NodeGraph currentNode) {
-		final ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
-		for (final NodeGraph targetNode : adjacentNodes) {
+		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
+		for (NodeGraph targetNode : adjacentNodes) {
 			if (visitedNodes.contains(targetNode))
 				continue;
 
-			final EdgeGraph commonEdge = graph.getEdgeBetween(currentNode, targetNode);
-			final DirectedEdge outEdge = commonEdge.getDirEdge(0);
+			EdgeGraph commonEdge = graph.getEdgeBetween(currentNode, targetNode);
+			DirectedEdge outEdge = commonEdge.getDirEdge(0);
 			if (edgesToAvoid.contains(outEdge.getEdge()))
 				continue;
 
 			tentativeCost = 0.0;
 			double error = costPerceptionError(targetNode, commonEdge, false);
-			final double edgeCost = commonEdge.getLength() * error;
+			double edgeCost = commonEdge.getLength() * error;
 			computeTentativeCost(currentNode, targetNode, edgeCost);
 			isBest(currentNode, targetNode, outEdge);
 		}
@@ -104,8 +103,8 @@ public class DijkstraRoadDistance extends Dijkstra {
 	 * @return An ArrayList of DirectedEdges representing the path sequence.
 	 */
 	private ArrayList<DirectedEdge> reconstructSequence() {
-		final HashMap<NodeGraph, NodeWrapper> traversedNodesMap = new HashMap<>();
-		final ArrayList<DirectedEdge> directedEdgesSequence = new ArrayList<>();
+		HashMap<NodeGraph, NodeWrapper> traversedNodesMap = new HashMap<>();
+		ArrayList<DirectedEdge> directedEdgesSequence = new ArrayList<>();
 		NodeGraph step = destinationNode;
 		traversedNodesMap.put(destinationNode, nodeWrappersMap.get(destinationNode));
 
@@ -124,10 +123,10 @@ public class DijkstraRoadDistance extends Dijkstra {
 			directedEdgesSequence.clear();
 		try {
 			while (nodeWrappersMap.get(step).nodeFrom != null) {
-				final DirectedEdge directedEdge;
+				DirectedEdge directedEdge;
 				if (regionCondition()) {
-					final NodeGraph nodeTo = subGraph.getParentNode(step);
-					final NodeGraph nodeFrom = subGraph.getParentNode(nodeWrappersMap.get(step).nodeFrom);
+					NodeGraph nodeTo = subGraph.getParentNode(step);
+					NodeGraph nodeFrom = subGraph.getParentNode(nodeWrappersMap.get(step).nodeFrom);
 					directedEdge = PedSimCity.dualNetwork.getDirectedEdgeBetween(nodeFrom, nodeTo);
 				} else
 					directedEdge = nodeWrappersMap.get(step).directedEdgeFrom;
