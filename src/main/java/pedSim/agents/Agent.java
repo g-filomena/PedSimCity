@@ -222,7 +222,6 @@ public final class Agent implements Steppable {
 		System.out.println(" - origin  " + originNode.getID() + " destination " + destinationNode.getID());
 		final RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
 		route = planner.definePath();
-		System.out.println(route.directedEdgesSequence.size());
 	}
 
 	/**
