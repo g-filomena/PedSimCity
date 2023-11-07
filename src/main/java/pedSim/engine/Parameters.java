@@ -40,7 +40,7 @@ public class Parameters {
 	public static double thresholdTurn;
 
 	// Distance between Origin and Destination
-	public static double minDistance = 500;
+	public static double minDistance = 1000;
 	public static double maxDistance = 2500;
 
 	// Use the enums for route choice models
@@ -74,6 +74,9 @@ public class Parameters {
 	// Wayfinding Easiness threshold
 	public static double wayfindingEasinessThreshold = 0.95; // global navigation for local landmark identification
 	public static double wayfindingEasinessThresholdRegions = 0.85; // within regions for local landmark identification
+
+	// for development/testing purposes only
+	public static boolean javaProject = true;
 
 	/**
 	 * Defines the simulation mode and sets simulation parameters based on the
