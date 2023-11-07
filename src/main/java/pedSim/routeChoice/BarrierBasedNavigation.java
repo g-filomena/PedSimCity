@@ -28,8 +28,8 @@ import sim.util.geo.Utilities;
  */
 public class BarrierBasedNavigation {
 
-	HashMap<Integer, EdgeGraph> edgesMap;
-	final ArrayList<NodeGraph> sequence = new ArrayList<>();
+	HashMap<Integer, EdgeGraph> edgesMap = new HashMap<Integer, EdgeGraph>();
+	ArrayList<NodeGraph> sequence = new ArrayList<>();
 	private NodeGraph originNode;
 	private NodeGraph currentLocation;
 	private NodeGraph destinationNode;
@@ -61,7 +61,7 @@ public class BarrierBasedNavigation {
 	 */
 	public ArrayList<NodeGraph> sequenceBarriers() throws Exception {
 
-		this.edgesMap = PedSimCity.edgesMap;
+		edgesMap = new HashMap<Integer, EdgeGraph>(PedSimCity.edgesMap);
 		currentLocation = originNode;
 
 		// sub-goals
@@ -81,8 +81,8 @@ public class BarrierBasedNavigation {
 
 			EdgeGraph edgeGoal = barrierGoal.getValue0();
 			int barrier = barrierGoal.getValue1();
-			NodeGraph subGoal = GraphUtils.nodesDistance(currentLocation, edgeGoal.fromNode) < GraphUtils
-					.nodesDistance(currentLocation, edgeGoal.toNode) ? edgeGoal.fromNode : edgeGoal.toNode;
+			NodeGraph subGoal = GraphUtils.getCachedNodesDistance(currentLocation, edgeGoal.fromNode) < GraphUtils
+					.getCachedNodesDistance(currentLocation, edgeGoal.toNode) ? edgeGoal.fromNode : edgeGoal.toNode;
 
 			sequence.add(subGoal);
 			currentLocation = subGoal;
@@ -113,9 +113,9 @@ public class BarrierBasedNavigation {
 
 		this.currentLocation = currentLocation;
 		HashMap<Integer, Double> validBarriers = new HashMap<>();
-
+		BarrierIntegration barrierIntegration = new BarrierIntegration();
 		// check if there are good barriers in line of movement towards the destination
-		HashMap<Geometry, Set<Integer>> viewFieldIntersectingBarriers = BarrierIntegration
+		HashMap<Geometry, Set<Integer>> viewFieldIntersectingBarriers = barrierIntegration
 				.intersectingBarriers(currentLocation, destinationNode, agent);
 
 		// no barriers
@@ -272,8 +272,7 @@ public class BarrierBasedNavigation {
 		for (EdgeGraph edge : edgesAlong) {
 			double distanceToEdge = GraphUtils.euclideanDistance(currentLocation.getCoordinate(),
 					edge.getCoordsCentroid());
-			double distanceToDestination = GraphUtils.euclideanDistance(currentLocation.getCoordinate(),
-					destinationNode.getCoordinate());
+			double distanceToDestination = GraphUtils.getCachedNodesDistance(currentLocation, destinationNode);
 
 			if (distanceToEdge > distanceToDestination) {
 				continue;
