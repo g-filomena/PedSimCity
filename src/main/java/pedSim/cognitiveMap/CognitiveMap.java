@@ -34,7 +34,7 @@ public class CognitiveMap {
 	/**
 	 * Maps pairs of nodes to gateways.
 	 */
-	public static HashMap<Pair<NodeGraph, NodeGraph>, Gateway> gatewaysMap = new HashMap<>();
+	public HashMap<Pair<NodeGraph, NodeGraph>, Gateway> gatewaysMap = new HashMap<>();
 
 	/**
 	 * Stores barriers as a VectorLayer.
@@ -46,17 +46,18 @@ public class CognitiveMap {
 	 */
 	private static final CognitiveMap instance = new CognitiveMap();
 
+	Building buildingsHandler = new Building();
+
 	/**
 	 * Sets up the community cognitive map.
 	 */
-	public static void setCommunityCognitiveMap() {
+	public void setCommunityCognitiveMap() {
 
 		if (!PedSimCity.buildings.getGeometries().isEmpty()) {
 			identifyLandmarks();
 			integrateLandmarks();
 		}
 		identifyRegionElements();
-//		computeViewFields();
 	}
 
 	/**
@@ -85,10 +86,9 @@ public class CognitiveMap {
 		VectorLayer sightLinesLight = PedSimCity.sightLines.selectFeatures("buildingID", globalLandmarksID, true);
 		// free up memory
 		PedSimCity.sightLines = null;
-		LandmarkIntegration landmarkIntegration = new LandmarkIntegration(PedSimCity.network);
-		landmarkIntegration.setLocalLandmarkness(localLandmarks, PedSimCity.buildingsMap,
+		LandmarkIntegration.setLocalLandmarkness(localLandmarks, PedSimCity.buildingsMap,
 				Parameters.distanceNodeLandmark);
-		landmarkIntegration.setGlobalLandmarkness(globalLandmarks, PedSimCity.buildingsMap, Parameters.distanceAnchors,
+		LandmarkIntegration.setGlobalLandmarkness(globalLandmarks, PedSimCity.buildingsMap, Parameters.distanceAnchors,
 				sightLinesLight, Parameters.nrAnchors);
 	}
 
@@ -96,7 +96,7 @@ public class CognitiveMap {
 	 * Integrates landmarks into the street network, sets local landmarkness, and
 	 * computes global landmarkness values for nodes.
 	 */
-	private static void identifyRegionElements() {
+	private void identifyRegionElements() {
 
 		boolean integrateLandmarks = false;
 		if (!PedSimCity.buildings.getGeometries().isEmpty())
@@ -107,7 +107,7 @@ public class CognitiveMap {
 			if (integrateLandmarks) {
 				// set the landmarks of this region
 				LandmarkIntegration.setSubGraphLandmarks(region.primalGraph);
-				region.buildings = Building.getBuildingsWithinRegion(region);
+				region.buildings = buildingsHandler.getBuildingsWithinRegion(region);
 				setRegionLandmarks(region);
 			}
 			BarrierIntegration.setSubGraphBarriers(region.primalGraph);
