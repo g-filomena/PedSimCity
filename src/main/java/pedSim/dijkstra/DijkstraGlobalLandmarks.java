@@ -44,7 +44,7 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
 		unvisitedNodes.add(this.originNode);
 
 		// NodeWrapper = container for the metainformation about a Node
-		final NodeWrapper nodeWrapper = new NodeWrapper(this.originNode);
+		NodeWrapper nodeWrapper = new NodeWrapper(this.originNode);
 		nodeWrapper.gx = 0.0;
 		nodeWrappersMap.put(this.originNode, nodeWrapper);
 		runDijkstra();
@@ -56,7 +56,7 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
 	 */
 	private void runDijkstra() {
 		while (!unvisitedNodes.isEmpty()) {
-			final NodeGraph currentNode = getClosest(unvisitedNodes);
+			NodeGraph currentNode = getClosest(unvisitedNodes);
 			visitedNodes.add(currentNode);
 			unvisitedNodes.remove(currentNode);
 			findBestLandmarkness(currentNode);
@@ -72,23 +72,22 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
 	 * @param currentNode The current node for which to find adjacent nodes.
 	 */
 	void findBestLandmarkness(NodeGraph currentNode) {
-		final ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
-		for (final NodeGraph targetNode : adjacentNodes) {
-			if (this.visitedNodes.contains(targetNode))
+		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
+		for (NodeGraph targetNode : adjacentNodes) {
+			if (visitedNodes.contains(targetNode))
 				continue;
 
-			final EdgeGraph commonEdge = graph.getEdgeBetween(currentNode, targetNode);
-			final DirectedEdge outEdge = commonEdge.getDirEdge(0);
+			EdgeGraph commonEdge = graph.getEdgeBetween(currentNode, targetNode);
+			DirectedEdge outEdge = commonEdge.getDirEdge(0);
 			if (edgesToAvoid.contains(outEdge.getEdge()))
 				continue;
 
-			final double globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode,
-					this.finalDestinationNode);
+			double globalLandmarkness = LandmarkNavigation.globalLandmarknessNode(targetNode, finalDestinationNode);
 
 			// the global landmarkness from the node is divided by the segment's length so
 			// to avoid that the route is not affected
 			// by network (topological) distance
-			final double nodeLandmarkness = (1.0 - globalLandmarkness) / commonEdge.getLength();
+			double nodeLandmarkness = (1.0 - globalLandmarkness) / commonEdge.getLength();
 			tentativeCost = getBest(currentNode) + nodeLandmarkness;
 			isBest(currentNode, targetNode, outEdge);
 		}
@@ -100,8 +99,8 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
 	 * @return An ArrayList of DirectedEdges representing the path sequence.
 	 */
 	ArrayList<DirectedEdge> reconstructSequence() {
-		final HashMap<NodeGraph, NodeWrapper> traversedNodesMap = new HashMap<>();
-		final ArrayList<DirectedEdge> directedEdgesSequence = new ArrayList<>();
+		HashMap<NodeGraph, NodeWrapper> traversedNodesMap = new HashMap<>();
+		ArrayList<DirectedEdge> directedEdgesSequence = new ArrayList<>();
 		NodeGraph step = destinationNode;
 		traversedNodesMap.put(destinationNode, nodeWrappersMap.get(destinationNode));
 
@@ -110,7 +109,7 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
 			directedEdgesSequence.clear();
 		try {
 			while (nodeWrappersMap.get(step).nodeFrom != null) {
-				final DirectedEdge directedEdge = nodeWrappersMap.get(step).directedEdgeFrom;
+				DirectedEdge directedEdge = nodeWrappersMap.get(step).directedEdgeFrom;
 				step = nodeWrappersMap.get(step).nodeFrom;
 				directedEdgesSequence.add(0, directedEdge);
 				traversedNodesMap.put(step, nodeWrappersMap.get(step));
