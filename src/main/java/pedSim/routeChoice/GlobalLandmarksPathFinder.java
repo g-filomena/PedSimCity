@@ -26,7 +26,7 @@ public class GlobalLandmarksPathFinder extends PathFinder {
 	 * @return The computed route.
 	 */
 	public Route globalLandmarksPath() {
-		final DijkstraGlobalLandmarks pathfinder = new DijkstraGlobalLandmarks();
+		DijkstraGlobalLandmarks pathfinder = new DijkstraGlobalLandmarks();
 		partialSequence = pathfinder.dijkstraAlgorithm(originNode, destinationNode, destinationNode, null, agent);
 		route.directedEdgesSequence = partialSequence;
 		route.routeSequences();
@@ -49,7 +49,7 @@ public class GlobalLandmarksPathFinder extends PathFinder {
 		tmpOrigin = this.sequenceNodes.get(0);
 		this.sequenceNodes.remove(0);
 
-		for (final NodeGraph tmpDestination : this.sequenceNodes) {
+		for (NodeGraph tmpDestination : this.sequenceNodes) {
 			moveOn = false;
 			// check if this tmpDestination has been traversed already
 			if (route.nodesFromEdgesSequence(completeSequence).contains(tmpDestination)) {
