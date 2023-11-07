@@ -35,7 +35,9 @@ public class RegionBasedNavigation {
 	int currentRegionID, specificRegionID, targetRegionID;
 	boolean finalRegion = false;
 	HashMap<Integer, EdgeGraph> edgesMap;
-	HashMap<Pair<NodeGraph, NodeGraph>, Gateway> gatewaysMap;
+	HashMap<Pair<NodeGraph, NodeGraph>, Gateway> gatewaysMap = new HashMap<Pair<NodeGraph, NodeGraph>, Gateway>();
+	HashMap<Pair<NodeGraph, NodeGraph>, Double> validGateways;
+	HashMap<Pair<NodeGraph, NodeGraph>, Double> otherGateways;
 
 	private Agent agent;
 	private HashMap<Integer, Region> regionsMap;
@@ -65,73 +67,76 @@ public class RegionBasedNavigation {
 	 * @return The sequence of nodes representing the planned navigation.
 	 * @throws Exception
 	 */
+//	public ArrayList<NodeGraph> sequenceRegions() throws Exception {
+//
+//		this.edgesMap = PedSimCity.edgesMap;
+//		this.gatewaysMap = PedSimCity.gatewaysMap;
+//
+//		currentNode = originNode;
+//		currentRegionID = originNode.regionID;
+//		targetRegionID = destinationNode.regionID;
+//		// sequence of regions
+//		visitedRegions.add(currentRegionID);
+//		previousNode = null;
+//		gatewaySequence.add(originNode);
+//
+//		// rough plan
+//		if (currentRegionID == targetRegionID) {
+//			finalRegion = true;
+//			gatewaySequence.add(destinationNode);
+//		}
+//
+//		while (!finalRegion) {
+//			// exit- entry next region
+//			final Pair<NodeGraph, NodeGraph> gateways = nextGateways(currentNode, currentRegionID, -1);
+//			// no gateway has been identified, go back, if possible
+//			if (gateways == null)
+//				
+//
+//			previousNode = currentNode;
+//			// only new entry, when the last entry can send the agent directly to the next
+//			// region
+//			gatewaySequence.add(gateways.getValue0());
+//			gatewaySequence.add(gateways.getValue1());
+//
+//			currentNode = gatewaySequence.get(gatewaySequence.size() - 1);
+//			currentRegionID = currentNode.regionID;
+//			visitedRegions.add(currentRegionID);
+//
+//			if (currentRegionID == targetRegionID) {
+//				finalRegion = true;
+//				gatewaySequence.add(destinationNode);
+//				break;
+//			}
+//		}
+//
+//		// clear the sets
+//		visitedRegions.clear();
+//		badExits.clear();
+//
+//		// sub-goals and barriers - navigation
+//		ArrayList<NodeGraph> sequence = new ArrayList<>();
+//		// if also barrier navigation, insert barrier-sub goals into the sequence
+//		if (agent.getProperties().barrierBasedNavigation)
+//			sequence = regionalBarriers();
+//		else
+//			sequence = gatewaySequence;
+//
+//		// remove duplicates and maintains order
+//		final Set<NodeGraph> ns = new LinkedHashSet<>(sequence);
+//		sequence = new ArrayList<>(ns);
+//		return sequence;
+//	}
+
 	public ArrayList<NodeGraph> sequenceRegions() throws Exception {
-
-		this.edgesMap = PedSimCity.edgesMap;
-		this.gatewaysMap = PedSimCity.gatewaysMap;
-
-		currentNode = originNode;
-		currentRegionID = originNode.regionID;
-		targetRegionID = destinationNode.regionID;
-		// sequence of regions
-		visitedRegions.add(currentRegionID);
-		previousNode = null;
-		gatewaySequence.add(originNode);
-
-		// rough plan
-		if (currentRegionID == targetRegionID) {
-			finalRegion = true;
-			gatewaySequence.add(destinationNode);
-		}
-
+		initializeSequence(); // Extracted initialization logic
 		while (!finalRegion) {
-			// exit- entry next region
-			final Pair<NodeGraph, NodeGraph> gateways = nextGateways(currentNode, currentRegionID, -1);
-			// no gateway has been identified, go back, if possible
-			if (gateways == null)
-				if (previousNode != null) {
-
-					final Pair<NodeGraph, NodeGraph> badPair = new Pair<>(
-							gatewaySequence.get(gatewaySequence.size() - 2),
-							gatewaySequence.get(gatewaySequence.size() - 1));
-					// add last exit to the ones to avoid in feature
-					badExits.add(badPair);
-					currentNode = previousNode;
-					currentRegionID = previousNode.regionID;
-					gatewaySequence = new ArrayList<>(gatewaySequence.subList(0, gatewaySequence.size() - 2));
-					visitedRegions.remove(visitedRegions.size() - 1);
-					previousNode = null;
-					continue;
-				}
-				// otherwise the agent will compute a path from the origin and the destination
-				// nodes without going through regions
-				// it should not happen.
-				else {
-					gatewaySequence.add(destinationNode);
-					return gatewaySequence;
-				}
-
-			previousNode = currentNode;
-			// only new entry, when the last entry can send the agent directly to the next
-			// region
-			gatewaySequence.add(gateways.getValue0());
-			gatewaySequence.add(gateways.getValue1());
-
-			currentNode = gatewaySequence.get(gatewaySequence.size() - 1);
-			currentRegionID = currentNode.regionID;
-			visitedRegions.add(currentRegionID);
-
-			if (currentRegionID == targetRegionID) {
-				finalRegion = true;
-				gatewaySequence.add(destinationNode);
-				break;
-			}
+			handleNextGateways(); // Extracted logic for handling next gateways
 		}
 
 		// clear the sets
 		visitedRegions.clear();
 		badExits.clear();
-
 		// sub-goals and barriers - navigation
 		ArrayList<NodeGraph> sequence = new ArrayList<>();
 		// if also barrier navigation, insert barrier-sub goals into the sequence
@@ -146,6 +151,55 @@ public class RegionBasedNavigation {
 		return sequence;
 	}
 
+	private void initializeSequence() {
+		this.edgesMap = PedSimCity.edgesMap;
+		this.gatewaysMap = PedSimCity.gatewaysMap;
+		currentNode = originNode;
+		currentRegionID = originNode.regionID;
+		targetRegionID = destinationNode.regionID;
+		visitedRegions.add(currentRegionID);
+		previousNode = null;
+		gatewaySequence.add(originNode);
+		if (currentRegionID == targetRegionID) {
+			finalRegion = true;
+			gatewaySequence.add(destinationNode);
+		}
+	}
+
+	private void handleNextGateways() {
+		final Pair<NodeGraph, NodeGraph> gateways = nextGateways(currentNode, currentRegionID, -1);
+		if (gateways == null & previousNode != null) {
+			handleNullGateway();
+			return;
+		} else {
+			previousNode = currentNode;
+			gatewaySequence.add(gateways.getValue0());
+			gatewaySequence.add(gateways.getValue1());
+			currentNode = gatewaySequence.get(gatewaySequence.size() - 1);
+			currentRegionID = currentNode.regionID;
+			visitedRegions.add(currentRegionID);
+
+			if (currentRegionID == targetRegionID) {
+				finalRegion = true;
+				gatewaySequence.add(destinationNode);
+				return;
+			}
+		}
+	}
+
+	private void handleNullGateway() {
+
+		final Pair<NodeGraph, NodeGraph> badPair = new Pair<>(gatewaySequence.get(gatewaySequence.size() - 2),
+				gatewaySequence.get(gatewaySequence.size() - 1));
+		// add last exit to the ones to avoid in feature
+		badExits.add(badPair);
+		currentNode = previousNode;
+		currentRegionID = previousNode.regionID;
+		gatewaySequence = new ArrayList<>(gatewaySequence.subList(0, gatewaySequence.size() - 2));
+		visitedRegions.remove(visitedRegions.size() - 1);
+		previousNode = null;
+	}
+
 	/**
 	 * Identifies the next gateway (exit and entry nodes) towards the best region
 	 * for the current location and region.
@@ -158,53 +212,20 @@ public class RegionBasedNavigation {
 	private Pair<NodeGraph, NodeGraph> nextGateways(NodeGraph currentNode, int currentRegion, int specificRegionID) {
 
 		// retrieve current region's exits
-		final ArrayList<Gateway> possibleGateways = PedSimCity.regionsMap.get(currentRegion).gateways;
-		HashMap<Pair<NodeGraph, NodeGraph>, Double> validGateways = new HashMap<>();
-		final HashMap<Pair<NodeGraph, NodeGraph>, Double> otherGateways = new HashMap<>();
+		ArrayList<Gateway> possibleGateways = PedSimCity.regionsMap.get(currentRegion).gateways;
+		validGateways = new HashMap<>();
+		otherGateways = new HashMap<>();
 
 		// check compliance with criteria
-		final double locationDestinationAngle = Angles.angle(currentNode, destinationNode);
-		final double distanceTarget = GraphUtils.nodesDistance(currentNode, destinationNode);
-		for (final Gateway gateway : possibleGateways) {
-			if (badExits.contains(gateway.gatewayID))
-				continue;
-			if (specificRegionID != -1 && specificRegionID != gateway.regionTo)
-				continue;
-			if (visitedRegions.contains(gateway.regionTo))
-				continue;
+		double destinationAngle = Angles.angle(currentNode, destinationNode);
+		double distanceTarget = GraphUtils.getCachedNodesDistance(currentNode, destinationNode);
 
-			double locationExitAngle = Angles.angle(currentNode, gateway.exit);
-			double exitEntryAngle = gateway.entryAngle;
-			double exitDestintionAngle = Angles.angle(gateway.exit, destinationNode);
-			double differenceExitEntry = Angles.differenceAngles(locationExitAngle, exitDestintionAngle);
-			double distanceFromGate = GraphUtils.nodesDistance(currentNode, gateway.exit);
+		possibleGateways.parallelStream().forEach(gateway -> {
+			if (isGatewayValid(gateway, specificRegionID)) {
+				evaluateGateway(gateway, destinationAngle, distanceTarget, currentNode);
+			}
+		});
 
-			double cost = 0.0;
-			boolean entryInDirection = Angles.isInDirection(locationDestinationAngle, exitEntryAngle, 140.0);
-			boolean exitInDirection = Angles.isInDirection(locationDestinationAngle, locationExitAngle, 140.0);
-			boolean notInDirection = (distanceFromGate > distanceTarget || !exitInDirection || !entryInDirection);
-			// criteria are not met
-			if (gateway.exit.equals(currentNode) && !entryInDirection) {
-				cost = Angles.differenceAngles(exitEntryAngle, locationDestinationAngle);
-				otherGateways.put(gateway.gatewayID, cost); // use as alternatives
-				continue;
-			} else if (!gateway.exit.equals(currentNode) && notInDirection) {
-				cost = Angles.differenceAngles(locationExitAngle, locationDestinationAngle);
-				if (cost > 90)
-					continue;
-				cost += differenceExitEntry;
-				otherGateways.put(gateway.gatewayID, cost); // use as alternatives
-				continue;
-			}
-			// in this case just consider the deviation caused by the entry
-			if (gateway.exit.equals(currentNode))
-				cost = Angles.differenceAngles(gateway.entryAngle, locationDestinationAngle);
-			else {
-				cost = Angles.differenceAngles(locationExitAngle, locationDestinationAngle);
-				cost += differenceExitEntry;
-			}
-			validGateways.put(gateway.gatewayID, cost);
-		}
 		if (validGateways.isEmpty() && specificRegionID != -1)
 			return null;
 		if (validGateways.isEmpty())
@@ -223,6 +244,64 @@ public class RegionBasedNavigation {
 		return null;
 	}
 
+	private void evaluateGateway(Gateway gateway, double locationDestinationAngle, double distanceTarget,
+			NodeGraph currentNode) {
+
+		double locationExitAngle = Angles.angle(currentNode, gateway.exit);
+		double exitEntryAngle = gateway.entryAngle;
+		double exitDestintionAngle = Angles.angle(gateway.exit, destinationNode);
+		double differenceExitEntry = Angles.differenceAngles(locationExitAngle, exitDestintionAngle);
+		double distanceFromGate = GraphUtils.getCachedNodesDistance(currentNode, gateway.exit);
+
+		double cost = 0.0;
+		boolean entryInDirection = Angles.isInDirection(locationDestinationAngle, exitEntryAngle, 140.0);
+		boolean exitInDirection = Angles.isInDirection(locationDestinationAngle, locationExitAngle, 140.0);
+		boolean notInDirection = (distanceFromGate > distanceTarget || !exitInDirection || !entryInDirection);
+
+		if (isCurrentExit(gateway) && !entryInDirection) {
+			cost = Angles.differenceAngles(exitEntryAngle, locationDestinationAngle);
+			otherGateways.put(gateway.gatewayID, cost);
+		} else if (!isCurrentExit(gateway) && notInDirection) {
+			addOtherGateway(gateway, locationExitAngle, locationDestinationAngle, differenceExitEntry);
+		} else {
+			evaluateValidGateway(gateway, locationExitAngle, locationDestinationAngle, differenceExitEntry);
+		}
+	}
+
+	private boolean isCurrentExit(Gateway gateway) {
+		return gateway.exit.equals(currentNode);
+	}
+
+	private boolean isGatewayValid(Gateway gateway, int specificRegionID) {
+		if (badExits.contains(gateway.gatewayID))
+			return false;
+		if (specificRegionID != -1 && specificRegionID != gateway.regionTo)
+			return false;
+		if (visitedRegions.contains(gateway.regionTo))
+			return false;
+		else
+			return true;
+	}
+
+	private void addOtherGateway(Gateway gateway, double locationExitAngle, double locationDestinationAngle,
+			double differenceExitEntry) {
+		double cost = Angles.differenceAngles(locationExitAngle, locationDestinationAngle);
+		if (cost <= 90) {
+			cost += differenceExitEntry;
+			otherGateways.put(gateway.gatewayID, cost);
+		}
+	}
+
+	private void evaluateValidGateway(Gateway gateway, double locationExitAngle, double locationDestinationAngle,
+			double differenceExitEntry) {
+		double cost;
+		if (gateway.exit.equals(currentNode))
+			cost = Angles.differenceAngles(gateway.entryAngle, locationDestinationAngle);
+		else
+			cost = Angles.differenceAngles(locationExitAngle, locationDestinationAngle) + differenceExitEntry;
+		validGateways.put(gateway.gatewayID, cost);
+	}
+
 	/**
 	 * Identifies barriers within the regions traversed and inserts barrier
 	 * sub-goals into the sequence of gateways when applicable.
@@ -232,10 +311,10 @@ public class RegionBasedNavigation {
 	 */
 	private ArrayList<NodeGraph> regionalBarriers() throws Exception {
 
-		final ArrayList<NodeGraph> gatewaySequenceWithSubGoals = new ArrayList<>();
+		ArrayList<NodeGraph> gatewaySequenceWithSubGoals = new ArrayList<>();
 		BarrierBasedNavigation barrierBasedNavigation = new BarrierBasedNavigation(originNode, destinationNode, agent);
 
-		for (NodeGraph gateway : this.gatewaySequence) {
+		for (NodeGraph gateway : gatewaySequence) {
 			if (gatewaysToIgnore.contains(gateway))
 				continue;
 			gatewaySequenceWithSubGoals.add(gateway);
@@ -265,8 +344,8 @@ public class RegionBasedNavigation {
 			int barrierID = barrierGoal.getValue1();
 
 			// pick the closest barrier sub-goal
-			if (GraphUtils.nodesDistance(gateway, edgeGoal.fromNode) < GraphUtils.nodesDistance(gateway,
-					edgeGoal.toNode))
+			if (GraphUtils.getCachedNodesDistance(gateway, edgeGoal.fromNode) < GraphUtils
+					.getCachedNodesDistance(gateway, edgeGoal.toNode))
 				subGoal = edgeGoal.fromNode;
 			else
 				subGoal = edgeGoal.toNode;
@@ -284,7 +363,7 @@ public class RegionBasedNavigation {
 
 			// if subGoal is a newGateway itself and it leads to the next region
 			if (subGoal.gateway && subGoal.adjacentRegions.contains(targetRegionID))
-				subGoalGateway(subGoal, indexOf);
+				updateGatewaySequence(subGoal, indexOf);
 			// if the subGoal is not a gateway, check whether there's a better gateway
 			// towards the next region (desiredRegion)
 			else {
@@ -306,7 +385,7 @@ public class RegionBasedNavigation {
 	 * @param indexOf The index of previously defined identified exit in the
 	 *                sequence.
 	 */
-	private void subGoalGateway(NodeGraph subGoal, Integer indexOf) {
+	private void updateGatewaySequence(NodeGraph subGoal, Integer indexOf) {
 
 		// a) ignore the next exit
 		gatewaysToIgnore.add(gatewaySequence.get(indexOf + 1));
