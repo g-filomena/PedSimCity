@@ -77,7 +77,7 @@ public class AngularChangePathFinder extends PathFinder {
 
 			moveOn = false; // for path cleaning and already traversed edges
 			tmpDestination = currentNode;
-			partialSequence = new ArrayList<DirectedEdge>();
+			partialSequence = new ArrayList<>();
 
 			if (tmpOrigin != originNode) {
 				centroidsToAvoid = route.centroidsFromEdgesSequence(completeSequence);
@@ -96,27 +96,10 @@ public class AngularChangePathFinder extends PathFinder {
 				continue;
 
 			ArrayList<NodeGraph> dualNodesOrigin = getDualNodes(tmpOrigin, previousJunction);
-//			while (dualNodesOrigin.isEmpty() && previousJunction != null) {
-//				System.out.println("passing there");
-//				tmpOrigin = (NodeGraph) completeSequence.get(completeSequence.size() - 1).getFromNode();
-//				// remove last one which did not work!
-//				completeSequence.remove(completeSequence.size() - 1);
-//				centroidsToAvoid.remove(centroidsToAvoid.size() - 1);
-//				// take new previous junction
-//				if (completeSequence.isEmpty())
-//					previousJunction = null;
-//				if (haveEdgesBetween())
-//					break;
-//				dualNodesOrigin = getDualNodes(tmpOrigin, previousJunction);
-//			}
-			// check again given the new tmpOrigin
-//			if (haveEdgesBetween())
-//				continue;
-
 			ArrayList<NodeGraph> dualNodesDestination = getDualNodes(tmpDestination, null);
 
-			for (final NodeGraph tmpDualOrigin : dualNodesOrigin) {
-				for (final NodeGraph tmpDualDestination : dualNodesDestination) {
+			for (NodeGraph tmpDualOrigin : dualNodesOrigin) {
+				for (NodeGraph tmpDualDestination : dualNodesDestination) {
 					// check if just one node separates them
 					NodeGraph commonJunction = route.commonPrimalJunction(tmpDualOrigin, tmpDualDestination);
 
