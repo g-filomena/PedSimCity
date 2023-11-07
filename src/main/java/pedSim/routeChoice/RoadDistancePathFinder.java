@@ -71,7 +71,7 @@ public class RoadDistancePathFinder extends PathFinder {
 				continue;
 
 			segmentsToAvoid = new HashSet<>(completeSequence);
-			final DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
+			DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
 			partialSequence = pathfinder.dijkstraAlgorithm(tmpOrigin, tmpDestination, destinationNode, segmentsToAvoid,
 					agent);
 			while (partialSequence.isEmpty() && !moveOn)
