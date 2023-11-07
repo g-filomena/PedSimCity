@@ -48,14 +48,14 @@ public class DijkstraAngularChange extends Dijkstra {
 		unvisitedNodes.add(this.originNode);
 
 		// NodeWrapper = container for the metainformation about a Node
-		final NodeWrapper nodeWrapper = new NodeWrapper(this.originNode);
+		NodeWrapper nodeWrapper = new NodeWrapper(this.originNode);
 		nodeWrapper.gx = 0.0;
 
 		if (previousJunction != null)
 			nodeWrapper.commonPrimalJunction = previousJunction;
 		nodeWrappersMap.put(this.originNode, nodeWrapper);
 		if (this.centroidsToAvoid != null)
-			for (final NodeGraph centroid : this.centroidsToAvoid)
+			for (NodeGraph centroid : this.centroidsToAvoid)
 				visitedNodes.add(centroid);
 
 		runDijkstra();
@@ -70,7 +70,7 @@ public class DijkstraAngularChange extends Dijkstra {
 		// add centroids to avoid in the visited set
 		while (unvisitedNodes.size() > 0) {
 			// at the beginning it takes originNode
-			final NodeGraph currentNode = getClosest(unvisitedNodes);
+			NodeGraph currentNode = getClosest(unvisitedNodes);
 			visitedNodes.add(currentNode);
 			unvisitedNodes.remove(currentNode);
 			findLeastAngularChange(currentNode);
@@ -87,7 +87,7 @@ public class DijkstraAngularChange extends Dijkstra {
 	 */
 	private void findLeastAngularChange(NodeGraph currentNode) {
 
-		final ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
+		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
 		for (NodeGraph targetNode : adjacentNodes) {
 			if (visitedNodes.contains(targetNode))
 				continue;
@@ -101,8 +101,8 @@ public class DijkstraAngularChange extends Dijkstra {
 					.equals(nodeWrappersMap.get(currentNode).commonPrimalJunction))
 				continue;
 
-			final EdgeGraph commonEdge = graph.getEdgeBetween(currentNode, targetNode);
-			final DirectedEdge outEdge = graph.getDirectedEdgeBetween(currentNode, targetNode);
+			EdgeGraph commonEdge = graph.getEdgeBetween(currentNode, targetNode);
+			DirectedEdge outEdge = graph.getDirectedEdgeBetween(currentNode, targetNode);
 
 			// compute errors in perception of road coasts with stochastic variables
 			double error = costPerceptionError(targetNode, commonEdge, true);
@@ -120,16 +120,16 @@ public class DijkstraAngularChange extends Dijkstra {
 	 */
 	private ArrayList<DirectedEdge> reconstructSequence() {
 
-		final HashMap<NodeGraph, NodeWrapper> traversedNodesMap = new HashMap<>();
-		final ArrayList<DirectedEdge> directedEdgesSequence = new ArrayList<>();
+		HashMap<NodeGraph, NodeWrapper> traversedNodesMap = new HashMap<>();
+		ArrayList<DirectedEdge> directedEdgesSequence = new ArrayList<>();
 		NodeGraph step = destinationNode;
 		traversedNodesMap.put(destinationNode, nodeWrappersMap.get(destinationNode));
 		// If the subgraph navigation hasn't worked, retry by using the full graph
 		// --> it switches "subgraph" to false;
 		if (nodeWrappersMap.get(destinationNode) == null && usingSubGraph) {
 			clear();
-			final ArrayList<DirectedEdge> secondAttempt = dijkstraAlgorithm(originNode, destinationNode,
-					finalDestinationNode, centroidsToAvoid, previousJunction, agent);
+			ArrayList<DirectedEdge> secondAttempt = dijkstraAlgorithm(originNode, destinationNode, finalDestinationNode,
+					centroidsToAvoid, previousJunction, agent);
 			return secondAttempt;
 		}
 
@@ -138,13 +138,13 @@ public class DijkstraAngularChange extends Dijkstra {
 			directedEdgesSequence.clear();
 		try {
 			while (nodeWrappersMap.get(step).nodeFrom != null) {
-				final DirectedEdge directedEdge = step.primalEdge.getDirEdge(0);
+				DirectedEdge directedEdge = step.primalEdge.getDirEdge(0);
 				step = nodeWrappersMap.get(step).nodeFrom;
 				traversedNodesMap.put(step, nodeWrappersMap.get(step));
 				directedEdgesSequence.add(0, directedEdge);
 
-				if (step == originNode) {
-					final DirectedEdge firstEdge = step.primalEdge.getDirEdge(0);
+				if (step.equals(originNode)) {
+					DirectedEdge firstEdge = step.primalEdge.getDirEdge(0);
 					directedEdgesSequence.add(0, firstEdge);
 					break;
 				}
