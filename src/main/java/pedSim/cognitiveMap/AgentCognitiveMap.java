@@ -20,7 +20,7 @@ public class AgentCognitiveMap extends CognitiveMap {
 	 *
 	 * @return The cognitive map.
 	 */
-	public CognitiveMap getCognitiveMap() {
+	synchronized public CognitiveMap getCognitiveMap() {
 		return CognitiveMap.getInstance();
 	}
 
