@@ -30,8 +30,8 @@ public class BarrierIntegration {
 	 * @param agent           The agent whose barrier type should be considered.
 	 * @return A mapping of the viewField and the barrierIDs intersecting it.
 	 */
-	public static HashMap<Geometry, Set<Integer>> intersectingBarriers(NodeGraph currentLocation,
-			NodeGraph destinationNode, Agent agent) {
+	public HashMap<Geometry, Set<Integer>> intersectingBarriers(NodeGraph currentLocation, NodeGraph destinationNode,
+			Agent agent) {
 
 		HashMap<Geometry, Set<Integer>> viewFieldIntersectingBarriers = new HashMap<Geometry, Set<Integer>>();
 		Set<Integer> intersectingBarrierIDs = new HashSet<>();
@@ -129,7 +129,7 @@ public class BarrierIntegration {
 	public static void setSubGraphBarriers(SubGraph subGraph) {
 
 		List<Integer> graphBarriers = new ArrayList<>();
-		for (final EdgeGraph childEdge : subGraph.getEdges()) {
+		for (EdgeGraph childEdge : subGraph.getEdges()) {
 			childEdge.attributes.put("barriers", subGraph.getParentEdge(childEdge).attributes.get("barriers"));
 			childEdge.attributes.put("positiveBarriers",
 					subGraph.getParentEdge(childEdge).attributes.get("positiveBarriers"));
@@ -140,8 +140,8 @@ public class BarrierIntegration {
 			graphBarriers.addAll(subGraph.getParentEdge(childEdge).attributes.get("barriers").getArray());
 		}
 
-		final Set<Integer> setBarriers = new HashSet<>(graphBarriers);
-		graphBarriers = new ArrayList<Integer>(setBarriers);
+		Set<Integer> setBarriers = new HashSet<>(graphBarriers);
+		graphBarriers = new ArrayList<>(setBarriers);
 		subGraph.attributes.put("graphBarriers", new AttributeValue(graphBarriers));
 	}
 
