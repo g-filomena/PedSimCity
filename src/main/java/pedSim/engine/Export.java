@@ -123,7 +123,7 @@ public class Export {
 		if (Parameters.empirical) {
 			headers = new ArrayList<>();
 			for (final EmpiricalAgentsGroup group : PedSimCity.empiricalGroups)
-				headers.add(group.groupName);
+				headers.add(group.groupName.toString());
 		} else {
 			List<String> abbreviations = new ArrayList<>();
 			for (RouteChoice routeChoice : Parameters.routeChoiceModels) {
