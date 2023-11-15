@@ -8,6 +8,7 @@ import java.util.logging.Logger;
 import com.opencsv.CSVReader;
 
 import pedSim.agents.EmpiricalAgentsGroup;
+import pedSim.utilities.StringEnum.Groups;
 import sim.field.geo.VectorLayer;
 
 /**
@@ -170,7 +171,7 @@ public class Import {
 				continue;
 			final EmpiricalAgentsGroup empiricalGroup = new EmpiricalAgentsGroup();
 			final String groupName = nextLine[0];
-			empiricalGroup.setGroup(groupName, nextLine);
+			empiricalGroup.setGroup(Groups.valueOf(groupName), nextLine);
 			PedSimCity.empiricalGroups.add(empiricalGroup);
 		}
 		readerEmpiricalGroups.close();
