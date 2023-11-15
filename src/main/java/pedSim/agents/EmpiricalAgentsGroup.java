@@ -1,5 +1,7 @@
 package pedSim.agents;
 
+import pedSim.utilities.StringEnum.Groups;
+
 /**
  * The `EmpiricalAgentsGroup` class represents a group of empirical agents in
  * the simulation. It encapsulates group-specific parameters and attributes that
@@ -12,7 +14,7 @@ package pedSim.agents;
  */
 public class EmpiricalAgentsGroup {
 
-	public String groupName;
+	public Groups groupName;
 	public double share = 0.0;
 
 	// only minimisation
@@ -57,10 +59,10 @@ public class EmpiricalAgentsGroup {
 	 * @param attributes An array of attributes containing group-specific
 	 *                   parameters.
 	 */
-	public void setGroup(String groupName, String[] attributes) {
+	public void setGroup(Groups groupName, String[] attributes) {
 
 		this.groupName = groupName;
-		if (groupName.equals("nullGroup"))
+		if (groupName.equals(Groups.NULLGROUP))
 			return;
 
 		probabilityUsingElements = Float.parseFloat(attributes[1]);
@@ -99,7 +101,7 @@ public class EmpiricalAgentsGroup {
 		severingBarriers = Float.parseFloat(attributes[23]);
 		severingBarriersSD = Float.parseFloat(attributes[24]);
 
-		if (this.groupName.equals("population"))
+		if (this.groupName.equals(Groups.POPULATION))
 			return;
 		share = Float.parseFloat(attributes[25]);
 	}
