@@ -9,6 +9,7 @@ import java.util.Random;
 import org.javatuples.Pair;
 
 import pedSim.utilities.StringEnum.BarrierType;
+import pedSim.utilities.StringEnum.Groups;
 import pedSim.utilities.StringEnum.RouteChoiceProperty;
 import sim.util.geo.Utilities;
 
@@ -20,7 +21,7 @@ import sim.util.geo.Utilities;
  */
 public class EmpiricalAgentProperties extends AgentProperties {
 
-	public String groupName;
+	public Groups groupName;
 	EmpiricalAgentsGroup group;
 	boolean usingElements = false;
 	boolean elementsActivated = false;
@@ -215,7 +216,7 @@ public class EmpiricalAgentProperties extends AgentProperties {
 	public void randomizeRouteChoiceParameters() {
 		reset();
 
-		if (this.groupName.equals("nullGroup"))
+		if (this.groupName.equals(Groups.NULLGROUP))
 			fromUniform();
 		else
 			setParametersFromGroup();
