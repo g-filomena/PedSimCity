@@ -26,7 +26,7 @@ import sim.graph.NodeGraph;
  */
 public class FlowHandler {
 
-	HashMap<Integer, HashMap<String, Integer>> volumesMap = new HashMap<Integer, HashMap<String, Integer>>();
+	public HashMap<Integer, HashMap<String, Integer>> volumesMap = new HashMap<Integer, HashMap<String, Integer>>();
 	public ArrayList<RouteData> routesData = new ArrayList<>();
 	public int job;
 
@@ -46,7 +46,7 @@ public class FlowHandler {
 	public synchronized void updateEdgeData(Agent agent, ArrayList<DirectedEdge> directedEdgesSequence) {
 
 		AgentProperties agentProperties = agent.getProperties();
-		String attributeName = Parameters.empirical ? ((EmpiricalAgentProperties) agentProperties).groupName
+		String attributeName = Parameters.empirical ? ((EmpiricalAgentProperties) agentProperties).groupName.toString()
 				: agentProperties.routeChoice.toString();
 
 		for (DirectedEdge directedEdge : directedEdgesSequence) {
@@ -80,22 +80,18 @@ public class FlowHandler {
 	 */
 	private void initializeEdgeVolumes() {
 
-//		HashMap<String, Integer> edgeVolumes = new HashMap<String, Integer>();
-		if (!Parameters.empirical) {
-			for (Object o : PedSimCity.network.getEdges()) {
-				HashMap<String, Integer> edgeVolumes = new HashMap<String, Integer>();
+		for (Object o : PedSimCity.network.getEdges()) {
+			HashMap<String, Integer> edgeVolumes = new HashMap<String, Integer>();
+			if (!Parameters.empirical) {
 				for (RouteChoice routeChoice : Parameters.routeChoiceModels) {
 					EdgeGraph edge = (EdgeGraph) o;
 					edgeVolumes.put(routeChoice.toString(), 0);
 					volumesMap.put(edge.getID(), edgeVolumes);
 				}
-			}
-		} else {
-			for (Object o : PedSimCity.network.getEdges()) {
-				HashMap<String, Integer> edgeVolumes = new HashMap<String, Integer>();
+			} else {
 				for (EmpiricalAgentsGroup empiricalGroup : PedSimCity.empiricalGroups) {
 					EdgeGraph edge = (EdgeGraph) o;
-					edgeVolumes.put(empiricalGroup.groupName, 0);
+					edgeVolumes.put(empiricalGroup.groupName.toString(), 0);
 					volumesMap.put(edge.getID(), edgeVolumes);
 				}
 			}
@@ -131,7 +127,7 @@ public class FlowHandler {
 	 */
 	private static RouteData getDataFromEmpiricalAgent(Agent agent, RouteData route) {
 		EmpiricalAgentProperties agentProperties = (EmpiricalAgentProperties) agent.getProperties();
-		route.group = agentProperties.groupName;
+		route.group = agentProperties.groupName.toString();
 		route.routeID = agent.originNode.getID() + "-" + agent.destinationNode.getID();
 		route.minimisingDistance = agentProperties.minimisingDistance ? true : false;
 		route.minimisingAngular = agentProperties.minimisingAngular ? true : false;
