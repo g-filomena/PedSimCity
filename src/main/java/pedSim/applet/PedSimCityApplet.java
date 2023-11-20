@@ -10,12 +10,16 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 import java.util.stream.IntStream;
 
 import pedSim.agents.Agent;
 import pedSim.engine.Environment;
+import pedSim.engine.FlowHandler;
 import pedSim.engine.Import;
 import pedSim.engine.Parameters;
 import pedSim.engine.PedSimCity;
@@ -35,11 +39,17 @@ public class PedSimCityApplet extends Frame implements ItemListener {
 	private Choice cityName;
 	private Choice modeChoice;
 	private Button startButton;
-	private Checkbox specificODcheckbox;
-	private Label jobsDoneLabel;
+	private Button endButton;
+	private Button startButtonParallel;
+	private Checkbox specificODcheckBox;
+	private Checkbox verboseCheckBox;
+	private Label jobLabel;
 	private Label remainingTripsLabel;
+	private Label jobsLabel;
+	private Label remainingTripsLabelParallel;
 	private int remainingTripsCount;
 	private static final Logger LOGGER = Logger.getLogger(Import.class.getName());
+	private Thread simulationThread;
 
 	/**
 	 * Constructs a new instance of the `PedSimCityApplet` class, creating a
@@ -73,11 +83,11 @@ public class PedSimCityApplet extends Frame implements ItemListener {
 		updateCityNameOptions(); // Set initial options based on the default selection of modeChoice
 		add(cityName);
 
-		specificODcheckbox = new Checkbox("Testing Specific ODs");
-		specificODcheckbox.setEnabled(true);
-		specificODcheckbox.setBounds(10, 100, 300, 40);
-		specificODcheckbox.addItemListener(this);
-		add(specificODcheckbox);
+		specificODcheckBox = new Checkbox("Testing Specific ODs");
+		specificODcheckBox.setEnabled(true);
+		specificODcheckBox.setBounds(10, 100, 300, 40);
+		specificODcheckBox.addItemListener(this);
+		add(specificODcheckBox);
 
 		Button otherOptionsButton = new Button("Other Options");
 		otherOptionsButton.setBounds(10, 150, 150, 30);
@@ -88,46 +98,101 @@ public class PedSimCityApplet extends Frame implements ItemListener {
 		});
 		add(otherOptionsButton);
 
-		Button testingButton = new Button("Choose Route-Choices");
-		testingButton.setEnabled(false);
-		testingButton.setBounds(10, 200, 150, 30);
-		testingButton.addActionListener(new ActionListener() {
+		Button routeChoiceButton = new Button("Choose Route-Choices");
+		routeChoiceButton.setEnabled(false);
+		routeChoiceButton.setBounds(10, 200, 150, 30);
+		routeChoiceButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				openTestPanel();
 			}
 		});
-		add(testingButton);
+		add(routeChoiceButton);
 
 		modeChoice.addItemListener(new ItemListener() {
 			public void itemStateChanged(ItemEvent e) {
 				String selectedMode = modeChoice.getSelectedItem();
 				// Enable the button only if the selected mode is "Testing Specific Route
 				// Choice// Models"
-				testingButton.setEnabled(selectedMode.equals("Testing Specific Route Choice Models"));
-				specificODcheckbox.setEnabled(!selectedMode.equals("Empirical ABM"));
+				routeChoiceButton.setEnabled(selectedMode.equals("Testing Specific Route Choice Models"));
+				specificODcheckBox.setEnabled(!selectedMode.equals("Empirical ABM"));
 			}
 		});
 
-		startButton = new Button("Start Simulation");
-		startButton.setBounds(10, 250, 120, 50);
-		startButton.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				startSimulation();
-			}
-		});
-		startButton.setBackground(Color.PINK);
+		verboseCheckBox = new Checkbox("Verbose y/n");
+		verboseCheckBox.setEnabled(true);
+		verboseCheckBox.setBounds(10, 230, 300, 40);
+		verboseCheckBox.addItemListener(this);
+		add(verboseCheckBox);
+
+		Color color = new Color(0, 220, 0);
+		startButton = new Button("Run Simulation");
+		startButton.setBounds(10, 280, 120, 50);
+		startButton.setBackground(color);
 		add(startButton);
 
-		jobsDoneLabel = new Label("Parallelising ? Jobs");
-		jobsDoneLabel.setBounds(140, 250, 120, 20);
-		add(jobsDoneLabel);
+		endButton = new Button("End Simulation");
+		endButton.setBackground(Color.PINK);
+
+		startButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				endButton.setBounds(10, 280, 120, 50);
+				startButtonParallel.setVisible(false);
+				add(endButton);
+				startButton.setVisible(false);
+				simulationThread = new Thread(() -> startSimulation(false));
+				simulationThread.start();
+			}
+		});
+
+		endButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				if (simulationThread != null && simulationThread.isAlive()) {
+					System.exit(0);
+				}
+			}
+		});
+
+		jobLabel = new Label("Executing Job Nr:");
+		jobLabel.setBounds(140, 280, 120, 20);
+		jobLabel.setVisible(false);
+
+		add(jobLabel);
 
 		remainingTripsLabel = new Label("Trips left (jobs avg):");
-		remainingTripsLabel.setBounds(140, 280, 170, 20);
+		remainingTripsLabel.setBounds(140, 310, 170, 20);
+		remainingTripsLabel.setVisible(false);
 		add(remainingTripsLabel);
 
-		setSize(400, 350);
+		// Parallel
+		startButtonParallel = new Button("Run in Parallel");
+		startButtonParallel.setBounds(10, 350, 120, 50);
+		startButtonParallel.setBackground(color);
+		add(startButtonParallel);
+
+		startButtonParallel.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				endButton.setBounds(10, 350, 120, 50);
+				startButton.setVisible(false);
+				add(endButton);
+				startButtonParallel.setVisible(false);
+				simulationThread = new Thread(() -> startSimulation(true));
+				simulationThread.start();
+			}
+		});
+
+		jobsLabel = new Label("Parallelising ? Jobs");
+		jobsLabel.setBounds(140, 350, 120, 20);
+		jobsLabel.setVisible(false);
+		add(jobsLabel);
+
+		remainingTripsLabelParallel = new Label("Trips left (jobs avg):");
+		remainingTripsLabelParallel.setBounds(140, 380, 170, 20);
+		remainingTripsLabelParallel.setVisible(false);
+		add(remainingTripsLabelParallel);
+
+		setSize(450, 450);
 		setVisible(true);
+
 	}
 
 	/**
@@ -139,8 +204,8 @@ public class PedSimCityApplet extends Frame implements ItemListener {
 	 */
 	public void ODpanelStateChanged(ItemEvent e) {
 		SpecificODpanel specificODpanel = new SpecificODpanel();
-		if (specificODcheckbox.getState())
-			specificODpanel.handleSpecificODCheckbox(specificODcheckbox);
+		if (specificODcheckBox.getState())
+			specificODpanel.handleSpecificODCheckbox(specificODcheckBox);
 		else
 			specificODpanel.closeSpecificODCheckbox();
 	}
@@ -168,15 +233,14 @@ public class PedSimCityApplet extends Frame implements ItemListener {
 	 * simulation process. This method sets the city name, simulation mode, and
 	 * other parameters before running the simulation.
 	 */
-	private void startSimulation() {
+	private void startSimulation(boolean runInParallel) {
 
 		Parameters.cityName = cityName.getSelectedItem();
 		Parameters.stringMode = modeChoice.getSelectedItem();
 		Parameters.defineMode();
-		updateRemainingTripsLabel();
 
 		// Run the simulation with the updated parameters
-		runSimulation();
+		runSimulation(runInParallel);
 	}
 
 	/**
@@ -184,7 +248,7 @@ public class PedSimCityApplet extends Frame implements ItemListener {
 	 * simulation process. This method sets the city name, simulation mode, and
 	 * other parameters before running the simulation.
 	 */
-	private void runSimulation() {
+	private void runSimulation(boolean runInParallel) {
 
 		try {
 			Import importer = new Import();
@@ -197,47 +261,62 @@ public class PedSimCityApplet extends Frame implements ItemListener {
 
 		Environment.prepare();
 		LOGGER.info("Environment Prepared. About to Start Simulation");
-		remainingTripsCount = Parameters.empirical
-				? Parameters.numAgents * Parameters.numberTripsPerAgent * Parameters.jobs * 3 // nr configurations
-				: Parameters.numAgents * Parameters.numberTripsPerAgent * Parameters.jobs;
-		updateRemainingTripsLabel();
-//		for (int job = 0; job < Parameters.jobs; job++) {
-//			jobsDoneLabel.setText("Job Number: " + job);
-//			final SimState state = new PedSimCity(System.currentTimeMillis(), job);
-//			remainingTripsCount = jobTrips;
-//			updateMissingTripsLabel();
-//			state.start();
-//			while (state.schedule.step(state)) {
-//				remainingTripsCount = PedSimCity.agentsList.parallelStream()
-//						.mapToInt(agent -> agent.OD.size() - agent.tripsDone).sum();
-//				updateMissingTripsLabel();
-//			}
-//		}
-		jobsDoneLabel.setText("Parallelising " + Parameters.jobs + " Jobs");
+		if (runInParallel) {
+			remainingTripsCount = Parameters.empirical
+					? Parameters.numAgents * Parameters.numberTripsPerAgent * Parameters.jobs * 3 // nr configurations
+					: Parameters.numAgents * Parameters.numberTripsPerAgent * Parameters.jobs;
+			updateRemainingTripsLabel(true);
+			jobsLabel.setText("Parallelising " + Parameters.jobs + " Jobs");
+			jobsLabel.setVisible(true);
+			remainingTripsLabelParallel.setVisible(true);
 
-		IntStream.range(0, Parameters.jobs).parallel().forEach(job -> {
-			final SimState state = new PedSimCity(System.currentTimeMillis(), job);
-			state.start();
-			List<Agent> agentList = ((PedSimCity) state).getAgentsList();
-			while (state.schedule.step(state)) {
-				remainingTripsCount = agentList.parallelStream().mapToInt(agent -> agent.OD.size() - agent.tripsDone)
-						.sum() * Parameters.jobs;
-				updateRemainingTripsLabel();
+		} else {
+			remainingTripsCount = Parameters.empirical ? Parameters.numAgents * Parameters.numberTripsPerAgent * 3 // nr
+																													// configurations
+					: Parameters.numAgents * Parameters.numberTripsPerAgent;
+			updateRemainingTripsLabel(false);
+			jobLabel.setVisible(true);
+			remainingTripsLabel.setVisible(true);
+		}
+
+		ArrayList<FlowHandler> flowHandlers = new ArrayList<>();
+
+		if (runInParallel)
+			IntStream.range(0, Parameters.jobs).parallel().forEach(job -> {
+				final SimState state = new PedSimCity(System.currentTimeMillis(), job);
+				state.start();
+				List<Agent> agentList = ((PedSimCity) state).getAgentsList();
+				while (state.schedule.step(state)) {
+					remainingTripsCount = agentList.parallelStream()
+							.mapToInt(agent -> agent.OD.size() - agent.tripsDone).sum() * Parameters.jobs;
+					updateRemainingTripsLabel(true);
+				}
+				flowHandlers.add(((PedSimCity) state).flowHandler);
+			});
+
+		else {
+			for (int job = 0; job < Parameters.jobs; job++) {
+				jobLabel.setText("Executing Job Nr: " + job);
+				final SimState state = new PedSimCity(System.currentTimeMillis(), job);
+				state.start();
+				List<Agent> agentList = ((PedSimCity) state).getAgentsList();
+				while (state.schedule.step(state)) {
+					remainingTripsCount = agentList.parallelStream()
+							.mapToInt(agent -> agent.OD.size() - agent.tripsDone).sum();
+					updateRemainingTripsLabel(false);
+				}
+				flowHandlers.add(((PedSimCity) state).flowHandler);
 			}
-		});
+		}
 
-//		IntStream.range(0, Parameters.jobs).forEach(job -> {
-//			final SimState state = new PedSimCity(System.currentTimeMillis(), job);
-//			state.start();
-//			List<Agent> agentList = ((PedSimCity) state).getAgentsList();
-//			while (state.schedule.step(state)) {
-//				remainingTripsCount = agentList.parallelStream().mapToInt(agent -> agent.OD.size() - agent.tripsDone)
-//						.sum() * Parameters.jobs;
-//				updateRemainingTripsLabel();
-//			}
-//		});
+		handleEndSimulation();
 
-		System.exit(0);
+	}
+
+	private void handleEndSimulation() {
+		Label endLabel = new Label("Simulation has ended. Close the window to exit.");
+		endLabel.setBounds(10, 410, 300, 30);
+		add(endLabel);
 	}
 
 	/**
@@ -248,9 +327,10 @@ public class PedSimCityApplet extends Frame implements ItemListener {
 	 */
 	public static void main(String[] args) {
 		PedSimCityApplet applet = new PedSimCityApplet();
-		applet.addWindowListener(new java.awt.event.WindowAdapter() {
-			public void windowClosing(java.awt.event.WindowEvent e) {
-				System.exit(0);
+		applet.addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosing(WindowEvent e) {
+				applet.dispose();
 			}
 		});
 	}
@@ -288,18 +368,22 @@ public class PedSimCityApplet extends Frame implements ItemListener {
 	 */
 	@Override
 	public void itemStateChanged(ItemEvent e) {
-		if (e.getSource() == specificODcheckbox) {
+		if (e.getSource() == specificODcheckBox)
 			ODpanelStateChanged(e); // Call the ODpanelStateChanged method when specificODcheckbox state changes
-		} else if (e.getSource() == modeChoice) {
+		else if (e.getSource() == modeChoice)
 			updateCityNameOptions();
-		}
+		else
+			Parameters.verboseMode = true;
 	}
 
 	/**
 	 * Updates the text of the remainingTripsLabel to display the count of missing
 	 * trips.
 	 */
-	private void updateRemainingTripsLabel() {
-		remainingTripsLabel.setText("Trips left (jobs avg): " + remainingTripsCount);
+	private void updateRemainingTripsLabel(boolean runInParallel) {
+		if (runInParallel)
+			remainingTripsLabelParallel.setText("Trips left (jobs avg): " + remainingTripsCount);
+		else
+			remainingTripsLabel.setText("Trips left: " + remainingTripsCount);
 	}
 }
