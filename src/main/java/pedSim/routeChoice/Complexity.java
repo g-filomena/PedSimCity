@@ -6,7 +6,6 @@ import pedSim.agents.Agent;
 import pedSim.cognitiveMap.Region;
 import pedSim.engine.PedSimCity;
 import pedSim.utilities.StringEnum.LandmarkType;
-import sim.graph.Building;
 import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
 import sim.util.geo.MasonGeometry;
@@ -17,8 +16,6 @@ import sim.util.geo.MasonGeometry;
  * within a space or region based on distance and landmarks.
  */
 public class Complexity {
-
-	Building buildingsHandler = new Building();
 
 	/**
 	 * Computes the wayfinding easiness within a space between two nodes on the
@@ -37,7 +34,7 @@ public class Complexity {
 				/ Math.max(PedSimCity.roads.MBR.getHeight(), PedSimCity.roads.MBR.getWidth());
 
 		double buildingsComplexity = 1.0;
-		ArrayList<MasonGeometry> buildings = new ArrayList<>(buildingsHandler.getBuildings(node, destinationNode));
+		ArrayList<MasonGeometry> buildings = new ArrayList<>(agent.cognitiveMap.getBuildings(node, destinationNode));
 		ArrayList<MasonGeometry> landmarks = new ArrayList<>(getAgentLandmarks(agent, null));
 		if (!buildings.isEmpty()) {
 			landmarks.retainAll(buildings);
@@ -98,7 +95,7 @@ public class Complexity {
 	public double buildingsRegionComplexity(Region region, Agent agent) {
 
 		ArrayList<MasonGeometry> landmarks;
-		ArrayList<MasonGeometry> buildings = new ArrayList<>(buildingsHandler.getBuildingsWithinRegion(region));
+		ArrayList<MasonGeometry> buildings = new ArrayList<>(agent.cognitiveMap.getBuildingsWithinRegion(region));
 		if (buildings.isEmpty())
 			return 1.0;
 
