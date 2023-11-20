@@ -214,12 +214,13 @@ public final class Agent implements Steppable {
 	protected void planRoute() throws Exception {
 		if (Parameters.empirical)
 			((EmpiricalAgentProperties) agentProperties).randomizeRouteChoiceParameters();
-
-		if (agentProperties.routeChoice != null)
-			System.out.println("Agent " + agentProperties.routeChoice);
-		else
-			System.out.println(((EmpiricalAgentProperties) agentProperties).groupName);
-		System.out.println(" - origin  " + originNode.getID() + " destination " + destinationNode.getID());
+		if (Parameters.verboseMode) {
+			if (agentProperties.routeChoice != null)
+				System.out.println("Agent " + agentProperties.routeChoice);
+			else
+				System.out.println(((EmpiricalAgentProperties) agentProperties).groupName);
+			System.out.println(" - origin  " + originNode.getID() + " destination " + destinationNode.getID());
+		}
 		final RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
 		route = planner.definePath();
 	}
