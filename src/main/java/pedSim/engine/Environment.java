@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Map.Entry;
 
 import org.javatuples.Pair;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import org.locationtech.jts.planargraph.DirectedEdgeStar;
 
@@ -15,6 +16,7 @@ import pedSim.cognitiveMap.Region;
 import sim.field.geo.VectorLayer;
 import sim.graph.Building;
 import sim.graph.EdgeGraph;
+import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
 import sim.graph.SubGraph;
 import sim.util.geo.Angles;
@@ -267,5 +269,30 @@ public class Environment {
 			PedSimCity.barriersMap.put(barrierID, barrier);
 		}
 
+	}
+
+	/**
+	 * Returns all the buildings enclosed between two nodes.
+	 *
+	 * @param originNode      The first node.
+	 * @param destinationNode The second node.
+	 * @return A list of buildings.
+	 */
+	public ArrayList<MasonGeometry> getBuildings(NodeGraph originNode, NodeGraph destinationNode) {
+		Geometry smallestCircle = GraphUtils.enclosingCircleBetweenNodes(originNode, destinationNode);
+		return PedSimCity.buildings.containedFeatures(smallestCircle);
+	}
+
+	/**
+	 * Get buildings within a specified region.
+	 *
+	 * @param region The region for which buildings are to be retrieved.
+	 * @return An ArrayList of MasonGeometry objects representing buildings within
+	 *         the region.
+	 */
+	public ArrayList<MasonGeometry> getBuildingsWithinRegion(Region region) {
+		VectorLayer regionNetwork = region.regionNetwork;
+		Geometry convexHull = regionNetwork.getConvexHull();
+		return PedSimCity.buildings.containedFeatures(convexHull);
 	}
 }
