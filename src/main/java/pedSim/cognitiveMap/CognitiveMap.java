@@ -6,11 +6,13 @@ import java.util.List;
 import java.util.Map.Entry;
 
 import org.javatuples.Pair;
+import org.locationtech.jts.geom.Geometry;
 
 import pedSim.engine.Parameters;
 import pedSim.engine.PedSimCity;
 import sim.field.geo.VectorLayer;
 import sim.graph.Building;
+import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
 import sim.util.geo.MasonGeometry;
 
@@ -107,7 +109,7 @@ public class CognitiveMap {
 			if (integrateLandmarks) {
 				// set the landmarks of this region
 				LandmarkIntegration.setSubGraphLandmarks(region.primalGraph);
-				region.buildings = buildingsHandler.getBuildingsWithinRegion(region);
+				region.buildings = getBuildingsWithinRegion(region);
 				setRegionLandmarks(region);
 			}
 			BarrierIntegration.setSubGraphBarriers(region.primalGraph);
@@ -166,5 +168,30 @@ public class CognitiveMap {
 	 */
 	public ArrayList<MasonGeometry> getRegionGlobalLandmarks(Region region) {
 		return region.globalLandmarks;
+	}
+
+	/**
+	 * Returns all the buildings enclosed between two nodes.
+	 *
+	 * @param originNode      The first node.
+	 * @param destinationNode The second node.
+	 * @return A list of buildings.
+	 */
+	public ArrayList<MasonGeometry> getBuildings(NodeGraph originNode, NodeGraph destinationNode) {
+		Geometry smallestCircle = GraphUtils.enclosingCircleBetweenNodes(originNode, destinationNode);
+		return PedSimCity.buildings.containedFeatures(smallestCircle);
+	}
+
+	/**
+	 * Get buildings within a specified region.
+	 *
+	 * @param region The region for which buildings are to be retrieved.
+	 * @return An ArrayList of MasonGeometry objects representing buildings within
+	 *         the region.
+	 */
+	public ArrayList<MasonGeometry> getBuildingsWithinRegion(Region region) {
+		VectorLayer regionNetwork = region.regionNetwork;
+		Geometry convexHull = regionNetwork.getConvexHull();
+		return PedSimCity.buildings.containedFeatures(convexHull);
 	}
 }
