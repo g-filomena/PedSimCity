@@ -77,6 +77,8 @@ public class Parameters {
 
 	// for development/testing purposes only
 	public static boolean javaProject = true;
+	public static boolean verboseMode = false;
+	public static String localPath = null;
 
 	/**
 	 * Defines the simulation mode and sets simulation parameters based on the
