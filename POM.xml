@@ -9,11 +9,19 @@
     <artifactId>pedsimcity</artifactId>
     <version>1.0</version>
 
-    <properties>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
-    </properties>
+	<name>${project.groupId}:${project.artifactId}</name>
+    <description>
+		PedSimCity is An Agent-Based Model for simulating pedestrian movement in large urban areas. It incoporates simplified cognitive maps of the urban environment in the architecture of the agents. 
+		In the Java applet, the user can test the inclusion in the route choice behaivour of several meaningful urban elements.
+		Available case studies in the applet include London (UK), Paris (FR), Muenster (DE). 
+    </description>
+    <url>https://github.com/g-filomena/PedSimCity</url>
 
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+    </properties>
+	
     <dependencies>
         <!-- JavaTuples -->
         <dependency>
@@ -52,31 +60,32 @@
 		<dependency>
             <groupId>uk.ac.liv.gdsl</groupId>
             <artifactId>GeoMason-light</artifactId>
-            <version>1.1</version>
+            <version>1.12</version>	
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/geo.jar</systemPath>
         </dependency>
 
        <!-- Mason -->
-        <!-- <dependency> -->
-            <!-- <groupId>edu.gmu.eclab</groupId> -->
-            <!-- <artifactId>mason</artifactId> -->
-            <!-- <version>21</version> -->
-            <!-- <scope>system</scope> -->
-			<!-- <systemPath>${project.basedir}/lib/mason-21.jar</systemPath> -->
-        <!-- </dependency> -->
+        <dependency>
+            <groupId>edu.gmu.eclab</groupId>
+            <artifactId>mason</artifactId>
+            <version>21</version>
+            <scope>system</scope>
+			<systemPath>${project.basedir}/lib/mason-21.jar</systemPath>
+        </dependency>
     </dependencies>
 
     <build>
         <!-- <sourceDirectory>src/main/java</sourceDirectory> -->
         <plugins>
-            
 			<!-- UTF -->
 			<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.1</version>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>17</source>
+                    <target>17</target>
 					<encoding>UTF-8</encoding>
                 </configuration>
             </plugin>	
@@ -143,6 +152,7 @@
 					</execution>
 				</executions>
 			</plugin>
+		
 		</plugins>
     </build>
 </project>
