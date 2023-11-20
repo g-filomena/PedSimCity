@@ -10,6 +10,7 @@ import org.javatuples.Pair;
 
 import pedSim.utilities.StringEnum.BarrierType;
 import pedSim.utilities.StringEnum.Groups;
+import pedSim.utilities.StringEnum.LandmarkType;
 import pedSim.utilities.StringEnum.RouteChoiceProperty;
 import sim.util.geo.Utilities;
 
@@ -83,7 +84,7 @@ public class EmpiricalAgentProperties extends AgentProperties {
 	 * according to the properties defined for the agent's group.
 	 */
 	public void setParametersFromGroup() {
-		if (groupName.equals("nullGroup"))
+		if (groupName.equals(Groups.NULLGROUP))
 			return;
 
 		// minimisation
@@ -384,6 +385,7 @@ public class EmpiricalAgentProperties extends AgentProperties {
 				barrierBasedNavigation = key.equals(RouteChoiceProperty.BARRIER_SUBGOALS);
 				elementsActivated = true;
 				barrierType = BarrierType.SEPARATING;
+				landmarkType = LandmarkType.LOCAL;
 				break;
 			}
 			limit += p;
