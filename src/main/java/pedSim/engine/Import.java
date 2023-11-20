@@ -2,7 +2,10 @@ package pedSim.engine;
 
 import java.io.File;
 import java.io.FileReader;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.logging.Logger;
 
 import com.opencsv.CSVReader;
@@ -22,9 +25,7 @@ public class Import {
 	/**
 	 * The base data directory path for the simulation data files.
 	 */
-	String dataDirectory = getClass().getClassLoader().toString();
-
-//	public static String dataDirectory = "C:\\Users\\gfilo\\OneDrive - The University of Liverpool\\Scripts\\pedsimcityJava\\pedSim\\pedSim";
+	String resourcePath;
 	private static final Logger LOGGER = Logger.getLogger(Import.class.getName());
 
 	/**
@@ -34,29 +35,15 @@ public class Import {
 	 * @throws Exception If an error occurs during the import process.
 	 */
 	public void importFiles() throws Exception {
-
-		// Determine the input data directory based on the simulation parameters
-		ClassLoader classLoader = getClass().getClassLoader();
-		String resourcePath = Parameters.cityName + File.separator;
+		resourcePath = Parameters.cityName;
 		if (Parameters.javaProject)
-			resourcePath = "C:\\Users\\gfilo\\OneDrive - The University of Liverpool\\Scripts\\pedsimcity\\src\\main\\resources\\"
-					+ resourcePath;
+			resourcePath = Parameters.localPath + resourcePath;
 		if (Parameters.cityName.equals("London")) {
 			if (Parameters.testingLandmarks)
-				resourcePath += "landmarks";
+				resourcePath += "/landmarks";
 			else if (Parameters.testingSubdivisions)
-				resourcePath += "subdivisions";
+				resourcePath += "/subdivisions";
 		}
-
-		URL resourceURL = null;
-		if (Parameters.javaProject)
-			dataDirectory = resourcePath;
-		else {
-			resourceURL = classLoader.getResource(resourcePath);
-			dataDirectory = resourceURL.getPath();
-		}
-
-		System.out.println(dataDirectory);
 		if (Parameters.testingLandmarks) {
 			importDistances();
 			readLandmarksAndSightLines();
@@ -80,9 +67,16 @@ public class Import {
 	 * @throws Exception If an error occurs during the import process.
 	 */
 	private void importDistances() throws Exception {
+
 		// Read GPS trajectories distances
-		String filePath = dataDirectory + File.separator + "tracks_distances.csv";
-		final CSVReader readerDistances = new CSVReader(new FileReader(filePath));
+		ClassLoader classLoader = getClass().getClassLoader();
+		URL resourceURL = null;
+		if (Parameters.javaProject)
+			resourceURL = new File(resourcePath + "/tracks_distances.csv").toURI().toURL();
+		else
+			resourceURL = classLoader.getResource(resourcePath + "/tracks_distances.csv");
+		Reader reader = new InputStreamReader(resourceURL.openStream());
+		CSVReader readerDistances = new CSVReader(reader);
 		String[] nextLineDistances;
 
 		int row = 0;
@@ -101,11 +95,27 @@ public class Import {
 	 * @throws Exception If an error occurs during the import process.
 	 */
 	private void readGraphs() throws Exception {
+
+		ClassLoader classLoader = getClass().getClassLoader();
+		URL urlShp = null;
+		URL urlDbf = null;
+
 		try {
-			VectorLayer.readShapefile(dataDirectory + File.separator + "edges", PedSimCity.roads);
-			VectorLayer.readShapefile(dataDirectory + File.separator + "nodes", PedSimCity.junctions);
-			VectorLayer.readShapefile(dataDirectory + File.separator + "edgesDual", PedSimCity.intersectionsDual);
-			VectorLayer.readShapefile(dataDirectory + File.separator + "nodesDual", PedSimCity.centroids);
+			String[] strings = { "/edges", "/nodes", "/edgesDual", "/nodesDual" };
+			VectorLayer[] vectorLayers = { PedSimCity.roads, PedSimCity.junctions, PedSimCity.intersectionsDual,
+					PedSimCity.centroids };
+
+			for (String string : strings) {
+				String tmpPath = resourcePath + string;
+				if (Parameters.javaProject) {
+					urlShp = new File(tmpPath + ".shp").toURI().toURL();
+					urlDbf = new File(tmpPath + ".dbf").toURI().toURL();
+				} else {
+					urlShp = classLoader.getResource(tmpPath + ".shp");
+					urlDbf = classLoader.getResource(tmpPath + ".dbf");
+				}
+				VectorLayer.readShapefile(urlShp, urlDbf, vectorLayers[Arrays.asList(strings).indexOf(string)]);
+			}
 			PedSimCity.network.fromStreetJunctionsSegments(PedSimCity.junctions, PedSimCity.roads);
 			PedSimCity.dualNetwork.fromStreetJunctionsSegments(PedSimCity.centroids, PedSimCity.intersectionsDual);
 			LOGGER.info("Graphs successfully imported.");
@@ -120,9 +130,24 @@ public class Import {
 	 * @throws Exception If an error occurs during the import process.
 	 */
 	private void readLandmarksAndSightLines() throws Exception {
+
+		ClassLoader classLoader = getClass().getClassLoader();
+		URL urlShp = null;
+		URL urlDbf = null;
 		try {
-			VectorLayer.readShapefile(dataDirectory + File.separator + "landmarks", PedSimCity.buildings);
-			VectorLayer.readShapefile(dataDirectory + File.separator + "sight_lines2D", PedSimCity.sightLines);
+			String[] strings = { "/landmarks", "/sight_lines2D" };
+			VectorLayer[] vectorLayers = { PedSimCity.buildings, PedSimCity.sightLines };
+			for (String string : strings) {
+				String tmpPath = resourcePath + string;
+				if (Parameters.javaProject) {
+					urlShp = new File(tmpPath + ".shp").toURI().toURL();
+					urlDbf = new File(tmpPath + ".dbf").toURI().toURL();
+				} else {
+					urlShp = classLoader.getResource(tmpPath + ".shp");
+					urlDbf = classLoader.getResource(tmpPath + ".dbf");
+				}
+				VectorLayer.readShapefile(urlShp, urlDbf, vectorLayers[Arrays.asList(strings).indexOf(string)]);
+			}
 			PedSimCity.buildings.setID("buildingID");
 			LOGGER.info("Landmarks successfully imported.");
 		} catch (Exception e) {
@@ -136,8 +161,20 @@ public class Import {
 	 * @throws Exception If an error occurs during the import process.
 	 */
 	private void readBarriers() throws Exception {
+
+		URL urlShp = null;
+		URL urlDbf = null;
 		try {
-			VectorLayer.readShapefile(dataDirectory + File.separator + "barriers", PedSimCity.barriers);
+			String tmpPath = resourcePath + "/barriers";
+			if (Parameters.javaProject) {
+				urlShp = new File(tmpPath + ".shp").toURI().toURL();
+				urlDbf = new File(tmpPath + ".dbf").toURI().toURL();
+			} else {
+				ClassLoader classLoader = getClass().getClassLoader();
+				urlShp = classLoader.getResource(tmpPath + ".shp");
+				urlDbf = classLoader.getResource(tmpPath + ".shp");
+			}
+			VectorLayer.readShapefile(urlShp, urlDbf, PedSimCity.barriers);
 			LOGGER.info("Barriers successfully imported.");
 		} catch (Exception e) {
 			handleImportError("Importing Barriers Failed", e);
@@ -150,7 +187,7 @@ public class Import {
 	 * @throws Exception If an error occurs during the import process.
 	 */
 	private static void handleImportError(String layerName, Exception e) {
-		// Perform additional error handling or logging as needed
+		LOGGER.info(layerName);
 	}
 
 	/**
@@ -160,7 +197,7 @@ public class Import {
 	 */
 	private void importEmpiricalGroups() throws Exception {
 
-		String filePath = dataDirectory + File.separator + "clusters.csv";
+		String filePath = resourcePath + File.separator + "clusters.csv";
 		final CSVReader readerEmpiricalGroups = new CSVReader(new FileReader(filePath));
 		String[] nextLine;
 
