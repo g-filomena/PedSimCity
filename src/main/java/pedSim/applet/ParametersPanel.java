@@ -1,6 +1,7 @@
 package pedSim.applet;
 
 import java.awt.Button;
+import java.awt.Font;
 import java.awt.Frame;
 import java.awt.Label;
 import java.awt.TextField;
@@ -9,6 +10,8 @@ import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 import pedSim.engine.Parameters;
 
@@ -18,6 +21,32 @@ import pedSim.engine.Parameters;
  */
 public class ParametersPanel extends Frame {
 	private static final long serialVersionUID = 1L;
+	private static final int X = 10;
+	private int y = 50;
+	private static final int Y_SPACE_BETWEEN = 30;
+	TextField localPathField = new TextField(null);
+	ArrayList<TextField> doubleTextFields = new ArrayList<>();
+	ArrayList<TextField> booleanTextFields = new ArrayList<>();
+
+	String[] doubleStrings = { "Max distance of a candidate Local Landmark from a Node (m)",
+			"Max distance of a Global Landmark (as anchor) from a Node",
+			"Max Number of Anchors to be identified for each Destination",
+			"Min distance Between a node and the agent destination for considering 3D Visibility",
+			"Min score for a building to be considered a Global Landmark (0.0 - 1.0)",
+			"Min score for a building to be considered a Local Landmark (0.0 - 1.0)",
+			"Percentile for choosing Salient Nodes (on centrality values) (0.0 - 1.0)",
+			"Wayfinding Easiness Threshold above which local landmarks are not identified",
+			"Weight Global Landmarkness in combination with Distance Edge Cost (0.0 - 1.0)",
+			"Weight Global Landmarkness in combination with Angular Edge Cost (0.0 - 1.0)",
+			"Minimum distance necessary to activate Region-based navigation (m)",
+			"Wayfinding Easiness Threshold above which local landmarks are not identified within regions" };
+
+	Double defaultValues[] = { Parameters.distanceNodeLandmark, Parameters.distanceAnchors,
+			Double.valueOf(Parameters.nrAnchors), Parameters.threshold3dVisibility, Parameters.globalLandmarkThreshold,
+			Parameters.localLandmarkThreshold, Parameters.salientNodesPercentile,
+			Parameters.wayfindingEasinessThreshold, Parameters.globalLandmarknessWeightDistance,
+			Parameters.globalLandmarknessWeightAngular, Parameters.regionBasedNavigationThreshold,
+			Parameters.wayfindingEasinessThresholdRegions };
 
 	/**
 	 * Constructs the Parameters Panel.
@@ -26,32 +55,30 @@ public class ParametersPanel extends Frame {
 		super("Parameters Panel");
 		setLayout(null);
 
-		addField("Max distance of a candidate Local Landmark from a Node (m)", Parameters.distanceNodeLandmark, 10, 50);
-		addField("Max distance of a Landmark from a Node", Parameters.distanceAnchors, 10, 80);
-		addField("Max Number of Anchors to be identified for each Destination", Parameters.nrAnchors, 10, 110);
-		addField("Min distance Between a node and the agent destination for considering 3D Visibility",
-				Parameters.threshold3dVisibility, 10, 140);
-		addField("Min score for a building to be considered a Global Landmark (0.0 - 1.0)",
-				Parameters.globalLandmarkThreshold, 10, 170);
-		addField("Min score for a building to be considered a Local Landmark (0.0 - 1.0)",
-				Parameters.localLandmarkThreshold, 10, 200);
-		addField("Percentile for choosing Salient Nodes (on centrality values) (0.0 - 1.0)",
-				Parameters.salientNodesPercentile, 10, 230);
-		addField("Wayfinding Easiness Threshold above which local landmarks are not identified",
-				Parameters.wayfindingEasinessThreshold, 10, 260);
-		addField("Weight Global Landmarkness in combination with Distance Edge Cost (0.0 - 1.0)",
-				Parameters.globalLandmarknessWeightDistance, 10, 290);
-		addField("Weight Global Landmarkness in combination with Angular Edge Cost (0.0 - 1.0)",
-				Parameters.globalLandmarknessWeightAngular, 10, 320);
-		addField("Minimum distance necessary to activate Region-based navigation (m)",
-				Parameters.regionBasedNavigationThreshold, 10, 350);
-		addField("Wayfinding Easiness Threshold above which local landmarks are not identified within regions",
-				Parameters.wayfindingEasinessThresholdRegions, 10, 380);
-		addBooleanField("Employ Subgraphs in Dijkstra Algorithm", Parameters.subGraph, 10, 410);
-		addBooleanField("Identify Destinations based on DMA Approach", Parameters.usingDMA, 10, 440);
+		for (String string : doubleStrings) {
+			Double defaultValue = defaultValues[Arrays.asList(doubleStrings).indexOf(string)];
+			addDoubleField(string, defaultValue, X, y);
+			y += Y_SPACE_BETWEEN;
+		}
+
+		addBooleanField("Employ Subgraphs in Dijkstra Algorithm", Parameters.subGraph, X, y);
+		addBooleanField("Identify Destinations based on DMA Approach", Parameters.usingDMA, X, y + Y_SPACE_BETWEEN);
+
+		Label localPathLabel = new Label(
+				"Fill this field only with a local path, only if running as Java Project, not from JAR");
+		localPathLabel.setBounds(10, 480, 450, 20);
+		localPathLabel.setFont(new Font("Arial", Font.ITALIC, 12));
+		add(localPathLabel);
+		localPathLabel = new Label("e.g.: C:/Users/YourUser/Scripts/pedsimcity/src/main/resources/");
+		localPathLabel.setBounds(10, 500, 350, 20);
+		localPathLabel.setFont(new Font("Arial", Font.ITALIC, 12));
+		add(localPathLabel);
+
+		localPathField.setBounds(360, 500, 350, 20);
+		add(localPathField);
 
 		Button applyButton = new Button("Apply");
-		applyButton.setBounds(10, 490, 80, 30);
+		applyButton.setBounds(10, 550, 80, 30);
 		applyButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -73,7 +100,7 @@ public class ParametersPanel extends Frame {
 	}
 
 	/**
-	 * Adds a labeled boolean field to the panel for adjusting simulation
+	 * Adds double-interpreter field to the panel for adjusting simulation
 	 * parameters.
 	 *
 	 * @param fieldName    The name of the parameter.
@@ -81,17 +108,28 @@ public class ParametersPanel extends Frame {
 	 * @param x            The x-coordinate for the field.
 	 * @param y            The y-coordinate for the field.
 	 */
-	private void addField(String fieldName, double defaultValue, int x, int y) {
+	private void addDoubleField(String fieldName, double defaultValue, int x, int y) {
 		Label label = new Label(fieldName + ":");
 		TextField textField = new TextField(Double.toString(defaultValue));
 		label.setBounds(x, y, 600, 20);
 		textField.setBounds(x + 600, y, 100, 20);
 		add(label);
 		add(textField);
+		doubleTextFields.add(textField);
 	}
 
 	/**
-	 * Adds a labeled boolean field to the panel for adjusting simulation
+	 * Adds a boolean-interpreter field to the panel for adjusting simulation
+	 * parameters.
+	 *
+	 * @param fieldName    The name of the parameter.
+	 * @param defaultValue The default value for the parameter.
+	 * @param x            The x-coordinate for the field.
+	 * @param y            The y-coordinate for the field.
+	 */
+
+	/**
+	 * Adds a boolean-interpreter field to the panel for adjusting simulation
 	 * parameters.
 	 *
 	 * @param fieldName    The name of the parameter.
@@ -106,6 +144,7 @@ public class ParametersPanel extends Frame {
 		textField.setBounds(x + 600, y, 100, 20);
 		add(label);
 		add(textField);
+		booleanTextFields.add(textField);
 	}
 
 	public static void main(String[] args) {
@@ -124,20 +163,25 @@ public class ParametersPanel extends Frame {
 	 * class.
 	 */
 	private void adjustParameters() {
-		Parameters.distanceNodeLandmark = Double.parseDouble(getTextFieldValue(50));
-		Parameters.distanceAnchors = Double.parseDouble(getTextFieldValue(80));
-		Parameters.nrAnchors = (int) Double.parseDouble(getTextFieldValue(110));
-		Parameters.threshold3dVisibility = Double.parseDouble(getTextFieldValue(140));
-		Parameters.globalLandmarkThreshold = Double.parseDouble(getTextFieldValue(170));
-		Parameters.localLandmarkThreshold = Double.parseDouble(getTextFieldValue(200));
-		Parameters.salientNodesPercentile = Double.parseDouble(getTextFieldValue(230));
-		Parameters.wayfindingEasinessThreshold = Double.parseDouble(getTextFieldValue(260));
-		Parameters.globalLandmarknessWeightDistance = Double.parseDouble(getTextFieldValue(290));
-		Parameters.globalLandmarknessWeightAngular = Double.parseDouble(getTextFieldValue(320));
-		Parameters.regionBasedNavigationThreshold = Double.parseDouble(getTextFieldValue(350));
-		Parameters.wayfindingEasinessThresholdRegions = Double.parseDouble(getTextFieldValue(380));
-		Parameters.subGraph = Boolean.parseBoolean(getTextFieldValue(410));
-		Parameters.usingDMA = Boolean.parseBoolean(getTextFieldValue(440));
+
+		Parameters.distanceNodeLandmark = Double.parseDouble(doubleTextFields.get(0).getText());
+		Parameters.distanceAnchors = Double.parseDouble(doubleTextFields.get(1).getText());
+		Parameters.nrAnchors = (int) Double.parseDouble(doubleTextFields.get(2).getText());
+		Parameters.threshold3dVisibility = Double.parseDouble(doubleTextFields.get(3).getText());
+		Parameters.globalLandmarkThreshold = Double.parseDouble(doubleTextFields.get(4).getText());
+		Parameters.localLandmarkThreshold = Double.parseDouble(doubleTextFields.get(5).getText());
+		Parameters.salientNodesPercentile = Double.parseDouble(doubleTextFields.get(6).getText());
+		Parameters.wayfindingEasinessThreshold = Double.parseDouble(doubleTextFields.get(7).getText());
+		Parameters.globalLandmarknessWeightDistance = Double.parseDouble(doubleTextFields.get(8).getText());
+		Parameters.globalLandmarknessWeightAngular = Double.parseDouble(doubleTextFields.get(9).getText());
+		Parameters.regionBasedNavigationThreshold = Double.parseDouble(doubleTextFields.get(10).getText());
+		Parameters.wayfindingEasinessThresholdRegions = Double.parseDouble(doubleTextFields.get(11).getText());
+		Parameters.subGraph = Boolean.parseBoolean(booleanTextFields.get(0).getText());
+		Parameters.usingDMA = Boolean.parseBoolean(booleanTextFields.get(1).getText());
+		if (localPathField.getText() != null) {
+			Parameters.localPath = localPathField.getText();
+			Parameters.javaProject = true;
+		}
 	}
 
 	/**
@@ -148,20 +192,20 @@ public class ParametersPanel extends Frame {
 		dispose();
 	}
 
-	/**
-	 * Retrieves the value of a text field based on its y-coordinate.
-	 *
-	 * @param y The y-coordinate of the text field.
-	 * @return The text entered in the text field or an empty string if not found.
-	 */
-	private String getTextFieldValue(int y) {
-		TextField textField = null;
-		for (int i = 0; i < getComponentCount(); i++) {
-			if (getComponent(i) instanceof TextField && getComponent(i).getY() == y) {
-				textField = (TextField) getComponent(i);
-				break;
-			}
-		}
-		return textField != null ? textField.getText() : "";
-	}
+//	/**
+//	 * Retrieves the value of a text field based on its y-coordinate.
+//	 *
+//	 * @param y The y-coordinate of the text field.
+//	 * @return The text entered in the text field or an empty string if not found.
+//	 */
+//	private String getTextFieldValue(int y) {
+//		TextField textField = null;
+//		for (int i = 0; i < getComponentCount(); i++) {
+//			if (getComponent(i) instanceof TextField && getComponent(i).getY() == y) {
+//				textField = (TextField) getComponent(i);
+//				break;
+//			}
+//		}
+//		return textField != null ? textField.getText() : "";
+//	}
 }
