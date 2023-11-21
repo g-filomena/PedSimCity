@@ -27,7 +27,7 @@ Along with:
 1. Install Java on your machine.
 2. Download the jar file *PedSimCity1.1-jar-with-dependencies.jar* wherever it is convenient.
 3. Open the command prompt in the directory where the .jar file is placed.
-4. Run the command *java -jar PedSimCity1.1-jar-with-dependencies.jar*;
+4. Run the command *java -jar PedSimCity1.1-jar-with-dependencies.jar*.
 5. The applet should pop-up and log-messages should appear in the command prompt window.
 
 **This is the recommended option for running PedSimCity and it does not require the user to take any other step or to manually install the dependencies.**
@@ -39,8 +39,8 @@ If the user desires to use the applet within Eclipse, for example, to explore th
 3. Open Eclipse, and create a new Java project; any name will do.
 4. Right click on the project on the left-hand side *Package Explorer*. Select *Build Path*, *Link Source*, navigate to the PedSimCity-Master, navigate to and then select the folder *src/main/java* (without double clicking on it).
 4. Import all the libraries mentioned above, manually, by right clicking on your project *Build Path*, *Add External Archives*.
-5. To execute the applet, right-click on teh class ```PedSimCity.applet```, *Run as Java Application*
-6. Before pressing the *Run Simulation* button, click on *Other options* and copy-paste the entire path referring to the path *src/main/resources/* in the corresponding field.
+5. To execute the applet, right-click on teh class ```PedSimCity.applet```, *Run as Java Application*.
+6. Before pressing the *Run Simulation* button, click on *Other options* and copy-paste the entire path referring to the path *src/main/resources/* in the corresponding field. This is necessary for retrieving the input data.
 
 The applet allows the user to run the simulating with three different configurations:
 1. Testing Landmarks (London, Muenster).
@@ -48,11 +48,10 @@ The applet allows the user to run the simulating with three different configurat
 3. Empirical ABM (Muenster).
 
 They all come with pre-defined set as regards the parameters: number of ```jobs```, ```numAgents``` per scenario, ```numberTripsPerAgent```. This is line with the settings used for producing the results presented in the papers mentioned above.
-When ```Testing Landmarks``` and  ```Testing Urban Subdivisions```, the user can however runs the model for specific ODs by checking the ```Testing Specific ODs``` and inputing the nodeIDs in the corresponding fields (the number of ```jobs``` won't change).
-
+When ```testingLandmarks``` and  ```testingSubdivisions```, the user can however runs the model for specific ODs by checking the ```Testing Specific ODs``` box and inputing the nodeIDs in the corresponding fields (the number of ```jobs``` won't change).
 The user can also change other simulation-related parameters by clicking on the ```Other Options``` button, before starting the simulation. 
 
 Finally, for generating routes using specific route choice models, the user can also chooose the option
 4. Testing Specific Route Choice Models. 
 
-In this case, the route choice models of interest need to be chosen by clicking ```Choose Route Choices```. The user can also define the number of ```jobs```, and ````numberTripsPerAgent``` (one route choice model = one agent),.
+In this case, the route choice models of interest need to be chosen by clicking ```Choose Route Choices```. The user can also define the number of ```jobs```, and ```numberTripsPerAgent``` (one route choice model = one agent),.
