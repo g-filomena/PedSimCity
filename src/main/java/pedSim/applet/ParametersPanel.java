@@ -168,14 +168,17 @@ public class ParametersPanel extends Frame {
 		Parameters.distanceAnchors = Double.parseDouble(doubleTextFields.get(1).getText());
 		Parameters.nrAnchors = (int) Double.parseDouble(doubleTextFields.get(2).getText());
 		Parameters.threshold3dVisibility = Double.parseDouble(doubleTextFields.get(3).getText());
-		Parameters.globalLandmarkThreshold = Double.parseDouble(doubleTextFields.get(4).getText());
-		Parameters.localLandmarkThreshold = Double.parseDouble(doubleTextFields.get(5).getText());
-		Parameters.salientNodesPercentile = Double.parseDouble(doubleTextFields.get(6).getText());
-		Parameters.wayfindingEasinessThreshold = Double.parseDouble(doubleTextFields.get(7).getText());
-		Parameters.globalLandmarknessWeightDistance = Double.parseDouble(doubleTextFields.get(8).getText());
-		Parameters.globalLandmarknessWeightAngular = Double.parseDouble(doubleTextFields.get(9).getText());
+		Parameters.globalLandmarkThreshold = Double.max(Double.parseDouble(doubleTextFields.get(4).getText()), 0.95);
+		Parameters.localLandmarkThreshold = Double.max(Double.parseDouble(doubleTextFields.get(5).getText()), 0.95);
+		Parameters.salientNodesPercentile = Double.max(Double.parseDouble(doubleTextFields.get(6).getText()), 1.0);
+		Parameters.wayfindingEasinessThreshold = Double.max(Double.parseDouble(doubleTextFields.get(7).getText()), 1.0);
+		Parameters.globalLandmarknessWeightDistance = Double.max(Double.parseDouble(doubleTextFields.get(8).getText()),
+				1.0);
+		Parameters.globalLandmarknessWeightAngular = Double.max(Double.parseDouble(doubleTextFields.get(9).getText()),
+				1.0);
 		Parameters.regionBasedNavigationThreshold = Double.parseDouble(doubleTextFields.get(10).getText());
-		Parameters.wayfindingEasinessThresholdRegions = Double.parseDouble(doubleTextFields.get(11).getText());
+		Parameters.wayfindingEasinessThresholdRegions = Double
+				.max(Double.parseDouble(doubleTextFields.get(11).getText()), 1.0);
 		Parameters.subGraph = Boolean.parseBoolean(booleanTextFields.get(0).getText());
 		Parameters.usingDMA = Boolean.parseBoolean(booleanTextFields.get(1).getText());
 		if (localPathField.getText() != null) {
