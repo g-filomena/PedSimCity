@@ -45,13 +45,11 @@ If the user desires to use the applet within Eclipse, for example, to explore th
 The applet allows the user to run the simulating with three different configurations:
 1. Testing Landmarks (London, Muenster).
 2. Testing Urban Subdivisions (London, Paris, Muenster).
-3. Empirical ABM (Muenster).
+3. Testing Specific Route Choice Models (Muenster).
+4. Empirical ABM (Muenster).
 
-They all come with pre-defined set as regards the parameters: number of ```jobs```, ```numAgents``` per scenario, ```numberTripsPerAgent```. This is line with the settings used for producing the results presented in the papers mentioned above.
+Options 1, 2 and 4 all come with pre-defined set as regards the parameters: number of ```jobs```, ```numAgents``` per scenario, ```numberTripsPerAgent```. This is line with the settings used for producing the results presented in the papers mentioned above.
 When ```testingLandmarks``` and  ```testingSubdivisions```, the user can however runs the model for specific ODs by checking the ```Testing Specific ODs``` box and inputing the nodeIDs in the corresponding fields (the number of ```jobs``` won't change).
 The user can also change other simulation-related parameters by clicking on the ```Other Options``` button, before starting the simulation. 
 
-Finally, for generating routes using specific route choice models, the user can also chooose the option
-4. Testing Specific Route Choice Models. 
-
-In this case, the route choice models of interest need to be chosen by clicking ```Choose Route Choices```. The user can also define the number of ```jobs```, and ```numberTripsPerAgent``` (one route choice model = one agent),.
+When choosing the option 3., the route choice models of interest need to be chosen by clicking ```Choose Route Choices```. The user can also define the number of ```jobs```, and ```numberTripsPerAgent``` (one route choice model = one agent),.
