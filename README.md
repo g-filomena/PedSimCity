@@ -23,7 +23,7 @@ Along with:
 * [Java Tuples](https://www.javatuples.org)
 * [SLF4J](https://www.slf4j.org)
 
-How to run the applet:
+**How to run the applet:**
 1. Install Java on your machine.
 2. Download the jar file *PedSimCity1.1-jar-with-dependencies.jar* wherever it is convenient.
 3. Open the command prompt in the directory where the .jar file is placed.
@@ -42,20 +42,17 @@ If the user desires to use the applet within Eclipse, for example, to explore th
 5. To execute the applet, right-click on teh class ```PedSimCity.applet```, *Run as Java Application*
 6. Before pressing the *Run Simulation* button, click on *Other options* and copy-paste the entire path referring to the path *src/main/resources/* in the corresponding field.
 
+The applet allows the user to run the simulating with three different configurations:
+1. Testing Landmarks (London, Muenster).
+2. Testing Urban Subdivisions (London, Paris, Muenster).
+3. Empirical ABM (Muenster).
 
-Instruction for running the ABM as is for the included case study areas: Paris (regions and barriers), London (landmarks, regions, barriers) or Muenster (landmarks, regions, barriers, empirical-based).
-1. Open the class *UserParameters.java* and get familiar with it.
-2. Specify the following parameter values, so to run the ABM as desired: e.g. number of ```jobs```, ```numAgents``` per scenario, ```numTrips``` per agent (these values are pre-defined when modelling the effect of landmarks and urban subdivisions).
-2. Set the ```cityName```.
-2. Set the local directories for storing the simulation output (this is important).
-* Choose whether to model the effect of landmarks (```testingLandmarks```), regions and barriers (```testingRegions```). These settings run the ABM with pre-defined set of scenarios (and route choice models assigned to each scenario) as described in the corresponding papers.
-* Alternatively one can choose to define their own scenarios. To do so, ```testingModels``` needs to be ```True``` and the Array ```routeChoices``` needs to be filled with the desired route choice models (see the *UserParameters* class for details).
-* To run the empirical based agent-based model, ```empiricalABM``` should be set to ```True```. If ```usingDMA``` is ```True```, the model will also select destination nodes on the basis of empirical data regarding walking trip purposes (see the paper for details).
+They all come with pre-defined set as regards the parameters: number of ```jobs```, ```numAgents``` per scenario, ```numberTripsPerAgent```. This is line with the settings used for producing the results presented in the papers mentioned above.
+When ```Testing Landmarks``` and  ```Testing Urban Subdivisions```, the user can however runs the model for specific ODs by checking the ```Testing Specific ODs``` and inputing the nodeIDs in the corresponding fields (the number of ```jobs``` won't change).
 
-Other aspects to note:
-* ```testingSpecificRoutes``` allows the user to prevent the model to define the Origin-Destination (OD) Matrix. In this case the user can input the desired OD pairs manually in the lists ```or``` and ```de``` (using the corresponding *nodeID* of the junctions).
-* One may have to define the number of ABM runs, the agents per scenario, as well as the number of trips per agent. 
-* ```testingLandmarks```, ```testingRegions```, ```testingModels```, and ```empiricalABM``` are mutually exclusive. However, they can all be combined with ```testingSpecificRoutes```
-* Check that the route choice models to be included refer to elements for which the case study's data is available (e.g. do not model landmarks for Paris).
+The user can also change other simulation-related parameters by clicking on the ```Other Options``` button, before starting the simulation. 
 
-The core of the simulation (the simulation state, the scheduler and the agent basic movement functions) is based on *Gridlock*, by Sarah Wise, Mark Coletti, and Andrew Crooks, a GeoMason example.
+Finally, for generating routes using specific route choice models, the user can also chooose the option
+4. Testing Specific Route Choice Models. 
+
+In this case, the route choice models of interest need to be chosen by clicking ```Choose Route Choices```. The user can also define the number of ```jobs```, and ````numberTripsPerAgent``` (one route choice model = one agent),.
