@@ -51,4 +51,5 @@ Options 1, 2 and 4 all come with pre-defined set as regards the parameters: numb
 When ```testingLandmarks``` and  ```testingSubdivisions```, the user can however runs the model for specific ODs by checking the ```Testing Specific ODs``` box and inputing the nodeIDs in the corresponding fields (the number of ```jobs``` won't change).
 The user can also change other simulation-related parameters by clicking on the ```Other Options``` button, before starting the simulation. 
 
-When choosing the option 3., the route choice models of interest need to be chosen by clicking ```Choose Route Choices```. The user can also define the number of ```jobs```, and ```numberTripsPerAgent``` (one route choice model = one agent),.
+When choosing option 3., the route choice models of interest need to be chosen by clicking the ```Choose Route Choices``` button. 
+The user can also define the number of ```jobs```, and ```numberTripsPerAgent``` (one route choice model = one agent).
