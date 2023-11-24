@@ -144,7 +144,6 @@ public final class Agent implements Steppable {
 	/**
 	 * Handles the agent's behaviour when reaching its destination.
 	 *
-	 * @param stateSchedule the simulation state.
 	 * @throws Exception
 	 */
 	protected void handleReachedDestination() throws Exception {
