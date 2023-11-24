@@ -208,7 +208,6 @@ public class LandmarkNavigation {
 	 * Finds within-region on-route marks from the current node to the passed exit
 	 * gateway node, within the current node's region.
 	 *
-	 * @param currentNode The current node within the region.
 	 * @param exitGateway The exit gateway node that marks the boundary of the
 	 *                    region.
 	 * @return An ArrayList of in-region on-route marks within the same region,
