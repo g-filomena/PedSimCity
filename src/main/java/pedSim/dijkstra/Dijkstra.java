@@ -55,7 +55,7 @@ public class Dijkstra {
 	 * @param finalDestinationNode The final destination node.
 	 * @param segmentsToAvoid      A set of directed edges to avoid during route
 	 *                             calculation.
-	 * @param agentProperties      The properties of the agent using this algorithm.
+	 * @param agent                The agent for which the route is computed.
 	 * @param usingSubGraph        Indicates whether a subgraph is used for
 	 *                             calculation.
 	 */
@@ -82,7 +82,7 @@ public class Dijkstra {
 	 * @param centroidsToAvoid     A set of centroids to avoid during route
 	 *                             calculation.
 	 * @param previousJunction     The previous junction node in the dual graph.
-	 * @param agentProperties      The properties of the agent using this algorithm.
+	 * @param agent                The agent for which the route is computed.
 	 * @param usingSubGraph        Indicates whether a subgraph is used for
 	 *                             calculation.
 	 */
