@@ -16,6 +16,15 @@
 		Available case studies in the applet include London (UK), Paris (FR), Muenster (DE). 
     </description>
     <url>https://github.com/g-filomena/PedSimCity</url>
+	
+	<developers>
+		<developer>
+		  <name>Gabriele Filomena</name>
+		  <email>gabriele.filomena@liverpool.ac.uk</email>
+		  <organization>University of Liverpool, Geographic Data Science Lab</organization>
+		  <organizationUrl>https://www.liverpool.ac.uk/geographic-data-science/</organizationUrl>
+		</developer>
+	</developers>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -58,11 +67,9 @@
 	
        <!-- GeoMason-light -->
 		<dependency>
-            <groupId>uk.ac.liv.gdsl</groupId>
-            <artifactId>GeoMason-light</artifactId>
-            <version>1.12</version>	
-			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/geo.jar</systemPath>
+			<groupId>uk.ac.liv.gdsl</groupId>
+			<artifactId>GeoMason-light</artifactId>
+			<version>1.13</version>
         </dependency>
 
        <!-- Mason -->
@@ -105,7 +112,41 @@
 					</archive>
 				</configuration>
 			</plugin>
-		
+			
+			<!-- Javadoc -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <doclint>all,-missing</doclint>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Sources -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.2.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+			
+			
 			<!--Add jars -->
 			<plugin>
 				<groupId>com.googlecode.addjars-maven-plugin</groupId>
@@ -155,4 +196,13 @@
 		
 		</plugins>
     </build>
+		
+	<licenses>
+        <license>
+            <name>GNU General Public License, Version 3.0</name>
+            <url>https://www.gnu.org/licenses/gpl-3.0.html</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+	
 </project>
