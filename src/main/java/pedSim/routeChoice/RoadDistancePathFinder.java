@@ -19,7 +19,7 @@ public class RoadDistancePathFinder extends PathFinder {
 	 * 
 	 * @param originNode      the origin node;
 	 * @param destinationNode the destination node;
-	 * @param agentProperties the agent properties;
+	 * @param agent           The agent for which the route is computed.
 	 * @return a {@code Route} object representing the road-distance shortest path.
 	 */
 	public Route roadDistance(NodeGraph originNode, NodeGraph destinationNode, Agent agent) {
@@ -38,12 +38,12 @@ public class RoadDistancePathFinder extends PathFinder {
 	 * agent properties. It allows combining the road-distance local minimisation
 	 * heuristic with navigational strategies based on the usage of urban elements.
 	 *
-	 * @param sequenceNodes   sequence of intermediate nodes (e.g. on-route marks,
-	 *                        gateways) including the origin and the destination
-	 *                        nodes;
-	 * @param agentProperties the agent properties;
-	 * @return a {@code Route} object representing the road-distance shortest path
-	 *         for the sequence of nodes.
+	 * @param sequenceNodes sequence of intermediate nodes (e.g. on-route marks,
+	 *                      gateways) including the origin and the destination
+	 *                      nodes;
+	 * @param agent         The agent for which the route is computed.
+	 * @return a `Route' object representing the road-distance shortest path for the
+	 *         sequence of nodes.
 	 */
 	public Route roadDistanceSequence(ArrayList<NodeGraph> sequenceNodes, Agent agent) {
 
