@@ -37,8 +37,7 @@ public class DijkstraRoadDistance extends Dijkstra {
 	 *                             path.
 	 * @param segmentsToAvoid      A set of directed edges (segments) to avoid
 	 *                             during the path calculation.
-	 * @param agentProperties      The set of agent properties that influence path
-	 *                             calculations.
+	 * @param agent                The agent for which the route is computed.
 	 * 
 	 * @return An ArrayList of DirectedEdges representing the shortest path from the
 	 *         origin to the destination.
