@@ -46,15 +46,15 @@ public class LandmarkIntegration {
 	 * It assigns to each node in the graph a list of distant landmarks and their
 	 * corresponding global landmarkness values.
 	 *
-	 * @param localLandmarks the layer containing all the buildings possibly
-	 *                       considered as global landmarks;
-	 * @param buildingsMap   the map of buildings (buildingID, Building);
-	 * @param radiusAnchors  the distance radius within which a global landmark is
-	 *                       considered to be an anchor of a node (when intended as
-	 *                       destination node);
-	 * @param sightLines     the layer containing the sight lines;
-	 * @param nrAnchors      the max number of anchors per node, sorted by global
-	 *                       landmarkness;
+	 * @param globalLandmarks the layer containing all the buildings possibly
+	 *                        considered as global landmarks;
+	 * @param buildingsMap    the map of buildings (buildingID, Building);
+	 * @param radiusAnchors   the distance radius within which a global landmark is
+	 *                        considered to be an anchor of a node (when intended as
+	 *                        destination node);
+	 * @param sightLines      the layer containing the sight lines;
+	 * @param nrAnchors       the max number of anchors per node, sorted by global
+	 *                        landmarkness;
 	 */
 	public static void setGlobalLandmarkness(VectorLayer globalLandmarks, HashMap<Integer, Building> buildingsMap,
 			double radiusAnchors, VectorLayer sightLines, int nrAnchors) {
