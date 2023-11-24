@@ -29,10 +29,9 @@ public class DijkstraAngularChange extends Dijkstra {
 	 * @param destinationNode      The destination node to reach.
 	 * @param finalDestinationNode The final destination node (primal graph) for the
 	 *                             path, if different.
-	 * @param segmentsToAvoid      A set of directed edges (segments) to avoid
-	 *                             during the path calculation.
-	 * @param agentProperties      The set of agent properties that influence path
-	 *                             calculations.
+	 * @param centroidsToAvoid     A set of centroids (nodes representing segments)
+	 *                             to avoid during the path calculation.
+	 * @param agent                The agent for which the route is computed.
 	 * 
 	 * @return An ArrayList of DirectedEdges representing the path.
 	 */
