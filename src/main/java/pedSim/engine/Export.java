@@ -42,7 +42,6 @@ public class Export {
 	/**
 	 * Saves simulation results to specified output directories.
 	 *
-	 * @param job The identifier of the current job.
 	 * @throws Exception If there is an error while saving the results.
 	 */
 	public void saveResults(FlowHandler flowHandler) throws Exception {
