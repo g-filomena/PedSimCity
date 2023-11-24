@@ -177,11 +177,10 @@ public class BarrierBasedNavigation {
 	 * Identifies an edge-subGoals associated with the most attractive barrier,
 	 * complying with certain criteria, and finds the closest edge to them.
 	 *
-	 * @param validBarriers   a set of valid, intersecting barriers towards the
-	 *                        destination.
-	 * @param currentLocation the current location.
-	 * @param region          the region of the currentLocation, only for
-	 *                        region-based navigation.
+	 * @param validBarriers a set of valid, intersecting barriers towards the
+	 *                      destination.
+	 * @param region        the region of the currentLocation, only for region-based
+	 *                      navigation.
 	 * @return a Pair of EdgeGraph and Integer representing the closest edge to the
 	 *         barrier and the barrierID.
 	 */
