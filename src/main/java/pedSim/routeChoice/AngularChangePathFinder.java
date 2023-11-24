@@ -22,7 +22,7 @@ public class AngularChangePathFinder extends PathFinder {
 	 *
 	 * @param originNode      The origin node for the route.
 	 * @param destinationNode The destination node for the route.
-	 * @param agentProperties The agent properties used for route calculation.
+	 * @param agent           The agent for which the route is completed.
 	 * @return A Route object representing the calculated route based on angular
 	 *         change.
 	 */
@@ -57,8 +57,8 @@ public class AngularChangePathFinder extends PathFinder {
 	 * agent properties. It allows combining the angular-change local minimisation
 	 * heuristic with navigational strategies based on the usage of urban elements.
 	 * 
-	 * @param sequenceNodes   A list of nodes representing intermediate nodes.
-	 * @param agentProperties The agent properties used for route calculation.
+	 * @param sequenceNodes A list of nodes representing intermediate nodes.
+	 * @param agent         The agent for which the route is completed.
 	 * @return A Route object representing the calculated sequence of routes based
 	 *         on angular change.
 	 */
