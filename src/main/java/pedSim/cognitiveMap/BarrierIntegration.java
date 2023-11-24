@@ -64,17 +64,15 @@ public class BarrierIntegration {
 	 * Sets the barrier information for an EdgeGraph based on attribute values. This
 	 * method parses attribute strings representing different types of barriers,
 	 * such as positive barriers, negative barriers, rivers, and parks, and
-	 * populates the corresponding lists in the EdgeGraph.
+	 * populates the corresponding lists in the EdgeGraph. The method retrieves
+	 * attribute values for positive barriers ("p_barr"), negative barriers
+	 * ("n_barr"), rivers ("a_rivers"), and parks ("w_parks") from the EdgeGraph's
+	 * attributes. It parses these strings to extract barrier IDs and adds them to
+	 * the appropriate lists: positiveBarriers, negativeBarriers, waterBodies, and
+	 * parks. Additionally, it combines positive and negative barriers into the
+	 * 'barriers' list for convenient access.
 	 *
 	 * @param edge The EdgeGraph for which barrier information is being set.
-	 *
-	 * @note The method retrieves attribute values for positive barriers ("p_barr"),
-	 *       negative barriers ("n_barr"), rivers ("a_rivers"), and parks
-	 *       ("w_parks") from the EdgeGraph's attributes. It parses these strings to
-	 *       extract barrier IDs and adds them to the appropriate lists:
-	 *       positiveBarriers, negativeBarriers, waterBodies, and parks.
-	 *       Additionally, it combines positive and negative barriers into the
-	 *       'barriers' list for convenient access.
 	 */
 	public static void setEdgeGraphBarriers(EdgeGraph edge) {
 
