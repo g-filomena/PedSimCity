@@ -3,11 +3,11 @@
 This model incorporates simplified cognitive maps of the urban environment in the architecture of the agents.
 
 This model simulates the movement of pedestrians across the street network of large urban areas. The novelty of the model lies on the inclusion of cognitive representations of space (cognitive maps) in the behavioural architecture of the pedestrian agents.
+
 More specifically, a computational approach to Kevin Lynch's The Image of the City (see related paper in [Cities](https://www.sciencedirect.com/science/article/pii/S0264275118309776)) is employed to incorporate salient urban elements in the cognitive maps of the agents - alongside perception of distances and angular relationships between road segments. 
 It is argued that the include of certain urban elements in one’s cognitive map shapes their route choice behaviour, that is how they formulate a route between an origin and a destination. 
 
 The ABM has been built following a stepwise approach, so as to explore and assess the effect of the inclusion in the cognitive map of the agents of different urban elements (1. landmarks, 2. regions and barriers). 
-
 
 The impact of element-based route choice models within the model was assessed in comparison with minimisation-based route choice models (i.e. distance shortest path, least cumulative angular change). 
 The inclusion of these urban elements has been tested, in combination with existing route choice models:
