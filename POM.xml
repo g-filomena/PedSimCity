@@ -7,7 +7,7 @@
 
     <groupId>uk.ac.liv.gdsl</groupId>
     <artifactId>pedsimcity</artifactId>
-    <version>1.2</version>
+    <version>1.0</version>
 
 	<name>${project.groupId}:${project.artifactId}</name>
     <description>
