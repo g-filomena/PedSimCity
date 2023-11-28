@@ -1,7 +1,5 @@
 ## PedSimCity: An Agent-Based Model for simulating pedestrian movement in large urban areas
 
-This model incorporates simplified cognitive maps of the urban environment in the architecture of the agents.
-
 This model simulates the movement of pedestrians across the street network of large urban areas. The novelty of the model lies on the inclusion of cognitive representations of space (cognitive maps) in the behavioural architecture of the pedestrian agents.
 
 More specifically, a computational approach to Kevin Lynch's The Image of the City (see related paper in [Cities](https://www.sciencedirect.com/science/article/pii/S0264275118309776)) is employed to incorporate salient urban elements in the cognitive maps of the agents - alongside perception of distances and angular relationships between road segments. 
@@ -60,5 +58,5 @@ Options 1, 2 and 4 all come with pre-defined set as regards the parameters: numb
 When ```testingLandmarks``` and  ```testingSubdivisions```, the user can however runs the model for specific ODs by checking the ```Testing Specific ODs``` box and inputing the nodeIDs in the corresponding fields (the number of ```jobs``` won't change).
 The user can also change other simulation-related parameters by clicking on the ```Other Options``` button, before starting the simulation. 
 
-When choosing option 3., the route choice models of interest need to be chosen by clicking the ```Choose Route Choices``` button. 
+When choosing option 3, the route choice models of interest need to be chosen by clicking the ```Choose Route Choices``` button. 
 The user can also define the number of ```jobs```, and ```numberTripsPerAgent``` (one route choice model = one agent).
