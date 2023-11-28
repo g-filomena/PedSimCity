@@ -1,13 +1,22 @@
 ## PedSimCity: An Agent-Based Model for simulating pedestrian movement in large urban areas
 
 This model incorporates simplified cognitive maps of the urban environment in the architecture of the agents.
-In particular, a computational approach to Kevyn Lynch's The Image of the City (see related paper in [Cities](https://www.sciencedirect.com/science/article/pii/S0264275118309776)) is employed to incorporate salient urban elements in the route choice approaches of the agents. A basic conceptual model of the ABM was presented at the [2018 Agile Conference](https://agile-online.org/conference_paper/cds/agile_2018/shortpapers/64%20short_paper_64.pdf).
 
-The introduction of different urban elements has been tested, in combination with existing route choice models:
+This model simulates the movement of pedestrians across the street network of large urban areas. The novelty of the model lies on the inclusion of cognitive representations of space (cognitive maps) in the behavioural architecture of the pedestrian agents.
+More specifically, a computational approach to Kevin Lynch's The Image of the City (see related paper in [Cities](https://www.sciencedirect.com/science/article/pii/S0264275118309776)) is employed to incorporate salient urban elements in the cognitive maps of the agents - alongside perception of distances and angular relationships between road segments. 
+It is argued that the include of certain urban elements in one’s cognitive map shapes their route choice behaviour, that is how they formulate a route between an origin and a destination. 
+
+The ABM has been built following a stepwise approach, so as to explore and assess the effect of the inclusion in the cognitive map of the agents of different urban elements (1. landmarks, 2. regions and barriers). 
+
+
+The impact of element-based route choice models within the model was assessed in comparison with minimisation-based route choice models (i.e. distance shortest path, least cumulative angular change). 
+The inclusion of these urban elements has been tested, in combination with existing route choice models:
 * Landmark-based navigation: London - Methods, results and evaluation are documented in *Modelling the effect of landmarks on pedestrian dynamics*, published in [Computers, Environment and Urban Systems](https://doi.org/10.1016/j.compenvurbsys.2020.101573).
 * Region- and barrier-based navigation: London and Paris - Methods and results, along with a validation are documented in *Perception of urban subdivisions in pedestrian movement simulation*, published in [PLoS ONE](https://doi.org/10.1371/journal.pone.0244099).
 
-The role of the landmarks, barriers and region are combined and modelled together in the Empirical based Agent-Based Model.
+The ABM allows executing these experiments *Testing Landmarks* and *Testing Urban Subdivisions*.
+
+In addition, the ABM, can be run as an empirical-based model where the interaction between the effects of the different urban elements is regulated and calibrated on the basis of empirical data (“Empirical ABM”). 
 The ABM, the qualitative study conducted to calibrate it, and its evaluation are documented in *Empirical characterisation of agents’ spatial behaviour in pedestrian movement simulation*, 
 published in [Journal of Environmental Psychology](https://www.sciencedirect.com/science/article/pii/S0272494422000524).
 
