@@ -1,4 +1,4 @@
-# PedSimCity# 
+# PedSimCity # 
 ## An Agent-Based Model for simulating pedestrian movement in large urban areas ## 
 
 This model simulates the movement of pedestrians across the street network of large urban areas. The novelty of the model lies on the inclusion of cognitive representations of space (cognitive maps) in the behavioural architecture of the pedestrian agents.
