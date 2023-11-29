@@ -20,9 +20,12 @@ jobs:
         with:
           java-version: '11'
           distribution: 'temurin'
+          server-username: g-filomena  # env variable name for username
+          server-password: ${{ secrets.G_TOKEN }}
             
       - name: Publish package
         run: mvn --batch-mode deploy --settings $GITHUB_WORKSPACE/.m2/settings.xml -X
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_USER: g-filomena
+          GITHUB_TOKEN: ${{ secrets.G_TOKEN }}
               
