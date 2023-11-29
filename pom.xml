@@ -6,7 +6,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>uk.ac.liv.gdsl</groupId>
-    <artifactId>PedSimCity</artifactId>
+    <artifactId>pedsimcity</artifactId>
     <version>0.98</version>
 
 	<name>${project.groupId}:${project.artifactId}</name>
