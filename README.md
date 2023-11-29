@@ -20,8 +20,8 @@ In addition, the ABM, can be run as an empirical-based model where the interacti
 The ABM, the qualitative study conducted to calibrate it, and its evaluation are documented in *Empirical characterisation of agents’ spatial behaviour in pedestrian movement simulation*, 
 published in [Journal of Environmental Psychology](https://www.sciencedirect.com/science/article/pii/S0272494422000524).
 
-![](figure.PNG)
-*Visualisation of Pedestrian Volumes Results after elaboration in Python*
+![](figures/urbanSub.png)
+*Testing Urban Subdivisions: Pedestrian Volumes after elaboration in Python (London, UK)*
 
 PedSimCity is built on:
 * [JTS](https://github.com/locationtech/jts)
