@@ -7,7 +7,7 @@
 
     <groupId>uk.ac.liv.gdsl</groupId>
     <artifactId>PedSimCity</artifactId>
-    <version>0.95</version>
+    <version>0.98</version>
 
 	<name>${project.groupId}:${project.artifactId}</name>
     <description>
