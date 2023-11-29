@@ -121,6 +121,33 @@
 				</configuration>
 			</plugin>
 			
+			<!-- Copy POM to target -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-resources-plugin</artifactId>
+				<version>3.2.0</version>
+				<executions>
+					<execution>
+						<id>copy-pom</id>
+						<phase>initialize</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}</outputDirectory>
+							<resources>
+								<resource>
+									<directory>${project.basedir}</directory>
+									<includes>
+										<include>pom.xml</include>
+									</includes>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			
 			<!-- Javadoc -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -153,7 +180,6 @@
                     </execution>
                 </executions>
             </plugin>
-			
 			
 			<!--Add jars -->
 			<plugin>
