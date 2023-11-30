@@ -54,16 +54,16 @@ public final class Agent implements Steppable {
 	double speed = 0.0;
 
 	// start, current, end position along current line
+	EdgeGraph currentEdge = null;
 	double startIndex = 0.0;
 	double currentIndex = 0.0;
 	double endIndex = 0.0;
-	EdgeGraph currentEdge = null;
 
 	// used by agent to walk along line segment
 	int linkDirection = 1;
 	int indexOnEdgesSequence = 0;
 	int pathDirection = 1;
-	protected LengthIndexedLine segment = null;
+	protected LengthIndexedLine indexedSegment = null;
 	public Route route = new Route();
 
 	/**
@@ -191,7 +191,7 @@ public final class Agent implements Steppable {
 		// Sets the Agent up to proceed along an Edge
 		setupEdge(firstEdge);
 		// update the current position for this link
-		updateAgentPosition(segment.extractPoint(currentIndex));
+		updateAgentPosition(indexedSegment.extractPoint(currentIndex));
 		updateData();
 		tripsDone += 1;
 	}
@@ -248,16 +248,16 @@ public final class Agent implements Steppable {
 		// check to see if the progress has taken the current index beyond its goal
 		// given the direction of movement. If so, proceed to the next edge
 		if (linkDirection == 1 && currentIndex > endIndex) {
-			final Coordinate currentPos = segment.extractPoint(endIndex);
+			final Coordinate currentPos = indexedSegment.extractPoint(endIndex);
 			updateAgentPosition(currentPos);
 			transitionToNextEdge(currentIndex - endIndex);
 		} else if (linkDirection == -1 && currentIndex < startIndex) {
-			final Coordinate currentPos = segment.extractPoint(startIndex);
+			final Coordinate currentPos = indexedSegment.extractPoint(startIndex);
 			updateAgentPosition(currentPos);
 			transitionToNextEdge(startIndex - currentIndex);
 		} else {
 			// just update the position!
-			final Coordinate currentPos = segment.extractPoint(currentIndex);
+			final Coordinate currentPos = indexedSegment.extractPoint(currentIndex);
 			updateAgentPosition(currentPos);
 		}
 	}
@@ -318,9 +318,9 @@ public final class Agent implements Steppable {
 		// transform GeomPlanarGraphEdge in Linestring
 		final LineString line = edge.getLine();
 		// index the Linestring
-		segment = new LengthIndexedLine(line);
-		startIndex = segment.getStartIndex();
-		endIndex = segment.getEndIndex();
+		indexedSegment = new LengthIndexedLine(line);
+		startIndex = indexedSegment.getStartIndex();
+		endIndex = indexedSegment.getEndIndex();
 		linkDirection = 1;
 
 		// check to ensure that Agent is moving in the right direction (direction)
