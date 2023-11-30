@@ -19,7 +19,6 @@ public class AgentProperties {
 	public boolean onlyMinimising = false;
 	public boolean minimisingDistance = false;
 	public boolean minimisingAngular = false;
-	public boolean minimisingTurns = false;
 
 	public boolean localHeuristicDistance = false;
 	public boolean localHeuristicAngular = false;
