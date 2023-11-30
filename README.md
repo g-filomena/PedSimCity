@@ -2,6 +2,9 @@
 
 ## An Agent-Based Model for simulating pedestrian movement in large urban areas ##
 
+[![GitHub CI](https://github.com/g-filomena/PedSimCity/actions/workflows/build.yaml/badge.svg)](https://github.com/g-filomena/PedSimCity/actions/workflows/build.yaml)
+[![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.en.html)
+
 This model simulates the movement of pedestrians across the street network of large urban areas. The novelty of the model lies on the inclusion of cognitive representations of space (cognitive maps) in the behavioural architecture of the pedestrian agents.
 
 More specifically, a computational approach to Kevin Lynch's The Image of the City (see related paper in [Cities](https://www.sciencedirect.com/science/article/pii/S0264275118309776)) is employed to incorporate salient urban elements in the cognitive maps of the agents - alongside perception of distances and angular relationships between road segments. 
