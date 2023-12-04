@@ -39,9 +39,9 @@ Along with:
 
 **How to run the applet:**
 1. Install Java on your machine.
-2. Download the jar file *PedSimCity1.1-jar-with-dependencies.jar* wherever it is convenient.
+2. Download the jar file *PedSimCity1.21-jar-with-dependencies.jar* wherever it is convenient.
 3. Open the command prompt in the directory where the .jar file is placed.
-4. Run the command *java -jar PedSimCity1.1-jar-with-dependencies.jar*.
+4. Run the command *java -jar PedSimCity1.21-jar-with-dependencies.jar*.
 5. The applet should pop-up and log-messages should appear in the command prompt window.
 
 **This is the recommended option for running PedSimCity and it does not require the user to take any other step or to manually install the dependencies.**
