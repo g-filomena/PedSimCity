@@ -1,7 +1,6 @@
 package pedSim.engine;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URL;
@@ -197,8 +196,15 @@ public class Import {
 	 */
 	private void importEmpiricalGroups() throws Exception {
 
-		String filePath = resourcePath + File.separator + "clusters.csv";
-		final CSVReader readerEmpiricalGroups = new CSVReader(new FileReader(filePath));
+		ClassLoader classLoader = getClass().getClassLoader();
+		URL resourceURL = null;
+		if (Parameters.javaProject)
+			resourceURL = new File(resourcePath + "/clusters.csv").toURI().toURL();
+		else
+			resourceURL = classLoader.getResource(resourcePath + "/clusters.csv");
+
+		Reader reader = new InputStreamReader(resourceURL.openStream());
+		CSVReader readerEmpiricalGroups = new CSVReader(reader);
 		String[] nextLine;
 
 		int row = 0;
