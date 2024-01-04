@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import org.javatuples.Pair;
@@ -27,34 +28,34 @@ public class EmpiricalAgentProperties extends AgentProperties {
 	boolean usingElements = false;
 	boolean elementsActivated = false;
 
-	ArrayList<Double> elementsProbability = new ArrayList<>(Arrays.asList(0.0, 0.0));
-	ArrayList<Double> minimisationProbability = new ArrayList<>(Arrays.asList(0.0, 0.0));
-	ArrayList<Double> localHeuristicsProbability = new ArrayList<>(Arrays.asList(0.0, 0.0));
-	ArrayList<Double> regionBasedProbability = new ArrayList<>(Arrays.asList(0.0));
-	ArrayList<Double> subGoalsProbability = new ArrayList<>(Arrays.asList(0.0, 0.0));
-	ArrayList<Double> distantLandmarksProbability = new ArrayList<>(Arrays.asList(0.0));
+	List<Double> elementsProbability = new ArrayList<>(Arrays.asList(0.0, 0.0));
+	List<Double> minimisationProbability = new ArrayList<>(Arrays.asList(0.0, 0.0));
+	List<Double> localHeuristicsProbability = new ArrayList<>(Arrays.asList(0.0, 0.0));
+	List<Double> regionBasedProbability = new ArrayList<>(Arrays.asList(0.0));
+	List<Double> subGoalsProbability = new ArrayList<>(Arrays.asList(0.0, 0.0));
+	List<Double> distantLandmarksProbability = new ArrayList<>(Arrays.asList(0.0));
 
-	HashMap<RouteChoiceProperty, Double> elementsMap = new HashMap<>();
-	HashMap<RouteChoiceProperty, Double> minimisationMap = new HashMap<>();
-	HashMap<RouteChoiceProperty, Double> localHeuristicsMap = new HashMap<>();
-	HashMap<RouteChoiceProperty, Double> regionBasedMap = new HashMap<>();
-	HashMap<RouteChoiceProperty, Double> subGoalsMap = new HashMap<>();
-	HashMap<RouteChoiceProperty, Double> distantLandmarksMap = new HashMap<>();
-	HashMap<RouteChoiceProperty, Double> randomElementsMap = new HashMap<>();
+	Map<RouteChoiceProperty, Double> elementsMap = new HashMap<>();
+	Map<RouteChoiceProperty, Double> minimisationMap = new HashMap<>();
+	Map<RouteChoiceProperty, Double> localHeuristicsMap = new HashMap<>();
+	Map<RouteChoiceProperty, Double> regionBasedMap = new HashMap<>();
+	Map<RouteChoiceProperty, Double> subGoalsMap = new HashMap<>();
+	Map<RouteChoiceProperty, Double> distantLandmarksMap = new HashMap<>();
+	Map<RouteChoiceProperty, Double> randomElementsMap = new HashMap<>();
 
-	ArrayList<RouteChoiceProperty> elements = new ArrayList<>(
+	List<RouteChoiceProperty> elements = new ArrayList<>(
 			Arrays.asList(RouteChoiceProperty.USING_ELEMENTS, RouteChoiceProperty.NOT_USING_ELEMENTS));
-	ArrayList<RouteChoiceProperty> minimisation = new ArrayList<>(
+	List<RouteChoiceProperty> minimisation = new ArrayList<>(
 			Arrays.asList(RouteChoiceProperty.ROAD_DISTANCE, RouteChoiceProperty.ANGULAR_CHANGE));
-	ArrayList<RouteChoiceProperty> localHeuristics = new ArrayList<>(
-			Arrays.asList(RouteChoiceProperty.ROAD_DISTANCE, RouteChoiceProperty.ANGULAR_CHANGE));
-	ArrayList<RouteChoiceProperty> subGoals = new ArrayList<>(Arrays.asList(RouteChoiceProperty.LOCAL_LANDMARKS,
+	List<RouteChoiceProperty> localHeuristics = new ArrayList<>(
+			Arrays.asList(RouteChoiceProperty.ROAD_DISTANCE_LOCAL, RouteChoiceProperty.ANGULAR_CHANGE_LOCAL));
+	List<RouteChoiceProperty> subGoals = new ArrayList<>(Arrays.asList(RouteChoiceProperty.LOCAL_LANDMARKS,
 			RouteChoiceProperty.BARRIER_SUBGOALS, RouteChoiceProperty.NO_SUBGOALS));
-	ArrayList<RouteChoiceProperty> regionBased = new ArrayList<>(
+	List<RouteChoiceProperty> regionBased = new ArrayList<>(
 			Arrays.asList(RouteChoiceProperty.REGION_BASED, RouteChoiceProperty.NOT_REGION_BASED));
-	ArrayList<RouteChoiceProperty> distantLandmarks = new ArrayList<>(
+	List<RouteChoiceProperty> distantLandmarks = new ArrayList<>(
 			Arrays.asList(RouteChoiceProperty.USING_DISTANT, RouteChoiceProperty.NOT_USING_DISTANT));
-	ArrayList<RouteChoiceProperty> randomElements = new ArrayList<>(
+	List<RouteChoiceProperty> randomElements = new ArrayList<>(
 			Arrays.asList(RouteChoiceProperty.REGION_BASED, RouteChoiceProperty.LOCAL_LANDMARKS,
 					RouteChoiceProperty.BARRIER_SUBGOALS, RouteChoiceProperty.USING_DISTANT));
 
@@ -73,7 +74,7 @@ public class EmpiricalAgentProperties extends AgentProperties {
 	 *              this agent's properties.
 	 */
 	public EmpiricalAgentProperties(Agent agent, EmpiricalAgentsGroup group) {
-		super(agent);
+		super();
 		this.group = group;
 		this.groupName = this.group.groupName;
 	}
@@ -178,7 +179,7 @@ public class EmpiricalAgentProperties extends AgentProperties {
 	 * @param pDistribution The probability distribution as a list of pairs
 	 *                      representing mean and standard deviation.
 	 */
-	public void updateProbabilities(ArrayList<Double> probabilities, ArrayList<Pair<Double, Double>> pDistribution) {
+	public void updateProbabilities(List<Double> probabilities, List<Pair<Double, Double>> pDistribution) {
 		for (final Double d : probabilities) {
 			final int index = probabilities.indexOf(d);
 			final double p = Utilities.fromDistribution(pDistribution.get(index).getValue0(),
@@ -197,8 +198,8 @@ public class EmpiricalAgentProperties extends AgentProperties {
 	 * @param propertiesMap         The map to store the properties and their
 	 *                              probabilities.
 	 */
-	private void mapProbabilities(ArrayList<RouteChoiceProperty> properties, ArrayList<Double> propertiesProbability,
-			HashMap<RouteChoiceProperty, Double> propertiesMap) {
+	private void mapProbabilities(List<RouteChoiceProperty> properties, List<Double> propertiesProbability,
+			Map<RouteChoiceProperty, Double> propertiesMap) {
 
 		for (final RouteChoiceProperty property : properties) {
 			final int index = properties.indexOf(property);
@@ -344,8 +345,8 @@ public class EmpiricalAgentProperties extends AgentProperties {
 	 * @param propertyMap The map to store the initialised probabilities for each
 	 *                    property.
 	 */
-	private void initializeUniformProbabilities(ArrayList<RouteChoiceProperty> properties,
-			HashMap<RouteChoiceProperty, Double> propertyMap) {
+	private void initializeUniformProbabilities(List<RouteChoiceProperty> properties,
+			Map<RouteChoiceProperty, Double> propertyMap) {
 		final double probability = 1.0 / Double.valueOf(properties.size());
 		for (final RouteChoiceProperty property : properties)
 			propertyMap.put(property, probability);
