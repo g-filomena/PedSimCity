@@ -2,12 +2,14 @@ package pedSim.routeChoice;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 
 import org.locationtech.jts.planargraph.DirectedEdge;
 
 import pedSim.agents.Agent;
 import pedSim.dijkstra.DijkstraAngularChange;
 import pedSim.engine.PedSimCity;
+import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
 
 /**
@@ -34,7 +36,7 @@ public class AngularChangePathFinder extends PathFinder {
 		while (dualDestination == dualOrigin || dualDestination == null)
 			dualDestination = destinationNode.getDualNode(originNode, destinationNode, false, previousJunction);
 
-		NodeGraph commonJunction = route.commonPrimalJunction(dualOrigin, dualDestination);
+		NodeGraph commonJunction = GraphUtils.getPrimalJunction(dualOrigin, dualDestination);
 		if (commonJunction != null) {
 			route.directedEdgesSequence.add(PedSimCity.network.getDirectedEdgeBetween(originNode, commonJunction));
 			route.directedEdgesSequence.add(PedSimCity.network.getDirectedEdgeBetween(commonJunction, destinationNode));
@@ -42,9 +44,8 @@ public class AngularChangePathFinder extends PathFinder {
 		}
 
 		DijkstraAngularChange dijkstra = new DijkstraAngularChange();
-		HashSet<NodeGraph> centroidsToAvoidSet = new HashSet<>(centroidsToAvoid);
-		partialSequence = dijkstra.dijkstraAlgorithm(dualOrigin, dualDestination, destinationNode, centroidsToAvoidSet,
-				previousJunction, agent);
+		partialSequence = dijkstra.dijkstraAlgorithm(dualOrigin, dualDestination, destinationNode,
+				new HashSet<NodeGraph>(centroidsToAvoid), previousJunction, agent);
 		cleanDualPath(originNode, destinationNode);
 		route.directedEdgesSequence = partialSequence;
 		route.routeSequences();
@@ -62,7 +63,7 @@ public class AngularChangePathFinder extends PathFinder {
 	 * @return A Route object representing the calculated sequence of routes based
 	 *         on angular change.
 	 */
-	public Route angularChangeBasedSequence(ArrayList<NodeGraph> sequenceNodes, Agent agent) {
+	public Route angularChangeBasedSequence(List<NodeGraph> sequenceNodes, Agent agent) {
 
 		this.agent = agent;
 		this.regionBased = agent.getProperties().regionBasedNavigation;
@@ -101,10 +102,10 @@ public class AngularChangePathFinder extends PathFinder {
 			for (NodeGraph tmpDualOrigin : dualNodesOrigin) {
 				for (NodeGraph tmpDualDestination : dualNodesDestination) {
 					// check if just one node separates them
-					NodeGraph commonJunction = route.commonPrimalJunction(tmpDualOrigin, tmpDualDestination);
+					NodeGraph sharedJunction = GraphUtils.getPrimalJunction(tmpDualOrigin, tmpDualDestination);
 
-					if (commonJunction != null) {
-						addEdgesCommonJunction(commonJunction);
+					if (sharedJunction != null) {
+						addEdgesCommonJunction(sharedJunction);
 					} else {
 						final DijkstraAngularChange pathfinder = new DijkstraAngularChange();
 						HashSet<NodeGraph> centroidsToAvoidSet = new HashSet<>(centroidsToAvoid);
