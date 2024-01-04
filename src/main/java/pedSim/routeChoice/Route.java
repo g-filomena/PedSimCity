@@ -1,10 +1,12 @@
 package pedSim.routeChoice;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import org.locationtech.jts.planargraph.DirectedEdge;
 
 import sim.graph.EdgeGraph;
+import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
 
 /**
@@ -17,8 +19,9 @@ public class Route {
 	// always primal
 	public NodeGraph originNode;
 	public NodeGraph destinationNode;
-	public ArrayList<DirectedEdge> directedEdgesSequence = new ArrayList<>();
-	private ArrayList<EdgeGraph> edgesSequence = new ArrayList<>();
+	public List<DirectedEdge> directedEdgesSequence = new ArrayList<>();
+	private List<EdgeGraph> edgesSequence = new ArrayList<>();
+	private List<NodeGraph> nodesSequence = new ArrayList<>();
 
 	/**
 	 * Identifies the previous junction traversed in a dual graph path to avoid
@@ -28,17 +31,17 @@ public class Route {
 	 *                              representing the path.
 	 * @return The previous junction node.
 	 */
-	public NodeGraph previousJunction(ArrayList<DirectedEdge> sequenceDirectedEdges) {
+	public NodeGraph previousJunction(List<DirectedEdge> sequenceDirectedEdges) {
 		// from global graph
 		if (sequenceDirectedEdges.size() == 1)
 			return (NodeGraph) sequenceDirectedEdges.get(0).getFromNode();
 
-		NodeGraph lastCen = ((EdgeGraph) sequenceDirectedEdges.get(sequenceDirectedEdges.size() - 1).getEdge())
-				.getDual();
-		NodeGraph otherCen = ((EdgeGraph) sequenceDirectedEdges.get(sequenceDirectedEdges.size() - 2).getEdge())
-				.getDual();
+		NodeGraph lastCentroid = ((EdgeGraph) sequenceDirectedEdges.get(sequenceDirectedEdges.size() - 1).getEdge())
+				.getDualNode();
+		NodeGraph otherCentroid = ((EdgeGraph) sequenceDirectedEdges.get(sequenceDirectedEdges.size() - 2).getEdge())
+				.getDualNode();
 
-		return commonPrimalJunction(lastCen, otherCen);
+		return GraphUtils.getPrimalJunction(lastCentroid, otherCentroid);
 	}
 
 	/**
@@ -48,12 +51,17 @@ public class Route {
 	 *                              representing the path.
 	 * @return A list of primal nodes.
 	 */
-	public ArrayList<NodeGraph> nodesFromEdgesSequence(ArrayList<DirectedEdge> directedEdgesSequence) {
-		ArrayList<NodeGraph> nodes = new ArrayList<>();
-		for (DirectedEdge planarDirectedEdge : directedEdgesSequence) {
-			nodes.add(((EdgeGraph) planarDirectedEdge.getEdge()).fromNode);
-			nodes.add(((EdgeGraph) planarDirectedEdge.getEdge()).toNode);
-		}
+	public List<NodeGraph> nodesFromEdgesSequence(List<DirectedEdge> directedEdgesSequence) {
+
+		List<NodeGraph> nodes = new ArrayList<>();
+		if (directedEdgesSequence.isEmpty())
+			return nodes;
+
+		for (DirectedEdge directedEdge : directedEdgesSequence)
+			nodes.add(((EdgeGraph) directedEdge.getEdge()).getFromNode());
+
+		EdgeGraph lastEdge = (EdgeGraph) directedEdgesSequence.get(directedEdgesSequence.size() - 1).getEdge();
+		nodes.add(lastEdge.getToNode());
 		return nodes;
 	}
 
@@ -64,31 +72,11 @@ public class Route {
 	 *                              representing the path.
 	 * @return A list of centroids (dual nodes).
 	 */
-	public ArrayList<NodeGraph> centroidsFromEdgesSequence(ArrayList<DirectedEdge> sequenceDirectedEdges) {
-		ArrayList<NodeGraph> centroids = new ArrayList<>();
+	public List<NodeGraph> centroidsFromEdgesSequence(List<DirectedEdge> sequenceDirectedEdges) {
+		List<NodeGraph> centroids = new ArrayList<>();
 		for (DirectedEdge planarDirectedEdge : sequenceDirectedEdges)
-			centroids.add(((EdgeGraph) planarDirectedEdge.getEdge()).getDual());
+			centroids.add(((EdgeGraph) planarDirectedEdge.getEdge()).getDualNode());
 		return centroids;
-	}
-
-	/**
-	 * Given two centroids (nodes in the dual graph), identifies their common
-	 * junction (i.e., the junction shared by the corresponding primal segments).
-	 *
-	 * @param centroid      A dual node.
-	 * @param otherCentroid Another dual node.
-	 * @return The common primal junction node.
-	 */
-	public NodeGraph commonPrimalJunction(NodeGraph centroid, NodeGraph otherCentroid) {
-
-		EdgeGraph edge = centroid.primalEdge;
-		EdgeGraph otherEdge = otherCentroid.primalEdge;
-		if (edge.fromNode.equals(otherEdge.fromNode) | edge.fromNode.equals(otherEdge.toNode))
-			return edge.fromNode;
-		else if (edge.toNode.equals(otherEdge.toNode) | edge.toNode.equals(otherEdge.fromNode))
-			return edge.toNode;
-		else
-			return null;
 	}
 
 	/**
@@ -97,7 +85,10 @@ public class Route {
 	 * lists.
 	 */
 	public void routeSequences() {
+		nodesSequence = nodesFromEdgesSequence(directedEdgesSequence);
 		for (DirectedEdge directedEdge : directedEdgesSequence)
 			edgesSequence.add((EdgeGraph) directedEdge.getEdge());
+		originNode = nodesSequence.get(0);
+		destinationNode = nodesSequence.get(nodesSequence.size() - 1);
 	}
 }
