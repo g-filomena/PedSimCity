@@ -6,6 +6,7 @@
 package pedSim.routeChoice;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import pedSim.agents.Agent;
 import pedSim.dijkstra.DijkstraGlobalLandmarks;
@@ -13,21 +14,20 @@ import sim.graph.NodeGraph;
 
 public class GlobalLandmarksPathFinder extends PathFinder {
 
-	public GlobalLandmarksPathFinder(NodeGraph originNode, NodeGraph destinationNode, Agent agent) {
-		this.originNode = originNode;
-		this.destinationNode = destinationNode;
-		this.agent = agent;
-	}
-
 	/**
 	 * Formulates a route based on global landmarkness maximisation between the
 	 * origin and destination nodes only.
 	 *
 	 * @return The computed route.
 	 */
-	public Route globalLandmarksPath() {
+	public Route globalLandmarksPath(NodeGraph originNode, NodeGraph destinationNode, Agent agent) {
+
+		this.agent = agent;
+		this.originNode = originNode;
+		this.destinationNode = destinationNode;
 		DijkstraGlobalLandmarks pathfinder = new DijkstraGlobalLandmarks();
-		partialSequence = pathfinder.dijkstraAlgorithm(originNode, destinationNode, destinationNode, null, agent);
+		partialSequence = pathfinder.dijkstraAlgorithm(originNode, destinationNode, destinationNode, segmentsToAvoid,
+				agent);
 		route.directedEdgesSequence = partialSequence;
 		route.routeSequences();
 		return route;
@@ -42,11 +42,14 @@ public class GlobalLandmarksPathFinder extends PathFinder {
 	 * @param sequenceNodes A list of nodes representing the sequence to follow.
 	 * @return The computed route.
 	 */
-	public Route globalLandmarksPathSequence(ArrayList<NodeGraph> sequenceNodes) {
+	public Route globalLandmarksPathSequence(List<NodeGraph> sequenceNodes, Agent agent) {
 
+		this.agent = agent;
 		this.sequenceNodes = new ArrayList<>(sequenceNodes);
 		// originNode
-		tmpOrigin = this.sequenceNodes.get(0);
+		originNode = sequenceNodes.get(0);
+		tmpOrigin = originNode;
+		destinationNode = sequenceNodes.get(sequenceNodes.size() - 1);
 		this.sequenceNodes.remove(0);
 
 		for (NodeGraph tmpDestination : this.sequenceNodes) {
