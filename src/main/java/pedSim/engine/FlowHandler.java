@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -26,8 +27,8 @@ import sim.graph.NodeGraph;
  */
 public class FlowHandler {
 
-	public HashMap<Integer, HashMap<String, Integer>> volumesMap = new HashMap<Integer, HashMap<String, Integer>>();
-	public ArrayList<RouteData> routesData = new ArrayList<>();
+	public Map<Integer, Map<String, Integer>> volumesMap = new HashMap<Integer, Map<String, Integer>>();
+	public List<RouteData> routesData = new ArrayList<>();
 	public int job;
 
 	public FlowHandler(int job) {
@@ -43,7 +44,7 @@ public class FlowHandler {
 	 * @param directedEdgesSequence The sequence of directed edges travelled by the
 	 *                              agent.
 	 */
-	public synchronized void updateEdgeData(Agent agent, ArrayList<DirectedEdge> directedEdgesSequence) {
+	public synchronized void updateEdgeData(Agent agent, List<DirectedEdge> directedEdgesSequence) {
 
 		AgentProperties agentProperties = agent.getProperties();
 		String attributeName = Parameters.empirical ? ((EmpiricalAgentProperties) agentProperties).groupName.toString()
@@ -51,7 +52,7 @@ public class FlowHandler {
 
 		for (DirectedEdge directedEdge : directedEdgesSequence) {
 			EdgeGraph edge = (EdgeGraph) directedEdge.getEdge();
-			HashMap<String, Integer> edgeVolume = volumesMap.get(edge.getID());
+			Map<String, Integer> edgeVolume = volumesMap.get(edge.getID());
 			edgeVolume.replace(attributeName, edgeVolume.get(attributeName) + 1);
 			volumesMap.replace(edge.getID(), edgeVolume);
 		}
@@ -63,7 +64,7 @@ public class FlowHandler {
 	 * @param agent           The agent for which route data is stored.
 	 * @param edgeIDsSequence The sequence of edge IDs traveled by the agent.
 	 */
-	public void storeRouteData(Agent agent, ArrayList<Integer> edgeIDsSequence) {
+	public void storeRouteData(Agent agent, List<Integer> edgeIDsSequence) {
 		RouteData route = createRouteData(agent);
 		List<Coordinate> allCoords = computeAllCoordinates(edgeIDsSequence, agent);
 		route.edgeIDsSequence = edgeIDsSequence;
@@ -81,7 +82,7 @@ public class FlowHandler {
 	private void initializeEdgeVolumes() {
 
 		for (Object o : PedSimCity.network.getEdges()) {
-			HashMap<String, Integer> edgeVolumes = new HashMap<String, Integer>();
+			Map<String, Integer> edgeVolumes = new HashMap<String, Integer>();
 			if (!Parameters.empirical) {
 				for (RouteChoice routeChoice : Parameters.routeChoiceModels) {
 					EdgeGraph edge = (EdgeGraph) o;
@@ -155,7 +156,7 @@ public class FlowHandler {
 
 		for (int i : sequenceEdges) {
 			EdgeGraph edge = PedSimCity.edgesMap.get(i);
-			LineString geometry = (LineString) edge.masonGeometry.geometry;
+			LineString geometry = (LineString) edge.getMasonGeometry().geometry;
 			Coordinate[] coords = geometry.getCoordinates();
 			List<Coordinate> coordsCollection = new ArrayList<>(Arrays.asList(coords));
 
@@ -166,10 +167,10 @@ public class FlowHandler {
 
 			coordsCollection.set(0, lastNode.getCoordinate());
 
-			if (lastNode.equals(edge.fromNode))
-				lastNode = edge.toNode;
-			else if (lastNode.equals(edge.toNode))
-				lastNode = edge.fromNode;
+			if (lastNode.equals(edge.getFromNode()))
+				lastNode = edge.getToNode();
+			else if (lastNode.equals(edge.getToNode()))
+				lastNode = edge.getFromNode();
 			else
 				System.out.println("Something is wrong with the sequence in this agent");
 
