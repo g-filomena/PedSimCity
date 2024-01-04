@@ -4,7 +4,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.Set;
 
 import org.locationtech.jts.planargraph.DirectedEdge;
 
@@ -28,18 +30,18 @@ import sim.util.geo.Utilities;
 public class Dijkstra {
 
 	NodeGraph originNode, destinationNode, previousJunction, finalDestinationNode;
-	protected HashSet<NodeGraph> visitedNodes;
-	protected HashSet<NodeGraph> unvisitedNodes;
+	protected Set<NodeGraph> visitedNodes;
+	protected PriorityQueue<NodeGraph> unvisitedNodes;
 
-	HashSet<NodeGraph> centroidsToAvoid = new HashSet<>();
-	HashSet<DirectedEdge> segmentsToAvoid = new HashSet<>();
-	HashSet<EdgeGraph> edgesToAvoid = new HashSet<>();
-	HashMap<NodeGraph, NodeWrapper> nodeWrappersMap = new HashMap<>();
+	Set<NodeGraph> centroidsToAvoid = new HashSet<>();
+	Set<DirectedEdge> segmentsToAvoid = new HashSet<>();
+	Set<EdgeGraph> edgesToAvoid = new HashSet<>();
+	Map<NodeGraph, NodeWrapper> nodeWrappersMap = new HashMap<>();
 	SubGraph subGraph = null;
 	AgentProperties agentProperties;
 	boolean usingSubGraph;
 	double tentativeCost;
-	Graph graph;
+	Graph network;
 	Agent agent;
 
 	Route route = new Route();
@@ -60,7 +62,7 @@ public class Dijkstra {
 	 *                             calculation.
 	 */
 	protected void initialise(NodeGraph originNode, NodeGraph destinationNode, NodeGraph finalDestinationNode,
-			HashSet<DirectedEdge> segmentsToAvoid, Agent agent, boolean usingSubGraph) {
+			Set<DirectedEdge> segmentsToAvoid, Agent agent, boolean usingSubGraph) {
 
 		nodeWrappersMap.clear();
 		this.agent = agent;
@@ -69,7 +71,8 @@ public class Dijkstra {
 		this.destinationNode = destinationNode;
 		this.finalDestinationNode = finalDestinationNode;
 		this.usingSubGraph = usingSubGraph;
-		getEdgesToAvoid(segmentsToAvoid);
+		if (!segmentsToAvoid.isEmpty())
+			getEdgesToAvoid(segmentsToAvoid);
 		subGraphInitialisation();
 	}
 
@@ -87,7 +90,7 @@ public class Dijkstra {
 	 *                             calculation.
 	 */
 	protected void initialiseDual(NodeGraph originNode, NodeGraph destinationNode, NodeGraph finalDestinationNode,
-			HashSet<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, Agent agent, boolean usingSubGraph) {
+			Set<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, Agent agent, boolean usingSubGraph) {
 
 		nodeWrappersMap.clear();
 		this.agent = agent;
@@ -107,13 +110,10 @@ public class Dijkstra {
 	 *
 	 * @param segmentsToAvoid A set of directed edges to avoid.
 	 */
-	protected void getEdgesToAvoid(HashSet<DirectedEdge> segmentsToAvoid) {
-		if (segmentsToAvoid != null) {
-			this.segmentsToAvoid = new HashSet<>(segmentsToAvoid);
-			for (DirectedEdge edge : this.segmentsToAvoid) {
-				edgesToAvoid.add((EdgeGraph) edge.getEdge());
-			}
-		}
+	protected void getEdgesToAvoid(Set<DirectedEdge> segmentsToAvoid) {
+		this.segmentsToAvoid = new HashSet<>(segmentsToAvoid);
+		for (DirectedEdge edge : this.segmentsToAvoid)
+			edgesToAvoid.add((EdgeGraph) edge.getEdge());
 	}
 
 	/**
@@ -126,20 +126,20 @@ public class Dijkstra {
 			subGraph = PedSimCity.regionsMap.get(originNode.regionID).primalGraph;
 			edgesToAvoid = (segmentsToAvoid.isEmpty())
 					? new HashSet<>(subGraph.getChildEdges(new ArrayList<>(edgesToAvoid)))
-					: null;
+					: new HashSet<>();
 		} else if (usingSubGraph) {
-			ArrayList<EdgeGraph> containedEdges = PedSimCity.network.edgesInNodesSpace(originNode, destinationNode);
-			subGraph = new SubGraph(PedSimCity.network, containedEdges);
+			List<EdgeGraph> containedEdges = PedSimCity.network.edgesInNodesSpace(originNode, destinationNode);
+			subGraph = new SubGraph(containedEdges);
 			edgesToAvoid = (segmentsToAvoid.isEmpty())
 					? new HashSet<>(subGraph.getChildEdges(new ArrayList<>(edgesToAvoid)))
-					: null;
+					: new HashSet<>();
 		}
 		if (subGraph != null) {
 			originNode = subGraph.findNode(originNode.getCoordinate());
 			destinationNode = subGraph.findNode(destinationNode.getCoordinate());
-			graph = subGraph;
+			network = subGraph;
 		} else
-			graph = PedSimCity.network;
+			network = PedSimCity.network;
 	}
 
 	/**
@@ -150,22 +150,22 @@ public class Dijkstra {
 	protected void subGraphInitialisationDual() {
 		if (regionCondition()) {
 			subGraph = PedSimCity.regionsMap.get(originNode.regionID).dualGraph;
-			centroidsToAvoid = (centroidsToAvoid != null)
+			centroidsToAvoid = (!centroidsToAvoid.isEmpty())
 					? new HashSet<>(subGraph.getChildNodes(new ArrayList<>(centroidsToAvoid)))
-					: null;
+					: new HashSet<>();
 		} else if (usingSubGraph) {
-			ArrayList<EdgeGraph> containedEdges = PedSimCity.dualNetwork.edgesInNodesSpace(originNode, destinationNode);
-			subGraph = new SubGraph(PedSimCity.dualNetwork, containedEdges);
-			centroidsToAvoid = (centroidsToAvoid != null)
+			List<EdgeGraph> containedEdges = PedSimCity.dualNetwork.edgesInNodesSpace(originNode, destinationNode);
+			subGraph = new SubGraph(containedEdges);
+			centroidsToAvoid = (!centroidsToAvoid.isEmpty())
 					? new HashSet<>(subGraph.getChildNodes(new ArrayList<>(centroidsToAvoid)))
-					: null;
+					: new HashSet<>();
 		}
 		if (subGraph != null) {
 			originNode = subGraph.findNode(originNode.getCoordinate());
 			destinationNode = subGraph.findNode(destinationNode.getCoordinate());
-			graph = subGraph;
+			network = subGraph;
 		} else
-			graph = PedSimCity.dualNetwork;
+			network = PedSimCity.dualNetwork;
 	}
 
 	/**
@@ -180,9 +180,9 @@ public class Dijkstra {
 
 		double error = 1.0;
 		if (this.agent.cognitiveMap.containsBarriers()) {
-			List<Integer> pBarriers = dual ? targetNode.primalEdge.attributes.get("positiveBarriers").getArray()
+			List<Integer> pBarriers = dual ? targetNode.getPrimalEdge().attributes.get("positiveBarriers").getArray()
 					: commonEdge.attributes.get("positiveBarriers").getArray();
-			List<Integer> nBarriers = dual ? targetNode.primalEdge.attributes.get("negativeBarriers").getArray()
+			List<Integer> nBarriers = dual ? targetNode.getPrimalEdge().attributes.get("negativeBarriers").getArray()
 					: commonEdge.attributes.get("negativeBarriers").getArray();
 			if (positiveBarrierEffect(pBarriers))
 				error = Utilities.fromDistribution(agentProperties.naturalBarriers, agentProperties.naturalBarriersSD,
@@ -277,24 +277,11 @@ public class Dijkstra {
 			NodeWrapper nodeWrapper = nodeWrappersMap.computeIfAbsent(targetNode, NodeWrapper::new);
 			nodeWrapper.nodeFrom = currentNode;
 			nodeWrapper.directedEdgeFrom = outEdge;
-			nodeWrapper.commonPrimalJunction = route.commonPrimalJunction(currentNode, targetNode);
+			nodeWrapper.commonPrimalJunction = GraphUtils.getPrimalJunction(currentNode, targetNode);
 			nodeWrapper.gx = tentativeCost;
 			nodeWrappersMap.put(targetNode, nodeWrapper);
 			unvisitedNodes.add(targetNode);
 		}
-	}
-
-	/**
-	 * Retrieves the closest node from the given set of nodes.
-	 *
-	 * @param nodes The set of nodes.
-	 * @return The closest node.
-	 */
-	protected NodeGraph getClosest(HashSet<NodeGraph> nodes) {
-		PriorityQueue<NodeGraph> queue = new PriorityQueue<>(
-				(node1, node2) -> Double.compare(getBest(node1), getBest(node2)));
-		queue.addAll(nodes);
-		return queue.peek();
 	}
 
 	/**
@@ -358,14 +345,20 @@ public class Dijkstra {
 	}
 
 	/**
-	 * Checks if the region-based navigation condition is met and the agent
-	 * properties.
+	 * Checks if the region-based navigation condition is met.
 	 *
 	 * @return True if the region-based navigation condition is met; otherwise,
 	 *         false.
 	 */
 	protected boolean regionCondition() {
 		return agentProperties.regionBasedNavigation && originNode.regionID == destinationNode.regionID;
+	}
+
+	protected DirectedEdge retrieveFromParentGraph(NodeGraph step) {
+		NodeGraph nodeTo = subGraph.getParentNode(step);
+		NodeGraph nodeFrom = subGraph.getParentNode(nodeWrappersMap.get(step).nodeFrom);
+		// retrieving from Primal Network (no SubGraph)
+		return PedSimCity.network.getDirectedEdgeBetween(nodeFrom, nodeTo);
 	}
 
 }
