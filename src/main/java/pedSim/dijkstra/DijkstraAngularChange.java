@@ -12,7 +12,6 @@ import java.util.Set;
 import org.locationtech.jts.planargraph.DirectedEdge;
 
 import pedSim.agents.Agent;
-import pedSim.engine.Parameters;
 import sim.graph.EdgeGraph;
 import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
@@ -44,8 +43,8 @@ public class DijkstraAngularChange extends Dijkstra {
 	public List<DirectedEdge> dijkstraAlgorithm(NodeGraph originNode, NodeGraph destinationNode,
 			NodeGraph finalDestinationNode, Set<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, Agent agent) {
 
-		initialiseDual(originNode, destinationNode, finalDestinationNode, centroidsToAvoid, previousJunction, agent,
-				Parameters.subGraph);
+		initialise(originNode, destinationNode, finalDestinationNode, agent);
+		initialiseDual(centroidsToAvoid, previousJunction);
 
 		visitedNodes = new HashSet<>();
 		unvisitedNodes = new PriorityQueue<>(Comparator.comparingDouble(this::getBest));
@@ -105,8 +104,8 @@ public class DijkstraAngularChange extends Dijkstra {
 					.equals(nodeWrappersMap.get(currentNode).commonPrimalJunction))
 				continue;
 
-			EdgeGraph commonEdge = network.getEdgeBetween(currentNode, targetNode);
-			DirectedEdge outEdge = network.getDirectedEdgeBetween(currentNode, targetNode);
+			EdgeGraph commonEdge = agentDualNetwork.getEdgeBetween(currentNode, targetNode);
+			DirectedEdge outEdge = agentDualNetwork.getDirectedEdgeBetween(currentNode, targetNode);
 
 			// compute errors in perception of road coasts with stochastic variables
 			double error = costPerceptionError(targetNode, commonEdge, true);
@@ -128,14 +127,6 @@ public class DijkstraAngularChange extends Dijkstra {
 		List<DirectedEdge> directedEdgesSequence = new ArrayList<>();
 		NodeGraph step = destinationNode;
 		traversedNodesMap.put(destinationNode, nodeWrappersMap.get(destinationNode));
-		// If the subgraph navigation hasn't worked, retry by using the full graph
-		// --> it switches "subgraph" to false;
-		if (nodeWrappersMap.get(destinationNode) == null && usingSubGraph) {
-			clear();
-			List<DirectedEdge> secondAttempt = dijkstraAlgorithm(originNode, destinationNode, finalDestinationNode,
-					centroidsToAvoid, previousJunction, agent);
-			return secondAttempt;
-		}
 
 		// check that the route has been formulated properly
 		if (nodeWrappersMap.get(destinationNode) == null || nodeWrappersMap.size() <= 1)
