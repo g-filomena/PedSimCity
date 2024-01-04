@@ -10,11 +10,9 @@ import org.javatuples.Pair;
 import pedSim.agents.Agent;
 import pedSim.agents.EmpiricalAgentsGroup;
 import pedSim.utilities.StringEnum.RouteChoice;
-import sim.field.geo.VectorLayer;
 import sim.graph.Graph;
 import sim.graph.NodeGraph;
 import sim.graph.NodesLookup;
-import sim.util.geo.MasonGeometry;
 
 /**
  * The Populate class is responsible for generating test agents, building the OD
@@ -30,7 +28,6 @@ public class Populate {
 	public static HashMap<String, Double> destinationsDMA = new HashMap<>();
 	List<Integer> testOrigins = new ArrayList<>();
 	List<Integer> testDestinations = new ArrayList<>();
-	private VectorLayer junctions;
 	final double WORK_SHARE = 0.30;
 	final double VISIT_SHARE = 0.46;
 	final double RANDOM_SHARE = 0.24;
@@ -46,7 +43,6 @@ public class Populate {
 
 		this.state = state;
 		this.network = PedSimCity.network;
-		this.junctions = PedSimCity.junctions;
 
 		if (Parameters.testingSpecificOD)
 			prepareManualODmatrix();
@@ -86,11 +82,10 @@ public class Populate {
 						PedSimCity.distances);
 			} else if (Parameters.testingSubdivisions) {
 				originNode = NodesLookup.randomNodeFromList(network, PedSimCity.startingNodes);
-				destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, junctions, originNode, 1000,
-						3000);
+				destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, originNode, 1000, 3000);
 			} else if (Parameters.testingModels) {
 				originNode = NodesLookup.randomNodeFromList(network, PedSimCity.startingNodes);
-				destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, junctions, originNode,
+				destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, originNode,
 						Parameters.minDistance, Parameters.maxDistance);
 			}
 
@@ -124,11 +119,9 @@ public class Populate {
 	 */
 	private void addAgent(Agent agent, int agentID, ArrayList<Pair<NodeGraph, NodeGraph>> thisAgentODs) {
 
-		MasonGeometry agentGeometry = agent.getGeometry();
 		agent.OD = new LinkedList<>(thisAgentODs);
-		agentGeometry.isMovable = true;
 		agent.agentID = agentID;
-		state.agents.addGeometry(agentGeometry);
+		state.agents.addGeometry(agent.getGeometry());
 		state.agentsList.add(agent);
 	}
 
@@ -141,7 +134,6 @@ public class Populate {
 
 		this.state = state;
 		this.network = PedSimCity.network;
-		this.junctions = PedSimCity.junctions;
 		final int numODs = Parameters.numAgents * Parameters.numberTripsPerAgent;
 
 		if (Parameters.usingDMA)
@@ -149,10 +141,10 @@ public class Populate {
 		else
 			for (int i = 0; i < numODs; i++) {
 				NodeGraph originNode = NodesLookup.randomNode(network);
-				NodeGraph destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, junctions,
-						originNode, Parameters.minDistance, Parameters.maxDistance);
+				NodeGraph destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, originNode,
+						Parameters.minDistance, Parameters.maxDistance);
 				while (destinationNode.gateway)
-					destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, junctions, originNode,
+					destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, originNode,
 							Parameters.minDistance, Parameters.maxDistance);
 				Pair<NodeGraph, NodeGraph> pair = new Pair<>(originNode, destinationNode);
 				OD.add(pair);
@@ -196,7 +188,7 @@ public class Populate {
 			}
 
 			while (destinationNode == null | destinationNode.gateway)
-				destinationNode = NodesLookup.randomNodeBetweenDistanceIntervalDMA(network, junctions, originNode,
+				destinationNode = NodesLookup.randomNodeBetweenDistanceIntervalDMA(network, originNode,
 						Parameters.minDistance, Parameters.maxDistance, DMA);
 
 			Pair<NodeGraph, NodeGraph> pair = new Pair<>(originNode, destinationNode);
