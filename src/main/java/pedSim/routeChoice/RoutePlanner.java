@@ -1,6 +1,7 @@
 package pedSim.routeChoice;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import pedSim.agents.Agent;
 import pedSim.agents.AgentProperties;
@@ -19,7 +20,7 @@ public class RoutePlanner {
 	private NodeGraph originNode;
 	private NodeGraph destinationNode;
 	private AgentProperties agentProperties;
-	private ArrayList<NodeGraph> sequenceNodes;
+	private List<NodeGraph> sequenceNodes;
 	private Agent agent;
 
 	/**
@@ -59,8 +60,7 @@ public class RoutePlanner {
 		/**
 		 * Through regions with barrier-subgoals or not.
 		 */
-		verifyRegionBasedNavigation();
-		if (isRegionBased()) {
+		if (isRegionBasedNavigation()) {
 			RegionBasedNavigation regionsPath = new RegionBasedNavigation(originNode, destinationNode, agent);
 			sequenceNodes = regionsPath.sequenceRegions();
 		}
@@ -92,11 +92,11 @@ public class RoutePlanner {
 		 * global-landmarks maximisation path
 		 */
 		else if (agentProperties.usingDistantLandmarks && !shouldUseLocalHeuristic()) {
-			GlobalLandmarksPathFinder finder = new GlobalLandmarksPathFinder(originNode, destinationNode, agent);
+			GlobalLandmarksPathFinder finder = new GlobalLandmarksPathFinder();
 			if (!sequenceNodes.isEmpty())
-				return finder.globalLandmarksPathSequence(sequenceNodes);
+				return finder.globalLandmarksPathSequence(sequenceNodes, agent);
 			else {
-				return finder.globalLandmarksPath();
+				return finder.globalLandmarksPath(originNode, destinationNode, agent);
 			}
 		}
 
@@ -142,11 +142,11 @@ public class RoutePlanner {
 	 * based on distance thresholds. If not, it disables region-based navigation in
 	 * agent properties.
 	 */
-	private void verifyRegionBasedNavigation() {
+	private boolean isRegionBasedNavigation() {
 		if (GraphUtils.getCachedNodesDistance(originNode, destinationNode) < Parameters.regionBasedNavigationThreshold
-				|| originNode.regionID == destinationNode.regionID) {
-			agentProperties.regionBasedNavigation = false;
-		}
+				|| originNode.regionID == destinationNode.regionID || !agentProperties.regionBasedNavigation)
+			return false;
+		return true;
 	}
 
 	/**
