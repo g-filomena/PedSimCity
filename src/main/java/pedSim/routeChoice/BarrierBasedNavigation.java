@@ -47,11 +47,12 @@ public class BarrierBasedNavigation {
 	 * @param destinationNode the destination node;
 	 * @param agent           the agent for navigation.
 	 */
-	public BarrierBasedNavigation(NodeGraph originNode, NodeGraph destinationNode, Agent agent) {
+	public BarrierBasedNavigation(NodeGraph originNode, NodeGraph destinationNode, Agent agent,
+			boolean regionBasedNavigation) {
 		this.originNode = originNode;
 		this.destinationNode = destinationNode;
 		this.agent = agent;
-		this.regionBasedNavigation = agent.getProperties().regionBasedNavigation;
+		this.regionBasedNavigation = regionBasedNavigation;
 	}
 
 	/**
@@ -158,6 +159,7 @@ public class BarrierBasedNavigation {
 
 			validBarriers.put(barrierID, minDistance);
 		}
+
 		return validBarriers;
 	}
 
@@ -193,10 +195,6 @@ public class BarrierBasedNavigation {
 		if (regionBasedNavigation)
 			regionEdges = region.edges;
 
-		// When more than one barrier is identified, the farthest water body barrier is
-		// chosen; if no water bodies are identified, the agent picks the farthest park
-		// barrier, if any, or, otherwise, the farthest viable severing barrier.
-
 		EdgeGraph edgeGoal = null;
 
 		// sorted by distance (further away first, as it leads your further away)
@@ -208,6 +206,9 @@ public class BarrierBasedNavigation {
 		int waterCounter = 0;
 		int parkCounter = 0;
 
+		// When more than one barrier is identified, the farthest water body barrier is
+		// chosen; if no water bodies are identified, the agent picks the farthest park
+		// barrier, if any, or, otherwise, the farthest viable severing barrier.
 		for (int barrierID : validSorted.keySet()) {
 			Barrier barrier = PedSimCity.barriersMap.get(barrierID);
 			String type = barrier.type;
