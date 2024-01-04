@@ -1,6 +1,7 @@
 package pedSim.engine;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map.Entry;
 
 import org.javatuples.Pair;
@@ -10,7 +11,7 @@ import org.locationtech.jts.planargraph.DirectedEdgeStar;
 
 import pedSim.cognitiveMap.Barrier;
 import pedSim.cognitiveMap.BarrierIntegration;
-import pedSim.cognitiveMap.CognitiveMap;
+import pedSim.cognitiveMap.CommunityCognitiveMap;
 import pedSim.cognitiveMap.Gateway;
 import pedSim.cognitiveMap.Region;
 import sim.field.geo.VectorLayer;
@@ -34,48 +35,64 @@ public class Environment {
 	 */
 	public static void prepare() {
 
-		getJunctions();
+		prepareGraph();
 		if (!PedSimCity.buildings.getGeometries().isEmpty())
 			prepareBuildings();
 		if (!PedSimCity.barriers.getGeometries().isEmpty())
-			prepareGateways();
-		createEdgesMap();
+			identifyGateways();
 		prepareDualGraph();
 
-		if (!PedSimCity.barriers.getGeometries().isEmpty())
-			prepareRegionsBarriers();
+		if (!PedSimCity.barriers.getGeometries().isEmpty()) {
+			integrateBarriers();
+			prepareRegions();
+		}
 
-		CognitiveMap cognitiveMap = new CognitiveMap();
+		CommunityCognitiveMap cognitiveMap = new CommunityCognitiveMap();
 		cognitiveMap.setCommunityCognitiveMap();
 	}
 
 	/**
 	 * Nodes: Assigns scores and attributes to nodes.
 	 */
-	static private void getJunctions() {
+	static private void prepareGraph() {
 
-		ArrayList<MasonGeometry> geometries = PedSimCity.junctions.getGeometries();
+		List<MasonGeometry> geometries = PedSimCity.junctions.getGeometries();
 
 		for (final MasonGeometry nodeGeometry : geometries) {
 			// street junctions and betweenness centrality
 			final NodeGraph node = PedSimCity.network.findNode(nodeGeometry.geometry.getCoordinate());
 			node.setID(nodeGeometry.getIntegerAttribute("nodeID"));
-			node.masonGeometry = nodeGeometry;
-			node.primalEdge = null;
-			// centrality
-			try {
-				node.centrality = nodeGeometry.getDoubleAttribute("Bc_multi");
-			} catch (final java.lang.NullPointerException e) {
-				node.centrality = nodeGeometry.getDoubleAttribute("Bc_Rd");
-			}
-			// set adjacent edges and nodes
-			node.setNeighbouringComponents();
+			node.setMasonGeometry(nodeGeometry);
+			setCentralityNode(nodeGeometry, node);
 			PedSimCity.nodesMap.put(node.getID(), node);
 		}
 		// generate the centrality map of the graph
-		PedSimCity.network.generateGraphStructures();
 		PedSimCity.network.generateCentralityMap();
-		PedSimCity.network.setGraphSalientNodes(Parameters.salientNodesPercentile);
+		createEdgesMap();
+	}
+
+	static private void setCentralityNode(MasonGeometry nodeGeometry, NodeGraph node) {
+
+		double centrality = Double.MAX_VALUE;
+		try {
+			centrality = nodeGeometry.getDoubleAttribute("Bc_multi");
+		} catch (final java.lang.NullPointerException e) {
+			centrality = nodeGeometry.getDoubleAttribute("Bc_Rd");
+		}
+		node.setCentrality(centrality);
+	}
+
+	/**
+	 * Creates the edgesMap (edgeID, edgeGraph mapping) .
+	 */
+	static private void createEdgesMap() {
+
+		List<EdgeGraph> edges = PedSimCity.network.getEdges();
+		for (EdgeGraph edge : edges) {
+			int edgeID = edge.attributes.get("edgeID").getInteger();
+			edge.setID(edgeID);
+			PedSimCity.edgesMap.put(edgeID, edge);
+		}
 	}
 
 	/**
@@ -83,7 +100,7 @@ public class Environment {
 	 */
 	static private void prepareBuildings() {
 
-		ArrayList<MasonGeometry> geometries = PedSimCity.buildings.getGeometries();
+		List<MasonGeometry> geometries = PedSimCity.buildings.getGeometries();
 		for (final MasonGeometry buildingGeometry : geometries) {
 			final Building building = new Building();
 			building.buildingID = buildingGeometry.getIntegerAttribute("buildingID");
@@ -93,7 +110,7 @@ public class Environment {
 			building.attributes.put("globalLandmarkness", buildingGeometry.getAttributes().get("gScore_sc"));
 			building.attributes.put("localLandmarkness", buildingGeometry.getAttributes().get("lScore_sc"));
 
-			final ArrayList<MasonGeometry> nearestNodes = PedSimCity.junctions
+			final List<MasonGeometry> nearestNodes = PedSimCity.junctions
 					.featuresWithinDistance(buildingGeometry.getGeometry(), 500.0);
 			MasonGeometry closest = null;
 			double lowestDistance = 501.0;
@@ -111,8 +128,8 @@ public class Environment {
 		}
 
 		PedSimCity.network.getNodes().forEach((node) -> {
-			ArrayList<MasonGeometry> nearestBuildings = PedSimCity.buildings
-					.featuresWithinDistance(node.masonGeometry.geometry, 100);
+			List<MasonGeometry> nearestBuildings = PedSimCity.buildings
+					.featuresWithinDistance(node.getMasonGeometry().geometry, 100);
 			for (MasonGeometry building : nearestBuildings) {
 				final int buildingID = building.getIntegerAttribute("buildingID");
 				final String DMA = PedSimCity.buildingsMap.get(buildingID).DMA;
@@ -124,19 +141,19 @@ public class Environment {
 	/**
 	 * Gateways: Configures gateways between nodes.
 	 */
-	static private void prepareGateways() {
+	static private void identifyGateways() {
 
 		// creating regions
-		for (final NodeGraph node : PedSimCity.nodesMap.values()) {
-			node.regionID = node.masonGeometry.getIntegerAttribute("district");
+		for (final NodeGraph node : PedSimCity.network.nodesGraph) {
+			node.regionID = node.getMasonGeometry().getIntegerAttribute("district");
 			PedSimCity.regionsMap.computeIfAbsent(node.regionID, region -> new Region());
 		}
 
 		for (final NodeGraph node : PedSimCity.nodesMap.values()) {
-			final Integer gatewayID = node.masonGeometry.getIntegerAttribute("gateway");
+			final Integer gatewayID = node.getMasonGeometry().getIntegerAttribute("gateway");
 
 			if (gatewayID == 0) {
-				PedSimCity.startingNodes.add(node.masonGeometry);
+				PedSimCity.startingNodes.add(node.getMasonGeometry());
 				continue;
 			}
 
@@ -164,83 +181,33 @@ public class Environment {
 	}
 
 	/**
-	 * Creates the edgesMap (edgeID, edgeGraph mapping) .
-	 */
-	static private void createEdgesMap() {
-
-		ArrayList<EdgeGraph> edges = PedSimCity.network.getEdges();
-		for (EdgeGraph edge : edges) {
-			int edgeID = edge.attributes.get("edgeID").getInteger();
-			edge.setID(edgeID);
-			PedSimCity.edgesMap.put(edgeID, edge);
-		}
-	}
-
-	/**
 	 * Centroids (Dual Graph): Assigns edgeID to centroids in the dual graph.
 	 */
 	static private void prepareDualGraph() {
 
-		ArrayList<MasonGeometry> centroids = PedSimCity.centroids.getGeometries();
+		List<MasonGeometry> centroids = PedSimCity.centroids.getGeometries();
 		for (final MasonGeometry centroidGeometry : centroids) {
 			int edgeID = centroidGeometry.getIntegerAttribute("edgeID");
 			NodeGraph centroid = PedSimCity.dualNetwork.findNode(centroidGeometry.geometry.getCoordinate());
-			centroid.masonGeometry = centroidGeometry;
 			centroid.setID(edgeID);
-			centroid.primalEdge = PedSimCity.edgesMap.get(edgeID);
-			PedSimCity.edgesMap.get(edgeID).dualNode = centroid;
+			centroid.setPrimalEdge(PedSimCity.edgesMap.get(edgeID));
+			PedSimCity.edgesMap.get(edgeID).setDualNode(centroid);
 			PedSimCity.centroidsMap.put(edgeID, centroid);
-			centroid.setNeighbouringComponents();
 		}
 
-		ArrayList<EdgeGraph> dualEdges = PedSimCity.dualNetwork.getEdges();
+		List<EdgeGraph> dualEdges = PedSimCity.dualNetwork.getEdges();
 		for (EdgeGraph edge : dualEdges)
-			edge.deflectionDegrees = edge.attributes.get("deg").getDouble();
-		PedSimCity.dualNetwork.generateGraphStructures();
+			edge.setDeflectionAngle(edge.attributes.get("deg").getDouble());
 	}
 
 	/**
 	 * Regions: Creates regions' subgraphs and store information.
 	 */
-	static private void prepareRegionsBarriers() {
+	static private void integrateBarriers() {
 
-		ArrayList<EdgeGraph> edges = PedSimCity.network.getEdges();
-
-		for (EdgeGraph edge : edges) {
+		List<EdgeGraph> edges = PedSimCity.network.getEdges();
+		for (EdgeGraph edge : edges)
 			BarrierIntegration.setEdgeGraphBarriers(edge);
-			if (edge.fromNode.regionID == edge.toNode.regionID) {
-				int regionID = edge.fromNode.regionID;
-				edge.regionID = regionID;
-				PedSimCity.regionsMap.get(regionID).edges.add(edge);
-			} else
-				edge.regionID = -1;
-		}
-
-		for (final Entry<Integer, Region> entry : PedSimCity.regionsMap.entrySet()) {
-			int regionID = entry.getKey();
-			Region region = entry.getValue();
-
-			final ArrayList<EdgeGraph> edgesRegion = region.edges;
-			final SubGraph primalGraph = new SubGraph(PedSimCity.network, edgesRegion);
-			final VectorLayer regionNetwork = new VectorLayer();
-			final ArrayList<EdgeGraph> dualEdgesRegion = new ArrayList<>();
-
-			for (final EdgeGraph edge : edgesRegion) {
-				regionNetwork.addGeometry(edge.masonGeometry);
-				NodeGraph centroid = edge.dualNode;
-				centroid.regionID = regionID;
-				DirectedEdgeStar directedEdges = centroid.getOutEdges();
-				for (final DirectedEdge directedEdge : directedEdges.getEdges())
-					dualEdgesRegion.add((EdgeGraph) directedEdge.getEdge());
-			}
-			final SubGraph dualGraph = new SubGraph(PedSimCity.dualNetwork, dualEdgesRegion);
-			primalGraph.generateSubGraphCentralityMap();
-			primalGraph.setSubGraphSalientNodes(Parameters.salientNodesPercentile);
-			region.regionID = regionID;
-			region.primalGraph = primalGraph;
-			region.dualGraph = dualGraph;
-			region.regionNetwork = regionNetwork;
-		}
 		generateBarriersMap();
 	}
 
@@ -250,7 +217,7 @@ public class Environment {
 	private static void generateBarriersMap() {
 
 		// Element 5 - Barriers: create barriers map
-		ArrayList<MasonGeometry> geometries = PedSimCity.barriers.getGeometries();
+		List<MasonGeometry> geometries = PedSimCity.barriers.getGeometries();
 		for (final MasonGeometry barrierGeometry : geometries) {
 			final int barrierID = barrierGeometry.getIntegerAttribute("barrierID");
 			final Barrier barrier = new Barrier();
@@ -271,6 +238,46 @@ public class Environment {
 
 	}
 
+	private static void prepareRegions() {
+
+		List<EdgeGraph> edges = PedSimCity.network.getEdges();
+		for (EdgeGraph edge : edges) {
+
+			if (edge.getFromNode().regionID == edge.getToNode().regionID) {
+				int regionID = edge.getFromNode().regionID;
+				edge.regionID = regionID;
+				PedSimCity.regionsMap.get(regionID).edges.add(edge);
+			} else
+				// gateway edge
+				edge.regionID = -1;
+		}
+
+		for (final Entry<Integer, Region> entry : PedSimCity.regionsMap.entrySet()) {
+			int regionID = entry.getKey();
+			Region region = entry.getValue();
+
+			final List<EdgeGraph> edgesRegion = region.edges;
+			final SubGraph primalGraph = new SubGraph(edgesRegion);
+			final VectorLayer regionNetwork = new VectorLayer();
+			final List<EdgeGraph> dualEdgesRegion = new ArrayList<>();
+
+			for (final EdgeGraph edge : edgesRegion) {
+				regionNetwork.addGeometry(edge.getMasonGeometry());
+				NodeGraph centroid = edge.getDualNode();
+				centroid.regionID = regionID;
+				DirectedEdgeStar directedEdges = centroid.getOutEdges();
+				for (final DirectedEdge directedEdge : directedEdges.getEdges())
+					dualEdgesRegion.add((EdgeGraph) directedEdge.getEdge());
+			}
+			final SubGraph dualGraph = new SubGraph(dualEdgesRegion);
+			primalGraph.generateSubGraphCentralityMap();
+			region.regionID = regionID;
+			region.primalGraph = primalGraph;
+			region.dualGraph = dualGraph;
+			region.regionNetwork = regionNetwork;
+		}
+	}
+
 	/**
 	 * Returns all the buildings enclosed between two nodes.
 	 *
@@ -278,7 +285,7 @@ public class Environment {
 	 * @param destinationNode The second node.
 	 * @return A list of buildings.
 	 */
-	public ArrayList<MasonGeometry> getBuildings(NodeGraph originNode, NodeGraph destinationNode) {
+	public List<MasonGeometry> getBuildings(NodeGraph originNode, NodeGraph destinationNode) {
 		Geometry smallestCircle = GraphUtils.enclosingCircleBetweenNodes(originNode, destinationNode);
 		return PedSimCity.buildings.containedFeatures(smallestCircle);
 	}
@@ -290,7 +297,7 @@ public class Environment {
 	 * @return An ArrayList of MasonGeometry objects representing buildings within
 	 *         the region.
 	 */
-	public ArrayList<MasonGeometry> getBuildingsWithinRegion(Region region) {
+	public List<MasonGeometry> getBuildingsWithinRegion(Region region) {
 		VectorLayer regionNetwork = region.regionNetwork;
 		Geometry convexHull = regionNetwork.getConvexHull();
 		return PedSimCity.buildings.containedFeatures(convexHull);
