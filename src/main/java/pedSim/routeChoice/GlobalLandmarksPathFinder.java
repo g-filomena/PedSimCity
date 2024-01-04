@@ -26,8 +26,8 @@ public class GlobalLandmarksPathFinder extends PathFinder {
 		this.originNode = originNode;
 		this.destinationNode = destinationNode;
 		DijkstraGlobalLandmarks pathfinder = new DijkstraGlobalLandmarks();
-		partialSequence = pathfinder.dijkstraAlgorithm(originNode, destinationNode, destinationNode, segmentsToAvoid,
-				agent);
+		partialSequence = pathfinder.dijkstraAlgorithm(originNode, destinationNode, destinationNode,
+				directedEdgesToAvoid, agent);
 		route.directedEdgesSequence = partialSequence;
 		route.routeSequences();
 		return route;
