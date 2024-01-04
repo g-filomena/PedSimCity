@@ -2,14 +2,18 @@
 package pedSim.dijkstra;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Set;
 
 import org.locationtech.jts.planargraph.DirectedEdge;
 
 import pedSim.agents.Agent;
 import pedSim.engine.Parameters;
-import pedSim.engine.PedSimCity;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
 
@@ -42,12 +46,12 @@ public class DijkstraRoadDistance extends Dijkstra {
 	 * @return An ArrayList of DirectedEdges representing the shortest path from the
 	 *         origin to the destination.
 	 */
-	public ArrayList<DirectedEdge> dijkstraAlgorithm(NodeGraph originNode, NodeGraph destinationNode,
-			NodeGraph finalDestinationNode, HashSet<DirectedEdge> segmentsToAvoid, Agent agent) {
+	public List<DirectedEdge> dijkstraAlgorithm(NodeGraph originNode, NodeGraph destinationNode,
+			NodeGraph finalDestinationNode, Set<DirectedEdge> segmentsToAvoid, Agent agent) {
 
 		initialise(originNode, destinationNode, finalDestinationNode, segmentsToAvoid, agent, Parameters.subGraph);
 		visitedNodes = new HashSet<>();
-		unvisitedNodes = new HashSet<>();
+		unvisitedNodes = new PriorityQueue<>(Comparator.comparingDouble(this::getBest));
 		unvisitedNodes.add(this.originNode);
 
 		// NodeWrapper = container for the metainformation about a Node
@@ -63,7 +67,7 @@ public class DijkstraRoadDistance extends Dijkstra {
 	 */
 	private void runDijkstra() {
 		while (!unvisitedNodes.isEmpty()) {
-			NodeGraph currentNode = getClosest(unvisitedNodes);
+			NodeGraph currentNode = unvisitedNodes.peek();
 			visitedNodes.add(currentNode);
 			unvisitedNodes.remove(currentNode);
 			findMinDistances(currentNode);
@@ -78,12 +82,12 @@ public class DijkstraRoadDistance extends Dijkstra {
 	 *                    adjacent nodes.
 	 */
 	private void findMinDistances(NodeGraph currentNode) {
-		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
+		List<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
 		for (NodeGraph targetNode : adjacentNodes) {
 			if (visitedNodes.contains(targetNode))
 				continue;
 
-			EdgeGraph commonEdge = graph.getEdgeBetween(currentNode, targetNode);
+			EdgeGraph commonEdge = network.getEdgeBetween(currentNode, targetNode);
 			DirectedEdge outEdge = commonEdge.getDirEdge(0);
 			if (edgesToAvoid.contains(outEdge.getEdge()))
 				continue;
@@ -101,9 +105,9 @@ public class DijkstraRoadDistance extends Dijkstra {
 	 *
 	 * @return An ArrayList of DirectedEdges representing the path sequence.
 	 */
-	private ArrayList<DirectedEdge> reconstructSequence() {
-		HashMap<NodeGraph, NodeWrapper> traversedNodesMap = new HashMap<>();
-		ArrayList<DirectedEdge> directedEdgesSequence = new ArrayList<>();
+	private List<DirectedEdge> reconstructSequence() {
+		Map<NodeGraph, NodeWrapper> traversedNodesMap = new HashMap<>();
+		List<DirectedEdge> directedEdgesSequence = new ArrayList<>();
 		NodeGraph step = destinationNode;
 		traversedNodesMap.put(destinationNode, nodeWrappersMap.get(destinationNode));
 
@@ -111,7 +115,7 @@ public class DijkstraRoadDistance extends Dijkstra {
 		// --> it switches "subgraph" to false;
 		if (nodeWrappersMap.get(destinationNode) == null && usingSubGraph) {
 			clear();
-			ArrayList<DirectedEdge> secondAttempt = dijkstraAlgorithm(originNode, destinationNode, finalDestinationNode,
+			List<DirectedEdge> secondAttempt = dijkstraAlgorithm(originNode, destinationNode, finalDestinationNode,
 					segmentsToAvoid, agent);
 			return secondAttempt;
 		}
@@ -120,25 +124,17 @@ public class DijkstraRoadDistance extends Dijkstra {
 		// No route
 		if (nodeWrappersMap.get(destinationNode) == null || nodeWrappersMap.size() <= 1)
 			directedEdgesSequence.clear();
-		try {
+		else
 			while (nodeWrappersMap.get(step).nodeFrom != null) {
 				DirectedEdge directedEdge;
-				if (regionCondition()) {
-					NodeGraph nodeTo = subGraph.getParentNode(step);
-					NodeGraph nodeFrom = subGraph.getParentNode(nodeWrappersMap.get(step).nodeFrom);
-					directedEdge = PedSimCity.dualNetwork.getDirectedEdgeBetween(nodeFrom, nodeTo);
-				} else
+				if (usingSubGraph)
+					directedEdge = retrieveFromParentGraph(step);
+				else
 					directedEdge = nodeWrappersMap.get(step).directedEdgeFrom;
 				step = nodeWrappersMap.get(step).nodeFrom;
 				directedEdgesSequence.add(0, directedEdge);
 				traversedNodesMap.put(step, nodeWrappersMap.get(step));
 			}
-		}
-
-		// No route
-		catch (final java.lang.NullPointerException e) {
-			return directedEdgesSequence;
-		}
 		return directedEdgesSequence;
 	}
 }
