@@ -26,9 +26,10 @@ public class RoadDistancePathFinder extends PathFinder {
 	public Route roadDistance(NodeGraph originNode, NodeGraph destinationNode, Agent agent) {
 
 		this.agent = agent;
+		agentNetwork = agent.getCognitiveMap().getKnownNetwork();
 		final DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
-		partialSequence = pathfinder.dijkstraAlgorithm(originNode, destinationNode, destinationNode, segmentsToAvoid,
-				agent);
+		partialSequence = pathfinder.dijkstraAlgorithm(originNode, destinationNode, destinationNode,
+				directedEdgesToAvoid, agent);
 		route.directedEdgesSequence = partialSequence;
 		route.routeSequences();
 		return route;
@@ -50,6 +51,7 @@ public class RoadDistancePathFinder extends PathFinder {
 	public Route roadDistanceSequence(List<NodeGraph> sequenceNodes, Agent agent) {
 
 		this.agent = agent;
+		agentNetwork = agent.getCognitiveMap().getKnownNetwork();
 		this.sequenceNodes = new ArrayList<>(sequenceNodes);
 
 		// originNode
@@ -72,10 +74,10 @@ public class RoadDistancePathFinder extends PathFinder {
 			if (haveEdgesBetween())
 				continue;
 
-			segmentsToAvoid = new HashSet<>(completeSequence);
+			directedEdgesToAvoid = new HashSet<>(completeSequence);
 			DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
-			partialSequence = pathfinder.dijkstraAlgorithm(tmpOrigin, tmpDestination, destinationNode, segmentsToAvoid,
-					agent);
+			partialSequence = pathfinder.dijkstraAlgorithm(tmpOrigin, tmpDestination, destinationNode,
+					directedEdgesToAvoid, agent);
 			while (partialSequence.isEmpty() && !moveOn)
 				backtracking(tmpDestination);
 
