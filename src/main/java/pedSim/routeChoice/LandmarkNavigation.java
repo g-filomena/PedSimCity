@@ -30,10 +30,10 @@ public class LandmarkNavigation {
 
 	NodeGraph originNode;
 	NodeGraph destinationNode;
-	private ArrayList<NodeGraph> sequence = new ArrayList<>();
-	private ArrayList<NodeGraph> inRegionSequence = new ArrayList<>();
+	private List<NodeGraph> sequence = new ArrayList<>();
+	private List<NodeGraph> inRegionSequence = new ArrayList<>();
 	private Complexity complexity = new Complexity();
-	private Map<NodeGraph, Double> knownJunctions = new HashMap<NodeGraph, Double>();
+	private Map<NodeGraph, Double> salientNodes = new HashMap<NodeGraph, Double>();
 	private AgentCognitiveMap cognitiveMap;
 	private Agent agent;
 	private NodeGraph currentNode;
@@ -60,12 +60,12 @@ public class LandmarkNavigation {
 	 * @return An ArrayList of on-route marks, including the origin and destination
 	 *         nodes.
 	 */
-	public ArrayList<NodeGraph> onRouteMarks() {
+	public List<NodeGraph> onRouteMarks() {
 
 		sequence = new ArrayList<>();
-		knownJunctions(originNode);
+		findSalientJunctions(originNode);
 
-		if (knownJunctions.isEmpty())
+		if (salientNodes.isEmpty())
 			return sequence;
 
 		// compute wayfinding easiness and the resulting research space
@@ -76,12 +76,12 @@ public class LandmarkNavigation {
 		// while the wayfindingEasiness is lower than the threshold the agent looks for
 		// intermediate-points.
 		while (wayfindingEasiness < Parameters.wayfindingEasinessThreshold) {
-			NodeGraph bestNode = findOnRouteMark(knownJunctions, searchDistance);
+			NodeGraph bestNode = findOnRouteMark(salientNodes, searchDistance);
 			if (bestNode == null || bestNode.equals(currentNode))
 				break;
 			sequence.add(bestNode);
-			knownJunctions(bestNode);
-			if (knownJunctions.isEmpty())
+			findSalientJunctions(bestNode);
+			if (salientNodes.isEmpty())
 				return sequence;
 			wayfindingEasiness = complexity.wayfindingEasiness(bestNode, destinationNode, agent);
 			searchDistance = GraphUtils.nodesDistance(bestNode, destinationNode) * wayfindingEasiness;
@@ -94,51 +94,51 @@ public class LandmarkNavigation {
 	}
 
 	/**
-	 * Identifies known junctions within the network space between a given node and
-	 * the destination node. This method finds known junctions based on their
+	 * Identifies salient junctions within the network space between a given node
+	 * and the destination node. This method finds salient nodes based on their
 	 * salience within the specified network space.
 	 *
-	 * @param node The node from which to identify known junctions, in the space
+	 * @param node The node from which to identify salient junctions, in the space
 	 *             with the destination node.
 	 */
-	public void knownJunctions(NodeGraph node) {
+	public void findSalientJunctions(NodeGraph node) {
 
 		double percentile = Parameters.salientNodesPercentile;
-		knownJunctions = new HashMap<NodeGraph, Double>(
-				PedSimCity.network.salientNodesWithinSpace(node, destinationNode, percentile));
+		salientNodes = new HashMap<NodeGraph, Double>(
+				PedSimCity.network.getSalientNodesWithinSpace(node, destinationNode, percentile));
 
 		// If no salient junctions are found, the tolerance increases till the 0.50
 		// percentile;
 		// if still no salient junctions are found, the agent continues without
 		// landmarks
-		while (knownJunctions.isEmpty()) {
+		while (salientNodes.isEmpty()) {
 			percentile -= 0.05;
 			if (percentile < 0.50) {
 				sequence.add(0, originNode);
 				sequence.add(destinationNode);
 				break;
 			}
-			knownJunctions = new HashMap<NodeGraph, Double>(
-					PedSimCity.network.salientNodesWithinSpace(node, destinationNode, percentile));
+			salientNodes = new HashMap<NodeGraph, Double>(
+					PedSimCity.network.getSalientNodesWithinSpace(node, destinationNode, percentile));
 		}
 	}
 
 	/**
 	 * Finds the most salient on-route mark between the current node and the
-	 * destination node, amongst the knownJunctions.
+	 * destination node, amongst the salient nodes (junctions).
 	 *
 	 * @param currentNode    The current node in the navigation.
-	 * @param knownJunctions A map of known junctions and their centrality scores
+	 * @param salientNodes   A map of salient junctions and their centrality scores
 	 *                       along the route.
 	 * @param searchDistance The search distance limit from the currentNode for
 	 *                       evaluating potential nodes.
 	 * @return The selected node that serves as an on-route mark, or null if none is
 	 *         found.
 	 */
-	private NodeGraph findOnRouteMark(Map<NodeGraph, Double> knownJunctions, Double searchDistance) {
+	private NodeGraph findOnRouteMark(Map<NodeGraph, Double> salientNodes, Double searchDistance) {
 
-		ArrayList<NodeGraph> junctions = new ArrayList<>(knownJunctions.keySet());
-		ArrayList<Double> centralities = new ArrayList<>(knownJunctions.values());
+		List<NodeGraph> junctions = new ArrayList<>(salientNodes.keySet());
+		List<Double> centralities = new ArrayList<>(salientNodes.values());
 		double maxCentrality = Collections.max(centralities);
 		double minCentrality = Collections.min(centralities);
 
@@ -151,6 +151,16 @@ public class LandmarkNavigation {
 		return sortedJunctions.isEmpty() ? null : sortedJunctions.get(sortedJunctions.size() - 1);
 	}
 
+	/**
+	 * Checks the criteria for selecting a candidate node based on various
+	 * conditions.
+	 *
+	 * @param candidateNode  The node being evaluated.
+	 * @param searchDistance The search distance limit for evaluating potential
+	 *                       nodes.
+	 * @return {@code true} if the candidate node meets all criteria, {@code false}
+	 *         otherwise.
+	 */
 	private boolean checkCriteria(NodeGraph candidateNode, double searchDistance) {
 
 		return !sequence.contains(candidateNode) && !candidateNode.equals(originNode)
@@ -159,10 +169,20 @@ public class LandmarkNavigation {
 				&& GraphUtils.getCachedNodesDistance(currentNode, candidateNode) <= searchDistance;
 	}
 
+	/**
+	 * Calculates the score for a candidate node based on centrality and distance
+	 * gain metrics.
+	 *
+	 * @param candidateNode The node being evaluated.
+	 * @param minCentrality The minimum centrality value in the network.
+	 * @param maxCentrality The maximum centrality value in the network.
+	 * @return The calculated score for the candidate node, considering centrality
+	 *         and distance gain.
+	 */
 	private double calculateScore(NodeGraph candidateNode, double minCentrality, double maxCentrality) {
 
 		double score = agent.getProperties().usingLocalLandmarks ? localLandmarkness(candidateNode)
-				: (candidateNode.centrality - minCentrality) / (maxCentrality - minCentrality);
+				: (candidateNode.getCentrality() - minCentrality) / (maxCentrality - minCentrality);
 		double currentDistance = GraphUtils.getCachedNodesDistance(currentNode, destinationNode);
 		double distanceGain = (currentDistance - GraphUtils.getCachedNodesDistance(candidateNode, destinationNode))
 				/ currentDistance;
@@ -175,18 +195,17 @@ public class LandmarkNavigation {
 	 * origin and destination nodes on the basis of local landmarkness while passing
 	 * through region gateways (sequenceGateways).
 	 *
-	 * @param sequenceGateways An ArrayList of gateways (nodes at the boundary
-	 *                         between regions) that need to be traversed on the
-	 *                         route.
+	 * @param sequenceNodes An ArrayList of gateways (nodes at the boundary between
+	 *                      regions) that need to be traversed on the route.
 	 * @return An ArrayList of region-based on-route marks, including the origin and
 	 *         destination nodes.
 	 */
-	public ArrayList<NodeGraph> regionOnRouteMarks(ArrayList<NodeGraph> sequenceGateways) {
+	public List<NodeGraph> regionOnRouteMarks(List<NodeGraph> sequenceNodes) {
 
 		sequence = new ArrayList<>();
 		currentNode = originNode;
 
-		for (NodeGraph exitGateway : sequenceGateways) {
+		for (NodeGraph exitGateway : sequenceNodes) {
 			if (exitGateway.equals(originNode) || currentNode.equals(destinationNode))
 				continue;
 			sequence.add(currentNode);
@@ -213,11 +232,11 @@ public class LandmarkNavigation {
 	 * @return An ArrayList of in-region on-route marks within the same region,
 	 *         including the current node and exit gateway.
 	 */
-	public ArrayList<NodeGraph> onRouteMarksInRegion(NodeGraph exitGateway) {
+	public List<NodeGraph> onRouteMarksInRegion(NodeGraph exitGateway) {
 
 		Region region = PedSimCity.regionsMap.get(currentNode.regionID);
-		regionKnownJunctions(region);
-		if (knownJunctions.isEmpty())
+		findRegionSalientJunctions(region);
+		if (salientNodes.isEmpty())
 			return inRegionSequence;
 		// compute wayfinding complexity and the resulting easinesss
 		double wayfindingEasiness = complexity.wayfindingEasinessRegion(currentNode, exitGateway, originNode,
@@ -227,13 +246,13 @@ public class LandmarkNavigation {
 		// while the wayfindingEasiness is lower than the threshold the agent looks for
 		// intermediate-points.
 		while (wayfindingEasiness < Parameters.wayfindingEasinessThresholdRegions) {
-			NodeGraph bestNode = findOnRouteMarkRegion(exitGateway, knownJunctions, searchDistance);
+			NodeGraph bestNode = findOnRouteMarkRegion(exitGateway, salientNodes, searchDistance);
 
 			if (bestNode == null || bestNode.equals(exitGateway) || bestNode.equals(destinationNode))
 				break;
 			inRegionSequence.add(bestNode);
-			regionKnownJunctions(region);
-			if (knownJunctions.isEmpty())
+			findRegionSalientJunctions(region);
+			if (salientNodes.isEmpty())
 				return inRegionSequence;
 
 			wayfindingEasiness = complexity.wayfindingEasinessRegion(bestNode, originNode, destinationNode, exitGateway,
@@ -246,45 +265,45 @@ public class LandmarkNavigation {
 	}
 
 	/**
-	 * Identifies known junctions within a specific region's graph based on their
+	 * Identifies salient junctions within a specific region's graph based on their
 	 * centrality in the graph.
 	 *
-	 * @param region The region for which to identify known junctions.
+	 * @param region The region for which to identify salient junctions.
 	 */
-	private void regionKnownJunctions(Region region) {
+	private void findRegionSalientJunctions(Region region) {
 
 		double percentile = Parameters.salientNodesPercentile;
-		knownJunctions = new HashMap<NodeGraph, Double>(region.primalGraph.salientNodes);
+		salientNodes = new HashMap<NodeGraph, Double>(region.primalGraph.getSubGraphSalientNodes(percentile));
 
 		// If no salient junctions are found, the tolerance increases till the 0.50
 		// percentile;
 		// still no salient junctions are found, the agent continues without landmarks
-		while (knownJunctions.isEmpty()) {
+		while (salientNodes.isEmpty()) {
 			percentile -= 0.05;
 			if (percentile < 0.50)
 				break;
-			knownJunctions = new HashMap<NodeGraph, Double>(region.primalGraph.subGraphSalientNodes(percentile));
+			salientNodes = new HashMap<NodeGraph, Double>(region.primalGraph.getSubGraphSalientNodes(percentile));
 		}
 	}
 
 	/**
 	 * Finds the most salient on-route mark between the current node and the exit
-	 * gateway, amongst the knownJunctions within a specific region.
+	 * gateway, amongst the salientNodes within a specific region.
 	 *
 	 * @param currentNode    The current node in the region.
 	 * @param exitGateway    The exit gateway node from the region.
-	 * @param knownJunctions A map of known junctions and their centrality scores
+	 * @param salientNodes   A map of salient junctions and their centrality scores
 	 *                       within the region.
 	 * @param searchDistance The search distance limit for evaluating potential
 	 *                       nodes.
 	 * @return The selected node that serves as an on-route mark, or null if none is
 	 *         found.
 	 */
-	private NodeGraph findOnRouteMarkRegion(NodeGraph exitGateway, Map<NodeGraph, Double> knownJunctions,
+	private NodeGraph findOnRouteMarkRegion(NodeGraph exitGateway, Map<NodeGraph, Double> salientNodes,
 			Double searchDistance) {
 
-		ArrayList<NodeGraph> junctions = new ArrayList<>(knownJunctions.keySet());
-		ArrayList<Double> centralities = new ArrayList<>(knownJunctions.values());
+		List<NodeGraph> junctions = new ArrayList<>(salientNodes.keySet());
+		List<Double> centralities = new ArrayList<>(salientNodes.values());
 		double currentDistance = GraphUtils.getCachedNodesDistance(currentNode, exitGateway);
 		double maxCentrality = Collections.max(centralities);
 		double minCentrality = Collections.min(centralities);
@@ -299,6 +318,18 @@ public class LandmarkNavigation {
 		return sortedJunctions.isEmpty() ? null : sortedJunctions.get(sortedJunctions.size() - 1);
 	}
 
+	/**
+	 * Checks the criteria for selecting a candidate node based on various
+	 * conditions.
+	 *
+	 * @param candidateNode   The node being evaluated.
+	 * @param exitGateway     The exit gateway node within the region.
+	 * @param searchDistance  The search distance limit for evaluating potential
+	 *                        nodes.
+	 * @param currentDistance The current distance to the exit gateway.
+	 * @return {@code true} if the candidate node meets all criteria, {@code false}
+	 *         otherwise.
+	 */
 	private boolean checkCriteria(NodeGraph candidateNode, NodeGraph exitGateway, double searchDistance,
 			double currentDistance) {
 
@@ -309,7 +340,18 @@ public class LandmarkNavigation {
 				&& !sequence.contains(candidateNode);
 	}
 
-	// Helper method for calculating the score
+	/**
+	 * Calculates the score for a candidate node based on centrality and gain
+	 * metrics within a region.
+	 *
+	 * @param candidateNode   The candidate node for which the score is calculated.
+	 * @param exitGateway     The exit gateway node within the region.
+	 * @param currentDistance The current distance to the exit gateway.
+	 * @param minCentrality   The minimum centrality value in the network.
+	 * @param maxCentrality   The maximum centrality value in the network.
+	 * @return The calculated score for the candidate node, considering centrality
+	 *         and gain metrics.
+	 */
 	private double calculateScore(NodeGraph candidateNode, NodeGraph exitGateway, double currentDistance,
 			double minCentrality, double maxCentrality) {
 
@@ -317,7 +359,7 @@ public class LandmarkNavigation {
 		if (agent.getProperties().usingLocalLandmarks)
 			score = localLandmarkness(candidateNode);
 		else
-			score = (candidateNode.centrality - minCentrality) / (maxCentrality - minCentrality);
+			score = (candidateNode.getCentrality() - minCentrality) / (maxCentrality - minCentrality);
 		double gain = (currentDistance - GraphUtils.nodesDistance(candidateNode, exitGateway)) / currentDistance;
 		return score * 0.50 + gain * 0.50;
 	}
@@ -330,9 +372,9 @@ public class LandmarkNavigation {
 	 * @return The computed local landmarkness score for the node.
 	 */
 	private double localLandmarkness(NodeGraph candidateNode) {
-		ArrayList<Building> nodeLocalLandmarks = new ArrayList<>(candidateNode.adjacentBuildings);
+		List<Building> nodeLocalLandmarks = new ArrayList<>(candidateNode.adjacentBuildings);
 		VectorLayer agentLocalLandmarks = cognitiveMap.getLocalLandmarks();
-		ArrayList<Integer> agentLandmarksIDs = agentLocalLandmarks.getIDs();
+		List<Integer> agentLandmarksIDs = agentLocalLandmarks.getIDs();
 
 		for (Building landmark : candidateNode.adjacentBuildings) {
 			if (!agentLandmarksIDs.contains(landmark.buildingID))
@@ -358,13 +400,13 @@ public class LandmarkNavigation {
 	public static double globalLandmarknessNode(NodeGraph targetNode, NodeGraph destinationNode) {
 
 		// get the distant landmarks
-		ArrayList<Building> distantLandmarks = new ArrayList<>(targetNode.visibleBuildings3d);
+		List<Building> distantLandmarks = new ArrayList<>(targetNode.visibleBuildings3d);
 
 		if (distantLandmarks.isEmpty())
 			return 0.0;
 
 		// get the anchors of the destination
-		ArrayList<Building> anchors = new ArrayList<>(LandmarkIntegration.getAnchors(destinationNode).getArray());
+		List<Building> anchors = new ArrayList<>(LandmarkIntegration.getAnchors(destinationNode).getArray());
 		double nodeGlobalScore = 0.0;
 		double targetDistance = GraphUtils.getCachedNodesDistance(targetNode, destinationNode);
 		for (Building landmark : distantLandmarks) {
@@ -397,10 +439,9 @@ public class LandmarkNavigation {
 			NodeGraph destinationNode) {
 
 		// current real segment: identifying the node
-		DirectedEdge streetSegment = targetCentroid.primalEdge.getDirEdge(0);
+		DirectedEdge streetSegment = targetCentroid.getPrimalEdge().getDirEdge(0);
 		NodeGraph targetNode = (NodeGraph) streetSegment.getToNode(); // targetNode
-		Route route = new Route();
-		if (route.commonPrimalJunction(centroid, targetCentroid).equals(targetNode))
+		if (GraphUtils.getPrimalJunction(centroid, targetCentroid).equals(targetNode))
 			targetNode = (NodeGraph) streetSegment.getFromNode();
 
 		return globalLandmarknessNode(targetNode, destinationNode);
