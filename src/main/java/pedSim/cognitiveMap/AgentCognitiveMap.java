@@ -16,15 +16,6 @@ public class AgentCognitiveMap extends CommunityCognitiveMap {
 	}
 
 	/**
-	 * Gets the cognitive map. In this version, it returns the shared cognitive map.
-	 *
-	 * @return The cognitive map.
-	 */
-	synchronized public CommunityCognitiveMap getCognitiveMap() {
-		return CommunityCognitiveMap.getInstance();
-	}
-
-	/**
 	 * Gets the local landmarks from the cognitive map.
 	 *
 	 * @return The local landmarks.
