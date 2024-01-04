@@ -1,14 +1,20 @@
 package pedSim.dijkstra;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Set;
 
 import org.locationtech.jts.planargraph.DirectedEdge;
 
 import pedSim.agents.Agent;
 import pedSim.engine.Parameters;
 import sim.graph.EdgeGraph;
+import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
 
 /**
@@ -35,15 +41,14 @@ public class DijkstraAngularChange extends Dijkstra {
 	 * 
 	 * @return An ArrayList of DirectedEdges representing the path.
 	 */
-	public ArrayList<DirectedEdge> dijkstraAlgorithm(NodeGraph originNode, NodeGraph destinationNode,
-			NodeGraph finalDestinationNode, HashSet<NodeGraph> centroidsToAvoid, NodeGraph previousJunction,
-			Agent agent) {
+	public List<DirectedEdge> dijkstraAlgorithm(NodeGraph originNode, NodeGraph destinationNode,
+			NodeGraph finalDestinationNode, Set<NodeGraph> centroidsToAvoid, NodeGraph previousJunction, Agent agent) {
 
 		initialiseDual(originNode, destinationNode, finalDestinationNode, centroidsToAvoid, previousJunction, agent,
 				Parameters.subGraph);
 
 		visitedNodes = new HashSet<>();
-		unvisitedNodes = new HashSet<>();
+		unvisitedNodes = new PriorityQueue<>(Comparator.comparingDouble(this::getBest));
 		unvisitedNodes.add(this.originNode);
 
 		// NodeWrapper = container for the metainformation about a Node
@@ -69,7 +74,7 @@ public class DijkstraAngularChange extends Dijkstra {
 		// add centroids to avoid in the visited set
 		while (unvisitedNodes.size() > 0) {
 			// at the beginning it takes originNode
-			NodeGraph currentNode = getClosest(unvisitedNodes);
+			NodeGraph currentNode = unvisitedNodes.peek();
 			visitedNodes.add(currentNode);
 			unvisitedNodes.remove(currentNode);
 			findLeastAngularChange(currentNode);
@@ -86,7 +91,7 @@ public class DijkstraAngularChange extends Dijkstra {
 	 */
 	private void findLeastAngularChange(NodeGraph currentNode) {
 
-		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
+		List<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
 		for (NodeGraph targetNode : adjacentNodes) {
 			if (visitedNodes.contains(targetNode))
 				continue;
@@ -96,12 +101,12 @@ public class DijkstraAngularChange extends Dijkstra {
 			// --> if yes move on. This essentially means that the in the primal graph you
 			// would go back to an
 			// already traversed node; but the dual graph wouldn't know.
-			if (route.commonPrimalJunction(targetNode, currentNode)
+			if (GraphUtils.getPrimalJunction(targetNode, currentNode)
 					.equals(nodeWrappersMap.get(currentNode).commonPrimalJunction))
 				continue;
 
-			EdgeGraph commonEdge = graph.getEdgeBetween(currentNode, targetNode);
-			DirectedEdge outEdge = graph.getDirectedEdgeBetween(currentNode, targetNode);
+			EdgeGraph commonEdge = network.getEdgeBetween(currentNode, targetNode);
+			DirectedEdge outEdge = network.getDirectedEdgeBetween(currentNode, targetNode);
 
 			// compute errors in perception of road coasts with stochastic variables
 			double error = costPerceptionError(targetNode, commonEdge, true);
@@ -117,17 +122,17 @@ public class DijkstraAngularChange extends Dijkstra {
 	 *
 	 * @return An ArrayList of DirectedEdges representing the path sequence.
 	 */
-	private ArrayList<DirectedEdge> reconstructSequence() {
+	private List<DirectedEdge> reconstructSequence() {
 
-		HashMap<NodeGraph, NodeWrapper> traversedNodesMap = new HashMap<>();
-		ArrayList<DirectedEdge> directedEdgesSequence = new ArrayList<>();
+		Map<NodeGraph, NodeWrapper> traversedNodesMap = new HashMap<>();
+		List<DirectedEdge> directedEdgesSequence = new ArrayList<>();
 		NodeGraph step = destinationNode;
 		traversedNodesMap.put(destinationNode, nodeWrappersMap.get(destinationNode));
 		// If the subgraph navigation hasn't worked, retry by using the full graph
 		// --> it switches "subgraph" to false;
 		if (nodeWrappersMap.get(destinationNode) == null && usingSubGraph) {
 			clear();
-			ArrayList<DirectedEdge> secondAttempt = dijkstraAlgorithm(originNode, destinationNode, finalDestinationNode,
+			List<DirectedEdge> secondAttempt = dijkstraAlgorithm(originNode, destinationNode, finalDestinationNode,
 					centroidsToAvoid, previousJunction, agent);
 			return secondAttempt;
 		}
@@ -137,13 +142,15 @@ public class DijkstraAngularChange extends Dijkstra {
 			directedEdgesSequence.clear();
 		try {
 			while (nodeWrappersMap.get(step).nodeFrom != null) {
-				DirectedEdge directedEdge = step.primalEdge.getDirEdge(0);
+
+				DirectedEdge directedEdge = step.getPrimalEdge().getDirEdge(0); // this refer in any case to the Parent
+																				// primal graph
 				step = nodeWrappersMap.get(step).nodeFrom;
 				traversedNodesMap.put(step, nodeWrappersMap.get(step));
 				directedEdgesSequence.add(0, directedEdge);
 
 				if (step.equals(originNode)) {
-					DirectedEdge firstEdge = step.primalEdge.getDirEdge(0);
+					DirectedEdge firstEdge = step.getPrimalEdge().getDirEdge(0);
 					directedEdgesSequence.add(0, firstEdge);
 					break;
 				}
