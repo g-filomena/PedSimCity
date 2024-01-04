@@ -2,6 +2,7 @@ package pedSim.routeChoice;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 
 import pedSim.agents.Agent;
 import pedSim.dijkstra.DijkstraRoadDistance;
@@ -26,7 +27,8 @@ public class RoadDistancePathFinder extends PathFinder {
 
 		this.agent = agent;
 		final DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
-		partialSequence = pathfinder.dijkstraAlgorithm(originNode, destinationNode, destinationNode, null, agent);
+		partialSequence = pathfinder.dijkstraAlgorithm(originNode, destinationNode, destinationNode, segmentsToAvoid,
+				agent);
 		route.directedEdgesSequence = partialSequence;
 		route.routeSequences();
 		return route;
@@ -45,7 +47,7 @@ public class RoadDistancePathFinder extends PathFinder {
 	 * @return a `Route' object representing the road-distance shortest path for the
 	 *         sequence of nodes.
 	 */
-	public Route roadDistanceSequence(ArrayList<NodeGraph> sequenceNodes, Agent agent) {
+	public Route roadDistanceSequence(List<NodeGraph> sequenceNodes, Agent agent) {
 
 		this.agent = agent;
 		this.sequenceNodes = new ArrayList<>(sequenceNodes);
