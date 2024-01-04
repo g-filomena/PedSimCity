@@ -12,8 +12,6 @@ import pedSim.utilities.StringEnum.RouteChoice;
  */
 public class AgentProperties {
 
-	public int agentID;
-
 	// for general routing
 	public RouteChoice routeChoice;
 	public boolean onlyMinimising = false;
@@ -38,19 +36,17 @@ public class AgentProperties {
 	public double severingBarriers = 0.0;
 	public double severingBarriersSD = 0.10;
 
-	// the ones possibly used as sub-goals []
+	// the ones possibly used as sub-goals
 	public BarrierType barrierType;
 	public LandmarkType landmarkType;
-
-	public Agent agent;
 
 	/**
 	 * Constructs an AgentProperties instance associated with the given agent.
 	 *
 	 * @param agent The agent for which this AgentProperties instance is created.
 	 */
-	public AgentProperties(Agent agent) {
-		this.agent = agent;
+	public AgentProperties() {
+
 	}
 
 	/**
