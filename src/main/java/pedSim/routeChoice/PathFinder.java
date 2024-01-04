@@ -2,9 +2,9 @@ package pedSim.routeChoice;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
-import org.javatuples.Pair;
 import org.locationtech.jts.planargraph.DirectedEdge;
 
 import pedSim.agents.Agent;
@@ -12,6 +12,7 @@ import pedSim.dijkstra.DijkstraAngularChange;
 import pedSim.dijkstra.DijkstraRoadDistance;
 import pedSim.engine.PedSimCity;
 import sim.graph.EdgeGraph;
+import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
 
 /**
@@ -25,12 +26,13 @@ public class PathFinder {
 	NodeGraph tmpOrigin, tmpDestination;
 	NodeGraph previousJunction = null;
 
-	ArrayList<NodeGraph> sequenceNodes = new ArrayList<>();
-	ArrayList<NodeGraph> centroidsToAvoid = new ArrayList<>();
-	HashSet<DirectedEdge> segmentsToAvoid = new HashSet<>();
+	List<NodeGraph> sequenceNodes = new ArrayList<>();
+	// need order here, that's why it's not hashset
+	List<NodeGraph> centroidsToAvoid = new ArrayList<>();
+	Set<DirectedEdge> segmentsToAvoid = new HashSet<>();
 
-	ArrayList<DirectedEdge> completeSequence = new ArrayList<>();
-	ArrayList<DirectedEdge> partialSequence = new ArrayList<>();
+	List<DirectedEdge> completeSequence = new ArrayList<>();
+	List<DirectedEdge> partialSequence = new ArrayList<>();
 
 	Agent agent;
 	Route route = new Route();
@@ -121,12 +123,12 @@ public class PathFinder {
 			return;
 		}
 
-		ArrayList<NodeGraph> dualNodesOrigin = getDualNodes(tmpOrigin, previousJunction);
-		ArrayList<NodeGraph> dualNodesDestination = getDualNodes(tmpDestination, previousJunction);
+		List<NodeGraph> dualNodesOrigin = getDualNodes(tmpOrigin, previousJunction);
+		List<NodeGraph> dualNodesDestination = getDualNodes(tmpDestination, previousJunction);
 		for (final NodeGraph tmpDualOrigin : dualNodesOrigin) {
 			for (final NodeGraph tmpDualDestination : dualNodesDestination) {
 				final DijkstraAngularChange pathfinder = new DijkstraAngularChange();
-				HashSet<NodeGraph> centroidsToAvoidSet = new HashSet<>(centroidsToAvoid);
+				Set<NodeGraph> centroidsToAvoidSet = new HashSet<>(centroidsToAvoid);
 				partialSequence = pathfinder.dijkstraAlgorithm(tmpDualOrigin, tmpDualDestination, destinationNode,
 						centroidsToAvoidSet, tmpOrigin, agent);
 				if (!partialSequence.isEmpty())
@@ -182,13 +184,13 @@ public class PathFinder {
 	 */
 	protected void cleanDualPath(NodeGraph tmpOrigin, NodeGraph tmpDestination) {
 		// check if the path is one edge ahead
-		final NodeGraph firstDualNode = ((EdgeGraph) partialSequence.get(0).getEdge()).dualNode;
-		final NodeGraph secondDualNode = ((EdgeGraph) partialSequence.get(1).getEdge()).dualNode;
+		final NodeGraph firstDualNode = ((EdgeGraph) partialSequence.get(0).getEdge()).getDualNode();
+		final NodeGraph secondDualNode = ((EdgeGraph) partialSequence.get(1).getEdge()).getDualNode();
 
 		if (route.previousJunction(partialSequence).equals(tmpDestination))
 			partialSequence.remove(partialSequence.size() - 1);
 		// check presence of a unnecessary edge at the beginning of the path
-		if (route.commonPrimalJunction(firstDualNode, secondDualNode).equals(tmpOrigin))
+		if (GraphUtils.getPrimalJunction(firstDualNode, secondDualNode).equals(tmpOrigin))
 			partialSequence.remove(0);
 		checkEdgesSequence(tmpOrigin);
 	}
@@ -224,9 +226,7 @@ public class PathFinder {
 	 */
 	protected boolean haveEdgesBetween() {
 		// check if edge in between
-		DirectedEdge edge = null;
-		Pair<NodeGraph, NodeGraph> pair = new Pair<NodeGraph, NodeGraph>(tmpOrigin, tmpDestination);
-		edge = PedSimCity.network.adjacencyMatrixDirected.get(pair);
+		DirectedEdge edge = PedSimCity.network.getDirectedEdgeBetween(tmpOrigin, tmpDestination);
 
 		if (edge == null)
 			return false;
