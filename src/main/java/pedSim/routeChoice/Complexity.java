@@ -1,6 +1,7 @@
 package pedSim.routeChoice;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import pedSim.agents.Agent;
 import pedSim.cognitiveMap.Region;
@@ -34,8 +35,8 @@ public class Complexity {
 				/ Math.max(PedSimCity.roads.MBR.getHeight(), PedSimCity.roads.MBR.getWidth());
 
 		double buildingsComplexity = 1.0;
-		ArrayList<MasonGeometry> buildings = new ArrayList<>(agent.cognitiveMap.getBuildings(node, destinationNode));
-		ArrayList<MasonGeometry> landmarks = new ArrayList<>(getAgentLandmarks(agent, null));
+		List<MasonGeometry> buildings = new ArrayList<>(agent.cognitiveMap.getBuildings(node, destinationNode));
+		List<MasonGeometry> landmarks = new ArrayList<>(getAgentLandmarks(agent, null));
 		if (!buildings.isEmpty()) {
 			landmarks.retainAll(buildings);
 			buildingsComplexity = buildingsComplexity(buildings, landmarks);
@@ -80,7 +81,7 @@ public class Complexity {
 	 * @param landmarks The set of landmarks in the area.
 	 * @return The complexity value of the area.
 	 */
-	public double buildingsComplexity(ArrayList<MasonGeometry> buildings, ArrayList<MasonGeometry> landmarks) {
+	public double buildingsComplexity(List<MasonGeometry> buildings, List<MasonGeometry> landmarks) {
 		return ((double) buildings.size() - landmarks.size()) / buildings.size();
 	}
 
@@ -94,8 +95,8 @@ public class Complexity {
 	 */
 	public double buildingsRegionComplexity(Region region, Agent agent) {
 
-		ArrayList<MasonGeometry> landmarks;
-		ArrayList<MasonGeometry> buildings = new ArrayList<>(agent.cognitiveMap.getBuildingsWithinRegion(region));
+		List<MasonGeometry> landmarks;
+		List<MasonGeometry> buildings = new ArrayList<>(agent.cognitiveMap.getBuildingsWithinRegion(region));
 		if (buildings.isEmpty())
 			return 1.0;
 
@@ -116,7 +117,7 @@ public class Complexity {
 	 * @param region The region for which landmarks are retrieved (can be null).
 	 * @return A list of landmarks for the agent.
 	 */
-	public ArrayList<MasonGeometry> getAgentLandmarks(Agent agent, Region region) {
+	public List<MasonGeometry> getAgentLandmarks(Agent agent, Region region) {
 
 		LandmarkType agentLandmarkType = agent.getProperties().landmarkType;
 		if (region != null) {
