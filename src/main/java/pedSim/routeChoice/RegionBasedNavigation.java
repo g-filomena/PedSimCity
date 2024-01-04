@@ -74,10 +74,8 @@ public class RegionBasedNavigation {
 		initializeSequence(); // Extracted initialization logic
 		while (!finalRegion) {
 			nextGateways(); // Extracted logic for handling next gateways
-			if (gatewaySequence.contains(destinationNode) && !finalRegion) {
-
+			if (gatewaySequence.contains(destinationNode) && !finalRegion)
 				return gatewaySequence;
-			}
 		}
 
 		// clear the sets
@@ -87,16 +85,13 @@ public class RegionBasedNavigation {
 		List<NodeGraph> sequence = new ArrayList<>();
 		// if also barrier navigation, insert barrier-sub goals into the sequence
 		if (agent.getProperties().barrierBasedNavigation) {
-
 			sequence = regionalBarriers();
-			System.out.println("sequenceBarriers " + sequence.size());
 		} else
 			sequence = gatewaySequence;
 
 		// remove duplicates and maintains order
 		Set<NodeGraph> ns = new LinkedHashSet<>(sequence);
 		sequence = new ArrayList<>(ns);
-		System.out.println(gatewaySequence.size());
 		return sequence;
 	}
 
@@ -320,7 +315,8 @@ public class RegionBasedNavigation {
 	private List<NodeGraph> regionalBarriers() throws Exception {
 
 		List<NodeGraph> gatewaySequenceWithSubGoals = new ArrayList<>();
-		BarrierBasedNavigation barrierBasedNavigation = new BarrierBasedNavigation(originNode, destinationNode, agent);
+		BarrierBasedNavigation barrierBasedNavigation = new BarrierBasedNavigation(originNode, destinationNode, agent,
+				true);
 
 		for (NodeGraph gateway : gatewaySequence) {
 			if (gatewaysToIgnore.contains(gateway))
@@ -335,7 +331,6 @@ public class RegionBasedNavigation {
 
 			// check if there are good barriers in line of movement towards the destination
 			Region region = regionsMap.get(gateway.regionID);
-
 			Map<Integer, Double> validBarriers = barrierBasedNavigation.findValidBarriers(gateway, region);
 			if (validBarriers.isEmpty())
 				continue;
