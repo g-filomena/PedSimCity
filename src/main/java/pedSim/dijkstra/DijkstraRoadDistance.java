@@ -13,7 +13,6 @@ import java.util.Set;
 import org.locationtech.jts.planargraph.DirectedEdge;
 
 import pedSim.agents.Agent;
-import pedSim.engine.Parameters;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
 
@@ -47,9 +46,10 @@ public class DijkstraRoadDistance extends Dijkstra {
 	 *         origin to the destination.
 	 */
 	public List<DirectedEdge> dijkstraAlgorithm(NodeGraph originNode, NodeGraph destinationNode,
-			NodeGraph finalDestinationNode, Set<DirectedEdge> segmentsToAvoid, Agent agent) {
+			NodeGraph finalDestinationNode, Set<DirectedEdge> directedEdgesToAvoid, Agent agent) {
 
-		initialise(originNode, destinationNode, finalDestinationNode, segmentsToAvoid, agent, Parameters.subGraph);
+		initialise(originNode, destinationNode, finalDestinationNode, agent);
+		initialisePrimal(directedEdgesToAvoid);
 		visitedNodes = new HashSet<>();
 		unvisitedNodes = new PriorityQueue<>(Comparator.comparingDouble(this::getBest));
 		unvisitedNodes.add(this.originNode);
@@ -87,7 +87,7 @@ public class DijkstraRoadDistance extends Dijkstra {
 			if (visitedNodes.contains(targetNode))
 				continue;
 
-			EdgeGraph commonEdge = network.getEdgeBetween(currentNode, targetNode);
+			EdgeGraph commonEdge = agentNetwork.getEdgeBetween(currentNode, targetNode);
 			DirectedEdge outEdge = commonEdge.getDirEdge(0);
 			if (edgesToAvoid.contains(outEdge.getEdge()))
 				continue;
@@ -111,15 +111,6 @@ public class DijkstraRoadDistance extends Dijkstra {
 		NodeGraph step = destinationNode;
 		traversedNodesMap.put(destinationNode, nodeWrappersMap.get(destinationNode));
 
-		// If the subgraph navigation hasn't worked, retry by using the full graph
-		// --> it switches "subgraph" to false;
-		if (nodeWrappersMap.get(destinationNode) == null && usingSubGraph) {
-			clear();
-			List<DirectedEdge> secondAttempt = dijkstraAlgorithm(originNode, destinationNode, finalDestinationNode,
-					segmentsToAvoid, agent);
-			return secondAttempt;
-		}
-
 		// Check that the route has been formulated properly
 		// No route
 		if (nodeWrappersMap.get(destinationNode) == null || nodeWrappersMap.size() <= 1)
@@ -127,7 +118,7 @@ public class DijkstraRoadDistance extends Dijkstra {
 		else
 			while (nodeWrappersMap.get(step).nodeFrom != null) {
 				DirectedEdge directedEdge;
-				if (usingSubGraph)
+				if (subGraph != null)
 					directedEdge = retrieveFromParentGraph(step);
 				else
 					directedEdge = nodeWrappersMap.get(step).directedEdgeFrom;
