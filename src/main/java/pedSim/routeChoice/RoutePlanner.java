@@ -68,8 +68,8 @@ public class RoutePlanner {
 		/**
 		 * Sub-goals: only barriers, no regions
 		 */
-		if (agentProperties.barrierBasedNavigation && !isRegionBased()) {
-			BarrierBasedNavigation barriersPath = new BarrierBasedNavigation(originNode, destinationNode, agent);
+		if (agentProperties.barrierBasedNavigation && !isRegionBasedNavigation()) {
+			BarrierBasedNavigation barriersPath = new BarrierBasedNavigation(originNode, destinationNode, agent, false);
 			sequenceNodes = barriersPath.sequenceBarriers();
 		}
 
@@ -78,7 +78,7 @@ public class RoutePlanner {
 		 */
 		else if (agentProperties.usingLocalLandmarks) {
 			LandmarkNavigation landmarkNavigation = new LandmarkNavigation(originNode, destinationNode, agent);
-			if (isRegionBased() && !sequenceNodes.isEmpty())
+			if (isRegionBasedNavigation() && !sequenceNodes.isEmpty())
 				sequenceNodes = landmarkNavigation.regionOnRouteMarks(sequenceNodes);
 			else
 				sequenceNodes = landmarkNavigation.onRouteMarks();
@@ -147,14 +147,5 @@ public class RoutePlanner {
 				&& GraphUtils.getCachedNodesDistance(originNode,
 						destinationNode) >= Parameters.regionBasedNavigationThreshold
 				&& originNode.regionID != destinationNode.regionID;
-	}
-
-	/**
-	 * Checks if region-based navigation is enabled in the agent properties.
-	 *
-	 * @return True if region-based navigation is enabled, otherwise false.
-	 */
-	private boolean isRegionBased() {
-		return agentProperties.regionBasedNavigation;
 	}
 }
