@@ -1,6 +1,7 @@
 package pedSim.cognitiveMap;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import sim.field.geo.VectorLayer;
 import sim.graph.EdgeGraph;
@@ -27,17 +28,17 @@ public class Region {
 	public VectorLayer regionNetwork;
 
 	/** A list of edges within this region. */
-	public ArrayList<EdgeGraph> edges = new ArrayList<>();
+	public List<EdgeGraph> edges = new ArrayList<>();
 
 	/** A list of gateways within this region. */
-	public ArrayList<Gateway> gateways = new ArrayList<>();
+	public List<Gateway> gateways = new ArrayList<>();
 
 	/** A list of buildings within this region. */
-	public ArrayList<MasonGeometry> buildings = new ArrayList<>();
+	public List<MasonGeometry> buildings = new ArrayList<>();
 
 	/** A list of local landmarks within this region. */
-	public ArrayList<MasonGeometry> localLandmarks = new ArrayList<>();
+	public List<MasonGeometry> localLandmarks = new ArrayList<>();
 
 	/** A list of global landmarks within this region. */
-	public ArrayList<MasonGeometry> globalLandmarks = new ArrayList<>();
+	public List<MasonGeometry> globalLandmarks = new ArrayList<>();
 }
