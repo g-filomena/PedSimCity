@@ -35,7 +35,6 @@ public class Parameters {
 	public static boolean userDefined = false;
 
 	// Other parameters
-	public static boolean subGraph = false;
 	public static boolean usingDMA = false;
 	public static double thresholdTurn;
 
