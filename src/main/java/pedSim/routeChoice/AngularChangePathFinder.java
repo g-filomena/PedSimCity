@@ -8,7 +8,6 @@ import org.locationtech.jts.planargraph.DirectedEdge;
 
 import pedSim.agents.Agent;
 import pedSim.dijkstra.DijkstraAngularChange;
-import pedSim.engine.PedSimCity;
 import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
 
@@ -30,16 +29,19 @@ public class AngularChangePathFinder extends PathFinder {
 	 */
 	public Route angularChangeBased(NodeGraph originNode, NodeGraph destinationNode, Agent agent) {
 
+		this.agent = agent;
 		previousJunction = null;
+		agentNetwork = agent.getCognitiveMap().getKnownNetwork();
+
 		NodeGraph dualOrigin = originNode.getDualNode(originNode, destinationNode, false, previousJunction);
 		NodeGraph dualDestination = null;
-		while (dualDestination == dualOrigin || dualDestination == null)
+		while (dualDestination == null || dualDestination.equals(dualOrigin))
 			dualDestination = destinationNode.getDualNode(originNode, destinationNode, false, previousJunction);
 
 		NodeGraph commonJunction = GraphUtils.getPrimalJunction(dualOrigin, dualDestination);
 		if (commonJunction != null) {
-			route.directedEdgesSequence.add(PedSimCity.network.getDirectedEdgeBetween(originNode, commonJunction));
-			route.directedEdgesSequence.add(PedSimCity.network.getDirectedEdgeBetween(commonJunction, destinationNode));
+			route.directedEdgesSequence.add(agentNetwork.getDirectedEdgeBetween(originNode, commonJunction));
+			route.directedEdgesSequence.add(agentNetwork.getDirectedEdgeBetween(commonJunction, destinationNode));
 			return route;
 		}
 
@@ -66,6 +68,7 @@ public class AngularChangePathFinder extends PathFinder {
 	public Route angularChangeBasedSequence(List<NodeGraph> sequenceNodes, Agent agent) {
 
 		this.agent = agent;
+		agentNetwork = agent.getCognitiveMap().getKnownNetwork();
 		this.regionBased = agent.getProperties().regionBasedNavigation;
 		this.sequenceNodes = new ArrayList<>(sequenceNodes);
 
@@ -91,13 +94,12 @@ public class AngularChangePathFinder extends PathFinder {
 					continue;
 				}
 			}
-
 			// check if edge in between
 			if (haveEdgesBetween())
 				continue;
 
-			ArrayList<NodeGraph> dualNodesOrigin = getDualNodes(tmpOrigin, previousJunction);
-			ArrayList<NodeGraph> dualNodesDestination = getDualNodes(tmpDestination, null);
+			List<NodeGraph> dualNodesOrigin = getDualNodes(tmpOrigin, previousJunction);
+			List<NodeGraph> dualNodesDestination = getDualNodes(tmpDestination, null);
 
 			for (NodeGraph tmpDualOrigin : dualNodesOrigin) {
 				for (NodeGraph tmpDualDestination : dualNodesDestination) {
@@ -143,8 +145,8 @@ public class AngularChangePathFinder extends PathFinder {
 	 *                       destination.
 	 */
 	private void addEdgesCommonJunction(NodeGraph commonJunction) {
-		DirectedEdge first = PedSimCity.network.getDirectedEdgeBetween(tmpOrigin, commonJunction);
-		DirectedEdge second = PedSimCity.network.getDirectedEdgeBetween(commonJunction, tmpDestination);
+		DirectedEdge first = agentNetwork.getDirectedEdgeBetween(tmpOrigin, commonJunction);
+		DirectedEdge second = agentNetwork.getDirectedEdgeBetween(commonJunction, tmpDestination);
 		partialSequence.add(first);
 		partialSequence.add(second);
 	}
