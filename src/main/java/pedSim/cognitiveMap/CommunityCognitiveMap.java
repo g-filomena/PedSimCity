@@ -12,6 +12,7 @@ import pedSim.engine.Parameters;
 import pedSim.engine.PedSimCity;
 import sim.field.geo.VectorLayer;
 import sim.graph.Building;
+import sim.graph.Graph;
 import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
 import sim.util.geo.MasonGeometry;
@@ -44,6 +45,12 @@ public class CommunityCognitiveMap {
 	protected static VectorLayer barriers;
 
 	/**
+	 * Graphs for navigation.
+	 */
+	static Graph communityNetwork;
+	static Graph communityDualNetwork;
+
+	/**
 	 * Singleton instance of the CognitiveMap.
 	 */
 	private static final CommunityCognitiveMap instance = new CommunityCognitiveMap();
@@ -60,6 +67,15 @@ public class CommunityCognitiveMap {
 			integrateLandmarks();
 		}
 		identifyRegionElements();
+
+		barriers = PedSimCity.barriers;
+		setCommunityNetwork(PedSimCity.network, PedSimCity.dualNetwork);
+	}
+
+	private void setCommunityNetwork(Graph network, Graph dualNetwork) {
+		communityNetwork = network;
+		communityDualNetwork = dualNetwork;
+
 	}
 
 	/**
@@ -192,5 +208,13 @@ public class CommunityCognitiveMap {
 		VectorLayer regionNetwork = region.regionNetwork;
 		Geometry convexHull = regionNetwork.getConvexHull();
 		return PedSimCity.buildings.containedFeatures(convexHull);
+	}
+
+	public Graph getKnownNetwork() {
+		return communityNetwork;
+	}
+
+	public Graph getKnownDualNetwork() {
+		return communityDualNetwork;
 	}
 }
