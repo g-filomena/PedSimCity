@@ -2,6 +2,7 @@ package pedSim.agents;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 
 import org.javatuples.Pair;
 import org.locationtech.jts.geom.Coordinate;
@@ -34,11 +35,11 @@ public final class Agent implements Steppable {
 	public Integer agentID;
 
 	// Initial Attributes
-	public LinkedList<Pair<NodeGraph, NodeGraph>> OD = new LinkedList<>();
+	public List<Pair<NodeGraph, NodeGraph>> OD = new LinkedList<>();
 	public NodeGraph originNode = null;
 	public NodeGraph destinationNode = null;
-	public ArrayList<DirectedEdge> directedEdgesSequence = new ArrayList<>();
-	private ArrayList<Integer> edgeIDsSequence;
+	public List<DirectedEdge> directedEdgesSequence = new ArrayList<>();
+	private List<Integer> edgeIDsSequence;
 	boolean reachedDestination = false;
 	public Integer tripsDone = 0;
 
@@ -77,6 +78,7 @@ public final class Agent implements Steppable {
 		this.state = state;
 		final GeometryFactory fact = new GeometryFactory();
 		agentLocation = new MasonGeometry(fact.createPoint(new Coordinate(10, 10)));
+		getGeometry().isMovable = true;
 
 		if (!OD.isEmpty()) {
 			originNode = (NodeGraph) OD.get(tripsDone).getValue(0);
@@ -87,18 +89,11 @@ public final class Agent implements Steppable {
 	}
 
 	/**
-	 * Constructs a new Agent instance without specific attributes.
-	 */
-	public Agent() {
-		this.agentLocation = new MasonGeometry();
-	}
-
-	/**
 	 * Initialises the agent properties.
 	 */
 	public void initialiseAgentProperties() {
 		cognitiveMap = new AgentCognitiveMap();
-		agentProperties = new AgentProperties(this);
+		agentProperties = new AgentProperties();
 	}
 
 	/**
@@ -130,7 +125,6 @@ public final class Agent implements Steppable {
 	@Override
 	public void step(SimState state) {
 
-//		PedSimCity stateSchedule = this.state;
 		if (reachedDestination || destinationNode == null)
 			try {
 				handleReachedDestination();
