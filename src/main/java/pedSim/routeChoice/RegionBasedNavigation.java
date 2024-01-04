@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,21 +29,21 @@ import sim.util.geo.Utilities;
  */
 public class RegionBasedNavigation {
 
-	ArrayList<Integer> visitedRegions = new ArrayList<>();
-	ArrayList<NodeGraph> gatewaySequence = new ArrayList<>();
-	ArrayList<Pair<NodeGraph, NodeGraph>> badExits = new ArrayList<>();
-	ArrayList<NodeGraph> gatewaysToIgnore = new ArrayList<>();
+	List<Integer> visitedRegions = new ArrayList<>();
+	List<NodeGraph> gatewaySequence = new ArrayList<>();
+	List<Pair<NodeGraph, NodeGraph>> badExits = new ArrayList<>();
+	List<NodeGraph> gatewaysToIgnore = new ArrayList<>();
 
 	NodeGraph originNode, destinationNode, currentNode, previousNode;
 	int currentRegionID, specificRegionID, targetRegionID;
 	boolean finalRegion = false;
-	HashMap<Integer, EdgeGraph> edgesMap;
-	HashMap<Pair<NodeGraph, NodeGraph>, Gateway> gatewaysMap = new HashMap<Pair<NodeGraph, NodeGraph>, Gateway>();
-	ConcurrentHashMap<Pair<NodeGraph, NodeGraph>, Double> validGateways;
-	ConcurrentHashMap<Pair<NodeGraph, NodeGraph>, Double> otherGateways;
+	Map<Integer, EdgeGraph> edgesMap;
+	Map<Pair<NodeGraph, NodeGraph>, Gateway> gatewaysMap = new HashMap<Pair<NodeGraph, NodeGraph>, Gateway>();
+	Map<Pair<NodeGraph, NodeGraph>, Double> validGateways;
+	Map<Pair<NodeGraph, NodeGraph>, Double> otherGateways;
 
 	private Agent agent;
-	private HashMap<Integer, Region> regionsMap;
+	private Map<Integer, Region> regionsMap;
 
 	/**
 	 * Constructs a RegionBasedNavigation object.
@@ -55,7 +57,7 @@ public class RegionBasedNavigation {
 		this.originNode = originNode;
 		this.destinationNode = destinationNode;
 		this.agent = agent;
-		this.regionsMap = PedSimCity.regionsMap;
+		this.regionsMap = new HashMap<>(PedSimCity.regionsMap);
 	}
 
 	/**
@@ -68,28 +70,33 @@ public class RegionBasedNavigation {
 	 * @return The sequence of nodes representing the planned navigation.
 	 * @throws Exception
 	 */
-	public ArrayList<NodeGraph> sequenceRegions() throws Exception {
+	public List<NodeGraph> sequenceRegions() throws Exception {
 		initializeSequence(); // Extracted initialization logic
 		while (!finalRegion) {
 			nextGateways(); // Extracted logic for handling next gateways
-			if (gatewaySequence.contains(destinationNode) && !finalRegion)
+			if (gatewaySequence.contains(destinationNode) && !finalRegion) {
+
 				return gatewaySequence;
+			}
 		}
 
 		// clear the sets
 		visitedRegions.clear();
 		badExits.clear();
 		// sub-goals and barriers - navigation
-		ArrayList<NodeGraph> sequence = new ArrayList<>();
+		List<NodeGraph> sequence = new ArrayList<>();
 		// if also barrier navigation, insert barrier-sub goals into the sequence
-		if (agent.getProperties().barrierBasedNavigation)
+		if (agent.getProperties().barrierBasedNavigation) {
+
 			sequence = regionalBarriers();
-		else
+			System.out.println("sequenceBarriers " + sequence.size());
+		} else
 			sequence = gatewaySequence;
 
 		// remove duplicates and maintains order
 		Set<NodeGraph> ns = new LinkedHashSet<>(sequence);
 		sequence = new ArrayList<>(ns);
+		System.out.println(gatewaySequence.size());
 		return sequence;
 	}
 
@@ -171,7 +178,7 @@ public class RegionBasedNavigation {
 	private Pair<NodeGraph, NodeGraph> findNextGateway(NodeGraph currentNode, int currentRegion, int specificRegionID) {
 
 		// retrieve current region's exits
-		ArrayList<Gateway> possibleGateways = PedSimCity.regionsMap.get(currentRegion).gateways;
+		List<Gateway> possibleGateways = PedSimCity.regionsMap.get(currentRegion).gateways;
 		validGateways = new ConcurrentHashMap<>();
 		otherGateways = new ConcurrentHashMap<>();
 
@@ -194,7 +201,7 @@ public class RegionBasedNavigation {
 
 		// sort the valid gates, rewarding the ones with the lowest deviation towards
 		// the destination
-		LinkedHashMap<Pair<NodeGraph, NodeGraph>, Double> validSorted = (LinkedHashMap<Pair<NodeGraph, NodeGraph>, Double>) Utilities
+		Map<Pair<NodeGraph, NodeGraph>, Double> validSorted = (LinkedHashMap<Pair<NodeGraph, NodeGraph>, Double>) Utilities
 				.sortByValue(validGateways, false);
 
 		// return the first gateway pair
@@ -310,9 +317,9 @@ public class RegionBasedNavigation {
 	 * @return The sequence with added barrier sub-goals.
 	 * @throws Exception
 	 */
-	private ArrayList<NodeGraph> regionalBarriers() throws Exception {
+	private List<NodeGraph> regionalBarriers() throws Exception {
 
-		ArrayList<NodeGraph> gatewaySequenceWithSubGoals = new ArrayList<>();
+		List<NodeGraph> gatewaySequenceWithSubGoals = new ArrayList<>();
 		BarrierBasedNavigation barrierBasedNavigation = new BarrierBasedNavigation(originNode, destinationNode, agent);
 
 		for (NodeGraph gateway : gatewaySequence) {
@@ -329,7 +336,7 @@ public class RegionBasedNavigation {
 			// check if there are good barriers in line of movement towards the destination
 			Region region = regionsMap.get(gateway.regionID);
 
-			HashMap<Integer, Double> validBarriers = barrierBasedNavigation.findValidBarriers(gateway, region);
+			Map<Integer, Double> validBarriers = barrierBasedNavigation.findValidBarriers(gateway, region);
 			if (validBarriers.isEmpty())
 				continue;
 
@@ -345,11 +352,11 @@ public class RegionBasedNavigation {
 			int barrierID = barrierGoal.getValue1();
 
 			// pick the closest barrier sub-goal
-			if (GraphUtils.getCachedNodesDistance(gateway, edgeGoal.fromNode) < GraphUtils
-					.getCachedNodesDistance(gateway, edgeGoal.toNode))
-				subGoal = edgeGoal.fromNode;
+			if (GraphUtils.getCachedNodesDistance(gateway, edgeGoal.getFromNode()) < GraphUtils
+					.getCachedNodesDistance(gateway, edgeGoal.getToNode()))
+				subGoal = edgeGoal.getFromNode();
 			else
-				subGoal = edgeGoal.toNode;
+				subGoal = edgeGoal.getToNode();
 
 			barrierBasedNavigation.visitedBarriers.add(barrierID);
 			// if this subgoal it's already in the sequence, i.e if it's an exit, continue
@@ -394,7 +401,7 @@ public class RegionBasedNavigation {
 		// b) get a new entry
 		double deviation = Double.MAX_VALUE;
 		NodeGraph bestEntry = null;
-		for (NodeGraph entry : subGoal.adjacentEntries) {
+		for (NodeGraph entry : subGoal.adjacentRegionEntries) {
 			if (entry.regionID != targetRegionID)
 				continue;
 			double entryAngle = Angles.angle(subGoal, entry);
