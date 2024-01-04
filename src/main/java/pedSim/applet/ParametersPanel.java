@@ -61,8 +61,7 @@ public class ParametersPanel extends Frame {
 			y += Y_SPACE_BETWEEN;
 		}
 
-		addBooleanField("Employ Subgraphs in Dijkstra Algorithm", Parameters.subGraph, X, y);
-		addBooleanField("Identify Destinations based on DMA Approach", Parameters.usingDMA, X, y + Y_SPACE_BETWEEN);
+		addBooleanField("Identify Destinations based on DMA Approach", Parameters.usingDMA, X, y);
 
 		Label localPathLabel = new Label(
 				"Fill this field only with a local path, only if running as Java Project, not from JAR");
@@ -179,8 +178,7 @@ public class ParametersPanel extends Frame {
 		Parameters.regionBasedNavigationThreshold = Double.parseDouble(doubleTextFields.get(10).getText());
 		Parameters.wayfindingEasinessThresholdRegions = Double
 				.max(Double.parseDouble(doubleTextFields.get(11).getText()), 1.0);
-		Parameters.subGraph = Boolean.parseBoolean(booleanTextFields.get(0).getText());
-		Parameters.usingDMA = Boolean.parseBoolean(booleanTextFields.get(1).getText());
+		Parameters.usingDMA = Boolean.parseBoolean(booleanTextFields.get(0).getText());
 		if (localPathField.getText() != null) {
 			Parameters.localPath = localPathField.getText();
 			Parameters.javaProject = true;
@@ -194,21 +192,4 @@ public class ParametersPanel extends Frame {
 		setVisible(false);
 		dispose();
 	}
-
-//	/**
-//	 * Retrieves the value of a text field based on its y-coordinate.
-//	 *
-//	 * @param y The y-coordinate of the text field.
-//	 * @return The text entered in the text field or an empty string if not found.
-//	 */
-//	private String getTextFieldValue(int y) {
-//		TextField textField = null;
-//		for (int i = 0; i < getComponentCount(); i++) {
-//			if (getComponent(i) instanceof TextField && getComponent(i).getY() == y) {
-//				textField = (TextField) getComponent(i);
-//				break;
-//			}
-//		}
-//		return textField != null ? textField.getText() : "";
-//	}
 }
