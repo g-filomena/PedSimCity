@@ -3,6 +3,7 @@ package pedSim.engine;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.javatuples.Pair;
 import org.locationtech.jts.geom.Envelope;
@@ -42,24 +43,24 @@ public class PedSimCity extends SimState {
 	public static VectorLayer centroids = new VectorLayer();
 
 	// supporting HashMaps, bags and Lists
-	public static HashMap<Integer, Building> buildingsMap = new HashMap<>();
-	public static HashMap<Integer, Region> regionsMap = new HashMap<>();
-	public static HashMap<Integer, Barrier> barriersMap = new HashMap<>();
-	public static HashMap<Pair<NodeGraph, NodeGraph>, Gateway> gatewaysMap = new HashMap<>();
-	public static HashMap<Integer, NodeGraph> nodesMap = new HashMap<>();
-	public static HashMap<Integer, EdgeGraph> edgesMap = new HashMap<>();
+	public static Map<Integer, Building> buildingsMap = new HashMap<>();
+	public static Map<Integer, Region> regionsMap = new HashMap<>();
+	public static Map<Integer, Barrier> barriersMap = new HashMap<>();
+	public static Map<Pair<NodeGraph, NodeGraph>, Gateway> gatewaysMap = new HashMap<>();
+	public static Map<Integer, NodeGraph> nodesMap = new HashMap<>();
+	public static Map<Integer, EdgeGraph> edgesMap = new HashMap<>();
 
 	public static HashMap<Integer, NodeGraph> centroidsMap = new HashMap<>();
 
 	// OD related variables
 	public static List<Float> distances = new ArrayList<>();
-	public static ArrayList<MasonGeometry> startingNodes = new ArrayList<>();
+	public static List<MasonGeometry> startingNodes = new ArrayList<>();
 	// used only when loading OD sets
 
 	public int currentJob;
 
 	public FlowHandler flowHandler;
-	public static ArrayList<EmpiricalAgentsGroup> empiricalGroups = new ArrayList<>();
+	public static List<EmpiricalAgentsGroup> empiricalGroups = new ArrayList<>();
 	public static Envelope MBR = null;
 
 	public VectorLayer agents;
