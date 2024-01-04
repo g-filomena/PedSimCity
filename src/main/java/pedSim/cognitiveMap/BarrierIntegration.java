@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.locationtech.jts.geom.Geometry;
@@ -30,10 +31,10 @@ public class BarrierIntegration {
 	 * @param agent           The agent whose barrier type should be considered.
 	 * @return A mapping of the viewField and the barrierIDs intersecting it.
 	 */
-	public HashMap<Geometry, Set<Integer>> intersectingBarriers(NodeGraph currentLocation, NodeGraph destinationNode,
+	public Map<Geometry, Set<Integer>> intersectingBarriers(NodeGraph currentLocation, NodeGraph destinationNode,
 			Agent agent) {
 
-		HashMap<Geometry, Set<Integer>> viewFieldIntersectingBarriers = new HashMap<Geometry, Set<Integer>>();
+		Map<Geometry, Set<Integer>> viewFieldIntersectingBarriers = new HashMap<Geometry, Set<Integer>>();
 		Set<Integer> intersectingBarrierIDs = new HashSet<>();
 		BarrierType agentBarrierType = agent.getProperties().barrierType;
 		Geometry viewField = Angles.viewField(currentLocation, destinationNode, 70.0);
@@ -42,7 +43,7 @@ public class BarrierIntegration {
 		if (barriers.getGeometries().isEmpty())
 			return viewFieldIntersectingBarriers;
 
-		ArrayList<MasonGeometry> intersectingGeometries = barriers.intersectingFeatures(viewField);
+		List<MasonGeometry> intersectingGeometries = barriers.intersectingFeatures(viewField);
 		if (intersectingGeometries.isEmpty())
 			return viewFieldIntersectingBarriers;
 
@@ -128,19 +129,11 @@ public class BarrierIntegration {
 
 		List<Integer> graphBarriers = new ArrayList<>();
 		for (EdgeGraph childEdge : subGraph.getEdges()) {
-			childEdge.attributes.put("barriers", subGraph.getParentEdge(childEdge).attributes.get("barriers"));
-			childEdge.attributes.put("positiveBarriers",
-					subGraph.getParentEdge(childEdge).attributes.get("positiveBarriers"));
-			childEdge.attributes.put("negativeBarriers",
-					subGraph.getParentEdge(childEdge).attributes.get("negativeBarriers"));
-			childEdge.attributes.put("waterBodies", subGraph.getParentEdge(childEdge).attributes.get("waterBodies"));
-			childEdge.attributes.put("parks", subGraph.getParentEdge(childEdge).attributes.get("parks"));
 			graphBarriers.addAll(subGraph.getParentEdge(childEdge).attributes.get("barriers").getArray());
+			// remove duplicates
+			graphBarriers = new ArrayList<>(new HashSet<>(graphBarriers));
+			subGraph.attributes.put("graphBarriers", new AttributeValue(graphBarriers));
 		}
-
-		Set<Integer> setBarriers = new HashSet<>(graphBarriers);
-		graphBarriers = new ArrayList<>(setBarriers);
-		subGraph.attributes.put("graphBarriers", new AttributeValue(graphBarriers));
 	}
 
 	/**
@@ -153,7 +146,7 @@ public class BarrierIntegration {
 	 *
 	 * @return The list of barrier IDs within the subgraph.
 	 */
-	public static ArrayList<Integer> getSubGraphBarriers(SubGraph subGraph) {
+	public static List<Integer> getSubGraphBarriers(SubGraph subGraph) {
 		return subGraph.attributes.get("graphBarriers").getArray();
 	}
 }
