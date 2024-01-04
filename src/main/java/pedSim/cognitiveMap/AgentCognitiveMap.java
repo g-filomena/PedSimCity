@@ -7,7 +7,7 @@ import sim.field.geo.VectorLayer;
  * attributes. In this version of PedSimCity, this is a simple structure
  * designed for further developments.
  */
-public class AgentCognitiveMap extends CognitiveMap {
+public class AgentCognitiveMap extends CommunityCognitiveMap {
 
 	/**
 	 * Constructs an AgentCognitiveMap.
@@ -20,8 +20,8 @@ public class AgentCognitiveMap extends CognitiveMap {
 	 *
 	 * @return The cognitive map.
 	 */
-	synchronized public CognitiveMap getCognitiveMap() {
-		return CognitiveMap.getInstance();
+	synchronized public CommunityCognitiveMap getCognitiveMap() {
+		return CommunityCognitiveMap.getInstance();
 	}
 
 	/**
@@ -30,7 +30,7 @@ public class AgentCognitiveMap extends CognitiveMap {
 	 * @return The local landmarks.
 	 */
 	public VectorLayer getLocalLandmarks() {
-		return getCognitiveMap().localLandmarks;
+		return CommunityCognitiveMap.localLandmarks;
 	}
 
 	/**
@@ -39,7 +39,7 @@ public class AgentCognitiveMap extends CognitiveMap {
 	 * @return The global landmarks.
 	 */
 	public VectorLayer getGlobalLandmarks() {
-		return getCognitiveMap().globalLandmarks;
+		return CommunityCognitiveMap.globalLandmarks;
 	}
 
 	/**
@@ -48,7 +48,7 @@ public class AgentCognitiveMap extends CognitiveMap {
 	 * @return The barriers.
 	 */
 	public VectorLayer getBarriers() {
-		return getCognitiveMap().barriers;
+		return CommunityCognitiveMap.barriers;
 	}
 
 	/**
