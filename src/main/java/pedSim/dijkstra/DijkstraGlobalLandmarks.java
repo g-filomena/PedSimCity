@@ -39,10 +39,10 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
 	 * @return An ArrayList of DirectedEdges representing the path.
 	 */
 	public List<DirectedEdge> dijkstraAlgorithm(NodeGraph originNode, NodeGraph destinationNode,
-			NodeGraph finalDestinationNode, Set<DirectedEdge> segmentsToAvoid, Agent agent) {
+			NodeGraph finalDestinationNode, Set<DirectedEdge> directedEdgesToAvoid, Agent agent) {
 
-		this.usingSubGraph = false;
-		initialise(originNode, destinationNode, finalDestinationNode, segmentsToAvoid, agent, false);
+		initialise(originNode, destinationNode, finalDestinationNode, agent);
+		initialisePrimal(directedEdgesToAvoid);
 		visitedNodes = new HashSet<>();
 		unvisitedNodes = new PriorityQueue<>(Comparator.comparingDouble(this::getBest));
 		unvisitedNodes.add(this.originNode);
@@ -81,7 +81,7 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
 			if (visitedNodes.contains(targetNode))
 				continue;
 
-			EdgeGraph commonEdge = network.getEdgeBetween(currentNode, targetNode);
+			EdgeGraph commonEdge = agentNetwork.getEdgeBetween(currentNode, targetNode);
 			DirectedEdge outEdge = commonEdge.getDirEdge(0);
 			if (edgesToAvoid.contains(outEdge.getEdge()))
 				continue;
