@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.javatuples.Pair;
@@ -28,8 +30,8 @@ import sim.util.geo.Utilities;
  */
 public class BarrierBasedNavigation {
 
-	HashMap<Integer, EdgeGraph> edgesMap = new HashMap<Integer, EdgeGraph>();
-	ArrayList<NodeGraph> sequence = new ArrayList<>();
+	Map<Integer, EdgeGraph> edgesMap = new HashMap<Integer, EdgeGraph>();
+	List<NodeGraph> sequence = new ArrayList<>();
 	private NodeGraph originNode;
 	private NodeGraph currentLocation;
 	private NodeGraph destinationNode;
@@ -59,7 +61,7 @@ public class BarrierBasedNavigation {
 	 * @return an ArrayList of NodeGraph representing the sequence of sub-goals.
 	 * @throws Exception
 	 */
-	public ArrayList<NodeGraph> sequenceBarriers() throws Exception {
+	public List<NodeGraph> sequenceBarriers() throws Exception {
 
 		edgesMap = new HashMap<Integer, EdgeGraph>(PedSimCity.edgesMap);
 		currentLocation = originNode;
@@ -71,7 +73,7 @@ public class BarrierBasedNavigation {
 			if (currentLocation.equals(destinationNode))
 				throw new Exception("destinationNode and currentLocation are the same");
 
-			HashMap<Integer, Double> validBarriers = findValidBarriers(currentLocation, null);
+			Map<Integer, Double> validBarriers = findValidBarriers(currentLocation, null);
 			if (validBarriers.isEmpty())
 				break;
 
@@ -81,8 +83,9 @@ public class BarrierBasedNavigation {
 
 			EdgeGraph edgeGoal = barrierGoal.getValue0();
 			int barrier = barrierGoal.getValue1();
-			NodeGraph subGoal = GraphUtils.getCachedNodesDistance(currentLocation, edgeGoal.fromNode) < GraphUtils
-					.getCachedNodesDistance(currentLocation, edgeGoal.toNode) ? edgeGoal.fromNode : edgeGoal.toNode;
+			NodeGraph subGoal = GraphUtils.getCachedNodesDistance(currentLocation, edgeGoal.getFromNode()) < GraphUtils
+					.getCachedNodesDistance(currentLocation, edgeGoal.getToNode()) ? edgeGoal.getFromNode()
+							: edgeGoal.getToNode();
 
 			sequence.add(subGoal);
 			currentLocation = subGoal;
@@ -109,13 +112,13 @@ public class BarrierBasedNavigation {
 	 * @return A HashMap containing valid barrier IDs and their respective distances
 	 *         from the currentLocation.
 	 */
-	protected HashMap<Integer, Double> findValidBarriers(NodeGraph currentLocation, Region region) {
+	protected Map<Integer, Double> findValidBarriers(NodeGraph currentLocation, Region region) {
 
 		this.currentLocation = currentLocation;
-		HashMap<Integer, Double> validBarriers = new HashMap<>();
+		Map<Integer, Double> validBarriers = new HashMap<>();
 		BarrierIntegration barrierIntegration = new BarrierIntegration();
 		// check if there are good barriers in line of movement towards the destination
-		HashMap<Geometry, Set<Integer>> viewFieldIntersectingBarriers = barrierIntegration
+		Map<Geometry, Set<Integer>> viewFieldIntersectingBarriers = barrierIntegration
 				.intersectingBarriers(currentLocation, destinationNode, agent);
 
 		// no barriers
@@ -165,9 +168,9 @@ public class BarrierBasedNavigation {
 	 */
 	private void identifyAdjacentBarriers() {
 		// identify barriers around this currentLocation
-		ArrayList<EdgeGraph> incomingEdges = currentLocation.getEdges();
+		List<EdgeGraph> incomingEdges = currentLocation.getEdges();
 		for (EdgeGraph edge : incomingEdges) {
-			ArrayList<Integer> edgeBarriers = edge.attributes.get("barriers").getArray();
+			List<Integer> edgeBarriers = edge.attributes.get("barriers").getArray();
 			if (!edgeBarriers.isEmpty())
 				visitedBarriers.addAll(edgeBarriers);
 		}
@@ -184,9 +187,9 @@ public class BarrierBasedNavigation {
 	 * @return a Pair of EdgeGraph and Integer representing the closest edge to the
 	 *         barrier and the barrierID.
 	 */
-	protected Pair<EdgeGraph, Integer> identifyBarrierSubGoal(HashMap<Integer, Double> validBarriers, Region region) {
+	protected Pair<EdgeGraph, Integer> identifyBarrierSubGoal(Map<Integer, Double> validBarriers, Region region) {
 
-		ArrayList<EdgeGraph> regionEdges = new ArrayList<>();
+		List<EdgeGraph> regionEdges = new ArrayList<>();
 		if (regionBasedNavigation)
 			regionEdges = region.edges;
 
@@ -197,11 +200,10 @@ public class BarrierBasedNavigation {
 		EdgeGraph edgeGoal = null;
 
 		// sorted by distance (further away first, as it leads your further away)
-		LinkedHashMap<Integer, Double> validSorted = (LinkedHashMap<Integer, Double>) Utilities
-				.sortByValue(validBarriers, true);
+		Map<Integer, Double> validSorted = (LinkedHashMap<Integer, Double>) Utilities.sortByValue(validBarriers, true);
 
-		ArrayList<Integer> barrierIDs = new ArrayList<>();
-		ArrayList<EdgeGraph> possibleEdgeGoals = new ArrayList<>();
+		List<Integer> barrierIDs = new ArrayList<>();
+		List<EdgeGraph> possibleEdgeGoals = new ArrayList<>();
 
 		int waterCounter = 0;
 		int parkCounter = 0;
@@ -209,7 +211,7 @@ public class BarrierBasedNavigation {
 		for (int barrierID : validSorted.keySet()) {
 			Barrier barrier = PedSimCity.barriersMap.get(barrierID);
 			String type = barrier.type;
-			ArrayList<EdgeGraph> edgesAlong = new ArrayList<>(barrier.edgesAlong);
+			List<EdgeGraph> edgesAlong = new ArrayList<>(barrier.edgesAlong);
 
 			// for region-based, only consider edges in the region
 			if (regionBasedNavigation) {
@@ -218,13 +220,13 @@ public class BarrierBasedNavigation {
 					continue;
 			}
 
-			HashMap<EdgeGraph, Double> thisBarrierEdgeGoals = keepValidSubGoals(edgesAlong);
+			Map<EdgeGraph, Double> thisBarrierEdgeGoals = keepValidSubGoals(edgesAlong);
 			if (thisBarrierEdgeGoals.isEmpty())
 				continue;
 
 			// this is considered a good Edge, sort by distance and takes the closest to the
 			// current location.
-			LinkedHashMap<EdgeGraph, Double> thisBarrierSubGoalSorted = (LinkedHashMap<EdgeGraph, Double>) Utilities
+			Map<EdgeGraph, Double> thisBarrierSubGoalSorted = (LinkedHashMap<EdgeGraph, Double>) Utilities
 					.sortByValue(thisBarrierEdgeGoals, false);
 			EdgeGraph possibleEdgeGoal = thisBarrierSubGoalSorted.keySet().iterator().next();
 
@@ -264,9 +266,9 @@ public class BarrierBasedNavigation {
 	 * @return a HashMap of EdgeGraph and Double representing eligible barrier
 	 *         sub-goals and their distances.
 	 */
-	private HashMap<EdgeGraph, Double> keepValidSubGoals(ArrayList<EdgeGraph> edgesAlong) {
+	private Map<EdgeGraph, Double> keepValidSubGoals(List<EdgeGraph> edgesAlong) {
 
-		final HashMap<EdgeGraph, Double> thisBarrierEdgeGoals = new HashMap<>();
+		final Map<EdgeGraph, Double> thisBarrierEdgeGoals = new HashMap<>();
 
 		for (EdgeGraph edge : edgesAlong) {
 			double distanceToEdge = GraphUtils.euclideanDistance(currentLocation.getCoordinate(),
