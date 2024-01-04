@@ -10,8 +10,8 @@ import org.locationtech.jts.planargraph.DirectedEdge;
 import pedSim.agents.Agent;
 import pedSim.dijkstra.DijkstraAngularChange;
 import pedSim.dijkstra.DijkstraRoadDistance;
-import pedSim.engine.PedSimCity;
 import sim.graph.EdgeGraph;
+import sim.graph.Graph;
 import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
 
@@ -21,7 +21,9 @@ import sim.graph.NodeGraph;
  */
 public class PathFinder {
 
-	boolean moveOn = false;
+	Agent agent;
+	Route route = new Route();
+	protected Graph agentNetwork;
 	NodeGraph originNode, destinationNode;
 	NodeGraph tmpOrigin, tmpDestination;
 	NodeGraph previousJunction = null;
@@ -29,14 +31,13 @@ public class PathFinder {
 	List<NodeGraph> sequenceNodes = new ArrayList<>();
 	// need order here, that's why it's not hashset
 	List<NodeGraph> centroidsToAvoid = new ArrayList<>();
-	Set<DirectedEdge> segmentsToAvoid = new HashSet<>();
+	Set<DirectedEdge> directedEdgesToAvoid = new HashSet<>();
 
 	List<DirectedEdge> completeSequence = new ArrayList<>();
 	List<DirectedEdge> partialSequence = new ArrayList<>();
 
-	Agent agent;
-	Route route = new Route();
 	protected boolean regionBased = false;
+	boolean moveOn = false;
 
 	/**
 	 * Performs backtracking to compute a path in a primal graph from the current
@@ -60,7 +61,7 @@ public class PathFinder {
 		updateTmpOrigin();
 
 		// check if there's a segment between the new tmpOrigin and the destination
-		final DirectedEdge edge = PedSimCity.network.getDirectedEdgeBetween(tmpOrigin, tmpDestination);
+		final DirectedEdge edge = agentNetwork.getDirectedEdgeBetween(tmpOrigin, tmpDestination);
 		if (edge != null) {
 			if (!completeSequence.contains(edge))
 				completeSequence.add(edge);
@@ -70,8 +71,8 @@ public class PathFinder {
 
 		// If not, try to compute the path from the new tmpOrigin
 		final DijkstraRoadDistance pathFinder = new DijkstraRoadDistance();
-		segmentsToAvoid = new HashSet<>(completeSequence);
-		partialSequence = pathFinder.dijkstraAlgorithm(tmpOrigin, tmpDestination, destinationNode, segmentsToAvoid,
+		directedEdgesToAvoid = new HashSet<>(completeSequence);
+		partialSequence = pathFinder.dijkstraAlgorithm(tmpOrigin, tmpDestination, destinationNode, directedEdgesToAvoid,
 				agent);
 	}
 
@@ -114,7 +115,7 @@ public class PathFinder {
 		// take new previous junction
 		previousJunction = route.previousJunction(completeSequence);
 		// check if there's a segment between the new tmpOrigin and the destination
-		final DirectedEdge edge = PedSimCity.network.getDirectedEdgeBetween(tmpOrigin, tmpDestination);
+		final DirectedEdge edge = agentNetwork.getDirectedEdgeBetween(tmpOrigin, tmpDestination);
 
 		if (edge != null) {
 			if (!completeSequence.contains(edge))
@@ -212,7 +213,7 @@ public class PathFinder {
 			// need to swap
 			if (nextNode.equals(previousNode)) {
 				nextNode = (NodeGraph) edge.getFromNode();
-				DirectedEdge correctEdge = PedSimCity.network.getDirectedEdgeBetween(previousNode, nextNode);
+				DirectedEdge correctEdge = agentNetwork.getDirectedEdgeBetween(previousNode, nextNode);
 				partialSequence.set(partialSequence.indexOf(edge), correctEdge);
 			}
 			previousNode = nextNode;
@@ -226,7 +227,7 @@ public class PathFinder {
 	 */
 	protected boolean haveEdgesBetween() {
 		// check if edge in between
-		DirectedEdge edge = PedSimCity.network.getDirectedEdgeBetween(tmpOrigin, tmpDestination);
+		DirectedEdge edge = agentNetwork.getDirectedEdgeBetween(tmpOrigin, tmpDestination);
 
 		if (edge == null)
 			return false;
