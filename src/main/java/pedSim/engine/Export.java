@@ -8,8 +8,8 @@ import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -116,7 +116,7 @@ public class Export {
 		final String csvSegments = outputDirectory + File.separator + currentDate + "_" + job + ".csv";
 		final FileWriter writerVolumesData = new FileWriter(csvSegments);
 
-		HashMap<Integer, HashMap<String, Integer>> volumesMap = flowHandler.volumesMap;
+		Map<Integer, Map<String, Integer>> volumesMap = flowHandler.volumesMap;
 
 		ArrayList<String> headers;
 		if (Parameters.empirical) {
@@ -134,7 +134,7 @@ public class Export {
 		CSVUtils.writeLine(writerVolumesData, headers);
 
 		for (int edgeID : volumesMap.keySet()) {
-			HashMap<String, Integer> edgeVolumes = volumesMap.get(edgeID);
+			Map<String, Integer> edgeVolumes = volumesMap.get(edgeID);
 			final List<String> row = new ArrayList<>();
 
 			for (final String columnHeader : headers) {
@@ -188,7 +188,7 @@ public class Export {
 		if (nrColumns > 0) {
 
 			for (int counter = 1; counter <= nrColumns - 1; counter++) {
-				final ArrayList<MasonGeometry> routeGeometries = routes.getGeometries();
+				List<MasonGeometry> routeGeometries = routes.getGeometries();
 				for (final MasonGeometry route : routeGeometries)
 					if (route.hasAttribute("edgeIDs_" + counter))
 						continue;
