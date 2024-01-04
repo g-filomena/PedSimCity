@@ -1,8 +1,13 @@
 package pedSim.dijkstra;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Set;
 
 import org.locationtech.jts.planargraph.DirectedEdge;
 
@@ -33,13 +38,13 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
 	 * 
 	 * @return An ArrayList of DirectedEdges representing the path.
 	 */
-	public ArrayList<DirectedEdge> dijkstraAlgorithm(NodeGraph originNode, NodeGraph destinationNode,
-			NodeGraph finalDestinationNode, HashSet<DirectedEdge> segmentsToAvoid, Agent agent) {
+	public List<DirectedEdge> dijkstraAlgorithm(NodeGraph originNode, NodeGraph destinationNode,
+			NodeGraph finalDestinationNode, Set<DirectedEdge> segmentsToAvoid, Agent agent) {
 
 		this.usingSubGraph = false;
 		initialise(originNode, destinationNode, finalDestinationNode, segmentsToAvoid, agent, false);
 		visitedNodes = new HashSet<>();
-		unvisitedNodes = new HashSet<>();
+		unvisitedNodes = new PriorityQueue<>(Comparator.comparingDouble(this::getBest));
 		unvisitedNodes.add(this.originNode);
 
 		// NodeWrapper = container for the metainformation about a Node
@@ -55,7 +60,7 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
 	 */
 	private void runDijkstra() {
 		while (!unvisitedNodes.isEmpty()) {
-			NodeGraph currentNode = getClosest(unvisitedNodes);
+			NodeGraph currentNode = unvisitedNodes.peek();
 			visitedNodes.add(currentNode);
 			unvisitedNodes.remove(currentNode);
 			findBestLandmarkness(currentNode);
@@ -71,12 +76,12 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
 	 * @param currentNode The current node for which to find adjacent nodes.
 	 */
 	void findBestLandmarkness(NodeGraph currentNode) {
-		ArrayList<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
+		List<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
 		for (NodeGraph targetNode : adjacentNodes) {
 			if (visitedNodes.contains(targetNode))
 				continue;
 
-			EdgeGraph commonEdge = graph.getEdgeBetween(currentNode, targetNode);
+			EdgeGraph commonEdge = network.getEdgeBetween(currentNode, targetNode);
 			DirectedEdge outEdge = commonEdge.getDirEdge(0);
 			if (edgesToAvoid.contains(outEdge.getEdge()))
 				continue;
@@ -97,9 +102,9 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
 	 *
 	 * @return An ArrayList of DirectedEdges representing the path sequence.
 	 */
-	ArrayList<DirectedEdge> reconstructSequence() {
-		HashMap<NodeGraph, NodeWrapper> traversedNodesMap = new HashMap<>();
-		ArrayList<DirectedEdge> directedEdgesSequence = new ArrayList<>();
+	List<DirectedEdge> reconstructSequence() {
+		Map<NodeGraph, NodeWrapper> traversedNodesMap = new HashMap<>();
+		List<DirectedEdge> directedEdgesSequence = new ArrayList<>();
 		NodeGraph step = destinationNode;
 		traversedNodesMap.put(destinationNode, nodeWrappersMap.get(destinationNode));
 
