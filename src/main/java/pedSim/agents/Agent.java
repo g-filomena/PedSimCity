@@ -363,4 +363,14 @@ public final class Agent implements Steppable {
 	public AgentProperties getProperties() {
 		return agentProperties;
 	}
+
+	/**
+	 * Gets the cognitive map.
+	 *
+	 * @return The cognitive map.
+	 */
+	synchronized public AgentCognitiveMap getCognitiveMap() {
+		return cognitiveMap;
+	}
+
 }
