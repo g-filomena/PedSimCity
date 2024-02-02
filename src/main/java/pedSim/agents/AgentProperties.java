@@ -43,7 +43,6 @@ public class AgentProperties {
 	/**
 	 * Constructs an AgentProperties instance associated with the given agent.
 	 *
-	 * @param agent The agent for which this AgentProperties instance is created.
 	 */
 	public AgentProperties() {
 
