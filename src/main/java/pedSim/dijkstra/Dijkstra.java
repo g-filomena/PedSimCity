@@ -92,7 +92,7 @@ public class Dijkstra {
 	/**
 	 * Extracts edges to avoid from a set of directed edges.
 	 *
-	 * @param segmentsToAvoid A set of directed edges to avoid.
+	 * @param directEdgesToAvoid A set of directed edges to avoid.
 	 */
 	protected void getEdgesToAvoid(Set<DirectedEdge> directEdgesToAvoid) {
 		this.directEdgesToAvoid = new HashSet<>(directEdgesToAvoid);
