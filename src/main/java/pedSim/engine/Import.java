@@ -171,7 +171,7 @@ public class Import {
 			} else {
 				ClassLoader classLoader = getClass().getClassLoader();
 				urlShp = classLoader.getResource(tmpPath + ".shp");
-				urlDbf = classLoader.getResource(tmpPath + ".shp");
+				urlDbf = classLoader.getResource(tmpPath + ".dbf");
 			}
 			VectorLayer.readShapefile(urlShp, urlDbf, PedSimCity.barriers);
 			LOGGER.info("Barriers successfully imported.");
