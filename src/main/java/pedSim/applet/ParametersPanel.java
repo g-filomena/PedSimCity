@@ -64,7 +64,7 @@ public class ParametersPanel extends Frame {
 		addBooleanField("Identify Destinations based on DMA Approach", Parameters.usingDMA, X, y);
 
 		Label localPathLabel = new Label(
-				"Fill this field only with a local path, only if running as Java Project, not from JAR");
+				"Fill this field with the local path containing the data, only if running as Java Project, not from JAR");
 		localPathLabel.setBounds(10, 480, 450, 20);
 		localPathLabel.setFont(new Font("Arial", Font.ITALIC, 12));
 		add(localPathLabel);
