@@ -9,6 +9,7 @@ import org.javatuples.Pair;
 
 import pedSim.agents.Agent;
 import pedSim.agents.EmpiricalAgentsGroup;
+import pedSim.utilities.StringEnum.Groups;
 import pedSim.utilities.StringEnum.RouteChoice;
 import sim.graph.Graph;
 import sim.graph.NodeGraph;
@@ -221,10 +222,12 @@ public class Populate {
 		int agentsToAllocate = Parameters.numAgents;
 
 		for (EmpiricalAgentsGroup empiricalGroup : PedSimCity.empiricalGroups) {
-			if (!empiricalGroup.groupName.equals("population") && !empiricalGroup.groupName.equals("nullGroup"))
+			if (!empiricalGroup.groupName.equals(Groups.POPULATION)
+					&& !empiricalGroup.groupName.equals(Groups.NULLGROUP))
 				actualEmpiricalGroups.add(empiricalGroup);
 
-			if (empiricalGroup.groupName.equals("population") || empiricalGroup.groupName.equals("nullGroup")) {
+			if (empiricalGroup.groupName.equals(Groups.POPULATION)
+					|| empiricalGroup.groupName.equals(Groups.NULLGROUP)) {
 				numAgentsEmpiricalGroup = Parameters.numAgents;
 				configurationOD = new ArrayList<>(OD);
 			}
