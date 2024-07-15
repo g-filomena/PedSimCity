@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import pedSim.agents.Agent;
+import pedSim.cognitiveMap.CommunityCognitiveMap;
 import pedSim.cognitiveMap.Region;
 import pedSim.engine.PedSimCity;
 import pedSim.utilities.StringEnum.LandmarkType;
@@ -31,11 +32,11 @@ public class Complexity {
 	 */
 	public double wayfindingEasiness(NodeGraph node, NodeGraph destinationNode, Agent agent) {
 
-		final double distanceComplexity = GraphUtils.getCachedNodesDistance(node, destinationNode)
+		final double distanceComplexity = GraphUtils.nodesDistance(node, destinationNode)
 				/ Math.max(PedSimCity.roads.MBR.getHeight(), PedSimCity.roads.MBR.getWidth());
 
 		double buildingsComplexity = 1.0;
-		List<MasonGeometry> buildings = new ArrayList<>(agent.cognitiveMap.getBuildings(node, destinationNode));
+		List<MasonGeometry> buildings = new ArrayList<>(CommunityCognitiveMap.getBuildings(node, destinationNode));
 		List<MasonGeometry> landmarks = new ArrayList<>(getAgentLandmarks(agent, null));
 		if (!buildings.isEmpty()) {
 			landmarks.retainAll(buildings);
@@ -62,13 +63,13 @@ public class Complexity {
 	public double wayfindingEasinessRegion(NodeGraph currentNode, NodeGraph exitGateway, NodeGraph originNode,
 			NodeGraph destinationNode, Agent agentProperties) {
 
-		double intraRegionDistance = GraphUtils.getCachedNodesDistance(currentNode, exitGateway);
-		double distance = GraphUtils.getCachedNodesDistance(originNode, destinationNode);
+		double intraRegionDistance = GraphUtils.nodesDistance(currentNode, exitGateway);
+		double distance = GraphUtils.nodesDistance(originNode, destinationNode);
 		double distanceComplexity = intraRegionDistance / distance;
 		if (distanceComplexity < 0.25)
 			return 1.0;
 
-		Region region = PedSimCity.regionsMap.get(currentNode.regionID);
+		Region region = PedSimCity.regionsMap.get(currentNode.getRegionID());
 		double buildingsComplexity = buildingsRegionComplexity(region, agentProperties);
 		double wayfindingComplexity = (distanceComplexity + buildingsComplexity) / 2.0;
 		return 1.0 - wayfindingComplexity;
@@ -96,15 +97,15 @@ public class Complexity {
 	public double buildingsRegionComplexity(Region region, Agent agent) {
 
 		List<MasonGeometry> landmarks;
-		List<MasonGeometry> buildings = new ArrayList<>(agent.cognitiveMap.getBuildingsWithinRegion(region));
+		List<MasonGeometry> buildings = new ArrayList<>(CommunityCognitiveMap.getBuildingsWithinRegion(region));
 		if (buildings.isEmpty())
 			return 1.0;
 
 		LandmarkType agentLandmarkType = agent.getProperties().landmarkType;
 		if (agentLandmarkType.equals(LandmarkType.LOCAL))
-			landmarks = new ArrayList<>(agent.cognitiveMap.getRegionLocalLandmarks(region));
+			landmarks = new ArrayList<>(CommunityCognitiveMap.getRegionLocalLandmarks(region));
 		else
-			landmarks = new ArrayList<>(agent.cognitiveMap.getRegionGlobalLandmarks(region));
+			landmarks = new ArrayList<>(CommunityCognitiveMap.getRegionGlobalLandmarks(region));
 
 		return buildingsComplexity(buildings, landmarks);
 	}
@@ -122,14 +123,14 @@ public class Complexity {
 		LandmarkType agentLandmarkType = agent.getProperties().landmarkType;
 		if (region != null) {
 			if (agentLandmarkType.equals(LandmarkType.LOCAL))
-				return agent.cognitiveMap.getRegionLocalLandmarks(region);
+				return CommunityCognitiveMap.getRegionLocalLandmarks(region);
 			else
-				return agent.cognitiveMap.getRegionGlobalLandmarks(region);
+				return CommunityCognitiveMap.getRegionGlobalLandmarks(region);
 		} else {
 			if (agentLandmarkType.equals(LandmarkType.LOCAL))
-				return agent.cognitiveMap.getLocalLandmarks().getGeometries();
+				return CommunityCognitiveMap.getLocalLandmarks().getGeometries();
 			else
-				return agent.cognitiveMap.getGlobalLandmarks().getGeometries();
+				return CommunityCognitiveMap.getGlobalLandmarks().getGeometries();
 		}
 	}
 }
