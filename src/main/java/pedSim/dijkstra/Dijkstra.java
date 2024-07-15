@@ -12,15 +12,18 @@ import org.locationtech.jts.planargraph.DirectedEdge;
 
 import pedSim.agents.Agent;
 import pedSim.agents.AgentProperties;
+import pedSim.cognitiveMap.CommunityCognitiveMap;
 import pedSim.engine.Parameters;
 import pedSim.engine.PedSimCity;
 import pedSim.routeChoice.LandmarkNavigation;
-import pedSim.routeChoice.Route;
 import sim.graph.EdgeGraph;
 import sim.graph.Graph;
 import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
 import sim.graph.SubGraph;
+import sim.routing.NodeWrapper;
+import sim.routing.Route;
+import sim.routing.RoutingUtils;
 import sim.util.geo.Utilities;
 
 /**
@@ -34,17 +37,17 @@ public class Dijkstra {
 	protected PriorityQueue<NodeGraph> unvisitedNodes;
 
 	Set<NodeGraph> centroidsToAvoid = new HashSet<>();
-	Set<DirectedEdge> directEdgesToAvoid = new HashSet<>();
+	Set<DirectedEdge> directedEdgesToAvoid = new HashSet<>();
 	Set<EdgeGraph> edgesToAvoid = new HashSet<>();
 	Map<NodeGraph, NodeWrapper> nodeWrappersMap = new HashMap<>();
-	SubGraph subGraph = null;
-	AgentProperties agentProperties;
+	AgentProperties properties;
 	double tentativeCost;
 
-	protected Agent agent;
 	protected Graph agentNetwork;
 	protected Graph agentDualNetwork;
+	SubGraph subGraph = null;
 
+	Agent agent;
 	Route route = new Route();
 
 	protected static final double MAX_DEFLECTION_ANGLE = 180.00;
@@ -54,12 +57,12 @@ public class Dijkstra {
 			Agent agent) {
 
 		nodeWrappersMap.clear();
+		this.agentNetwork = CommunityCognitiveMap.getNetwork();
 		this.agent = agent;
-		this.agentProperties = agent.getProperties();
+		this.properties = agent.getProperties();
 		this.originNode = originNode;
 		this.destinationNode = destinationNode;
 		this.finalDestinationNode = finalDestinationNode;
-		this.agentNetwork = agent.getCognitiveMap().getKnownNetwork();
 	}
 
 	/**
@@ -85,7 +88,7 @@ public class Dijkstra {
 		if (centroidsToAvoid != null)
 			this.centroidsToAvoid = new HashSet<>(centroidsToAvoid);
 		this.previousJunction = previousJunction;
-		this.agentDualNetwork = agent.getCognitiveMap().getKnownDualNetwork();
+		this.agentDualNetwork = CommunityCognitiveMap.getDualNetwork();
 		subGraphInitialisationDual();
 	}
 
@@ -95,8 +98,8 @@ public class Dijkstra {
 	 * @param directEdgesToAvoid A set of directed edges to avoid.
 	 */
 	protected void getEdgesToAvoid(Set<DirectedEdge> directEdgesToAvoid) {
-		this.directEdgesToAvoid = new HashSet<>(directEdgesToAvoid);
-		for (DirectedEdge edge : this.directEdgesToAvoid)
+		this.directedEdgesToAvoid = new HashSet<>(directEdgesToAvoid);
+		for (DirectedEdge edge : this.directedEdgesToAvoid)
 			edgesToAvoid.add((EdgeGraph) edge.getEdge());
 	}
 
@@ -107,8 +110,8 @@ public class Dijkstra {
 	 */
 	protected void subGraphInitialisation() {
 		if (regionCondition()) {
-			subGraph = PedSimCity.regionsMap.get(originNode.regionID).primalGraph;
-			edgesToAvoid = (directEdgesToAvoid.isEmpty())
+			subGraph = PedSimCity.regionsMap.get(originNode.getRegionID()).primalGraph;
+			edgesToAvoid = (directedEdgesToAvoid.isEmpty())
 					? new HashSet<>(subGraph.getChildEdges(new ArrayList<>(edgesToAvoid)))
 					: new HashSet<>();
 			originNode = subGraph.findNode(originNode.getCoordinate());
@@ -124,7 +127,7 @@ public class Dijkstra {
 	 */
 	protected void subGraphInitialisationDual() {
 		if (regionCondition()) {
-			subGraph = PedSimCity.regionsMap.get(originNode.regionID).dualGraph;
+			subGraph = PedSimCity.regionsMap.get(originNode.getRegionID()).dualGraph;
 			centroidsToAvoid = (!centroidsToAvoid.isEmpty())
 					? new HashSet<>(subGraph.getChildNodes(new ArrayList<>(centroidsToAvoid)))
 					: new HashSet<>();
@@ -144,20 +147,21 @@ public class Dijkstra {
 	 */
 	protected double costPerceptionError(NodeGraph targetNode, EdgeGraph commonEdge, boolean dual) {
 
-		double error = 1.0;
-		if (this.agent.cognitiveMap.containsBarriers()) {
+		double error = Utilities.fromDistribution(1.0, 0.10, null);
+
+		if (positiveBarrierEffect()) {
 			List<Integer> pBarriers = dual ? targetNode.getPrimalEdge().attributes.get("positiveBarriers").getArray()
 					: commonEdge.attributes.get("positiveBarriers").getArray();
+			if (!pBarriers.isEmpty())
+				error = Utilities.fromDistribution(properties.naturalBarriers, properties.naturalBarriersSD, "left");
+		}
+		if (negativeBarrierEffect()) {
 			List<Integer> nBarriers = dual ? targetNode.getPrimalEdge().attributes.get("negativeBarriers").getArray()
 					: commonEdge.attributes.get("negativeBarriers").getArray();
-			if (positiveBarrierEffect(pBarriers))
-				error = Utilities.fromDistribution(agentProperties.naturalBarriers, agentProperties.naturalBarriersSD,
-						"left");
-			if (negativeBarrierEffect(nBarriers))
-				error = Utilities.fromDistribution(agentProperties.severingBarriers, agentProperties.severingBarriersSD,
-						"right");
-		} else
-			error = Utilities.fromDistribution(1.0, 0.10, null);
+			if (!nBarriers.isEmpty())
+				error = Utilities.fromDistribution(properties.severingBarriers, properties.severingBarriersSD, "right");
+		}
+
 		return error;
 	}
 
@@ -176,9 +180,9 @@ public class Dijkstra {
 			double nodeLandmarkness = 1.0 - globalLandmarkness * Parameters.globalLandmarknessWeightDistance;
 			double nodeCost = edgeCost * nodeLandmarkness;
 			tentativeCost = getBest(currentNode) + nodeCost;
-		} else {
+		} else
 			tentativeCost = getBest(currentNode) + edgeCost;
-		}
+
 	}
 
 	/**
@@ -204,9 +208,9 @@ public class Dijkstra {
 			double nodeLandmarkness = 1.0 - globalLandmarkness * Parameters.globalLandmarknessWeightAngular;
 			double nodeCost = nodeLandmarkness * turnCost;
 			tentativeCost = getBest(currentNode) + nodeCost;
-		} else {
+		} else
 			tentativeCost = getBest(currentNode) + turnCost;
-		}
+
 	}
 
 	/**
@@ -243,7 +247,7 @@ public class Dijkstra {
 			NodeWrapper nodeWrapper = nodeWrappersMap.computeIfAbsent(targetNode, NodeWrapper::new);
 			nodeWrapper.nodeFrom = currentNode;
 			nodeWrapper.directedEdgeFrom = outEdge;
-			nodeWrapper.commonPrimalJunction = GraphUtils.getPrimalJunction(currentNode, targetNode);
+			nodeWrapper.commonPrimalJunction = RoutingUtils.getPrimalJunction(currentNode, targetNode);
 			nodeWrapper.gx = tentativeCost;
 			nodeWrappersMap.put(targetNode, nodeWrapper);
 			unvisitedNodes.add(targetNode);
@@ -262,21 +266,6 @@ public class Dijkstra {
 		return nodeWrapper != null ? nodeWrapper.gx : Double.MAX_VALUE;
 	}
 
-//	/**
-//	 * Clears the data structures.
-//	 */
-//	protected void clear() {
-//		subGraph = null;
-//		usingSubGraph = false;
-//		visitedNodes.clear();
-//		unvisitedNodes.clear();
-//		nodeWrappersMap.clear();
-//		originNode = subGraph.getParentNode(originNode);
-//		destinationNode = subGraph.getParentNode(destinationNode);
-//		if (!centroidsToAvoid.isEmpty())
-//			centroidsToAvoid = new HashSet<>(subGraph.getParentNodes(new ArrayList<>(centroidsToAvoid)));
-//	}
-
 	/**
 	 * Determines whether there is a positive barrier effect based on the provided
 	 * list of barriers.
@@ -284,8 +273,8 @@ public class Dijkstra {
 	 * @param pBarriers The list of positive barriers to check.
 	 * @return True if there is a positive barrier effect; otherwise, false.
 	 */
-	private boolean positiveBarrierEffect(List<Integer> pBarriers) {
-		return (!agentProperties.onlyMinimising && agentProperties.preferenceNaturalBarriers && !pBarriers.isEmpty());
+	private boolean positiveBarrierEffect() {
+		return (!properties.shouldOnlyUseMinimization() && properties.preferenceNaturalBarriers);
 	}
 
 	/**
@@ -295,8 +284,8 @@ public class Dijkstra {
 	 * @param nBarriers The list of negative barriers to check.
 	 * @return True if there is a negative barrier effect; otherwise, false.
 	 */
-	private boolean negativeBarrierEffect(List<Integer> nBarriers) {
-		return (!agentProperties.onlyMinimising && agentProperties.aversionSeveringBarriers && !nBarriers.isEmpty());
+	private boolean negativeBarrierEffect() {
+		return (!properties.shouldOnlyUseMinimization() && properties.aversionSeveringBarriers);
 	}
 
 	/**
@@ -307,8 +296,8 @@ public class Dijkstra {
 	 * @return True if the landmark condition is met; otherwise, false.
 	 */
 	private boolean landmarkCondition(NodeGraph targetNode) {
-		return (!agentProperties.onlyMinimising && agentProperties.usingDistantLandmarks && GraphUtils
-				.getCachedNodesDistance(targetNode, finalDestinationNode) > Parameters.threshold3dVisibility);
+		return (!properties.shouldOnlyUseMinimization() && properties.usingDistantLandmarks
+				&& GraphUtils.nodesDistance(targetNode, finalDestinationNode) > Parameters.threshold3dVisibility);
 	}
 
 	/**
@@ -318,14 +307,20 @@ public class Dijkstra {
 	 *         false.
 	 */
 	protected boolean regionCondition() {
-		return agentProperties.regionBasedNavigation && originNode.regionID == destinationNode.regionID;
+		return properties.regionBasedNavigation && originNode.getRegionID() == destinationNode.getRegionID();
 	}
 
+	/**
+	 * Retrieves the directed edge from the parent graph for the given node.
+	 *
+	 * @param step the node from which to retrieve the directed edge
+	 * @return the directed edge from the parent graph
+	 */
 	protected DirectedEdge retrieveFromParentGraph(NodeGraph step) {
 		NodeGraph nodeTo = subGraph.getParentNode(step);
 		NodeGraph nodeFrom = subGraph.getParentNode(nodeWrappersMap.get(step).nodeFrom);
 		// retrieving from Primal Network (no SubGraph)
-		return agent.getCognitiveMap().getKnownNetwork().getDirectedEdgeBetween(nodeFrom, nodeTo);
+		return CommunityCognitiveMap.getNetwork().getDirectedEdgeBetween(nodeFrom, nodeTo);
 	}
 
 }
