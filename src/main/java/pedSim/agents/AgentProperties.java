@@ -14,7 +14,6 @@ public class AgentProperties {
 
 	// for general routing
 	public RouteChoice routeChoice;
-	public boolean onlyMinimising = false;
 	public boolean minimisingDistance = false;
 	public boolean minimisingAngular = false;
 
@@ -56,12 +55,10 @@ public class AgentProperties {
 	 */
 	public void setRouteChoice(RouteChoice routeChoice) {
 		this.routeChoice = routeChoice;
-		onlyMinimising = false;
 		minimisingDistance = routeChoice == RouteChoice.ROAD_DISTANCE;
 		minimisingAngular = routeChoice == RouteChoice.ANGULAR_CHANGE;
 
-		onlyMinimising = minimisingDistance || minimisingAngular;
-		if (onlyMinimising)
+		if (minimisingDistance || minimisingAngular)
 			return;
 
 		// localHeuristics
@@ -170,5 +167,23 @@ public class AgentProperties {
 	 */
 	private boolean containsAllLandmarks() {
 		return routeChoice.toString().contains("LANDMARKS");
+	}
+
+	/**
+	 * Checks if the agent should use minimization for route planning.
+	 *
+	 * @return True if the agent should use minimization, otherwise false.
+	 */
+	public boolean shouldOnlyUseMinimization() {
+		return minimisingDistance || minimisingAngular;
+	}
+
+	/**
+	 * Checks if the agent should use local heuristics for route planning.
+	 *
+	 * @return True if the agent should use local heuristics, otherwise false.
+	 */
+	public boolean shouldUseLocalHeuristic() {
+		return localHeuristicDistance || localHeuristicAngular;
 	}
 }
