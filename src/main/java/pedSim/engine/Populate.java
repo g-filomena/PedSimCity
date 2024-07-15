@@ -29,10 +29,10 @@ public class Populate {
 	public static HashMap<String, Double> destinationsDMA = new HashMap<>();
 	List<Integer> testOrigins = new ArrayList<>();
 	List<Integer> testDestinations = new ArrayList<>();
-	final double WORK_SHARE = 0.30;
-	final double VISIT_SHARE = 0.46;
-	final double RANDOM_SHARE = 0.24;
-	final String TYPE_LIVE = "live";
+	final static double WORK_SHARE = 0.30;
+	final static double VISIT_SHARE = 0.46;
+	final static double RANDOM_SHARE = 0.24;
+	final static String TYPE_LIVE = "live";
 
 	/**
 	 * Populates test agents, OD matrix, and empirical groups for pedestrian
@@ -82,10 +82,10 @@ public class Populate {
 				destinationNode = NodesLookup.randomNodeFromDistancesSet(network, PedSimCity.junctions, originNode,
 						PedSimCity.distances);
 			} else if (Parameters.testingSubdivisions) {
-				originNode = NodesLookup.randomNodeFromList(network, PedSimCity.startingNodes);
+				originNode = NodesLookup.randomNodeFromGeometriest(network, PedSimCity.startingNodes);
 				destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, originNode, 1000, 3000);
 			} else if (Parameters.testingModels) {
-				originNode = NodesLookup.randomNodeFromList(network, PedSimCity.startingNodes);
+				originNode = NodesLookup.randomNodeFromGeometriest(network, PedSimCity.startingNodes);
 				destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, originNode,
 						Parameters.minDistance, Parameters.maxDistance);
 			}
