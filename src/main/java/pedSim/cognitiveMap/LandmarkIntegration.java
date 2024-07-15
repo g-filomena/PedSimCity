@@ -37,7 +37,7 @@ public class LandmarkIntegration {
 	 */
 	public void setLocalLandmarkness(VectorLayer localLandmarks, Map<Integer, Building> buildingsMap, double radius) {
 
-		List<NodeGraph> nodes = graph.nodesGraph;
+		List<NodeGraph> nodes = graph.getNodes();
 		nodes.forEach((node) -> {
 			List<MasonGeometry> containedLandmarks = localLandmarks
 					.featuresWithinDistance(node.getMasonGeometry().geometry, radius);
@@ -63,7 +63,7 @@ public class LandmarkIntegration {
 	public void setGlobalLandmarkness(VectorLayer globalLandmarks, Map<Integer, Building> buildingsMap,
 			double radiusAnchors, VectorLayer sightLines, int nrAnchors) {
 
-		List<NodeGraph> nodes = graph.nodesGraph;
+		List<NodeGraph> nodes = graph.getNodes();
 
 		nodes.forEach((node) -> {
 			ArrayList<Building> anchors = new ArrayList<>(); //
