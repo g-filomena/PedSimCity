@@ -37,6 +37,7 @@ public class Import {
 		resourcePath = Parameters.cityName;
 		if (Parameters.javaProject)
 			resourcePath = Parameters.localPath + resourcePath;
+		System.out.println(Parameters.localPath);
 		if (Parameters.cityName.equals("London")) {
 			if (Parameters.testingLandmarks)
 				resourcePath += "/landmarks";
@@ -113,6 +114,7 @@ public class Import {
 					urlShp = classLoader.getResource(tmpPath + ".shp");
 					urlDbf = classLoader.getResource(tmpPath + ".dbf");
 				}
+				System.out.println(tmpPath);
 				VectorLayer.readShapefile(urlShp, urlDbf, vectorLayers[Arrays.asList(strings).indexOf(string)]);
 			}
 			PedSimCity.network.fromStreetJunctionsSegments(PedSimCity.junctions, PedSimCity.roads);
