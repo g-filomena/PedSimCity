@@ -21,6 +21,7 @@ import pedSim.engine.PedSimCity;
 import sim.graph.EdgeGraph;
 import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
+import sim.util.geo.GeometryUtilities;
 import sim.util.geo.MasonGeometry;
 import sim.util.geo.Utilities;
 
@@ -30,7 +31,6 @@ import sim.util.geo.Utilities;
  */
 public class BarrierBasedNavigation {
 
-	Map<Integer, EdgeGraph> edgesMap = new HashMap<Integer, EdgeGraph>();
 	List<NodeGraph> sequence = new ArrayList<>();
 	private NodeGraph originNode;
 	private NodeGraph currentLocation;
@@ -64,7 +64,6 @@ public class BarrierBasedNavigation {
 	 */
 	public List<NodeGraph> sequenceBarriers() throws Exception {
 
-		edgesMap = new HashMap<Integer, EdgeGraph>(PedSimCity.edgesMap);
 		currentLocation = originNode;
 
 		// sub-goals
@@ -84,8 +83,8 @@ public class BarrierBasedNavigation {
 
 			EdgeGraph edgeGoal = barrierGoal.getValue0();
 			int barrier = barrierGoal.getValue1();
-			NodeGraph subGoal = GraphUtils.getCachedNodesDistance(currentLocation, edgeGoal.getFromNode()) < GraphUtils
-					.getCachedNodesDistance(currentLocation, edgeGoal.getToNode()) ? edgeGoal.getFromNode()
+			NodeGraph subGoal = GraphUtils.nodesDistance(currentLocation, edgeGoal.getFromNode()) < GraphUtils
+					.nodesDistance(currentLocation, edgeGoal.getToNode()) ? edgeGoal.getFromNode()
 							: edgeGoal.getToNode();
 
 			sequence.add(subGoal);
@@ -150,11 +149,11 @@ public class BarrierBasedNavigation {
 			Coordinate[] intersections = viewField.intersection(barrierGeometry.geometry).getCoordinates();
 
 			double minDistance = Arrays.stream(intersections).parallel()
-					.mapToDouble(intersection -> GraphUtils.euclideanDistance(currentCoordinate, intersection)).min()
-					.orElse(Double.MAX_VALUE);
+					.mapToDouble(intersection -> GeometryUtilities.euclideanDistance(currentCoordinate, intersection))
+					.min().orElse(Double.MAX_VALUE);
 
 			// barriers that are more distant than the destinationNode are disregarded
-			if (minDistance > GraphUtils.euclideanDistance(currentCoordinate, destinationCoordinate))
+			if (minDistance > GeometryUtilities.euclideanDistance(currentCoordinate, destinationCoordinate))
 				continue;
 
 			validBarriers.put(barrierID, minDistance);
@@ -272,9 +271,9 @@ public class BarrierBasedNavigation {
 		final Map<EdgeGraph, Double> thisBarrierEdgeGoals = new HashMap<>();
 
 		for (EdgeGraph edge : edgesAlong) {
-			double distanceToEdge = GraphUtils.euclideanDistance(currentLocation.getCoordinate(),
+			double distanceToEdge = GeometryUtilities.euclideanDistance(currentLocation.getCoordinate(),
 					edge.getCoordsCentroid());
-			double distanceToDestination = GraphUtils.getCachedNodesDistance(currentLocation, destinationNode);
+			double distanceToDestination = GraphUtils.nodesDistance(currentLocation, destinationNode);
 
 			if (distanceToEdge > distanceToDestination) {
 				continue;
