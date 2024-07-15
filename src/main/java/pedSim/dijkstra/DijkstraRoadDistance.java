@@ -3,10 +3,8 @@ package pedSim.dijkstra;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
 
@@ -15,6 +13,7 @@ import org.locationtech.jts.planargraph.DirectedEdge;
 import pedSim.agents.Agent;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
+import sim.routing.NodeWrapper;
 
 /**
  * The class allows computing the road distance shortest route by employing the
@@ -88,10 +87,10 @@ public class DijkstraRoadDistance extends Dijkstra {
 				continue;
 
 			EdgeGraph commonEdge = agentNetwork.getEdgeBetween(currentNode, targetNode);
-			DirectedEdge outEdge = commonEdge.getDirEdge(0);
-			if (edgesToAvoid.contains(outEdge.getEdge()))
+			if (edgesToAvoid.contains(commonEdge))
 				continue;
 
+			DirectedEdge outEdge = agentNetwork.getDirectedEdgeBetween(currentNode, targetNode);
 			tentativeCost = 0.0;
 			double error = costPerceptionError(targetNode, commonEdge, false);
 			double edgeCost = commonEdge.getLength() * error;
@@ -106,10 +105,8 @@ public class DijkstraRoadDistance extends Dijkstra {
 	 * @return An ArrayList of DirectedEdges representing the path sequence.
 	 */
 	private List<DirectedEdge> reconstructSequence() {
-		Map<NodeGraph, NodeWrapper> traversedNodesMap = new HashMap<>();
 		List<DirectedEdge> directedEdgesSequence = new ArrayList<>();
 		NodeGraph step = destinationNode;
-		traversedNodesMap.put(destinationNode, nodeWrappersMap.get(destinationNode));
 
 		// Check that the route has been formulated properly
 		// No route
@@ -124,7 +121,6 @@ public class DijkstraRoadDistance extends Dijkstra {
 					directedEdge = nodeWrappersMap.get(step).directedEdgeFrom;
 				step = nodeWrappersMap.get(step).nodeFrom;
 				directedEdgesSequence.add(0, directedEdge);
-				traversedNodesMap.put(step, nodeWrappersMap.get(step));
 			}
 		return directedEdgesSequence;
 	}
