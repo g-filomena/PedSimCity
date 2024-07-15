@@ -2,10 +2,8 @@ package pedSim.dijkstra;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
 
@@ -13,8 +11,9 @@ import org.locationtech.jts.planargraph.DirectedEdge;
 
 import pedSim.agents.Agent;
 import sim.graph.EdgeGraph;
-import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
+import sim.routing.NodeWrapper;
+import sim.routing.RoutingUtils;
 
 /**
  * The class allows computing the least cumulative angular change route by
@@ -100,7 +99,7 @@ public class DijkstraAngularChange extends Dijkstra {
 			// --> if yes move on. This essentially means that the in the primal graph you
 			// would go back to an
 			// already traversed node; but the dual graph wouldn't know.
-			if (GraphUtils.getPrimalJunction(targetNode, currentNode)
+			if (RoutingUtils.getPrimalJunction(targetNode, currentNode)
 					.equals(nodeWrappersMap.get(currentNode).commonPrimalJunction))
 				continue;
 
@@ -122,11 +121,8 @@ public class DijkstraAngularChange extends Dijkstra {
 	 * @return An ArrayList of DirectedEdges representing the path sequence.
 	 */
 	private List<DirectedEdge> reconstructSequence() {
-
-		Map<NodeGraph, NodeWrapper> traversedNodesMap = new HashMap<>();
 		List<DirectedEdge> directedEdgesSequence = new ArrayList<>();
 		NodeGraph step = destinationNode;
-		traversedNodesMap.put(destinationNode, nodeWrappersMap.get(destinationNode));
 
 		// check that the route has been formulated properly
 		if (nodeWrappersMap.get(destinationNode) == null || nodeWrappersMap.size() <= 1)
@@ -137,7 +133,6 @@ public class DijkstraAngularChange extends Dijkstra {
 				DirectedEdge directedEdge = step.getPrimalEdge().getDirEdge(0); // this refer in any case to the Parent
 																				// primal graph
 				step = nodeWrappersMap.get(step).nodeFrom;
-				traversedNodesMap.put(step, nodeWrappersMap.get(step));
 				directedEdgesSequence.add(0, directedEdge);
 
 				if (step.equals(originNode)) {
