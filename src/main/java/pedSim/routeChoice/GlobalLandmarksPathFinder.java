@@ -11,6 +11,8 @@ import java.util.List;
 import pedSim.agents.Agent;
 import pedSim.dijkstra.DijkstraGlobalLandmarks;
 import sim.graph.NodeGraph;
+import sim.routing.Route;
+import sim.routing.RoutingUtils;
 
 public class GlobalLandmarksPathFinder extends PathFinder {
 
@@ -29,7 +31,7 @@ public class GlobalLandmarksPathFinder extends PathFinder {
 		partialSequence = pathfinder.dijkstraAlgorithm(originNode, destinationNode, destinationNode,
 				directedEdgesToAvoid, agent);
 		route.directedEdgesSequence = partialSequence;
-		route.routeSequences();
+		route.computeRouteSequences();
 		return route;
 	}
 
@@ -55,7 +57,7 @@ public class GlobalLandmarksPathFinder extends PathFinder {
 		for (NodeGraph tmpDestination : this.sequenceNodes) {
 			moveOn = false;
 			// check if this tmpDestination has been traversed already
-			if (route.nodesFromEdgesSequence(completeSequence).contains(tmpDestination)) {
+			if (RoutingUtils.getNodesFromDirectedEdgesSequence(completeSequence).contains(tmpDestination)) {
 				controlPath(tmpDestination);
 				tmpOrigin = tmpDestination;
 				continue;
@@ -79,7 +81,7 @@ public class GlobalLandmarksPathFinder extends PathFinder {
 		}
 
 		route.directedEdgesSequence = completeSequence;
-		route.routeSequences();
+		route.computeRouteSequences();
 		return route;
 	}
 }
