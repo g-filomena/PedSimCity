@@ -11,16 +11,15 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.linearref.LengthIndexedLine;
 import org.locationtech.jts.planargraph.DirectedEdge;
 
-import pedSim.cognitiveMap.AgentCognitiveMap;
 import pedSim.engine.Parameters;
 import pedSim.engine.PedSimCity;
-import pedSim.routeChoice.Route;
 import pedSim.routeChoice.RoutePlanner;
 import sim.engine.SimState;
 import sim.engine.Steppable;
 import sim.engine.Stoppable;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
+import sim.routing.Route;
 import sim.util.geo.MasonGeometry;
 import sim.util.geo.PointMoveTo;
 
@@ -39,14 +38,12 @@ public final class Agent implements Steppable {
 	public NodeGraph originNode = null;
 	public NodeGraph destinationNode = null;
 	public List<DirectedEdge> directedEdgesSequence = new ArrayList<>();
-	private List<Integer> edgeIDsSequence;
 	boolean reachedDestination = false;
 	public Integer tripsDone = 0;
 
 	// point that denotes agent's position
 	// private Point location;
 	private AgentProperties agentProperties;
-	public AgentCognitiveMap cognitiveMap;
 
 	Stoppable killAgent;
 	protected MasonGeometry agentLocation;
@@ -92,7 +89,6 @@ public final class Agent implements Steppable {
 	 * Initialises the agent properties.
 	 */
 	public void initialiseAgentProperties() {
-		cognitiveMap = new AgentCognitiveMap();
 		agentProperties = new AgentProperties();
 	}
 
@@ -102,7 +98,6 @@ public final class Agent implements Steppable {
 	 * @param empiricalGroup the empirical group for agent properties.
 	 */
 	public void initialiseAgentProperties(EmpiricalAgentsGroup empiricalGroup) {
-		cognitiveMap = new AgentCognitiveMap();
 		agentProperties = new EmpiricalAgentProperties(this, empiricalGroup);
 	}
 
@@ -194,9 +189,7 @@ public final class Agent implements Steppable {
 	 * Updates data related to the volumes on the segments traversed.
 	 */
 	public void updateData() {
-		getSequenceEdges();
-		state.flowHandler.updateEdgeData(this, directedEdgesSequence);
-		state.flowHandler.storeRouteData(this, edgeIDsSequence);
+		state.flowHandler.updateFlowsData(this, route);
 	}
 
 	/**
@@ -216,19 +209,6 @@ public final class Agent implements Steppable {
 		}
 		final RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
 		route = planner.definePath();
-	}
-
-	/**
-	 * Gets the sequence of edge IDs for the agent's path.
-	 */
-	protected void getSequenceEdges() {
-
-		edgeIDsSequence = new ArrayList<>();
-		for (DirectedEdge directedEdge : directedEdgesSequence) {
-
-			int edgeID = ((EdgeGraph) directedEdge.getEdge()).getID();
-			edgeIDsSequence.add(edgeID);
-		}
 	}
 
 	/**
@@ -363,14 +343,4 @@ public final class Agent implements Steppable {
 	public AgentProperties getProperties() {
 		return agentProperties;
 	}
-
-	/**
-	 * Gets the cognitive map.
-	 *
-	 * @return The cognitive map.
-	 */
-	synchronized public AgentCognitiveMap getCognitiveMap() {
-		return cognitiveMap;
-	}
-
 }
