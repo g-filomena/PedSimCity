@@ -147,8 +147,9 @@ public class PedSimCity extends SimState {
 	public void finish() {
 
 		try {
-			Export export = new Export();
-			export.saveResults(flowHandler);
+			Exporter exporter = new Exporter(flowHandler);
+			exporter.saveVolumes();
+			exporter.saveRoutes();
 		} catch (final Exception e) {
 			e.printStackTrace();
 		}
