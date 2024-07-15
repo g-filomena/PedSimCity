@@ -8,8 +8,9 @@ import org.locationtech.jts.planargraph.DirectedEdge;
 
 import pedSim.agents.Agent;
 import pedSim.dijkstra.DijkstraAngularChange;
-import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
+import sim.routing.Route;
+import sim.routing.RoutingUtils;
 
 /**
  * A pathfinder for least cumulative angular change based route calculations.
@@ -31,17 +32,16 @@ public class AngularChangePathFinder extends PathFinder {
 
 		this.agent = agent;
 		previousJunction = null;
-		agentNetwork = agent.getCognitiveMap().getKnownNetwork();
 
 		NodeGraph dualOrigin = originNode.getDualNode(originNode, destinationNode, false, previousJunction);
 		NodeGraph dualDestination = null;
 		while (dualDestination == null || dualDestination.equals(dualOrigin))
 			dualDestination = destinationNode.getDualNode(originNode, destinationNode, false, previousJunction);
 
-		NodeGraph commonJunction = GraphUtils.getPrimalJunction(dualOrigin, dualDestination);
+		NodeGraph commonJunction = RoutingUtils.getPrimalJunction(dualOrigin, dualDestination);
 		if (commonJunction != null) {
-			route.directedEdgesSequence.add(agentNetwork.getDirectedEdgeBetween(originNode, commonJunction));
-			route.directedEdgesSequence.add(agentNetwork.getDirectedEdgeBetween(commonJunction, destinationNode));
+			route.directedEdgesSequence.add(network.getDirectedEdgeBetween(originNode, commonJunction));
+			route.directedEdgesSequence.add(network.getDirectedEdgeBetween(commonJunction, destinationNode));
 			return route;
 		}
 
@@ -50,7 +50,7 @@ public class AngularChangePathFinder extends PathFinder {
 				new HashSet<NodeGraph>(centroidsToAvoid), previousJunction, agent);
 		cleanDualPath(originNode, destinationNode);
 		route.directedEdgesSequence = partialSequence;
-		route.routeSequences();
+		route.computeRouteSequences();
 		return route;
 	}
 
@@ -68,7 +68,6 @@ public class AngularChangePathFinder extends PathFinder {
 	public Route angularChangeBasedSequence(List<NodeGraph> sequenceNodes, Agent agent) {
 
 		this.agent = agent;
-		agentNetwork = agent.getCognitiveMap().getKnownNetwork();
 		this.regionBased = agent.getProperties().regionBasedNavigation;
 		this.sequenceNodes = new ArrayList<>(sequenceNodes);
 
@@ -84,11 +83,11 @@ public class AngularChangePathFinder extends PathFinder {
 			partialSequence = new ArrayList<>();
 
 			if (tmpOrigin != originNode) {
-				centroidsToAvoid = route.centroidsFromEdgesSequence(completeSequence);
-				previousJunction = route.previousJunction(completeSequence);
+				centroidsToAvoid = RoutingUtils.getCentroidsFromEdgesSequence(completeSequence);
+				previousJunction = RoutingUtils.getPreviousJunction(completeSequence);
 
 				// check if tmpDestination traversed already
-				if (route.nodesFromEdgesSequence(completeSequence).contains(tmpDestination)) {
+				if (RoutingUtils.getNodesFromDirectedEdgesSequence(completeSequence).contains(tmpDestination)) {
 					controlPath(tmpDestination);
 					tmpOrigin = tmpDestination;
 					continue;
@@ -104,7 +103,7 @@ public class AngularChangePathFinder extends PathFinder {
 			for (NodeGraph tmpDualOrigin : dualNodesOrigin) {
 				for (NodeGraph tmpDualDestination : dualNodesDestination) {
 					// check if just one node separates them
-					NodeGraph sharedJunction = GraphUtils.getPrimalJunction(tmpDualOrigin, tmpDualDestination);
+					NodeGraph sharedJunction = RoutingUtils.getPrimalJunction(tmpDualOrigin, tmpDualDestination);
 
 					if (sharedJunction != null) {
 						addEdgesCommonJunction(sharedJunction);
@@ -132,7 +131,7 @@ public class AngularChangePathFinder extends PathFinder {
 			tmpOrigin = tmpDestination;
 		}
 		route.directedEdgesSequence = completeSequence;
-		route.routeSequences();
+		route.computeRouteSequences();
 		return route;
 	}
 
@@ -145,8 +144,8 @@ public class AngularChangePathFinder extends PathFinder {
 	 *                       destination.
 	 */
 	private void addEdgesCommonJunction(NodeGraph commonJunction) {
-		DirectedEdge first = agentNetwork.getDirectedEdgeBetween(tmpOrigin, commonJunction);
-		DirectedEdge second = agentNetwork.getDirectedEdgeBetween(commonJunction, tmpDestination);
+		DirectedEdge first = network.getDirectedEdgeBetween(tmpOrigin, commonJunction);
+		DirectedEdge second = network.getDirectedEdgeBetween(commonJunction, tmpDestination);
 		partialSequence.add(first);
 		partialSequence.add(second);
 	}
