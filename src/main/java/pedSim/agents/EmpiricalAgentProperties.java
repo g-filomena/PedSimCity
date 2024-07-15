@@ -244,8 +244,9 @@ public class EmpiricalAgentProperties extends AgentProperties {
 			keys = new ArrayList<>(minimisationMap.keySet());
 			pRandom = random.nextDouble() * minimisationMap.values().stream().mapToDouble(d -> d).sum();
 			limit = 0.0;
-			for (final RouteChoiceProperty key : keys) {
-				final double p = minimisationMap.get(key);
+
+			for (RouteChoiceProperty key : keys) {
+				double p = minimisationMap.get(key);
 				if (pRandom <= p + limit) {
 					minimisingDistance = key.equals(RouteChoiceProperty.ROAD_DISTANCE);
 					minimisingAngular = !minimisingDistance;
@@ -287,7 +288,6 @@ public class EmpiricalAgentProperties extends AgentProperties {
 	public void reset() {
 		usingElements = false;
 		elementsActivated = false;
-		onlyMinimising = false;
 		minimisingDistance = false;
 		minimisingAngular = false;
 		localHeuristicDistance = false;
