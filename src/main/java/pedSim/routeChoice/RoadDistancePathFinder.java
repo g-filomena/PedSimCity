@@ -7,6 +7,8 @@ import java.util.List;
 import pedSim.agents.Agent;
 import pedSim.dijkstra.DijkstraRoadDistance;
 import sim.graph.NodeGraph;
+import sim.routing.Route;
+import sim.routing.RoutingUtils;
 
 /**
  * A pathfinder for road-distance based route calculations. This class extends
@@ -26,12 +28,11 @@ public class RoadDistancePathFinder extends PathFinder {
 	public Route roadDistance(NodeGraph originNode, NodeGraph destinationNode, Agent agent) {
 
 		this.agent = agent;
-		agentNetwork = agent.getCognitiveMap().getKnownNetwork();
 		final DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
 		partialSequence = pathfinder.dijkstraAlgorithm(originNode, destinationNode, destinationNode,
 				directedEdgesToAvoid, agent);
 		route.directedEdgesSequence = partialSequence;
-		route.routeSequences();
+		route.computeRouteSequences();
 		return route;
 	}
 
@@ -51,7 +52,6 @@ public class RoadDistancePathFinder extends PathFinder {
 	public Route roadDistanceSequence(List<NodeGraph> sequenceNodes, Agent agent) {
 
 		this.agent = agent;
-		agentNetwork = agent.getCognitiveMap().getKnownNetwork();
 		this.sequenceNodes = new ArrayList<>(sequenceNodes);
 
 		// originNode
@@ -65,7 +65,7 @@ public class RoadDistancePathFinder extends PathFinder {
 			tmpDestination = currentNode;
 
 			// check if this tmpDestination has been traversed already
-			if (route.nodesFromEdgesSequence(completeSequence).contains(tmpDestination)) {
+			if (RoutingUtils.getNodesFromDirectedEdgesSequence(completeSequence).contains(tmpDestination)) {
 				controlPath(tmpDestination);
 				tmpOrigin = tmpDestination;
 				continue;
@@ -92,7 +92,7 @@ public class RoadDistancePathFinder extends PathFinder {
 			tmpOrigin = tmpDestination;
 		}
 		route.directedEdgesSequence = completeSequence;
-		route.routeSequences();
+		route.computeRouteSequences();
 		return route;
 	}
 }
