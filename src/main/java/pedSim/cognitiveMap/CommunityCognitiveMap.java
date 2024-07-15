@@ -1,5 +1,7 @@
 package pedSim.cognitiveMap;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,32 +26,16 @@ import sim.util.geo.MasonGeometry;
  */
 public class CommunityCognitiveMap {
 
-	/**
-	 * Stores local landmarks as a VectorLayer.
-	 */
-	public static VectorLayer localLandmarks = new VectorLayer();
-
-	/**
-	 * Stores global landmarks as a VectorLayer.
-	 */
-	public static VectorLayer globalLandmarks = new VectorLayer();
-
-	/**
-	 * Maps pairs of nodes to gateways.
-	 */
-	public Map<Pair<NodeGraph, NodeGraph>, Gateway> gatewaysMap = new HashMap<>();
-
-	/**
-	 * Stores barriers as a VectorLayer.
-	 */
-	protected static VectorLayer barriers;
+	protected static final VectorLayer localLandmarks = new VectorLayer();
+	protected static final VectorLayer globalLandmarks = new VectorLayer();
+	protected static VectorLayer barriers = new VectorLayer();
 
 	/**
 	 * Graphs for navigation.
 	 */
 	static Graph communityNetwork;
 	static Graph communityDualNetwork;
-
+	protected static final Map<Pair<NodeGraph, NodeGraph>, Gateway> gatewaysMap = new HashMap<>();
 	/**
 	 * Singleton instance of the CognitiveMap.
 	 */
@@ -171,7 +157,7 @@ public class CommunityCognitiveMap {
 	 * @param region The region for which to get local landmarks.
 	 * @return A list of local landmarks.
 	 */
-	public List<MasonGeometry> getRegionLocalLandmarks(Region region) {
+	public static List<MasonGeometry> getRegionLocalLandmarks(Region region) {
 		return region.localLandmarks;
 	}
 
@@ -181,7 +167,7 @@ public class CommunityCognitiveMap {
 	 * @param region The region for which to get global landmarks.
 	 * @return A list of global landmarks.
 	 */
-	public List<MasonGeometry> getRegionGlobalLandmarks(Region region) {
+	public static List<MasonGeometry> getRegionGlobalLandmarks(Region region) {
 		return region.globalLandmarks;
 	}
 
@@ -192,8 +178,10 @@ public class CommunityCognitiveMap {
 	 * @param destinationNode The second node.
 	 * @return A list of buildings.
 	 */
-	public List<MasonGeometry> getBuildings(NodeGraph originNode, NodeGraph destinationNode) {
-		Geometry smallestCircle = GraphUtils.enclosingCircleBetweenNodes(originNode, destinationNode);
+	public static List<MasonGeometry> getBuildings(NodeGraph originNode, NodeGraph destinationNode) {
+
+		Geometry smallestCircle = GraphUtils
+				.smallestEnclosingGeometryBetweenNodes(new ArrayList<>(Arrays.asList(originNode, destinationNode)));
 		return PedSimCity.buildings.containedFeatures(smallestCircle);
 	}
 
@@ -204,17 +192,53 @@ public class CommunityCognitiveMap {
 	 * @return An ArrayList of MasonGeometry objects representing buildings within
 	 *         the region.
 	 */
-	public List<MasonGeometry> getBuildingsWithinRegion(Region region) {
+	public static List<MasonGeometry> getBuildingsWithinRegion(Region region) {
 		VectorLayer regionNetwork = region.regionNetwork;
 		Geometry convexHull = regionNetwork.getConvexHull();
 		return PedSimCity.buildings.containedFeatures(convexHull);
 	}
 
-	public Graph getKnownNetwork() {
+	public static Graph getNetwork() {
 		return communityNetwork;
 	}
 
-	public Graph getKnownDualNetwork() {
+	public static Graph getDualNetwork() {
 		return communityDualNetwork;
+	}
+
+	/**
+	 * Gets the local landmarks from the cognitive map.
+	 *
+	 * @return The local landmarks.
+	 */
+	public static VectorLayer getLocalLandmarks() {
+		return localLandmarks;
+	}
+
+	/**
+	 * Gets the global landmarks from the cognitive map.
+	 *
+	 * @return The global landmarks.
+	 */
+	public static VectorLayer getGlobalLandmarks() {
+		return globalLandmarks;
+	}
+
+	/**
+	 * Gets the barriers from the cognitive map.
+	 *
+	 * @return The barriers.
+	 */
+	public static VectorLayer getBarriers() {
+		return barriers;
+	}
+
+	/**
+	 * Verifies if any barriers are represented (contained) in the cognitive map.
+	 *
+	 * @return The barriers.
+	 */
+	public boolean containsBarriers() {
+		return !getBarriers().getGeometries().isEmpty();
 	}
 }
