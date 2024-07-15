@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import org.locationtech.jts.planargraph.DirectedEdge;
 
 import pedSim.agents.Agent;
+import pedSim.cognitiveMap.CommunityCognitiveMap;
 import pedSim.cognitiveMap.LandmarkIntegration;
 import pedSim.cognitiveMap.Region;
 import pedSim.engine.Parameters;
@@ -20,6 +21,7 @@ import sim.graph.Building;
 import sim.graph.Graph;
 import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
+import sim.routing.RoutingUtils;
 
 /**
  * Series of functions that support landmark-based navigation, landmarkness
@@ -30,13 +32,13 @@ public class LandmarkNavigation {
 
 	NodeGraph originNode;
 	NodeGraph destinationNode;
+	Graph network = CommunityCognitiveMap.getNetwork();
 	private List<NodeGraph> sequence = new ArrayList<>();
 	private List<NodeGraph> inRegionSequence = new ArrayList<>();
 	private Complexity complexity = new Complexity();
 	private Map<NodeGraph, Double> salientNodes = new HashMap<NodeGraph, Double>();
 	private Agent agent;
 	private NodeGraph currentNode;
-	private Graph agentNetwork;
 
 	/**
 	 * Initialises a new instance of the LandmarkNavigation class with the specified
@@ -50,7 +52,6 @@ public class LandmarkNavigation {
 		this.originNode = originNode;
 		this.destinationNode = destinationNode;
 		this.agent = agent;
-		this.agentNetwork = agent.getCognitiveMap().getKnownNetwork();
 	}
 
 	/**
@@ -105,7 +106,7 @@ public class LandmarkNavigation {
 
 		double percentile = Parameters.salientNodesPercentile;
 		salientNodes = new HashMap<NodeGraph, Double>(
-				agentNetwork.getSalientNodesWithinSpace(node, destinationNode, percentile));
+				network.getSalientNodesWithinSpace(node, destinationNode, percentile));
 
 		// If no salient junctions are found, the tolerance increases till the 0.50
 		// percentile;
@@ -119,7 +120,7 @@ public class LandmarkNavigation {
 				break;
 			}
 			salientNodes = new HashMap<NodeGraph, Double>(
-					agentNetwork.getSalientNodesWithinSpace(node, destinationNode, percentile));
+					network.getSalientNodesWithinSpace(node, destinationNode, percentile));
 		}
 	}
 
@@ -164,9 +165,9 @@ public class LandmarkNavigation {
 	private boolean checkCriteria(NodeGraph candidateNode, double searchDistance) {
 
 		return !sequence.contains(candidateNode) && !candidateNode.equals(originNode)
-				&& agentNetwork.getEdgeBetween(candidateNode, currentNode) == null
-				&& agentNetwork.getEdgeBetween(candidateNode, originNode) == null
-				&& GraphUtils.getCachedNodesDistance(currentNode, candidateNode) <= searchDistance;
+				&& network.getEdgeBetween(candidateNode, currentNode) == null
+				&& network.getEdgeBetween(candidateNode, originNode) == null
+				&& GraphUtils.nodesDistance(currentNode, candidateNode) <= searchDistance;
 	}
 
 	/**
@@ -183,8 +184,8 @@ public class LandmarkNavigation {
 
 		double score = agent.getProperties().usingLocalLandmarks ? localLandmarkness(candidateNode)
 				: (candidateNode.getCentrality() - minCentrality) / (maxCentrality - minCentrality);
-		double currentDistance = GraphUtils.getCachedNodesDistance(currentNode, destinationNode);
-		double distanceGain = (currentDistance - GraphUtils.getCachedNodesDistance(candidateNode, destinationNode))
+		double currentDistance = GraphUtils.nodesDistance(currentNode, destinationNode);
+		double distanceGain = (currentDistance - GraphUtils.nodesDistance(candidateNode, destinationNode))
 				/ currentDistance;
 		return score * 0.60 + distanceGain * 0.40;
 
@@ -209,7 +210,7 @@ public class LandmarkNavigation {
 			if (exitGateway.equals(originNode) || currentNode.equals(destinationNode))
 				continue;
 			sequence.add(currentNode);
-			if (currentNode.regionID != exitGateway.regionID) {
+			if (currentNode.getRegionID() != exitGateway.getRegionID()) {
 				currentNode = exitGateway;
 				continue;
 			}
@@ -234,14 +235,14 @@ public class LandmarkNavigation {
 	 */
 	public List<NodeGraph> onRouteMarksInRegion(NodeGraph exitGateway) {
 
-		Region region = PedSimCity.regionsMap.get(currentNode.regionID);
+		Region region = PedSimCity.regionsMap.get(currentNode.getRegionID());
 		findRegionSalientJunctions(region);
 		if (salientNodes.isEmpty())
 			return inRegionSequence;
 		// compute wayfinding complexity and the resulting easinesss
 		double wayfindingEasiness = complexity.wayfindingEasinessRegion(currentNode, exitGateway, originNode,
 				destinationNode, agent);
-		double searchDistance = GraphUtils.getCachedNodesDistance(currentNode, exitGateway) * wayfindingEasiness;
+		double searchDistance = GraphUtils.nodesDistance(currentNode, exitGateway) * wayfindingEasiness;
 
 		// while the wayfindingEasiness is lower than the threshold the agent looks for
 		// intermediate-points.
@@ -257,7 +258,7 @@ public class LandmarkNavigation {
 
 			wayfindingEasiness = complexity.wayfindingEasinessRegion(bestNode, originNode, destinationNode, exitGateway,
 					agent);
-			searchDistance = GraphUtils.getCachedNodesDistance(bestNode, exitGateway) * wayfindingEasiness;
+			searchDistance = GraphUtils.nodesDistance(bestNode, exitGateway) * wayfindingEasiness;
 			currentNode = bestNode;
 			bestNode = null;
 		}
@@ -304,7 +305,7 @@ public class LandmarkNavigation {
 
 		List<NodeGraph> junctions = new ArrayList<>(salientNodes.keySet());
 		List<Double> centralities = new ArrayList<>(salientNodes.values());
-		double currentDistance = GraphUtils.getCachedNodesDistance(currentNode, exitGateway);
+		double currentDistance = GraphUtils.nodesDistance(currentNode, exitGateway);
 		double maxCentrality = Collections.max(centralities);
 		double minCentrality = Collections.min(centralities);
 
@@ -334,9 +335,9 @@ public class LandmarkNavigation {
 			double currentDistance) {
 
 		return !inRegionSequence.contains(candidateNode) && !candidateNode.equals(currentNode)
-				&& agentNetwork.getEdgeBetween(candidateNode, currentNode) == null
-				&& GraphUtils.getCachedNodesDistance(currentNode, candidateNode) <= searchDistance
-				&& GraphUtils.getCachedNodesDistance(candidateNode, exitGateway) <= currentDistance
+				&& network.getEdgeBetween(candidateNode, currentNode) == null
+				&& GraphUtils.nodesDistance(currentNode, candidateNode) <= searchDistance
+				&& GraphUtils.nodesDistance(candidateNode, exitGateway) <= currentDistance
 				&& !sequence.contains(candidateNode);
 	}
 
@@ -373,7 +374,7 @@ public class LandmarkNavigation {
 	 */
 	private double localLandmarkness(NodeGraph candidateNode) {
 		List<Building> nodeLocalLandmarks = new ArrayList<>(candidateNode.adjacentBuildings);
-		VectorLayer agentLocalLandmarks = agent.getCognitiveMap().getLocalLandmarks();
+		VectorLayer agentLocalLandmarks = CommunityCognitiveMap.getLocalLandmarks();
 		List<Integer> agentLandmarksIDs = agentLocalLandmarks.getIDs();
 
 		for (Building landmark : candidateNode.adjacentBuildings) {
@@ -408,7 +409,7 @@ public class LandmarkNavigation {
 		// get the anchors of the destination
 		List<Building> anchors = new ArrayList<>(LandmarkIntegration.getAnchors(destinationNode).getArray());
 		double nodeGlobalScore = 0.0;
-		double targetDistance = GraphUtils.getCachedNodesDistance(targetNode, destinationNode);
+		double targetDistance = GraphUtils.nodesDistance(targetNode, destinationNode);
 		for (Building landmark : distantLandmarks) {
 			if (!anchors.isEmpty() && !anchors.contains(landmark))
 				continue;
@@ -441,7 +442,7 @@ public class LandmarkNavigation {
 		// current real segment: identifying the node
 		DirectedEdge streetSegment = targetCentroid.getPrimalEdge().getDirEdge(0);
 		NodeGraph targetNode = (NodeGraph) streetSegment.getToNode(); // targetNode
-		if (GraphUtils.getPrimalJunction(centroid, targetCentroid).equals(targetNode))
+		if (RoutingUtils.getPrimalJunction(centroid, targetCentroid).equals(targetNode))
 			targetNode = (NodeGraph) streetSegment.getFromNode();
 
 		return globalLandmarknessNode(targetNode, destinationNode);
