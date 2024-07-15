@@ -39,7 +39,7 @@ public class BarrierIntegration {
 		BarrierType agentBarrierType = agent.getProperties().barrierType;
 		Geometry viewField = Angles.viewField(currentLocation, destinationNode, 70.0);
 
-		VectorLayer barriers = agent.cognitiveMap.getBarriers();
+		VectorLayer barriers = CommunityCognitiveMap.getBarriers();
 		if (barriers.getGeometries().isEmpty())
 			return viewFieldIntersectingBarriers;
 
