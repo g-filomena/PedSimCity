@@ -8,12 +8,14 @@ import java.util.Set;
 import org.locationtech.jts.planargraph.DirectedEdge;
 
 import pedSim.agents.Agent;
+import pedSim.cognitiveMap.CommunityCognitiveMap;
 import pedSim.dijkstra.DijkstraAngularChange;
 import pedSim.dijkstra.DijkstraRoadDistance;
 import sim.graph.EdgeGraph;
 import sim.graph.Graph;
-import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
+import sim.routing.Route;
+import sim.routing.RoutingUtils;
 
 /**
  * The `PathFinder` class provides common functionality for computing navigation
@@ -23,7 +25,7 @@ public class PathFinder {
 
 	Agent agent;
 	Route route = new Route();
-	protected Graph agentNetwork;
+	protected Graph network = CommunityCognitiveMap.getNetwork();
 	NodeGraph originNode, destinationNode;
 	NodeGraph tmpOrigin, tmpDestination;
 	NodeGraph previousJunction = null;
@@ -61,7 +63,7 @@ public class PathFinder {
 		updateTmpOrigin();
 
 		// check if there's a segment between the new tmpOrigin and the destination
-		final DirectedEdge edge = agentNetwork.getDirectedEdgeBetween(tmpOrigin, tmpDestination);
+		final DirectedEdge edge = network.getDirectedEdgeBetween(tmpOrigin, tmpDestination);
 		if (edge != null) {
 			if (!completeSequence.contains(edge))
 				completeSequence.add(edge);
@@ -113,9 +115,9 @@ public class PathFinder {
 		completeSequence.remove(completeSequence.size() - 1);
 		centroidsToAvoid.remove(centroidsToAvoid.size() - 1);
 		// take new previous junction
-		previousJunction = route.previousJunction(completeSequence);
+		previousJunction = RoutingUtils.getPreviousJunction(completeSequence);
 		// check if there's a segment between the new tmpOrigin and the destination
-		final DirectedEdge edge = agentNetwork.getDirectedEdgeBetween(tmpOrigin, tmpDestination);
+		final DirectedEdge edge = network.getDirectedEdgeBetween(tmpOrigin, tmpDestination);
 
 		if (edge != null) {
 			if (!completeSequence.contains(edge))
@@ -167,7 +169,7 @@ public class PathFinder {
 			if (directedEdge.getToNode().equals(destinationNode)) {
 				int lastIndex = completeSequence.indexOf(directedEdge);
 				completeSequence = new ArrayList<>(completeSequence.subList(0, lastIndex + 1));
-				if (route.previousJunction(completeSequence).equals(destinationNode))
+				if (RoutingUtils.getPreviousJunction(completeSequence).equals(destinationNode))
 					completeSequence.remove(completeSequence.size() - 1);
 				return;
 			}
@@ -188,10 +190,10 @@ public class PathFinder {
 		final NodeGraph firstDualNode = ((EdgeGraph) partialSequence.get(0).getEdge()).getDualNode();
 		final NodeGraph secondDualNode = ((EdgeGraph) partialSequence.get(1).getEdge()).getDualNode();
 
-		if (route.previousJunction(partialSequence).equals(tmpDestination))
+		if (RoutingUtils.getPreviousJunction(partialSequence).equals(tmpDestination))
 			partialSequence.remove(partialSequence.size() - 1);
 		// check presence of a unnecessary edge at the beginning of the path
-		if (GraphUtils.getPrimalJunction(firstDualNode, secondDualNode).equals(tmpOrigin))
+		if (RoutingUtils.getPrimalJunction(firstDualNode, secondDualNode).equals(tmpOrigin))
 			partialSequence.remove(0);
 		checkEdgesSequence(tmpOrigin);
 	}
@@ -213,7 +215,7 @@ public class PathFinder {
 			// need to swap
 			if (nextNode.equals(previousNode)) {
 				nextNode = (NodeGraph) edge.getFromNode();
-				DirectedEdge correctEdge = agentNetwork.getDirectedEdgeBetween(previousNode, nextNode);
+				DirectedEdge correctEdge = network.getDirectedEdgeBetween(previousNode, nextNode);
 				partialSequence.set(partialSequence.indexOf(edge), correctEdge);
 			}
 			previousNode = nextNode;
@@ -227,7 +229,7 @@ public class PathFinder {
 	 */
 	protected boolean haveEdgesBetween() {
 		// check if edge in between
-		DirectedEdge edge = agentNetwork.getDirectedEdgeBetween(tmpOrigin, tmpDestination);
+		DirectedEdge edge = network.getDirectedEdgeBetween(tmpOrigin, tmpDestination);
 
 		if (edge == null)
 			return false;
