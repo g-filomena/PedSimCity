@@ -29,6 +29,6 @@ public class RouteData {
 	public List<Integer> edgeIDsSequence;
 	public String routeID;
 	public String group;
-	public String routeChoice;
 	public LineString lineGeometry;
+	public String scenario;
 }
