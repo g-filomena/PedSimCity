@@ -75,9 +75,9 @@ public class Parameters {
 	public static double wayfindingEasinessThresholdRegions = 0.85; // within regions for local landmark identification
 
 	// for development/testing purposes only
-	public static boolean javaProject = false;
+	public static boolean javaProject = true;
 	public static boolean verboseMode = false;
-	public static String localPath = null;
+	public static String localPath = "C:/Users/gfilo/OneDrive - The University of Liverpool/Scripts/pedsimcity/src/main/resources/";
 
 	/**
 	 * Defines the simulation mode and sets simulation parameters based on the
