@@ -15,6 +15,7 @@ import pedSim.agents.Agent;
 import pedSim.routeChoice.LandmarkNavigation;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
+import sim.routing.NodeWrapper;
 
 /**
  * The class allows computing the route that maximises global landmarkness
