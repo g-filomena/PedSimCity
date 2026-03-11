@@ -1,0 +1,5 @@
+https://data.melbourne.vic.gov.au/explore/dataset/2023-building-footprints/information/
+DEM 10M https://datashare.maps.vic.gov.au/search?q=uuid%3D2fd9d712-5407-51df-bc75-bb13d37499af
+DEM 1M FOOTPRINTS https://datashare.maps.vic.gov.au/search?q=uuid%3D42aecd33-04af-49d8-9c35-2b058452e804
+RELIEF 1 M https://datashare.maps.vic.gov.au/search?q=uuid%3D590b4209-95dc-5c62-bc6b-af9ba7e06b44
+some descriptions https://www.land.vic.gov.au/maps-and-spatial/spatial-data/vicmap-catalogue/vicmap-elevation/1m-dem
