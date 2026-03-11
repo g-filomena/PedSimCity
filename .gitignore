@@ -26,3 +26,11 @@ tmp/
 *.swp
 *~.nib
 .recommenders
+
+/.ipynb_checkpoints
+/__pycache__
+/cache
+/Obsolete
+/notebook/input
+/notebook/output
+/notebook/outputs
