@@ -50,7 +50,6 @@ public class AgentProperties {
 
   protected void setBarriersEffect() {
     // Barriers
-
     naturalBarriersMean = rescale(0.0, 1.0, MAX_NATURAL_BARRIERS, MIN_NATURAL_BARRIERS,
         PopulationPars.naturalBarriers);
     naturalBarriersSD = PopulationPars.naturalBarriersSD;
