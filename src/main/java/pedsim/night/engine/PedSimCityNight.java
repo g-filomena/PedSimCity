@@ -21,6 +21,7 @@ public class PedSimCityNight extends PedSimCity {
 
   private static final long serialVersionUID = 1L;
   public boolean isDark = false;
+
   public static final Map<DirectedEdge, LengthIndexedLine> indexedEdgeCache = new HashMap<>();
 
   public static Set<EdgeGraph> edges = new HashSet<>();
