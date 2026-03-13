@@ -1,9 +1,11 @@
 package pedsim.core.agents;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.javatuples.Pair;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
@@ -36,9 +38,9 @@ public class Agent implements Steppable {
   protected AgentStatus status;
   protected double timeAtDestination = Double.MAX_VALUE;
 
-  // Initial Attributes
   public NodeGraph originNode = null;
   public NodeGraph destinationNode = null;
+  public List<Pair<NodeGraph, NodeGraph>> OD = new LinkedList<>();
 
   // in the community network
   protected NodeGraph homeNode;
@@ -51,7 +53,7 @@ public class Agent implements Steppable {
   protected MasonGeometry currentLocation;
   protected final AtomicBoolean reachedDestination = new AtomicBoolean(false);
 
-  private Route route;
+  protected Route route;
   protected NodeGraph lastDestination;
   protected Random random = new Random();
   protected AgentMovement agentMovement;
