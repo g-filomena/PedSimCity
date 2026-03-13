@@ -27,10 +27,14 @@ tmp/
 *~.nib
 .recommenders
 
-/.ipynb_checkpoints
-/__pycache__
 /cache
 /Obsolete
+/outputs
 /notebook/input
-/notebook/output
+/notebook/figures
 /notebook/outputs
+/notebook/analysis_outputs
+/notebook/.ipynb_checkpoints/
+/notebook/__pycache__
+
+id_ed25519*
