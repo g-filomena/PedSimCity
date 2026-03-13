@@ -33,7 +33,7 @@ public class FlowHandler {
   private final PedSimCity state;
   private final Enum<?>[] enumAgentScenarios;
   private final Enum<?>[] enumScenarios;
-  private String[] scenarios;
+  protected String[] scenarios;
   Exporter exporter;
 
   public FlowHandler(int job, PedSimCity state) {
@@ -73,7 +73,7 @@ public class FlowHandler {
    * not empirical, it initialises volumes based on the route choice models. If the simulation is
    * empirical-based, it initialises volumes based on empirical agent groups.
    */
-  private void initializeEdgeVolumes() {
+  protected void initializeEdgeVolumes() {
     for (int edgeID : PedSimCity.edgesMap.keySet()) {
       Map<String, Integer> edgeVolumes =
           Arrays.stream(scenarios).collect(Collectors.toMap(s -> s, s -> 0));
