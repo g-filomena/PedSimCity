@@ -105,8 +105,12 @@ public class Environment {
       Optional.ofNullable(buildingGeometry.getAttributes().get("gScore_sc"))
           .ifPresent(v -> building.attributes.put("globalLandmarkness", v));
 
-      Optional.ofNullable(buildingGeometry.getAttributes().get("DMA"))
-          .ifPresent(v -> building.attributes.put("DMA", v));
+      // TODO switch to this
+      // Optional.ofNullable(buildingGeometry.getAttributes().get("DMA"))
+      // .ifPresent(v -> building.attributes.put("DMA", v));
+
+      Optional.ofNullable(buildingGeometry.getStringAttribute("DMA"))
+          .ifPresent(v -> building.dma = v);
 
       // landmarks
       Optional.ofNullable(buildingGeometry.getAttributes().get("gScore_sc"))
@@ -139,7 +143,11 @@ public class Environment {
           PedSimCity.buildings.featuresWithinDistance(node.getMasonGeometry().geometry, 100);
       for (MasonGeometry building : nearestBuildings) {
         final int buildingID = building.getIntegerAttribute("buildingID");
-        node.attributes.put("DMA", PedSimCity.buildingsMap.get(buildingID).attributes.get("DMA"));
+        node.dma = PedSimCity.buildingsMap.get(buildingID).dma;
+
+        // TODO switch to this
+        // node.attributes.put("DMA",
+        // PedSimCity.buildingsMap.get(buildingID).attributes.get("DMA"));
       }
     });
   }
