@@ -14,7 +14,7 @@ import sim.field.geo.VectorLayer;
 public class Import {
 
   private static final Logger logger = LoggerUtil.getLogger();
-  private final ClassLoader CLASSLOADER = getClass().getClassLoader();
+  protected final ClassLoader CLASSLOADER = getClass().getClassLoader();
 
   /**
    * Imports various data files required for the simulation based on the selected simulation
@@ -33,7 +33,7 @@ public class Import {
    *
    * @throws Exception If an error occurs during the import process.
    */
-  private void readGraphs() throws Exception {
+  protected void readGraphs() throws Exception {
     try {
       String[] layerSuffixes = {"_edges", "_nodes", "_edgesDual_graph", "_nodesDual_graph"};
       VectorLayer[] vectorLayers = {PedSimCity.roads, PedSimCity.junctions,
@@ -63,7 +63,7 @@ public class Import {
   /**
    * Reads and imports landmarks and sight lines data for the simulation.
    */
-  private void readLandmarksAndSightLines() throws Exception {
+  protected void readLandmarksAndSightLines() throws Exception {
     try {
       String[] layerSuffixes = {"_landmarks", "_sight_lines"};
       VectorLayer[] vectorLayers = {PedSimCity.buildings, PedSimCity.sightLines};
@@ -89,7 +89,7 @@ public class Import {
   /**
    * Reads and imports barriers data for the simulation.
    */
-  private void readBarriers() throws Exception {
+  protected void readBarriers() throws Exception {
     try {
       String resourceName = Pars.cityName + "/" + Pars.cityName + "_barriers.gpkg";
 
@@ -109,7 +109,7 @@ public class Import {
   /**
    * Logs import errors.
    */
-  private static void handleImportError(String layerName, Exception e) {
+  protected static void handleImportError(String layerName, Exception e) {
     logger.severe(layerName + " | " + e.getClass().getSimpleName() + ": " + e.getMessage());
   }
 }
