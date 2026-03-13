@@ -26,7 +26,7 @@ public class Pars {
 
   // One step == 10 minutes, average speed 1 meter/sec., --> moveRate = 60*10
   // meters per second
-  private static double pedestrianSpeed = 1.42;
+  protected static double pedestrianSpeed = 1.42;
   public static double SPEED_INCREMENT_FACTOR = 0.20;
   // meters per step;
   public static double moveRate;
