@@ -16,7 +16,7 @@ import sim.graph.NodesLookup;
  */
 public class Populate {
 
-  private PedSimCity state;
+  protected PedSimCity state;
   protected static final Logger logger = LoggerUtil.getLogger();
 
   /**
