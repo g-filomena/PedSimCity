@@ -33,6 +33,7 @@ import sim.util.geo.MasonGeometry;
  */
 public class PedSimCity extends SimState {
   private static final long serialVersionUID = 1L;
+  protected String appName;
 
   // Urban elements: graphs, buildings, etc.
   public static VectorLayer roads = new VectorLayer();
@@ -80,6 +81,8 @@ public class PedSimCity extends SimState {
 
   public ScenarioConfig scenarioConfig;
 
+
+
   /**
    * Constructs a new instance of the PedSimCity simulation environment.
    *
@@ -93,8 +96,8 @@ public class PedSimCity extends SimState {
     this.currentJob = job;
     this.scenarioConfig = scenarioConfig;
     this.agents = new VectorLayer();
-    this.flowHandler = new FlowHandler(job, this);
-    this.agents = new VectorLayer();
+    this.appName = this.getClass().getSimpleName();
+    this.flowHandler = new FlowHandler(job, this, appName);
   }
 
   /**
