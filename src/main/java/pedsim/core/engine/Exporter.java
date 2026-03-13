@@ -34,20 +34,20 @@ public class Exporter {
   public String outputCognitiveMapDirectory;
   private String outputLandmarkCognitiveMapDirectory;
 
-  private static final Logger logger = LoggerUtil.getLogger();
-  private static int nrColumns;
-  private static final int FIELD_LIMIT = 254;
-  int job;
-  private String currentDate;
+  protected static final Logger logger = LoggerUtil.getLogger();
+  protected static int nrColumns;
+  protected static final int FIELD_LIMIT = 254;
+  protected int job;
+  protected String currentDate;
 
-  private FlowHandler flowHandler; // Using a wildcard since we don't know the exact type
+  protected FlowHandler flowHandler; // Using a wildcard since we don't know the exact type
 
   // Constructor accepting any FlowHandler
-  public Exporter(FlowHandler flowHandler) {
+  public Exporter(FlowHandler flowHandler, String appName) {
     this.flowHandler = flowHandler;
     this.job = flowHandler.job;
     outputDirectory = "C:" + File.separator + "Users" + File.separator + userName + File.separator
-        + "PedSimCityLearning" + File.separator + "Output";
+        + appName + File.separator + "Output";
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
     currentDate = LocalDate.now().format(formatter);
   }
@@ -96,7 +96,6 @@ public class Exporter {
     writerVolumesData.flush();
     writerVolumesData.close();
     logger.info("Day nr " + day + ": Pedestrian volumes successfully exported.");
-
   }
 
   /**
