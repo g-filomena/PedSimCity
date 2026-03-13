@@ -60,7 +60,6 @@ public class PedSimCity extends SimState {
   public static Set<EdgeGraph> edges = new HashSet<>();
 
   // OD related variables
-  public static List<Float> distances = new ArrayList<>();
   public static List<MasonGeometry> startingNodes = new ArrayList<>();
 
   public static Map<DirectedEdge, LengthIndexedLine> indexedEdgeCache = new ConcurrentHashMap<>();
