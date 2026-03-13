@@ -36,7 +36,7 @@ public class FlowHandler {
   protected String[] scenarios;
   Exporter exporter;
 
-  public FlowHandler(int job, PedSimCity state) {
+  public FlowHandler(int job, PedSimCity state, String appName) {
     this.job = job;
     this.state = state;
     this.enumAgentScenarios = getAgentScenarioValues();
@@ -56,7 +56,7 @@ public class FlowHandler {
 
     initializeEdgeVolumes();
     initializeCognitiveMapCollector();
-    exporter = new Exporter(this);
+    exporter = new Exporter(this, appName);
   }
 
   public Enum<?>[] getAgentScenarioValues() {
