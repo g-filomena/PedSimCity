@@ -143,11 +143,10 @@ public class Environment {
           PedSimCity.buildings.featuresWithinDistance(node.getMasonGeometry().geometry, 100);
       for (MasonGeometry building : nearestBuildings) {
         final int buildingID = building.getIntegerAttribute("buildingID");
-        node.dma = PedSimCity.buildingsMap.get(buildingID).dma;
-
-        // TODO switch to this
-        // node.attributes.put("DMA",
-        // PedSimCity.buildingsMap.get(buildingID).attributes.get("DMA"));
+        String dmaValue = PedSimCity.buildingsMap.get(buildingID).dma;
+        if (dmaValue != null) {
+          node.attributes.put("DMA", new AttributeValue(dmaValue));
+        }
       }
     });
   }
