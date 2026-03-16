@@ -28,8 +28,6 @@ import sim.util.geo.MasonGeometry;
 
 /**
  * The PedSimCity class represents the main simulation environment.
- * 
- * @param <E>
  */
 public class PedSimCity extends SimState {
   private static final long serialVersionUID = 1L;
@@ -88,8 +86,7 @@ public class PedSimCity extends SimState {
    *
    * @param seed The random seed for the simulation.
    * @param job The current job number for multi-run simulations.
-   * @param <E>
-   * @param <E>
+   * @param scenarioConfig The configuration for simulation scenarios.
    */
   public PedSimCity(long seed, int job, ScenarioConfig scenarioConfig) {
     super(seed);

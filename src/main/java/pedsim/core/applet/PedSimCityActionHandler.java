@@ -45,6 +45,7 @@ public class PedSimCityActionHandler {
         } catch (Exception ex) {
           String msg = "Error running local simulation: " + ex.getMessage();
           applet.appendLog(msg);
+          ex.printStackTrace();
           LoggerUtil.getLogger().severe(msg);
         }
       });

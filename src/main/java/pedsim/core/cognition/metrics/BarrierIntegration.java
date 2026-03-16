@@ -132,10 +132,10 @@ public class BarrierIntegration {
     edge.attributes.put("barriers", new AttributeValue(barriers));
   }
 
-  /**
+     /**
    * It stores information about the barriers within a given SubGraph.
    *
-   * @param subGraph The SubGraph for which the barrier information is being set.
+   * @param region The region for which the barrier information is being set.
    */
   public static void setRegionBarriers(Region region) {
 

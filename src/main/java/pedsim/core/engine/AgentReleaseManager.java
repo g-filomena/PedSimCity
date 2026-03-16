@@ -30,11 +30,11 @@ public class AgentReleaseManager {
   protected double expectedMetersWalkedSoFarToday;
   protected double metersWalkedSoFarToday;
 
-  /**
+     /**
    * Constructor for AgentReleaseManager.
    * 
    * @param state the PedSimCity instance representing the simulation state.
-   * @param kmCurrentDay the current expected walking distance for the day (in meters).
+   * @param metersToWalkCurrentDay the current expected walking distance for the day (in meters).
    */
   public AgentReleaseManager(PedSimCity state, Double metersToWalkCurrentDay) {
     this.state = state;

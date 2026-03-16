@@ -95,6 +95,7 @@ public class Agent implements Steppable {
    */
   protected void initialiseAgentProperties() {
     agentProperties = new AgentProperties(this);
+    heuristics = new Heuristics(this);
   }
 
   /**
@@ -199,10 +200,10 @@ public class Agent implements Steppable {
     }
   }
 
-  /**
+   /**
    * Moves the agent to the given coordinates.
    *
-   * @param c the coordinates.
+   * @param coordinate the coordinates.
    */
   public void updateAgentPosition(Coordinate coordinate) {
     GeometryFactory geometryFactory = new GeometryFactory();
@@ -268,10 +269,8 @@ public class Agent implements Steppable {
     }
   }
 
-  /**
+     /**
    * Plans the route for the agent.
-   *
-   * @throws Exception
    */
   protected void planRoute() {
     RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);

@@ -35,7 +35,7 @@ public class Import {
    */
   protected void readGraphs() throws Exception {
     try {
-      String[] layerSuffixes = {"_edges", "_nodes", "_edgesDual_graph", "_nodesDual_graph"};
+      String[] layerSuffixes = {"_edges", "_nodes", "_edgesDual", "_nodesDual"};
       VectorLayer[] vectorLayers = {PedSimCity.roads, PedSimCity.junctions,
           PedSimCity.intersectionsDual, PedSimCity.centroids};
 
@@ -65,7 +65,7 @@ public class Import {
    */
   protected void readLandmarksAndSightLines() throws Exception {
     try {
-      String[] layerSuffixes = {"_landmarks", "_sight_lines"};
+      String[] layerSuffixes = {"_landmarks", "_sight_lines2D"};
       VectorLayer[] vectorLayers = {PedSimCity.buildings, PedSimCity.sightLines};
 
       for (int i = 0; i < layerSuffixes.length; i++) {
@@ -73,7 +73,8 @@ public class Import {
 
         URL fileUrl = CLASSLOADER.getResource(resourceName);
         if (fileUrl == null) {
-          throw new IllegalStateException("Resource not found: " + resourceName);
+          System.out.println("Optional resource not found: " + resourceName);
+          continue;
         }
 
         VectorLayer.readGPKG(fileUrl, vectorLayers[i]);

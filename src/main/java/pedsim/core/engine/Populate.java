@@ -63,13 +63,45 @@ public class Populate {
     // in the community network
     NodeGraph homeNode = null;
     NodeGraph workNode = null;
-    while (homeNode == null) {
-      homeNode = NodesLookup.randomNodeDMA(SharedCognitiveMap.getCommunityPrimalNetwork(), "live");
+    int count = 0;
+    while (homeNode == null && count < 100) {
+      try {
+        homeNode = NodesLookup.randomNodeDMA(SharedCognitiveMap.getCommunityPrimalNetwork(), "live");
 
-      workNode = NodesLookup.randomNodeBetweenDistanceIntervalDMA(
-          SharedCognitiveMap.getCommunityPrimalNetwork(), homeNode, RouteChoicePars.minTripDistance,
-          RouteChoicePars.maxTripDistance, "work");
+        workNode = NodesLookup.randomNodeBetweenDistanceIntervalDMA(
+            SharedCognitiveMap.getCommunityPrimalNetwork(), homeNode, RouteChoicePars.minTripDistance,
+            RouteChoicePars.maxTripDistance, "work");
+      } catch (Exception e) {
+        // No nodes matching DMA criteria found, fall through to fallback
+        homeNode = null;
+        workNode = null;
+        break;
+      }
+      count++;
     }
+
+    // Fallback if no DMA found
+    java.util.Random rnd = new java.util.Random();
+    if (homeNode == null) {
+      java.util.List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
+      homeNode = allNodes.get(rnd.nextInt(allNodes.size()));
+    }
+    if (workNode == null) {
+      try {
+        workNode = NodesLookup.randomNodeBetweenDistanceInterval(
+            SharedCognitiveMap.getCommunityPrimalNetwork(), homeNode, RouteChoicePars.minTripDistance,
+            RouteChoicePars.maxTripDistance);
+      } catch (Exception e) {
+        workNode = null;
+      }
+    }
+    // Final fallback
+    if (workNode == null) {
+      java.util.List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
+      workNode = allNodes.get(rnd.nextInt(allNodes.size()));
+    }
+
     agent.setHomeWorkLoctations(homeNode, workNode);
   }
 }
+

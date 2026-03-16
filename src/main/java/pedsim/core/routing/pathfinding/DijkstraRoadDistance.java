@@ -33,7 +33,7 @@ public class DijkstraRoadDistance extends Dijkstra {
    * @param originNode The starting node for the path.
    * @param destinationNode The destination node to reach.
    * @param finalDestinationNode The final destination node (primal graph) for the path.
-   * @param segmentsToAvoid A set of directed edges (segments) to avoid during the path calculation.
+   * @param directedEdgesToAvoid A set of directed edges (segments) to avoid during the path calculation.
    * @param agent The agent for which the route is computed.
    *
    * @return An ArrayList of DirectedEdges representing the shortest path from the origin to the
