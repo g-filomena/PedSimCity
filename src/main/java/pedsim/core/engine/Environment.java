@@ -66,6 +66,7 @@ public class Environment {
     for (final MasonGeometry nodeGeometry : geometries) {
       // street junctions and betweenness centrality
       final NodeGraph node = PedSimCity.network.findNode(nodeGeometry.geometry.getCoordinate());
+      node.dma = "";
       node.setID(nodeGeometry.getIntegerAttribute("nodeID"));
       node.setMasonGeometry(nodeGeometry);
       setCentralityNode(nodeGeometry, node);
@@ -138,16 +139,17 @@ public class Environment {
       PedSimCity.buildingsMap.put(building.buildingID, building);
     }
 
+    PedSimCity.network.getNodes().forEach(node -> node.dma = "");
     PedSimCity.network.getNodes().forEach((node) -> {
       List<MasonGeometry> nearestBuildings =
           PedSimCity.buildings.featuresWithinDistance(node.getMasonGeometry().geometry, 100);
       for (MasonGeometry building : nearestBuildings) {
         final int buildingID = building.getIntegerAttribute("buildingID");
-        node.dma = PedSimCity.buildingsMap.get(buildingID).dma;
-
-        // TODO switch to this
-        // node.attributes.put("DMA",
-        // PedSimCity.buildingsMap.get(buildingID).attributes.get("DMA"));
+        String dmaValue = PedSimCity.buildingsMap.get(buildingID).dma;
+        if (dmaValue != null) {
+          node.attributes.put("DMA", new AttributeValue(dmaValue));
+          node.dma = dmaValue;
+        }
       }
     });
   }
@@ -270,7 +272,8 @@ public class Environment {
               "railway", BarrierType.RAILWAY, "secondary_road", BarrierType.SECONDARY_ROAD);
 
       // Assign the correct BARRIERTYPE based on the string attribute
-      barrier.type = barrierTypeMap.get(barrierGeometry.getStringAttribute("type"));
+      String typeAttr = barrierGeometry.getStringAttribute("type");
+      barrier.type = typeAttr == null ? null : barrierTypeMap.get(typeAttr);
 
       List<EdgeGraph> edgesAlong = new ArrayList<>();
 

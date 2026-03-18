@@ -31,7 +31,8 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
    */
   public Agent(PedSimCityNight state) {
 
-    super();
+    super(state);
+    this.state = state;
     this.agentNetwork = SharedCognitiveMap.getCommunityPrimalNetwork();
   }
 

@@ -58,12 +58,11 @@ public class BarrierBasedNavigation {
     validBarriers = new HashMap<>();
   }
 
-  /**
+     /**
    * Computes a sequence of nodes, including origin, destination, and barrier sub-goals, and
    * identifies traversed regions.
    *
    * @return an ArrayList of NodeGraph representing the sequence of sub-goals.
-   * @throws Exception
    */
   public List<NodeGraph> sequenceBarriers() {
 

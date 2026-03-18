@@ -473,7 +473,7 @@ public class SharedCognitiveMap {
 
     PedSimCity.barriersMap.forEach((barrierID, barrier) -> {
       BarrierType barrierType = barrier.type;
-      if (barrierType.equals(BarrierType.WATER) || barrierType.equals(BarrierType.ROAD)) {
+      if (BarrierType.WATER.equals(barrierType) || BarrierType.ROAD.equals(barrierType)) {
         communityKnownBarriers.add(barrierID);
       }
     });

@@ -17,10 +17,8 @@ import sim.routing.Route;
 import sim.util.geo.MasonGeometry;
 
 /**
- * The Flow class provides methods for updating various data related to agent movement and route
- * storing in the simulation.
- *
- * @param <E>
+ * The FlowHandler class provides methods for updating various data related to agent movement and
+ * route storing in the simulation.
  */
 public class FlowHandler {
 
@@ -101,7 +99,6 @@ public class FlowHandler {
    *
    * @param agent The agent for which edge data is updated.
    * @param route The route taken by the agent.
-   * @param night Boolean flag indicating whether it is night or day.
    */
   public synchronized void updateFlowsData(Agent agent, Route route, Enum<?> agentScenarioValue,
       Enum<?> scenarioValue) {
@@ -112,9 +109,8 @@ public class FlowHandler {
 
     RouteData routeData = createRouteData(agent, route, attribute);
     for (EdgeGraph edgeGraph : route.edgesSequence) {
-      Map<String, Integer> edgeVolume = volumesMap.get(edgeGraph.getID());
-      edgeVolume.replace(attribute, edgeVolume.get(attribute) + 1);
-      volumesMap.replace(edgeGraph.getID(), edgeVolume);
+      Map<String, Integer> edgeVolume = volumesMap.computeIfAbsent(edgeGraph.getID(), k -> new HashMap<>());
+      edgeVolume.put(attribute, edgeVolume.getOrDefault(attribute, 0) + 1);
     }
     routeData.edgeIDsSequence = GraphUtils.getEdgeIDs(route.edgesSequence);
     routesData.add(routeData);
@@ -138,9 +134,8 @@ public class FlowHandler {
   /**
    * Updates the edge data on the basis of the passed agent's route and its edges sequence.
    *
-   * @param agent The agent for which edge data is updated.
-   * @param directedEdgesSequence The sequence of directed edges travelled by the agent.
-   * @throws Exception
+   * @param scenarioValue The simulation scenario for which to update data.
+   * @throws Exception if an error occurs during cognitive map processing.
    */
   public synchronized void updateCognitiveMapsData(Enum<?> scenarioValue) throws Exception {
 
@@ -157,9 +152,8 @@ public class FlowHandler {
       }
 
       for (EdgeGraph edgeGraph : cognitiveMap.getEdgesInKnownNetwork()) {
-        Map<String, Integer> edgeMap = knownEdgesMap.get(edgeGraph.getID());
-        edgeMap.replace(attribute, edgeMap.get(attribute) + 1);
-        knownEdgesMap.replace(edgeGraph.getID(), edgeMap);
+        Map<String, Integer> edgeMap = knownEdgesMap.computeIfAbsent(edgeGraph.getID(), k -> new HashMap<>());
+        edgeMap.put(attribute, edgeMap.getOrDefault(attribute, 0) + 1);
       }
 
       Set<Integer> buildings = cognitiveMap.getLocalLandmarksIDs();
@@ -168,9 +162,8 @@ public class FlowHandler {
 
       for (MasonGeometry buildingGeometry : buildingGeoemetries) {
         int buildingID = buildingGeometry.getIntegerAttribute("buildingID");
-        Map<String, Integer> buildingMap = knownLandmarksMap.get(buildingID);
-        buildingMap.replace(attribute, buildingMap.get(attribute) + 1);
-        knownLandmarksMap.replace(buildingID, buildingMap);
+        Map<String, Integer> buildingMap = knownLandmarksMap.computeIfAbsent(buildingID, k -> new HashMap<>());
+        buildingMap.put(attribute, buildingMap.getOrDefault(attribute, 0) + 1);
       }
     }
   }

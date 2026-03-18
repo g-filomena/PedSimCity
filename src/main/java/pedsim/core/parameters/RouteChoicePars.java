@@ -16,7 +16,7 @@ public class RouteChoicePars {
   public static double maxTripDistance = 2500;
   public static double maxTripsPerDay = 6;
 
-  public Integer[] originsTmp = {};
+  public static Integer[] originsTmp = {};
   public static Integer[] destinationsTmp = {};
   public static Integer[] cityCentreRegionsID = {};
   public static boolean includeTertiary = true;

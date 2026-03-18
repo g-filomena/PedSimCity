@@ -142,6 +142,7 @@ public class PedSimCityApplet extends Frame {
   protected void updateCityNameOptions() {
     cityName.removeAll();
     cityName.add("Muenster");
+    cityName.add("TorinoCentre");
     cityName.validate();
   }
 

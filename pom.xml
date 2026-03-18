@@ -77,7 +77,9 @@
 		<dependency>
 			<groupId>uk.ac.liv.gdsl</groupId>
 			<artifactId>GeoMason-light</artifactId>
-			<version>1.14</version>
+			<version>1.2.1</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/GeoMason-light-1.2.1.jar</systemPath>
         </dependency>
 
        <!-- Mason -->
@@ -114,7 +116,7 @@
 						<manifest>
 							<addClasspath>true</addClasspath>
 							<classpathPrefix>lib/</classpathPrefix>
-							<mainClass>pedSim.applet.PedSimCityApplet</mainClass>
+							<mainClass>pedsim.core.applet.PedSimCityApplet</mainClass>
 						</manifest>
 					</archive>
 				</configuration>
@@ -192,7 +194,7 @@
 							</descriptorRefs>
 							<archive>
 								<manifest>
-									<mainClass>pedSim.applet.PedSimCityApplet</mainClass>
+									<mainClass>pedsim.core.applet.PedSimCityApplet</mainClass>
 								</manifest>
 							</archive>
 						</configuration>

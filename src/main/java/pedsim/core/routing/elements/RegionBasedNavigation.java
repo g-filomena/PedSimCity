@@ -77,7 +77,6 @@ public class RegionBasedNavigation {
    * If the agent also uses barriers, barrier sub-goals are also identified when applicable.
    *
    * @return The sequence of nodes representing the planned navigation.
-   * @throws Exception
    */
   public List<NodeGraph> sequenceRegions() {
 

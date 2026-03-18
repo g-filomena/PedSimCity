@@ -1,6 +1,7 @@
 package pedsim.night.engine;
 
 import java.util.Random;
+import pedsim.core.engine.PedSimCity;
 import pedsim.core.utilities.StringEnum.Vulnerable;
 
 /**
@@ -10,6 +11,12 @@ import pedsim.core.utilities.StringEnum.Vulnerable;
 public class Populate extends pedsim.core.engine.Populate {
 
   private PedSimCityNight state;
+
+  @Override
+  public void populate(PedSimCity state) {
+    this.state = (PedSimCityNight) state;
+    super.populate(state);
+  }
 
   /**
    * Adds a new agent to the simulation with a randomly assigned vulnerability status. The agent is
