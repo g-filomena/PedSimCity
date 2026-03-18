@@ -1,106 +1,220 @@
 package pedsim.core.agents;
 
-import java.util.Random;
-import pedsim.core.parameters.PopulationPars;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Set;
+
 import pedsim.core.utilities.StringEnum.AgentBarrierType;
 import pedsim.core.utilities.StringEnum.LandmarkType;
+import pedsim.core.utilities.StringEnum.LocalHeuristicMode;
+import pedsim.core.utilities.StringEnum.MinimisationMode;
+import pedsim.core.utilities.StringEnum.RouteChoiceElement;
 
-public class AgentProperties {
+public final class AgentProperties {
 
-  public Agent agent;
+	private MinimisationMode minimisationMode;
+	private LocalHeuristicMode localHeuristicMode;
+	private final EnumSet<RouteChoiceElement> elements;
 
-  // routing flags
-  public boolean minimisingDistance = false;
-  public boolean minimisingAngular = false;
-  public boolean localHeuristicDistance = false;
-  public boolean localHeuristicAngular = false;
+	private boolean preferenceNaturalBarriers;
+	private boolean aversionSeveringBarriers;
 
-  public boolean usingLocalLandmarks = false;
-  public boolean usingDistantLandmarks = false;
-  public boolean regionBasedNavigation = false;
-  public boolean barrierBasedNavigation = false;
-  public boolean preferenceNaturalBarriers = false;
-  public boolean aversionSeveringBarriers = false;
+	private double naturalBarriersMean;
+	private double naturalBarriersSD;
+	private double severingBarriersMean;
+	private double severingBarriersSD;
 
-  public double naturalBarriersMean = 0.0;
-  public double naturalBarriersSD = 0.10;
-  public double severingBarriersMean = 0.0;
-  public double severingBarriersSD = 0.10;
+	private AgentBarrierType barrierType;
+	private LandmarkType landmarkType;
 
-  public AgentBarrierType barrierType;
-  public LandmarkType landmarkType;
+	public AgentProperties() {
+		this.elements = EnumSet.noneOf(RouteChoiceElement.class);
+		reset();
+	}
 
-  boolean usingElements = false;
-  boolean elementsActivated = false;
+	// Optional compatibility constructor
+	public AgentProperties(Agent ignoredAgent) {
+		this();
+	}
 
-  private static final double MIN_NATURAL_BARRIERS = 1.00;
-  private static final double MAX_NATURAL_BARRIERS = 0.00;
-  private static final double MIN_SEVERING_BARRIERS = 1.00;
-  private static final double MAX_SEVERING_BARRIERS = 2.00;
+	public void reset() {
+		minimisationMode = MinimisationMode.NONE;
+		localHeuristicMode = LocalHeuristicMode.NONE;
+		elements.clear();
 
-  final Random random = new Random();
+		preferenceNaturalBarriers = false;
+		aversionSeveringBarriers = false;
 
-  public AgentProperties(Agent agent) {
-    this.agent = agent;
-  }
+		naturalBarriersMean = 0.0;
+		naturalBarriersSD = 0.0;
+		severingBarriersMean = 0.0;
+		severingBarriersSD = 0.0;
 
-  protected void setMinimisationOnly() {
-    minimisingDistance = true;
-  }
+		barrierType = null;
+		landmarkType = null;
+	}
 
-  protected void setBarriersEffect() {
-    // Barriers
-    naturalBarriersMean = rescale(0.0, 1.0, MAX_NATURAL_BARRIERS, MIN_NATURAL_BARRIERS,
-        PopulationPars.naturalBarriers);
-    naturalBarriersSD = PopulationPars.naturalBarriersSD;
+	public boolean shouldOnlyUseMinimization() {
+		return minimisationMode != MinimisationMode.NONE;
+	}
 
-    severingBarriersMean = rescale(0.0, 1.0, MIN_SEVERING_BARRIERS, MAX_SEVERING_BARRIERS,
-        PopulationPars.severingBarriers);
-    severingBarriersSD = PopulationPars.severingBarriersSD;
+	public boolean shouldUseLocalHeuristic() {
+		return localHeuristicMode != LocalHeuristicMode.NONE;
+	}
 
+	public boolean hasElement(RouteChoiceElement element) {
+		return elements.contains(element);
+	}
 
-    // Preferences
-    preferenceNaturalBarriers = naturalBarriersMean < 0.95;
-    aversionSeveringBarriers = severingBarriersMean > 1.05;
-  }
+	public void addElement(RouteChoiceElement element) {
+		elements.add(element);
+	}
 
-  public void reset() {
-    usingElements = false;
-    elementsActivated = false;
-    minimisingDistance = false;
-    minimisingAngular = false;
-    localHeuristicDistance = false;
-    localHeuristicAngular = false;
-    barrierType = null;
-    usingLocalLandmarks = false;
-    barrierBasedNavigation = false;
-    regionBasedNavigation = false;
-    usingDistantLandmarks = false;
-    preferenceNaturalBarriers = false;
-    aversionSeveringBarriers = false;
-  }
+	public void removeElement(RouteChoiceElement element) {
+		elements.remove(element);
+	}
 
-  private double rescale(double oldMin, double oldMax, double newMin, double newMax, double value) {
-    double oldRange = oldMax - oldMin;
-    double newRange = newMax - newMin;
-    return (value - oldMin) * newRange / oldRange + newMin;
-  }
+	public void setElement(RouteChoiceElement element, boolean enabled) {
+		if (enabled) {
+			elements.add(element);
+		} else {
+			elements.remove(element);
+		}
+	}
 
-  /**
-   * Checks if the agent should use minimization for route planning.
-   *
-   * @return True if the agent should use minimization, otherwise false.
-   */
-  public boolean shouldOnlyUseMinimization() {
-    return minimisingDistance || minimisingAngular;
-  }
+	public void clearElements() {
+		elements.clear();
+	}
 
-  /**
-   * Checks if the agent should use local heuristics for route planning.
-   *
-   * @return True if the agent should use local heuristics, otherwise false.
-   */
-  public boolean shouldUseLocalHeuristic() {
-    return localHeuristicDistance || localHeuristicAngular;
-  }
+	public Set<RouteChoiceElement> getElements() {
+		return Collections.unmodifiableSet(elements);
+	}
+
+	public MinimisationMode getMinimisationMode() {
+		return minimisationMode;
+	}
+
+	public void setMinimisationMode(MinimisationMode minimisationMode) {
+		this.minimisationMode = minimisationMode;
+	}
+
+	public LocalHeuristicMode getLocalHeuristicMode() {
+		return localHeuristicMode;
+	}
+
+	public void setLocalHeuristicMode(LocalHeuristicMode localHeuristicMode) {
+		this.localHeuristicMode = localHeuristicMode;
+	}
+
+	public boolean isMinimisingDistance() {
+		return minimisationMode == MinimisationMode.DISTANCE;
+	}
+
+	public boolean isMinimisingAngular() {
+		return minimisationMode == MinimisationMode.ANGULAR;
+	}
+
+	public boolean isLocalHeuristicDistance() {
+		return localHeuristicMode == LocalHeuristicMode.DISTANCE;
+	}
+
+	public boolean isLocalHeuristicAngular() {
+		return localHeuristicMode == LocalHeuristicMode.ANGULAR;
+	}
+
+	public boolean isUsingLocalLandmarks() {
+		return hasElement(RouteChoiceElement.LOCAL_LANDMARKS);
+	}
+
+	public void setUsingLocalLandmarks(boolean enabled) {
+		setElement(RouteChoiceElement.LOCAL_LANDMARKS, enabled);
+	}
+
+	public boolean isUsingDistantLandmarks() {
+		return hasElement(RouteChoiceElement.DISTANT_LANDMARKS);
+	}
+
+	public void setUsingDistantLandmarks(boolean enabled) {
+		setElement(RouteChoiceElement.DISTANT_LANDMARKS, enabled);
+	}
+
+	public boolean isRegionBasedNavigation() {
+		return hasElement(RouteChoiceElement.REGION_BASED_NAVIGATION);
+	}
+
+	public void setRegionBasedNavigation(boolean enabled) {
+		setElement(RouteChoiceElement.REGION_BASED_NAVIGATION, enabled);
+	}
+
+	public boolean isBarrierBasedNavigation() {
+		return hasElement(RouteChoiceElement.BARRIER_BASED_NAVIGATION);
+	}
+
+	public void setBarrierBasedNavigation(boolean enabled) {
+		setElement(RouteChoiceElement.BARRIER_BASED_NAVIGATION, enabled);
+	}
+
+	public boolean isPreferenceNaturalBarriers() {
+		return preferenceNaturalBarriers;
+	}
+
+	public void setPreferenceNaturalBarriers(boolean preferenceNaturalBarriers) {
+		this.preferenceNaturalBarriers = preferenceNaturalBarriers;
+	}
+
+	public boolean isAversionSeveringBarriers() {
+		return aversionSeveringBarriers;
+	}
+
+	public void setAversionSeveringBarriers(boolean aversionSeveringBarriers) {
+		this.aversionSeveringBarriers = aversionSeveringBarriers;
+	}
+
+	public double getNaturalBarriersMean() {
+		return naturalBarriersMean;
+	}
+
+	public void setNaturalBarriersMean(double naturalBarriersMean) {
+		this.naturalBarriersMean = naturalBarriersMean;
+	}
+
+	public double getNaturalBarriersSD() {
+		return naturalBarriersSD;
+	}
+
+	public void setNaturalBarriersSD(double naturalBarriersSD) {
+		this.naturalBarriersSD = naturalBarriersSD;
+	}
+
+	public double getSeveringBarriersMean() {
+		return severingBarriersMean;
+	}
+
+	public void setSeveringBarriersMean(double severingBarriersMean) {
+		this.severingBarriersMean = severingBarriersMean;
+	}
+
+	public double getSeveringBarriersSD() {
+		return severingBarriersSD;
+	}
+
+	public void setSeveringBarriersSD(double severingBarriersSD) {
+		this.severingBarriersSD = severingBarriersSD;
+	}
+
+	public AgentBarrierType getBarrierType() {
+		return barrierType;
+	}
+
+	public void setBarrierType(AgentBarrierType barrierType) {
+		this.barrierType = barrierType;
+	}
+
+	public LandmarkType getLandmarkType() {
+		return landmarkType;
+	}
+
+	public void setLandmarkType(LandmarkType landmarkType) {
+		this.landmarkType = landmarkType;
+	}
 }
