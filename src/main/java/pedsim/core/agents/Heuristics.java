@@ -1,92 +1,124 @@
 package pedsim.core.agents;
 
+import java.util.Objects;
 import java.util.Random;
+
 import pedsim.core.parameters.RouteChoicePars;
+import pedsim.core.utilities.StringEnum.LocalHeuristicMode;
+import pedsim.core.utilities.StringEnum.MinimisationMode;
+import pedsim.core.utilities.StringEnum.RouteChoiceElement;
 import sim.graph.NodeGraph;
 
-/**
- * HeuristicMixer: compute route-choice weights based on vividness and memory ability.
- */
 public final class Heuristics {
 
-  // Probabilities of activation minimisation
-  private double probabilityDistanceMinimisation;
-  private double probabilityAngularMinimisation;
+	private double probabilityDistanceMinimisation;
+	private double probabilityAngularMinimisation;
+	private double probabilityDistantLandmarks;
+	private double probabilityUsingRegions;
+	private double probabilityBarrierSubGoals;
 
-  // Probabilities of activation elements
-  private double probabilityDistantLandmarks;
-  private double probabilityUsingRegions;
-  private double probabilityBarrierSubGoals;
+	private final Agent agent;
+	private final AgentProperties ap;
+	private final Random random;
 
-  private AgentProperties ap;
-  private Agent agent;
-  final Random random = new Random();
+	private final double globalLandmarknessWeightDistance = RouteChoicePars.globalLandmarknessWeightDistanceCommunity;
+	private final double globalLandmarknessWeightAngular = RouteChoicePars.globalLandmarknessWeightAngularCommunity;
 
-  public Heuristics(Agent agent) {
-    this.agent = agent;
-    this.ap = agent.getProperties();
-  }
+	public Heuristics(Agent agent) {
+		this.agent = Objects.requireNonNull(agent);
+		this.ap = Objects.requireNonNull(agent.getProperties());
+		this.random = new Random();
+	}
 
-  public void defineHeuristic(NodeGraph originNode, NodeGraph destinationNode) {
+	public void defineHeuristic(NodeGraph originNode, NodeGraph destinationNode, boolean onlyDistanceMinimsation) {
+		if (onlyDistanceMinimsation) {
+			ap.reset();
+			ap.setMinimisationMode(MinimisationMode.DISTANCE);
+			return;
+		}
+		defineRouteChoiceMechanisms();
+	}
 
-    defineRouteChoiceMechanisms();
-  }
+	public void defineRouteChoiceMechanisms() {
 
-  public double getLocallLandmarksThreshold() {
-    return RouteChoicePars.localLandmarkThresholdCommunity;
-  }
+		if (isGlobalMinimisationDominant()) {
+			ap.setMinimisationMode(sampleMinimisationMode());
+			return;
+		}
 
-  // Public outputs you already had:
-  private double globalLandmarknessWeightDistance =
-      RouteChoicePars.globalLandmarknessWeightDistanceCommunity;
-  private double globalLandmarknessWeightAngular =
-      RouteChoicePars.globalLandmarknessWeightAngularCommunity;
+		ap.setLocalHeuristicMode(sampleLocalHeuristicMode());
 
+		if (random.nextDouble() < probabilityBarrierSubGoals) {
+			ap.addElement(RouteChoiceElement.BARRIER_BASED_NAVIGATION);
+		} else {
+			ap.addElement(RouteChoiceElement.LOCAL_LANDMARKS);
+		}
 
-  public double getGlobalLandmarkWeight(boolean angular) {
-    if (angular)
-      return globalLandmarknessWeightAngular;
-    return globalLandmarknessWeightDistance;
-  }
+		if (random.nextDouble() < probabilityDistantLandmarks) {
+			ap.addElement(RouteChoiceElement.DISTANT_LANDMARKS);
+		}
 
-  /**
-   * Randomly assigns route choice parameters to the agent based on its derived vividness profile
-   * (probabilities).
-   * 
-   * Uses the probabilities for heuristics/sub-goals/landmarks/regions that were pre-computed by
-   * HeuristicMixer. Ensures consistency with novice ↔ expert gradient.
-   */
-  public void defineRouteChoiceMechanisms() {
+		if (random.nextDouble() < probabilityUsingRegions) {
+			ap.addElement(RouteChoiceElement.REGION_BASED_NAVIGATION);
+		}
+	}
 
-    ap.reset(); // clear flags
-    double r = random.nextDouble();
+	private boolean isGlobalMinimisationDominant() {
+		return probabilityDistanceMinimisation > 0.90 || probabilityAngularMinimisation > 0.90;
+	}
 
-    // --- Global Minimisation heuristics (rare, no usage of Urban Elements)
-    if (probabilityDistanceMinimisation > 0.90 || probabilityAngularMinimisation > 0.90) {
-      // One heuristic dominates strongly → force assignment
-      ap.minimisingDistance = probabilityDistanceMinimisation > probabilityAngularMinimisation;
-      ap.minimisingAngular = !ap.minimisingDistance;
-      return;
-    }
+	private MinimisationMode sampleMinimisationMode() {
+		return sampleWeightedMode(probabilityDistanceMinimisation,
+				probabilityAngularMinimisation) == BinaryMode.DISTANCE ? MinimisationMode.DISTANCE
+						: MinimisationMode.ANGULAR;
+	}
 
-    // Otherwise set them as local Minimisation heuristics
-    ap.localHeuristicDistance = r < probabilityDistanceMinimisation;
-    ap.localHeuristicAngular = !ap.localHeuristicDistance;
+	private LocalHeuristicMode sampleLocalHeuristicMode() {
+		return sampleWeightedMode(probabilityDistanceMinimisation,
+				probabilityAngularMinimisation) == BinaryMode.DISTANCE ? LocalHeuristicMode.DISTANCE
+						: LocalHeuristicMode.ANGULAR;
+	}
 
-    // --- Barrier sub-goals vs Local landmarks (mutually exclusive) ---
-    double rBL = random.nextDouble();
-    if (rBL < probabilityBarrierSubGoals) {
-      ap.barrierBasedNavigation = true;
-      ap.usingLocalLandmarks = false;
-    } else {
-      ap.usingLocalLandmarks = true;
-      ap.barrierBasedNavigation = false;
-    }
+	private BinaryMode sampleWeightedMode(double distanceWeight, double angularWeight) {
+		double d = Math.max(0.0, distanceWeight);
+		double a = Math.max(0.0, angularWeight);
+		double total = d + a;
 
-    // --- Distant/global landmarks (orientation anchors) ---
-    ap.usingDistantLandmarks = random.nextDouble() < probabilityDistantLandmarks;
+		if (total == 0.0) {
+			return BinaryMode.DISTANCE;
+		}
 
-    // --- Region-based segmentation (independent switch) ---
-    ap.regionBasedNavigation = random.nextDouble() < probabilityUsingRegions;
-  }
+		return random.nextDouble() < (d / total) ? BinaryMode.DISTANCE : BinaryMode.ANGULAR;
+	}
+
+	private enum BinaryMode {
+		DISTANCE, ANGULAR
+	}
+
+	public void setActivationProbabilities(double probabilityDistanceMinimisation,
+			double probabilityAngularMinimisation, double probabilityDistantLandmarks, double probabilityUsingRegions,
+			double probabilityBarrierSubGoals) {
+
+		this.probabilityDistanceMinimisation = probabilityDistanceMinimisation;
+		this.probabilityAngularMinimisation = probabilityAngularMinimisation;
+		this.probabilityDistantLandmarks = probabilityDistantLandmarks;
+		this.probabilityUsingRegions = probabilityUsingRegions;
+		this.probabilityBarrierSubGoals = probabilityBarrierSubGoals;
+	}
+
+	public double getLocalLandmarksThreshold() {
+		return RouteChoicePars.localLandmarkThresholdCommunity;
+	}
+
+	public double getGlobalLandmarkWeight(boolean angular) {
+		return angular ? globalLandmarknessWeightAngular : globalLandmarknessWeightDistance;
+	}
+
+	public Agent getAgent() {
+		return agent;
+	}
+
+	public AgentProperties getAgentProperties() {
+		return ap;
+	}
 }
