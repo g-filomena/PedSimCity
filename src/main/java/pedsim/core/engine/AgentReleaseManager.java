@@ -1,5 +1,9 @@
 package pedsim.core.engine;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -29,6 +33,8 @@ public class AgentReleaseManager {
   protected double metersToWalkCurrentDay;
   protected double expectedMetersWalkedSoFarToday;
   protected double metersWalkedSoFarToday;
+  private final int dayNumber;
+  private String logFilePath;
 
      /**
    * Constructor for AgentReleaseManager.
@@ -36,12 +42,14 @@ public class AgentReleaseManager {
    * @param state the PedSimCity instance representing the simulation state.
    * @param metersToWalkCurrentDay the current expected walking distance for the day (in meters).
    */
-  public AgentReleaseManager(PedSimCity state, Double metersToWalkCurrentDay) {
+  public AgentReleaseManager(PedSimCity state, Double metersToWalkCurrentDay, int dayNumber) {
     this.state = state;
     this.metersToWalkCurrentDay = metersToWalkCurrentDay;
+    this.dayNumber = dayNumber;
     resetMetersWalkedSoFar();
     expectedMetersWalkedSoFarToday = 0.0;
     metersWalkedSoFarToday = 0.0;
+    initLogFile();
   }
 
   /**
@@ -55,13 +63,13 @@ public class AgentReleaseManager {
     metersWalkedSoFarToday = computeMetersWalkedSoFar();
     double metersToAllocate = (metersToWalkCurrentDay * TimePars.computeTimeStepShare(currentTime));
     double metersAdjusted =
-        (metersToAllocate + (expectedMetersWalkedSoFarToday - metersWalkedSoFarToday)) * 0.5; // to
-                                                                                              // account
-                                                                                              // for
-    // return home
+        (metersToAllocate + (expectedMetersWalkedSoFarToday - metersWalkedSoFarToday)) * 0.5;
+
+    int agentsReleased = 0;
     if (metersAdjusted > 0) {
-      releaseAgentsMeters(metersAdjusted);
+      agentsReleased = releaseAgentsMeters(metersAdjusted);
     }
+    logRelease(steps, metersToAllocate, metersAdjusted, agentsReleased);
     if (currentTime.getMinute() == 0) { // Log walking agents every full hour
       logWalkingAgents();
     }
@@ -76,7 +84,7 @@ public class AgentReleaseManager {
    *
    * @param kmToAllocate the total kilometres to be allocated for the selected agents to walk.
    */
-  private void releaseAgentsMeters(double metersToAllocate) {
+  private int releaseAgentsMeters(double metersToAllocate) {
 
     int agentsExpectedToWalk =
         Math.max(1, (int) (metersToAllocate / RouteChoicePars.avgTripDistance));
@@ -89,6 +97,7 @@ public class AgentReleaseManager {
     for (Agent agent : agentsToRelease) {
       agent.startWalkingAlone();
     }
+    return agentsToRelease.size();
   }
 
   /**
@@ -193,6 +202,34 @@ public class AgentReleaseManager {
    */
   private void resetMetersWalkedSoFar() {
     state.agentsList.forEach(agent -> agent.metersWalkedDay = 0.0);
+  }
+
+  private void initLogFile() {
+    try {
+      File dir = new File("output");
+      if (!dir.exists()) {
+        dir.mkdirs();
+      }
+      logFilePath = "output/agent_release_day_" + dayNumber + ".csv";
+      try (PrintWriter out = new PrintWriter(new FileWriter(logFilePath, false))) {
+        out.println("step,datetime,meters_to_allocate,meters_adjusted,agents_released");
+      }
+    } catch (IOException e) {
+      logger.warning("Could not initialise agent release log file: " + e.getMessage());
+    }
+  }
+
+  private void logRelease(double step, double metersToAllocate, double metersAdjusted,
+      int agentsReleased) {
+    if (logFilePath == null) {
+      return;
+    }
+    try (PrintWriter out = new PrintWriter(new FileWriter(logFilePath, true))) {
+      out.printf("%f,%s,%.4f,%.4f,%d%n", step, currentTime, metersToAllocate, metersAdjusted,
+          agentsReleased);
+    } catch (IOException e) {
+      logger.warning("Could not write agent release log entry: " + e.getMessage());
+    }
   }
 
 }
