@@ -274,7 +274,9 @@ public class Agent implements Steppable {
 	 * Plans the route for the agent.
 	 */
 	protected void planRoute() {
-		Heuristics heuristics = new Heuristics(this);
+		// Initialise and store the agent's heuristics so that other components
+		// (e.g. landmark-based navigation) can safely access them via getHeuristics().
+		heuristics = new Heuristics(this);
 		heuristics.defineHeuristic(originNode, destinationNode, false);
 		RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
 		setRoute(planner.definePath());
