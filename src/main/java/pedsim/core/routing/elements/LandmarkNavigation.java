@@ -38,7 +38,12 @@ public class LandmarkNavigation {
 	private static final double DISTANCE_GAIN_WEIGHT_REGION = 0.50;
 
 	protected void idntifyAgentLocalLandmarks() {
-
+		
+		// Use local landmarks only when the agent's heuristics are available
+		// and local-landmark-based navigation is actually active for this agent.
+		if (agent == null || agent.getHeuristics() == null || !agent.getProperties().isUsingLocalLandmarks()) {
+			return;
+		}
 		double localLandmarkThreshold = agent.getHeuristics().getLocalLandmarksThreshold();
 		agent.getCognitiveMap().findKnownLocalLandmarks(localLandmarkThreshold);
 	}
