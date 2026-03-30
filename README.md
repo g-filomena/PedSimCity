@@ -56,6 +56,15 @@ If the user desires to use the applet within Eclipse, for example, to explore th
 5. To execute the applet, right-click on teh class ```PedSimCity.applet```, *Run as Java Application*.
 6. Before pressing the *Run Simulation* button, click on *Other options* and copy-paste the entire path referring to the path *src/main/resources/* in the corresponding field. This is necessary for retrieving the input data.
 
+**How to run in an editor such as Cursor or VS Code:**
+
+1. Ensure **Maven** and **Java** (JDK 17) are installed on your computer.
+2. Open the project folder in your editor (e.g. VS Code or Cursor).
+3. Open the terminal and ensure you are in the project folder with the `pom.xml` file.
+4. Run the command: `mvn clean install` to build the project and create the jar file with dependencies.
+5. To run the applet (e.g. the night applet version), run the following command in the terminal:
+   `java -cp "target\pedsimcity-1.23-jar-with-dependencies.jar" pedsim.night.applet.PedSimCityNightApplet`
+
 The applet allows the user to run the simulation with three different configurations:
 1. Testing Landmarks (London, Muenster).
 2. Testing Urban Subdivisions (London, Paris, Muenster).
