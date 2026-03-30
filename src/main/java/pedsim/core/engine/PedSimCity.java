@@ -39,6 +39,7 @@ public class PedSimCity extends SimState {
   public static VectorLayer barriers = new VectorLayer();
   public static VectorLayer junctions = new VectorLayer();
   public static VectorLayer sightLines = new VectorLayer();
+  public static VectorLayer vulnerabilityZones = new VectorLayer();
 
   final public static Graph network = new Graph();
   final public static Graph dualNetwork = new Graph();

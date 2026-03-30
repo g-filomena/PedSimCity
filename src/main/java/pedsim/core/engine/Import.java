@@ -26,6 +26,7 @@ public class Import {
     readLandmarksAndSightLines();
     readBarriers();
     readGraphs();
+    readVulnerabilityZones();
   }
 
   /**
@@ -104,6 +105,36 @@ public class Import {
       logger.info("Barriers successfully imported.");
     } catch (Exception e) {
       handleImportError("Importing Barriers Failed", e);
+    }
+  }
+
+  /**
+   * Reads and imports vulnerability zones data for the simulation.
+   */
+  protected void readVulnerabilityZones() throws Exception {
+    try {
+      String baseName = Pars.cityName.replace("Centre", "");
+      String resourceName = Pars.cityName + "/" + baseName + "_vulnerability_weights.gpkg";
+
+      URL fileUrl = CLASSLOADER.getResource(resourceName);
+      if (fileUrl == null) {
+        System.out.println("Optional resource not found: " + resourceName);
+        return;
+      }
+
+      try {
+        VectorLayer.readGPKG(fileUrl, PedSimCity.vulnerabilityZones);
+      } catch (NullPointerException e) {
+        if (PedSimCity.vulnerabilityZones.getGeometries().isEmpty()) {
+            throw e;
+        }
+      }
+
+      PedSimCity.vulnerabilityZones.getGeometries().removeIf(obj -> ((sim.util.geo.MasonGeometry) obj).getGeometry() == null);
+
+      logger.info("Vulnerability zones successfully imported.");
+    } catch (Exception e) {
+      handleImportError("Importing Vulnerability Zones Failed", e);
     }
   }
 
