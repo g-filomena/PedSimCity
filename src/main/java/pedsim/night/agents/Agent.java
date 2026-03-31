@@ -111,10 +111,36 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 	 * Plans the route for the agent.
 	 */
 	@Override
+	protected void planTrip() {
+		defineOrigin();
+		if (isGoingHome()) {
+			destinationNode = homeNode;
+		} else {
+			// If it's day (not dark) and they haven't worked today, go to work!
+			if (workNode != null && !hasWorkedToday && !state.isDark) {
+				destinationNode = workNode;
+			} else {
+				defineRandomDestination();
+			}
+		}
+		// safety check
+		if (destinationNode.getID() == originNode.getID()) {
+			reachedDestination.set(true);
+			return;
+		}
+		planRoute();
+		agentMovement = new AgentMovement(this);
+		agentMovement.initialisePath(getRoute());
+	}
+
+	/**
+	 * Plans the route for the agent.
+	 */
+	@Override
 	protected void planRoute() {
 		Heuristics heuristics = new Heuristics(this);
 		heuristics.defineHeuristic(originNode, destinationNode, true);
-		pedsim.core.routing.RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
+		pedsim.night.routing.RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
 		setRoute(planner.definePath());
 	}
 

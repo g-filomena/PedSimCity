@@ -175,7 +175,11 @@ public class Populate {
   }
 
   /**
-   * Retrieves the POI weight for a given node based on the time of day.
+   * - [x] Update `Agent.java` (Core) with `hasWorkedToday` and 6-9 hour stay logic.
+   * - [x] Ensure `planTrip()` in `Agent.java` targets `workNode` during the day.
+   * - [x] Update `pedsim.night.agents.Agent.java` to stay consistent with core changes.
+   * - [x] Reset `hasWorkedToday` in `handleReachedHome()`.
+   * - [x] Verify the simulation boot and check the logs for agent walking patterns.
    * @param node The candidate destination node.
    * @param isDark Whether the simulation currently considers it "Night".
    * @return The weight (number of POIs) for that node's zone.
