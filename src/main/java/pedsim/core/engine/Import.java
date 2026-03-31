@@ -113,12 +113,11 @@ public class Import {
    */
   protected void readVulnerabilityZones() throws Exception {
     try {
-      String baseName = Pars.cityName.replace("Centre", "");
-      String resourceName = Pars.cityName + "/" + baseName + "_vulnerability_weights.gpkg";
+      String resourceName = Pars.cityName + "/poi_weights.gpkg";
 
       URL fileUrl = CLASSLOADER.getResource(resourceName);
       if (fileUrl == null) {
-        System.out.println("Optional resource not found: " + resourceName);
+        System.out.println("POI weights resource not found: " + resourceName);
         return;
       }
 
@@ -132,9 +131,9 @@ public class Import {
 
       PedSimCity.vulnerabilityZones.getGeometries().removeIf(obj -> ((sim.util.geo.MasonGeometry) obj).getGeometry() == null);
 
-      logger.info("Vulnerability zones successfully imported.");
+      logger.info("POI weights (including vulnerability zones) successfully imported.");
     } catch (Exception e) {
-      handleImportError("Importing Vulnerability Zones Failed", e);
+      handleImportError("Importing POI Weights Failed", e);
     }
   }
 

@@ -18,14 +18,16 @@ public class Populate extends pedsim.core.engine.Populate {
   }
 
   /**
-   * Adds a new agent to the simulation with a assigned vulnerability status based on census data.
+   * Creates a new agent with a assigned vulnerability status based on census data.
+   * Does NOT register it with simulation fields (VectorLayer, etc).
    *
-   * @param agentID The identifier of the agent to be added.
+   * @param agentID The identifier of the agent.
+   * @return The created agent.
    */
   @Override
-  protected void addAgent(int agentID) {
+  protected pedsim.core.agents.Agent createAgent(int agentID) {
 
-    pedsim.night.agents.Agent agent = new pedsim.night.agents.Agent(this.state);
+    pedsim.night.agents.Agent agent = new pedsim.night.agents.Agent(this.state, false);
     agent.agentID = agentID;
     defineHomeWorkLocations(agent);
     
@@ -33,7 +35,6 @@ public class Populate extends pedsim.core.engine.Populate {
     agent.vulnerable = agent.isVulnerableBoolean() ? 
         Vulnerable.VULNERABLE : Vulnerable.NON_VULNERABLE;
 
-    this.state.agentsList.add(agent);
-    agent.updateAgentLists(false, true);
+    return agent;
   }
 }

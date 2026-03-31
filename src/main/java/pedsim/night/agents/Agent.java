@@ -34,8 +34,11 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 	 * @param state the PedSimCity simulation state.
 	 */
 	public Agent(PedSimCityNight state) {
+		this(state, true);
+	}
 
-		super(state);
+	public Agent(PedSimCityNight state, boolean registerSpatial) {
+		super(state, registerSpatial);
 		this.state = state;
 		this.agentNetwork = SharedCognitiveMap.getCommunityPrimalNetwork();
 	}
@@ -140,8 +143,8 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 				continue; // Continue with the next loop iteration
 			}
 
-			// Select a random destination node from the list of candidates
-			destinationNode = NodesLookup.randomNodeFromList(destinationCandidates);
+			// Select a weighted destination node from the list of candidates
+			destinationNode = selectWeightedDestination(destinationCandidates, state.isDark);
 
 			// If it's dark, filter out destination nodes that lie in parks or along rivers
 			if (state.isDark && destinationNode.getEdges().stream()

@@ -45,14 +45,14 @@ public class Agent implements Steppable {
 	public List<Pair<NodeGraph, NodeGraph>> OD = new LinkedList<>();
 
 	// in the community network
-	protected NodeGraph homeNode;
-	protected NodeGraph workNode;
+	public NodeGraph homeNode;
+	public NodeGraph workNode;
 
 	protected AgentProperties agentProperties;
 	protected CognitiveMap cognitiveMap;
 
 	protected Stoppable killAgent;
-	protected MasonGeometry currentLocation;
+	public MasonGeometry currentLocation;
 	protected final AtomicBoolean reachedDestination = new AtomicBoolean(false);
 
 	protected Route route;
@@ -74,12 +74,23 @@ public class Agent implements Steppable {
 	 * @param state the PedSimCity simulation state.
 	 */
 	public Agent(PedSimCity state) {
+		this(state, true);
+	}
 
+	public Agent(PedSimCity state, boolean registerSpatial) {
 		this.state = state;
 		cognitiveMap = new CognitiveMap(this);
 		initialiseAgentProperties();
 		status = AgentStatus.WAITING;
-		placeAgent();
+		
+		// Always initialize currentLocation to prevent NullPointerException
+		final GeometryFactory fact = new GeometryFactory();
+		currentLocation = new MasonGeometry(fact.createPoint(new Coordinate(0, 0)));
+		currentLocation.isMovable = true;
+
+		if (registerSpatial) {
+			placeAgent();
+		}
 	}
 
 	protected void placeAgent() {
@@ -178,7 +189,37 @@ public class Agent implements Steppable {
 			lowerLimit = lowerLimit * 0.90;
 			upperLimit = upperLimit * 1.10;
 		}
-		destinationNode = NodesLookup.randomNodeFromList(candidates);
+		
+		destinationNode = selectWeightedDestination(candidates, false);
+	}
+
+	/**
+	 * Selects a destination from a list of candidates weighted by POI counts.
+	 * @param candidates List of potential destination nodes.
+	 * @param isDark Whether to use night weights (true) or day weights (false).
+	 * @return The selected destination NodeGraph.
+	 */
+	protected NodeGraph selectWeightedDestination(List<NodeGraph> candidates, boolean isDark) {
+		if (candidates == null || candidates.isEmpty()) return null;
+
+		double totalWeight = 0;
+		double[] weights = new double[candidates.size()];
+
+		for (int i = 0; i < candidates.size(); i++) {
+			weights[i] = pedsim.core.engine.Populate.getPOIWeight(candidates.get(i), isDark);
+			totalWeight += weights[i];
+		}
+
+		double r = random.nextDouble() * totalWeight;
+		double currentSum = 0;
+		for (int i = 0; i < candidates.size(); i++) {
+			currentSum += weights[i];
+			if (r <= currentSum) {
+				return candidates.get(i);
+			}
+		}
+
+		return candidates.get(random.nextInt(candidates.size())); // Fallback
 	}
 
 	protected void handleReachedDestination() {

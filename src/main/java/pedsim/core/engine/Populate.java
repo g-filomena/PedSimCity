@@ -5,9 +5,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.index.strtree.STRtree;
 import pedsim.core.agents.Agent;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.parameters.Pars;
@@ -31,6 +35,16 @@ public class Populate {
   private Map<MasonGeometry, List<NodeGraph>> zoneToNodesMap = new HashMap<>();
   private double totalProbability = 0.0;
 
+  // Caches for POI-based destination selection
+  private static Map<MasonGeometry, Double> zoneToWorkplaceWeight = new HashMap<>();
+  private static Map<MasonGeometry, Double> zoneToNightWeight = new HashMap<>();
+  private static Map<NodeGraph, MasonGeometry> nodeToZoneMap = new HashMap<>();
+  private static STRtree zoneIndex;
+
+  // Counters to test Spatial Jump vs Fallback performance
+  public static java.util.concurrent.atomic.AtomicInteger spatialJumpSuccessCount = new java.util.concurrent.atomic.AtomicInteger(0);
+  public static java.util.concurrent.atomic.AtomicInteger randomFallbackCount = new java.util.concurrent.atomic.AtomicInteger(0);
+
   /**
    * Populates agents, OD matrix, for the simulation. It creates a set of agents with the learner
    * status and updates their cognitive maps. The agents are then added to the simulation state.
@@ -43,16 +57,28 @@ public class Populate {
 
     prepareVulnerabilityZones();
 
-    // Create agents with parameter true
+    // Step 1: Create agents in sequence (Fast with spatial index)
     int totalAgents = Pars.numAgents;
     logger.info("Creating " + totalAgents + " Agents. Building Their Cognitive Maps");
-    IntStream.range(0, totalAgents).parallel().forEach(agentID -> {
-      addAgent(agentID); // Must be thread-safe!
-    });
+    List<Agent> newAgents = IntStream.range(0, totalAgents)
+      .mapToObj(this::createAgent)
+      .collect(Collectors.toList());
 
-    for (Agent agent : state.agentsList) {
+    // Step 2: Register agents sequentially (Thread-safe state update)
+    for (Agent agent : newAgents) {
+      state.agentsList.add(agent);
+      
+      // Update agent position to its homeNode before adding to the layer
+      if (agent.homeNode != null) {
+          agent.currentLocation.geometry = new GeometryFactory().createPoint(agent.homeNode.getCoordinate());
+      }
+      
       state.agents.addGeometry(agent.getLocation());
+      agent.updateAgentLists(false, true);
     }
+    
+    logger.info("Agent Routing Stats -> Spatial Jump Successes: " + spatialJumpSuccessCount.get() + 
+                " | Instant Random Fallbacks: " + randomFallbackCount.get());
     logger.info(state.agentsList.size() + " agents created");
   }
 
@@ -69,6 +95,7 @@ public class Populate {
       zonesList.add(zone);
       zoneToNodesMap.put(zone, new ArrayList<>());
       
+      // Parse residence percentage for spawning
       Object attr = zone.getAttribute("zone_residence_pct");
       double pct = 0.0;
       if (attr != null) {
@@ -78,10 +105,25 @@ public class Populate {
                   pct = Double.parseDouble(val.toString().replace(",", "."));
               }
           } catch (Exception e) {
-              logger.warning("Failed to parse zone_residence_pct for zone: " + e.getMessage());
+              logger.warning("Failed to parse zone_residence_pct: " + e.getMessage());
           }
       }
       totalProbability += pct;
+
+      // Parse and cache POI weights for destination selection
+      try {
+          Object workAttr = zone.getAttribute("workplace_count");
+          double workWeight = (workAttr != null) ? 
+              Double.parseDouble(((sim.util.geo.AttributeValue) workAttr).getValue().toString()) : 0.0;
+          zoneToWorkplaceWeight.put(zone, workWeight);
+
+          Object nightAttr = zone.getAttribute("night_dest_count");
+          double nightWeight = (nightAttr != null) ? 
+              Double.parseDouble(((sim.util.geo.AttributeValue) nightAttr).getValue().toString()) : 0.0;
+          zoneToNightWeight.put(zone, nightWeight);
+      } catch (Exception e) {
+          logger.warning("Failed to parse POI counts for zone: " + e.getMessage());
+      }
     }
 
     cumulativeProbabilities = new double[zonesList.size()];
@@ -103,14 +145,29 @@ public class Populate {
         cumulativeProbabilities[i] = currentSum;
     }
 
-    // Map all nodes to zones to speed up agent spawning
+    // Build a spatial index for the zones
+    zoneIndex = new STRtree();
+    for (MasonGeometry zone : zonesList) {
+        zoneIndex.insert(zone.getGeometry().getEnvelopeInternal(), zone);
+    }
+    zoneIndex.build();
+
+    // Map all nodes to zones using the spatial index
     GeometryFactory gf = new GeometryFactory();
     List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
+    nodeToZoneMap.clear();
+    
     for (NodeGraph node : allNodes) {
       Point pt = gf.createPoint(node.getCoordinate());
-      for (MasonGeometry zone : zonesList) {
+      
+      // Query the index for candidate zones (ones whose bounding box contains the point)
+      @SuppressWarnings("unchecked")
+      List<MasonGeometry> candidates = (List<MasonGeometry>) zoneIndex.query(pt.getEnvelopeInternal());
+      
+      for (MasonGeometry zone : candidates) {
         if (zone.getGeometry().contains(pt) || zone.getGeometry().distance(pt) < 1e-6) {
           zoneToNodesMap.get(zone).add(node);
+          nodeToZoneMap.put(node, zone);
           break; // Assign node to first matching zone
         }
       }
@@ -118,18 +175,31 @@ public class Populate {
   }
 
   /**
-   * Adds a new agent to the simulation with a randomly assigned vulnerability status. The agent is
-   * added to the list of agents and its cognitive map is Initialised.
-   *
-   * @param agentID The identifier of the agent to be added.
+   * Retrieves the POI weight for a given node based on the time of day.
+   * @param node The candidate destination node.
+   * @param isDark Whether the simulation currently considers it "Night".
+   * @return The weight (number of POIs) for that node's zone.
    */
-  protected void addAgent(int agentID) {
+  public static double getPOIWeight(NodeGraph node, boolean isDark) {
+      MasonGeometry zone = nodeToZoneMap.get(node);
+      if (zone == null) return 0.1; // Baseline for nodes outside any defined zone
+      
+      Double weight = isDark ? zoneToNightWeight.get(zone) : zoneToWorkplaceWeight.get(zone);
+      return (weight != null && weight > 0) ? weight : 0.1; // Return weight or baseline
+  }
 
-    Agent agent = new Agent(this.state);
+  /**
+   * Creates a new agent but does NOT register it with simulation fields (VectorLayer, etc).
+   * This is intended to be called in parallel threads.
+   *
+   * @param agentID The identifier of the agent.
+   * @return The created agent.
+   */
+  protected Agent createAgent(int agentID) {
+    Agent agent = new Agent(this.state, false);
     agent.agentID = agentID;
     defineHomeWorkLocations(agent);
-    state.agentsList.add(agent);
-    agent.updateAgentLists(false, true);
+    return agent;
   }
 
   protected void defineHomeWorkLocations(Agent agent) {
@@ -189,14 +259,61 @@ public class Populate {
         count++;
       }
     }
+    
+    // Fallback if no DMA found for homeNode
+    if (homeNode == null) {
+      java.util.List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
+      if (!allNodes.isEmpty()) {
+          homeNode = allNodes.get(rnd.nextInt(allNodes.size()));
+      }
+    }
 
     int count = 0;
     while (workNode == null && count < 20) {
-      if (useVulnerabilityZones && count > 0) {
-          // If we are using vulnerability zones, homeNode is fixed. If the first try fails,
-          // don't search from the same homeNode again 100 times. Break and use fallback.
+      if (useVulnerabilityZones) {
+          // Spatial Jump Optimization
+          Envelope env = new Envelope(homeNode.getCoordinate());
+          env.expandBy(RouteChoicePars.maxTripDistance);
+          @SuppressWarnings("unchecked")
+          List<MasonGeometry> candidates = (List<MasonGeometry>) zoneIndex.query(env);
+          
+          List<MasonGeometry> validZones = new ArrayList<>();
+          double totalW = 0.0;
+          Geometry pt = new GeometryFactory().createPoint(homeNode.getCoordinate());
+          
+          for(MasonGeometry z : candidates) {
+             // Calculate distance to centroid, not to nearest edge of the polygon
+             double d = z.getGeometry().getCentroid().distance(pt);
+             
+             // Euclidean distance is shorter than network distance, so relax the minimum constraint (e.g. 60%)
+             if (d >= (RouteChoicePars.minTripDistance * 0.6) && d <= RouteChoicePars.maxTripDistance) {
+                 validZones.add(z);
+                 Double rw = zoneToWorkplaceWeight.get(z);
+                 totalW += (rw != null ? rw : 0.0);
+             }
+          }
+          
+          if (!validZones.isEmpty() && totalW > 0) {
+              double rw = rnd.nextDouble() * totalW;
+              double cur = 0;
+              for(MasonGeometry z : validZones) {
+                  Double w = zoneToWorkplaceWeight.get(z);
+                  cur += (w != null ? w : 0.0);
+                  if (rw <= cur) {
+                      List<NodeGraph> znodes = zoneToNodesMap.get(z);
+                      if (znodes != null && !znodes.isEmpty()) {
+                          workNode = znodes.get(rnd.nextInt(znodes.size()));
+                          spatialJumpSuccessCount.incrementAndGet();
+                      }
+                      break;
+                  }
+              }
+          }
+          // Spatial jump is fast, but if it fails for this homeNode, do not loop 20 times!
+          // Break immediately to use the fast, random fallback node at the bottom.
           break;
       }
+      
       try {
         workNode = NodesLookup.randomNodeBetweenDistanceIntervalDMA(
             SharedCognitiveMap.getCommunityPrimalNetwork(), homeNode, RouteChoicePars.minTripDistance,
@@ -216,11 +333,7 @@ public class Populate {
       count++;
     }
 
-    // Fallback if no DMA found
-    if (homeNode == null) {
-      java.util.List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
-      homeNode = allNodes.get(rnd.nextInt(allNodes.size()));
-    }
+    // Final fallback for workNode
     if (workNode == null) {
       try {
         workNode = NodesLookup.randomNodeBetweenDistanceInterval(
@@ -230,10 +343,12 @@ public class Populate {
         workNode = null;
       }
     }
-    // Final fallback
     if (workNode == null) {
       java.util.List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
-      workNode = allNodes.get(rnd.nextInt(allNodes.size()));
+      if (!allNodes.isEmpty()) {
+          workNode = allNodes.get(rnd.nextInt(allNodes.size()));
+          randomFallbackCount.incrementAndGet();
+      }
     }
 
     agent.setHomeWorkLoctations(homeNode, workNode);
