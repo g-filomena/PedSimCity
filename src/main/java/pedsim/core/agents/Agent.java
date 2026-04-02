@@ -191,14 +191,14 @@ public class Agent implements Steppable {
 		lastDestination = destinationNode;
 		destinationNode = null;
 		switch (status) {
-		case WALKING_ALONE:
-			handleReachedSoloDestination();
-			break;
-		case GOING_HOME:
-			handleReachedHome();
-			break;
-		default:
-			break;
+			case WALKING_ALONE:
+				handleReachedSoloDestination();
+				break;
+			case GOING_HOME:
+				handleReachedHome();
+				break;
+			default:
+				break;
 		}
 	}
 
@@ -440,6 +440,16 @@ public class Agent implements Steppable {
 
 	public NodeGraph getWork() {
 		return workNode;
+	}
+
+	protected boolean vulnerable = false;
+
+	public boolean isVulnerableBoolean() {
+		return vulnerable;
+	}
+
+	public void setVulnerable(boolean vulnerable) {
+		this.vulnerable = vulnerable;
 	}
 
 }
