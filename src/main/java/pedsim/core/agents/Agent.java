@@ -45,14 +45,14 @@ public class Agent implements Steppable {
 	public List<Pair<NodeGraph, NodeGraph>> OD = new LinkedList<>();
 
 	// in the community network
-	protected NodeGraph homeNode;
-	protected NodeGraph workNode;
+	public NodeGraph homeNode;
+	public NodeGraph workNode;
 
 	protected AgentProperties agentProperties;
 	protected CognitiveMap cognitiveMap;
 
 	protected Stoppable killAgent;
-	protected MasonGeometry currentLocation;
+	public MasonGeometry currentLocation;
 	protected final AtomicBoolean reachedDestination = new AtomicBoolean(false);
 
 	protected Route route;
@@ -66,6 +66,7 @@ public class Agent implements Steppable {
 
 	private Heuristics heuristics;
 	Enum<?> agentScenario;
+	protected boolean hasWorkedToday = false;
 
 	/**
 	 * Constructor Function. Creates a new agent with the specified agent
@@ -74,12 +75,23 @@ public class Agent implements Steppable {
 	 * @param state the PedSimCity simulation state.
 	 */
 	public Agent(PedSimCity state) {
+		this(state, true);
+	}
 
+	public Agent(PedSimCity state, boolean registerSpatial) {
 		this.state = state;
 		cognitiveMap = new CognitiveMap(this);
 		initialiseAgentProperties();
 		status = AgentStatus.WAITING;
-		placeAgent();
+		
+		// Always initialize currentLocation to prevent NullPointerException
+		final GeometryFactory fact = new GeometryFactory();
+		currentLocation = new MasonGeometry(fact.createPoint(new Coordinate(0, 0)));
+		currentLocation.isMovable = true;
+
+		if (registerSpatial) {
+			placeAgent();
+		}
 	}
 
 	protected void placeAgent() {
@@ -135,7 +147,12 @@ public class Agent implements Steppable {
 		if (isGoingHome()) {
 			destinationNode = homeNode;
 		} else {
-			defineRandomDestination();
+			// If it's day (not dark) and they haven't worked today, go to work!
+			if (workNode != null && !hasWorkedToday && !state.getClass().getSimpleName().contains("Night")) {
+				destinationNode = workNode;
+			} else {
+				defineRandomDestination();
+			}
 		}
 		// safety check
 		if (destinationNode.getID() == originNode.getID()) {
@@ -178,7 +195,37 @@ public class Agent implements Steppable {
 			lowerLimit = lowerLimit * 0.90;
 			upperLimit = upperLimit * 1.10;
 		}
-		destinationNode = NodesLookup.randomNodeFromList(candidates);
+		
+		destinationNode = selectWeightedDestination(candidates, false);
+	}
+
+	/**
+	 * Selects a destination from a list of candidates weighted by POI counts.
+	 * @param candidates List of potential destination nodes.
+	 * @param isDark Whether to use night weights (true) or day weights (false).
+	 * @return The selected destination NodeGraph.
+	 */
+	protected NodeGraph selectWeightedDestination(List<NodeGraph> candidates, boolean isDark) {
+		if (candidates == null || candidates.isEmpty()) return null;
+
+		double totalWeight = 0;
+		double[] weights = new double[candidates.size()];
+
+		for (int i = 0; i < candidates.size(); i++) {
+			weights[i] = pedsim.core.engine.Populate.getPOIWeight(candidates.get(i), isDark);
+			totalWeight += weights[i];
+		}
+
+		double r = random.nextDouble() * totalWeight;
+		double currentSum = 0;
+		for (int i = 0; i < candidates.size(); i++) {
+			currentSum += weights[i];
+			if (r <= currentSum) {
+				return candidates.get(i);
+			}
+		}
+
+		return candidates.get(random.nextInt(candidates.size())); // Fallback
 	}
 
 	protected void handleReachedDestination() {
@@ -219,6 +266,9 @@ public class Agent implements Steppable {
 	 */
 	private void handleReachedSoloDestination() {
 		status = AgentStatus.AT_DESTINATION;
+		if (lastDestination != null && lastDestination.equals(workNode)) {
+			hasWorkedToday = true;
+		}
 		calculateTimeAtDestination(state.schedule.getSteps());
 	}
 
@@ -227,6 +277,7 @@ public class Agent implements Steppable {
 	 */
 	protected void handleReachedHome() {
 		status = AgentStatus.WAITING;
+		hasWorkedToday = false; // Reset for the next day
 	}
 
 	/**
@@ -235,9 +286,15 @@ public class Agent implements Steppable {
 	 * @param steps the current simulation step.
 	 */
 	protected void calculateTimeAtDestination(long steps) {
-		// Generate a random number between 15 (inclusive) and 120 (inclusive)
-		int randomMinutes = 15 + random.nextInt(106);
-		// Multiply with MINUTES_IN_STEPS
+		int randomMinutes;
+		if (lastDestination != null && lastDestination.equals(workNode)) {
+			// Work stay: 6 to 9 hours (360 to 540 minutes)
+			randomMinutes = 360 + random.nextInt(181);
+		} else {
+			// POI/Social stay: 15 to 120 minutes (original logic)
+			randomMinutes = 15 + random.nextInt(106);
+		}
+		
 		timeAtDestination = (randomMinutes * TimePars.MINUTE_TO_STEPS) + steps;
 	}
 
