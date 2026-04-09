@@ -12,6 +12,8 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.index.strtree.STRtree;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Point;
 import pedsim.core.agents.Agent;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.parameters.Pars;
@@ -58,6 +60,7 @@ public class Populate {
     prepareVulnerabilityZones();
 
     // Step 1: Create agents in sequence (Fast with spatial index)
+    // Create agents with parameter true
     int totalAgents = Pars.numAgents;
     logger.info("Creating " + totalAgents + " Agents. Building Their Cognitive Maps");
     List<Agent> newAgents = IntStream.range(0, totalAgents)
@@ -124,6 +127,10 @@ public class Populate {
       } catch (Exception e) {
           logger.warning("Failed to parse POI counts for zone: " + e.getMessage());
       }
+              logger.warning("Failed to parse zone_residence_pct for zone: " + e.getMessage());
+          }
+      }
+      totalProbability += pct;
     }
 
     cumulativeProbabilities = new double[zonesList.size()];
@@ -168,6 +175,14 @@ public class Populate {
         if (zone.getGeometry().contains(pt) || zone.getGeometry().distance(pt) < 1e-6) {
           zoneToNodesMap.get(zone).add(node);
           nodeToZoneMap.put(node, zone);
+    // Map all nodes to zones to speed up agent spawning
+    GeometryFactory gf = new GeometryFactory();
+    List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
+    for (NodeGraph node : allNodes) {
+      Point pt = gf.createPoint(node.getCoordinate());
+      for (MasonGeometry zone : zonesList) {
+        if (zone.getGeometry().contains(pt) || zone.getGeometry().distance(pt) < 1e-6) {
+          zoneToNodesMap.get(zone).add(node);
           break; // Assign node to first matching zone
         }
       }
@@ -204,6 +219,11 @@ public class Populate {
     agent.agentID = agentID;
     defineHomeWorkLocations(agent);
     return agent;
+    Agent agent = new Agent(this.state);
+    agent.agentID = agentID;
+    defineHomeWorkLocations(agent);
+    state.agentsList.add(agent);
+    agent.updateAgentLists(false, true);
   }
 
   protected void defineHomeWorkLocations(Agent agent) {
@@ -318,6 +338,14 @@ public class Populate {
           break;
       }
       
+
+    int count = 0;
+    while (workNode == null && count < 20) {
+      if (useVulnerabilityZones && count > 0) {
+          // If we are using vulnerability zones, homeNode is fixed. If the first try fails,
+          // don't search from the same homeNode again 100 times. Break and use fallback.
+          break;
+      }
       try {
         workNode = NodesLookup.randomNodeBetweenDistanceIntervalDMA(
             SharedCognitiveMap.getCommunityPrimalNetwork(), homeNode, RouteChoicePars.minTripDistance,
@@ -338,6 +366,11 @@ public class Populate {
     }
 
     // Final fallback for workNode
+    // Fallback if no DMA found
+    if (homeNode == null) {
+      java.util.List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
+      homeNode = allNodes.get(rnd.nextInt(allNodes.size()));
+    }
     if (workNode == null) {
       try {
         workNode = NodesLookup.randomNodeBetweenDistanceInterval(
