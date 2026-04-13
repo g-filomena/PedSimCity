@@ -5,12 +5,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.javatuples.Pair;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
-
 import pedsim.core.cognition.cognitivemap.CognitiveMap;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.PedSimCity;
@@ -28,485 +26,487 @@ import sim.routing.Route;
 import sim.util.geo.MasonGeometry;
 
 /**
- * This class represents an agent in the pedestrian simulation. Agents move
- * along paths between origin and destination nodes.
+ * This class represents an agent in the pedestrian simulation. Agents move along paths between
+ * origin and destination nodes.
  */
 public class Agent implements Steppable {
 
-	protected static final long serialVersionUID = 1L;
-	protected PedSimCity state;
-	public Integer agentID;
+  protected static final long serialVersionUID = 1L;
+  protected PedSimCity state;
+  public Integer agentID;
 
-	protected AgentStatus status;
-	protected double timeAtDestination = Double.MAX_VALUE;
+  protected AgentStatus status;
+  protected double timeAtDestination = Double.MAX_VALUE;
 
-	public NodeGraph originNode = null;
-	public NodeGraph destinationNode = null;
-	public List<Pair<NodeGraph, NodeGraph>> OD = new LinkedList<>();
+  public NodeGraph originNode = null;
+  public NodeGraph destinationNode = null;
+  public List<Pair<NodeGraph, NodeGraph>> OD = new LinkedList<>();
 
-	// in the community network
-	public NodeGraph homeNode;
-	public NodeGraph workNode;
+  // in the community network
+  public NodeGraph homeNode;
+  public NodeGraph workNode;
 
-	protected AgentProperties agentProperties;
-	protected CognitiveMap cognitiveMap;
+  protected AgentProperties agentProperties;
+  protected CognitiveMap cognitiveMap;
 
-	protected Stoppable killAgent;
-	public MasonGeometry currentLocation;
-	protected final AtomicBoolean reachedDestination = new AtomicBoolean(false);
+  protected Stoppable killAgent;
+  public MasonGeometry currentLocation;
+  protected final AtomicBoolean reachedDestination = new AtomicBoolean(false);
 
-	protected Route route;
-	protected NodeGraph lastDestination;
-	protected Random random = new Random();
-	protected AgentMovement agentMovement;
-	protected double distanceNextDestination = 0.0;
+  protected Route route;
+  protected NodeGraph lastDestination;
+  protected Random random = new Random();
+  protected AgentMovement agentMovement;
+  protected double distanceNextDestination = 0.0;
 
-	public double metersWalkedTot = 0.0;
-	public double metersWalkedDay = 0.0;
+  public double metersWalkedTot = 0.0;
+  public double metersWalkedDay = 0.0;
 
-	private Heuristics heuristics;
-	Enum<?> agentScenario;
-	protected boolean hasWorkedToday = false;
+  private Heuristics heuristics;
+  Enum<?> agentScenario;
+  protected boolean hasWorkedToday = false;
 
-	/**
-	 * Constructor Function. Creates a new agent with the specified agent
-	 * properties.
-	 *
-	 * @param state the PedSimCity simulation state.
-	 */
-	public Agent(PedSimCity state) {
-		this(state, true);
-	}
+  /**
+   * Constructor Function. Creates a new agent with the specified agent properties.
+   *
+   * @param state the PedSimCity simulation state.
+   */
+  public Agent(PedSimCity state) {
+    this(state, true);
+  }
 
-	public Agent(PedSimCity state, boolean registerSpatial) {
-		this.state = state;
-		cognitiveMap = new CognitiveMap(this);
-		initialiseAgentProperties();
-		status = AgentStatus.WAITING;
-		
-		// Always initialize currentLocation to prevent NullPointerException
-		final GeometryFactory fact = new GeometryFactory();
-		currentLocation = new MasonGeometry(fact.createPoint(new Coordinate(0, 0)));
-		currentLocation.isMovable = true;
+  public Agent(PedSimCity state, boolean registerSpatial) {
+    this.state = state;
+    cognitiveMap = new CognitiveMap(this);
+    initialiseAgentProperties();
+    status = AgentStatus.WAITING;
 
-		if (registerSpatial) {
-			placeAgent();
-		}
-	}
+    // Always initialize currentLocation to prevent NullPointerException
+    final GeometryFactory fact = new GeometryFactory();
+    currentLocation = new MasonGeometry(fact.createPoint(new Coordinate(0, 0)));
+    currentLocation.isMovable = true;
 
-	protected void placeAgent() {
-		final GeometryFactory fact = new GeometryFactory();
-		currentLocation = new MasonGeometry(fact.createPoint(new Coordinate(10, 10)));
-		currentLocation.isMovable = true;
-		if (homeNode != null) {
-			updateAgentPosition(homeNode.getCoordinate());
-		}
-	}
+    if (registerSpatial) {
+      placeAgent();
+    }
+  }
 
-	public Agent() {
-	}
+  protected void placeAgent() {
+    final GeometryFactory fact = new GeometryFactory();
+    currentLocation = new MasonGeometry(fact.createPoint(new Coordinate(10, 10)));
+    currentLocation.isMovable = true;
+    if (homeNode != null) {
+      updateAgentPosition(homeNode.getCoordinate());
+    }
+  }
 
-	/**
-	 * Initialises the agent properties.
-	 */
-	protected void initialiseAgentProperties() {
-		agentProperties = new AgentProperties();
-	}
+  public Agent() {}
 
-	/**
-	 * This is called every tick by the scheduler. It moves the agent along the
-	 * path.
-	 *
-	 * @param state the simulation state.
-	 */
-	@Override
-	public void step(SimState state) {
+  /**
+   * Initialises the agent properties.
+   */
+  protected void initialiseAgentProperties() {
+    agentProperties = new AgentProperties();
+  }
 
-		if (isWaiting()) {
-			return;
-		}
-		if (isWalkingAlone() && destinationNode == null) {
-			{
-				if (!cognitiveMap.formed)
-					getCognitiveMap().formCognitiveMap();
-				planTrip();
-			}
-		} else if (reachedDestination.get()) {
-			handleReachedDestination();
-		} else if (isAtDestination() && timeAtDestination <= state.schedule.getSteps()) {
-			goHome();
-		} else if (isAtDestination()) {
-			;
-		} else {
-			agentMovement.keepWalking();
-		}
-	}
+  /**
+   * This is called every tick by the scheduler. It moves the agent along the path.
+   *
+   * @param state the simulation state.
+   */
+  @Override
+  public void step(SimState state) {
 
-	protected synchronized void planTrip() {
-		defineOrigin();
-		if (isGoingHome()) {
-			destinationNode = homeNode;
-		} else {
-			// If it's day (not dark) and they haven't worked today, go to work!
-			if (workNode != null && !hasWorkedToday && !state.getClass().getSimpleName().contains("Night")) {
-				destinationNode = workNode;
-			} else {
-				defineRandomDestination();
-			}
-		}
-		// safety check
-		if (destinationNode.getID() == originNode.getID()) {
-			reachedDestination.set(true);
-			return;
-		}
-		planRoute();
-		agentMovement = new AgentMovement(this);
-		agentMovement.initialisePath(getRoute());
-	}
+    if (isWaiting()) {
+      return;
+    }
+    if (isWalkingAlone() && destinationNode == null) {
+      {
+        if (!cognitiveMap.formed)
+          getCognitiveMap().formCognitiveMap();
+        planTrip();
+      }
+    } else if (reachedDestination.get()) {
+      handleReachedDestination();
+    } else if (isAtDestination() && timeAtDestination <= state.schedule.getSteps()) {
+      goHome();
+    } else if (isAtDestination()) {
+      ;
+    } else {
+      agentMovement.keepWalking();
+    }
+  }
 
-	public void startWalkingAlone() {
-		destinationNode = null;
-		status = AgentStatus.WALKING_ALONE;
-		updateAgentLists(true, false);
-	}
+  protected synchronized void planTrip() {
+    defineOrigin();
+    if (isGoingHome()) {
+      destinationNode = homeNode;
+    } else {
+      // If it's day (not dark) and they haven't worked today, go to work!
+      if (workNode != null && !hasWorkedToday
+          && !state.getClass().getSimpleName().contains("Night")) {
+        destinationNode = workNode;
+      } else {
+        defineRandomDestination();
+      }
+    }
+    // safety check
+    if (destinationNode.getID() == originNode.getID()) {
+      reachedDestination.set(true);
+      return;
+    }
+    planRoute();
+    agentMovement = new AgentMovement(this);
+    agentMovement.initialisePath(getRoute());
+  }
 
-	protected void defineOrigin() {
+  public void startWalkingAlone() {
+    destinationNode = null;
+    status = AgentStatus.WALKING_ALONE;
+    updateAgentLists(true, false);
+  }
 
-		if (isWalkingAlone()) {
-			originNode = homeNode;
-		} else if (isGoingHome()) {
-			if (currentLocation.getGeometry().getCoordinate() != lastDestination.getCoordinate()) {
-				currentLocation.geometry = lastDestination.getMasonGeometry().geometry;
-			}
-			originNode = lastDestination;
-		}
-	}
+  protected void defineOrigin() {
 
-	private void defineRandomDestination() {
+    if (isWalkingAlone()) {
+      originNode = homeNode;
+    } else if (isGoingHome()) {
+      if (currentLocation.getGeometry().getCoordinate() != lastDestination.getCoordinate()) {
+        currentLocation.geometry = lastDestination.getMasonGeometry().geometry;
+      }
+      originNode = lastDestination;
+    }
+  }
 
-		double lowerLimit = distanceNextDestination * 0.90;
-		double upperLimit = distanceNextDestination;
-		Graph network = SharedCognitiveMap.getCommunityPrimalNetwork();
-		List<NodeGraph> candidates = new ArrayList<>();
-		while (candidates.isEmpty()) {
-			candidates = NodesLookup.getNodesBetweenDistanceInterval(network, originNode, lowerLimit, upperLimit);
-			candidates.retainAll(
-					GraphUtils.getNodesFromNodeIDs(getCognitiveMap().getAgentKnownNodes(), PedSimCity.nodesMap));
-			lowerLimit = lowerLimit * 0.90;
-			upperLimit = upperLimit * 1.10;
-		}
-		
-		destinationNode = selectWeightedDestination(candidates, false);
-	}
+  private void defineRandomDestination() {
 
-	/**
-	 * Selects a destination from a list of candidates weighted by POI counts.
-	 * @param candidates List of potential destination nodes.
-	 * @param isDark Whether to use night weights (true) or day weights (false).
-	 * @return The selected destination NodeGraph.
-	 */
-	protected NodeGraph selectWeightedDestination(List<NodeGraph> candidates, boolean isDark) {
-		if (candidates == null || candidates.isEmpty()) return null;
+    double lowerLimit = distanceNextDestination * 0.90;
+    double upperLimit = distanceNextDestination;
+    Graph network = SharedCognitiveMap.getCommunityPrimalNetwork();
+    List<NodeGraph> candidates = new ArrayList<>();
+    while (candidates.isEmpty()) {
+      candidates =
+          NodesLookup.getNodesBetweenDistanceInterval(network, originNode, lowerLimit, upperLimit);
+      candidates.retainAll(GraphUtils.getNodesFromNodeIDs(getCognitiveMap().getAgentKnownNodes(),
+          PedSimCity.nodesMap));
+      lowerLimit = lowerLimit * 0.90;
+      upperLimit = upperLimit * 1.10;
+    }
 
-		double totalWeight = 0;
-		double[] weights = new double[candidates.size()];
+    destinationNode = selectWeightedDestination(candidates, false);
+  }
 
-		for (int i = 0; i < candidates.size(); i++) {
-			weights[i] = pedsim.core.engine.Populate.getPOIWeight(candidates.get(i), isDark);
-			totalWeight += weights[i];
-		}
+  /**
+   * Selects a destination from a list of candidates weighted by POI counts.
+   * 
+   * @param candidates List of potential destination nodes.
+   * @param isDark Whether to use night weights (true) or day weights (false).
+   * @return The selected destination NodeGraph.
+   */
+  protected NodeGraph selectWeightedDestination(List<NodeGraph> candidates, boolean isDark) {
+    if (candidates == null || candidates.isEmpty())
+      return null;
 
-		double r = random.nextDouble() * totalWeight;
-		double currentSum = 0;
-		for (int i = 0; i < candidates.size(); i++) {
-			currentSum += weights[i];
-			if (r <= currentSum) {
-				return candidates.get(i);
-			}
-		}
+    double totalWeight = 0;
+    double[] weights = new double[candidates.size()];
 
-		return candidates.get(random.nextInt(candidates.size())); // Fallback
-	}
+    for (int i = 0; i < candidates.size(); i++) {
+      weights[i] = pedsim.core.engine.Populate.getPOIWeight(candidates.get(i), isDark);
+      totalWeight += weights[i];
+    }
 
-	protected void handleReachedDestination() {
+    double r = random.nextDouble() * totalWeight;
+    double currentSum = 0;
+    for (int i = 0; i < candidates.size(); i++) {
+      currentSum += weights[i];
+      if (r <= currentSum) {
+        return candidates.get(i);
+      }
+    }
 
-		reachedDestination.set(false);
-		updateAgentPosition(destinationNode.getCoordinate());
+    return candidates.get(random.nextInt(candidates.size())); // Fallback
+  }
 
-		updateAgentLists(false, destinationNode == homeNode);
-		originNode = null;
-		lastDestination = destinationNode;
-		destinationNode = null;
-		switch (status) {
-			case WALKING_ALONE:
-				handleReachedSoloDestination();
-				break;
-			case GOING_HOME:
-				handleReachedHome();
-				break;
-			default:
-				break;
-		}
-	}
+  protected void handleReachedDestination() {
 
-	/**
-	 * Moves the agent to the given coordinates.
-	 *
-	 * @param coordinate the coordinates.
-	 */
-	public void updateAgentPosition(Coordinate coordinate) {
-		GeometryFactory geometryFactory = new GeometryFactory();
-		Point newLocation = geometryFactory.createPoint(coordinate);
-		state.agents.setGeometryLocation(currentLocation, newLocation);
-		currentLocation.geometry = newLocation;
-	}
+    reachedDestination.set(false);
+    updateAgentPosition(destinationNode.getCoordinate());
 
-	/**
-	 * Handles the agent's status when it reaches its solo destination.
-	 */
-	private void handleReachedSoloDestination() {
-		status = AgentStatus.AT_DESTINATION;
-		if (lastDestination != null && lastDestination.equals(workNode)) {
-			hasWorkedToday = true;
-		}
-		calculateTimeAtDestination(state.schedule.getSteps());
-	}
+    updateAgentLists(false, destinationNode == homeNode);
+    originNode = null;
+    lastDestination = destinationNode;
+    destinationNode = null;
+    switch (status) {
+      case WALKING_ALONE:
+        handleReachedSoloDestination();
+        break;
+      case GOING_HOME:
+        handleReachedHome();
+        break;
+      default:
+        break;
+    }
+  }
 
-	/**
-	 * Handles the agent's status when it reaches home.
-	 */
-	protected void handleReachedHome() {
-		status = AgentStatus.WAITING;
-		hasWorkedToday = false; // Reset for the next day
-	}
+  /**
+   * Moves the agent to the given coordinates.
+   *
+   * @param coordinate the coordinates.
+   */
+  public void updateAgentPosition(Coordinate coordinate) {
+    GeometryFactory geometryFactory = new GeometryFactory();
+    Point newLocation = geometryFactory.createPoint(coordinate);
+    state.agents.setGeometryLocation(currentLocation, newLocation);
+    currentLocation.geometry = newLocation;
+  }
 
-	/**
-	 * Calculates the time the agent will stay at its destination.
-	 *
-	 * @param steps the current simulation step.
-	 */
-	protected void calculateTimeAtDestination(long steps) {
-		int randomMinutes;
-		if (lastDestination != null && lastDestination.equals(workNode)) {
-			// Work stay: 6 to 9 hours (360 to 540 minutes)
-			randomMinutes = 360 + random.nextInt(181);
-		} else {
-			// POI/Social stay: 15 to 120 minutes (original logic)
-			randomMinutes = 15 + random.nextInt(106);
-		}
-		
-		timeAtDestination = (randomMinutes * TimePars.MINUTE_TO_STEPS) + steps;
-	}
+  /**
+   * Handles the agent's status when it reaches its solo destination.
+   */
+  private void handleReachedSoloDestination() {
+    status = AgentStatus.AT_DESTINATION;
+    if (lastDestination != null && lastDestination.equals(workNode)) {
+      hasWorkedToday = true;
+    }
+    calculateTimeAtDestination(state.schedule.getSteps());
+  }
 
-	/**
-	 * The agent goes home after reaching its destination.
-	 */
-	protected void goHome() {
+  /**
+   * Handles the agent's status when it reaches home.
+   */
+  protected void handleReachedHome() {
+    status = AgentStatus.WAITING;
+    hasWorkedToday = false; // Reset for the next day
+  }
 
-		state.agentsWalking.add(this);
-		status = AgentStatus.GOING_HOME;
-		planTrip();
-	}
+  /**
+   * Calculates the time the agent will stay at its destination.
+   *
+   * @param steps the current simulation step.
+   */
+  protected void calculateTimeAtDestination(long steps) {
+    int randomMinutes;
+    if (lastDestination != null && lastDestination.equals(workNode)) {
+      // Work stay: 6 to 9 hours (360 to 540 minutes)
+      randomMinutes = 360 + random.nextInt(181);
+    } else {
+      // POI/Social stay: 15 to 120 minutes (original logic)
+      randomMinutes = 15 + random.nextInt(106);
+    }
 
-	/**
-	 * Updates the agent's status in the agent lists.
-	 *
-	 * @param isWalking   indicates whether the agent is walking or not.
-	 * @param reachedHome indicates whether the agent has reached home.
-	 */
-	public void updateAgentLists(boolean isWalking, boolean reachedHome) {
+    timeAtDestination = (randomMinutes * TimePars.MINUTE_TO_STEPS) + steps;
+  }
 
-		if (isWalking) {
-			state.agentsWalking.add(this);
-			state.agentsAtHome.remove(this);
-		} else {
-			if (reachedHome) {
-				state.agentsAtHome.add(this);
-			}
-			state.agentsWalking.remove(this);
-		}
-	}
+  /**
+   * The agent goes home after reaching its destination.
+   */
+  protected void goHome() {
 
-	/**
-	 * Plans the route for the agent.
-	 */
-	protected void planRoute() {
-		// Initialise and store the agent's heuristics so that other components
-		// (e.g. landmark-based navigation) can safely access them via getHeuristics().
-		heuristics = new Heuristics(this);
-		heuristics.defineHeuristic(originNode, destinationNode, false);
-		RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
-		setRoute(planner.definePath());
-	}
+    state.agentsWalking.add(this);
+    status = AgentStatus.GOING_HOME;
+    planTrip();
+  }
 
-	/**
-	 * Sets the stoppable reference for the agent.
-	 *
-	 * @param a The stoppable reference.
-	 */
-	public void setStoppable(Stoppable a) {
-		this.killAgent = a;
-	}
+  /**
+   * Updates the agent's status in the agent lists.
+   *
+   * @param isWalking indicates whether the agent is walking or not.
+   * @param reachedHome indicates whether the agent has reached home.
+   */
+  public void updateAgentLists(boolean isWalking, boolean reachedHome) {
 
-	/**
-	 * Removes the agent from the simulation.
-	 *
-	 */
-	protected void removeAgent() {
-		state.agentsList.remove(this);
-		killAgent.stop();
-		if (state.agentsList.isEmpty()) {
-			state.finish();
-		}
-	}
+    state.agentsList.add(this);
+    if (isWalking) {
+      state.agentsWalking.add(this);
+      state.agentsAtHome.remove(this);
+    } else {
+      if (reachedHome) {
+        state.agentsAtHome.add(this);
+      }
+      state.agentsWalking.remove(this);
+    }
+  }
 
-	/**
-	 * Gets the geometry representing the agent's location.
-	 *
-	 * @return The geometry representing the agent's location.
-	 */
-	public MasonGeometry getLocation() {
-		return currentLocation;
-	}
+  /**
+   * Plans the route for the agent.
+   */
+  protected void planRoute() {
+    // Initialise and store the agent's heuristics so that other components
+    // (e.g. landmark-based navigation) can safely access them via getHeuristics().
+    heuristics = new Heuristics(this);
+    heuristics.defineHeuristic(originNode, destinationNode, false);
+    RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
+    setRoute(planner.definePath());
+  }
 
-	/**
-	 * Gets the agent's properties.
-	 *
-	 * @return The agent's properties.
-	 */
-	public AgentProperties getProperties() {
-		return agentProperties;
-	}
+  /**
+   * Sets the stoppable reference for the agent.
+   *
+   * @param a The stoppable reference.
+   */
+  public void setStoppable(Stoppable a) {
+    this.killAgent = a;
+  }
 
-	/**
-	 * Gets the agent's cognitive map.
-	 *
-	 * @return The cognitive map.
-	 */
-	public CognitiveMap getCognitiveMap() {
-		return cognitiveMap;
-	}
+  /**
+   * Removes the agent from the simulation.
+   *
+   */
+  protected void removeAgent() {
+    state.agentsList.remove(this);
+    killAgent.stop();
+    if (state.agentsList.isEmpty()) {
+      state.finish();
+    }
+  }
 
-	/**
-	 * Checks if the agent is waiting.
-	 *
-	 * @return true if the agent is waiting, false otherwise.
-	 */
-	protected boolean isWaiting() {
-		return status.equals(AgentStatus.WAITING);
-	}
+  /**
+   * Gets the geometry representing the agent's location.
+   *
+   * @return The geometry representing the agent's location.
+   */
+  public MasonGeometry getLocation() {
+    return currentLocation;
+  }
 
-	/**
-	 * Checks if the agent is walking alone.
-	 *
-	 * @return true if the agent is walking alone, false otherwise.
-	 */
-	protected boolean isWalkingAlone() {
-		return status.equals(AgentStatus.WALKING_ALONE);
-	}
+  /**
+   * Gets the agent's properties.
+   *
+   * @return The agent's properties.
+   */
+  public AgentProperties getProperties() {
+    return agentProperties;
+  }
 
-	/**
-	 * Checks if the agent is going home.
-	 *
-	 * @return true if the agent is going home, false otherwise.
-	 */
-	protected boolean isGoingHome() {
-		return status.equals(AgentStatus.GOING_HOME);
-	}
+  /**
+   * Gets the agent's cognitive map.
+   *
+   * @return The cognitive map.
+   */
+  public CognitiveMap getCognitiveMap() {
+    return cognitiveMap;
+  }
 
-	/**
-	 * Checks if the agent is at its destination.
-	 *
-	 * @return true if the agent is at its destination, false otherwise.
-	 */
-	protected boolean isAtDestination() {
-		return status.equals(AgentStatus.AT_DESTINATION);
-	}
+  /**
+   * Checks if the agent is waiting.
+   *
+   * @return true if the agent is waiting, false otherwise.
+   */
+  protected boolean isWaiting() {
+    return status.equals(AgentStatus.WAITING);
+  }
 
-	/**
-	 * Gets the total distance the agent has walked.
-	 *
-	 * @return The total distance the agent has walked in kilometers.
-	 */
-	public double getTotalMetersWalked() {
-		return metersWalkedTot;
-	}
+  /**
+   * Checks if the agent is walking alone.
+   *
+   * @return true if the agent is walking alone, false otherwise.
+   */
+  protected boolean isWalkingAlone() {
+    return status.equals(AgentStatus.WALKING_ALONE);
+  }
 
-	/**
-	 * Gets the distance the agent has walked in the current day.
-	 *
-	 * @return The distance walked by the agent today in kilometers.
-	 */
-	public double getMetersWalkedDay() {
-		return metersWalkedDay;
-	}
+  /**
+   * Checks if the agent is going home.
+   *
+   * @return true if the agent is going home, false otherwise.
+   */
+  protected boolean isGoingHome() {
+    return status.equals(AgentStatus.GOING_HOME);
+  }
 
-	/**
-	 * Sets the distance to the next destination for the agent.
-	 *
-	 * @param distanceNextDestination The distance to the next destination.
-	 */
-	public void setDistanceNextDestination(double distanceNextDestination) {
-		this.distanceNextDestination = distanceNextDestination;
-	}
+  /**
+   * Checks if the agent is at its destination.
+   *
+   * @return true if the agent is at its destination, false otherwise.
+   */
+  protected boolean isAtDestination() {
+    return status.equals(AgentStatus.AT_DESTINATION);
+  }
 
-	/**
-	 * Gets the simulation state of the agent.
-	 *
-	 * @return The PedSimCity simulation state.
-	 */
-	public PedSimCity getState() {
-		return state;
-	}
+  /**
+   * Gets the total distance the agent has walked.
+   *
+   * @return The total distance the agent has walked in kilometers.
+   */
+  public double getTotalMetersWalked() {
+    return metersWalkedTot;
+  }
 
-	public Enum<?> getAgentScenario() {
-		return agentScenario;
-	}
+  /**
+   * Gets the distance the agent has walked in the current day.
+   *
+   * @return The distance walked by the agent today in kilometers.
+   */
+  public double getMetersWalkedDay() {
+    return metersWalkedDay;
+  }
 
-	public Heuristics getHeuristics() {
-		return heuristics;
-	}
+  /**
+   * Sets the distance to the next destination for the agent.
+   *
+   * @param distanceNextDestination The distance to the next destination.
+   */
+  public void setDistanceNextDestination(double distanceNextDestination) {
+    this.distanceNextDestination = distanceNextDestination;
+  }
 
-	/**
-	 * @return the route
-	 */
-	public Route getRoute() {
-		return route;
-	}
+  /**
+   * Gets the simulation state of the agent.
+   *
+   * @return The PedSimCity simulation state.
+   */
+  public PedSimCity getState() {
+    return state;
+  }
 
-	/**
-	 * @param route the route to set
-	 */
-	public void setRoute(Route route) {
-		this.route = route;
-	}
+  public Enum<?> getAgentScenario() {
+    return agentScenario;
+  }
 
-	public void setHomeWorkLoctations(NodeGraph homeNode, NodeGraph workNode) {
-		this.homeNode = homeNode;
-		this.workNode = workNode;
-	}
+  public Heuristics getHeuristics() {
+    return heuristics;
+  }
 
-	/**
-	 * Gets the home node for the agent in the cognitive map.
-	 * 
-	 * @return The home node for the agent.
-	 */
-	public NodeGraph getHome() {
-		return homeNode;
-	}
+  /**
+   * @return the route
+   */
+  public Route getRoute() {
+    return route;
+  }
 
-	public NodeGraph getWork() {
-		return workNode;
-	}
+  /**
+   * @param route the route to set
+   */
+  public void setRoute(Route route) {
+    this.route = route;
+  }
 
-	protected boolean vulnerable = false;
+  public void setHomeWorkLoctations(NodeGraph homeNode, NodeGraph workNode) {
+    this.homeNode = homeNode;
+    this.workNode = workNode;
+  }
 
-	public boolean isVulnerableBoolean() {
-		return vulnerable;
-	}
+  /**
+   * Gets the home node for the agent in the cognitive map.
+   * 
+   * @return The home node for the agent.
+   */
+  public NodeGraph getHome() {
+    return homeNode;
+  }
 
-	public void setVulnerable(boolean vulnerable) {
-		this.vulnerable = vulnerable;
-	}
+  public NodeGraph getWork() {
+    return workNode;
+  }
+
+  protected boolean vulnerable = false;
+
+  public boolean isVulnerableBoolean() {
+    return vulnerable;
+  }
+
+  public void setVulnerable(boolean vulnerable) {
+    this.vulnerable = vulnerable;
+  }
 
 }
