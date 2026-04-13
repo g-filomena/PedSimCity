@@ -26,7 +26,8 @@ public class Import {
     readLandmarksAndSightLines();
     readBarriers();
     readGraphs();
-    readVulnerabilityZones();
+    readCensusZones();
+    readPoiWeights();
   }
 
   /**
@@ -108,41 +109,38 @@ public class Import {
     }
   }
 
+
   /**
-   * Reads and imports vulnerability zones data for the simulation.
+   * Reads and imports census zones data for the simulation.
    */
-  protected void readVulnerabilityZones() throws Exception {
+  protected void readCensusZones() throws Exception {
+    readOptionalLayer("censusData", PedSimCity.censusZones);
+  }
+
+  /**
+   * Reads and imports POI weights data for the simulation.
+   */
+  protected void readPoiWeights() throws Exception {
+    readOptionalLayer("POIweights", PedSimCity.poiWeights);
+  }
+
+  /**
+   * Reads an optional GeoPackage layer into the given target layer.
+   */
+  protected void readOptionalLayer(String layerName, VectorLayer targetLayer) throws Exception {
+
     try {
-      String resourceName = Pars.cityName + "/poi_weights.gpkg";
-
+      String resourceName = Pars.cityName + "/" + Pars.cityName + "_" + layerName + ".gpkg";
       URL fileUrl = CLASSLOADER.getResource(resourceName);
+
       if (fileUrl == null) {
-        System.out.println("POI weights resource not found: " + resourceName);
-      String baseName = Pars.cityName.replace("Centre", "");
-      String resourceName = Pars.cityName + "/" + baseName + "_vulnerability_weights.gpkg";
-
-      URL fileUrl = CLASSLOADER.getResource(resourceName);
-      if (fileUrl == null) {
-        System.out.println("Optional resource not found: " + resourceName);
-        return;
+        throw new IllegalStateException("Resource not found: " + resourceName);
       }
-
-      try {
-        VectorLayer.readGPKG(fileUrl, PedSimCity.vulnerabilityZones);
-      } catch (NullPointerException e) {
-        if (PedSimCity.vulnerabilityZones.getGeometries().isEmpty()) {
-            throw e;
-        }
-      }
-
-      PedSimCity.vulnerabilityZones.getGeometries().removeIf(obj -> ((sim.util.geo.MasonGeometry) obj).getGeometry() == null);
-
-      logger.info("POI weights (including vulnerability zones) successfully imported.");
+      VectorLayer.readGPKG(fileUrl, targetLayer);
+      targetLayer.getGeometries().removeIf(obj -> obj.getGeometry() == null);
+      logger.info(layerName + " successfully imported.");
     } catch (Exception e) {
-      handleImportError("Importing POI Weights Failed", e);
-      logger.info("Vulnerability zones successfully imported.");
-    } catch (Exception e) {
-      handleImportError("Importing Vulnerability Zones Failed", e);
+      handleImportError("Importing " + layerName + " Failed", e);
     }
   }
 
