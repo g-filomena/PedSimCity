@@ -4,16 +4,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Envelope;
-import org.locationtech.jts.index.strtree.STRtree;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.index.strtree.STRtree;
 import pedsim.core.agents.Agent;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.parameters.Pars;
@@ -44,8 +42,12 @@ public class Populate {
   private static STRtree zoneIndex;
 
   // Counters to test Spatial Jump vs Fallback performance
-  public static java.util.concurrent.atomic.AtomicInteger spatialJumpSuccessCount = new java.util.concurrent.atomic.AtomicInteger(0);
-  public static java.util.concurrent.atomic.AtomicInteger randomFallbackCount = new java.util.concurrent.atomic.AtomicInteger(0);
+  public static java.util.concurrent.atomic.AtomicInteger spatialJumpSuccessCount =
+      new java.util.concurrent.atomic.AtomicInteger(0);
+  public static java.util.concurrent.atomic.AtomicInteger randomFallbackCount =
+      new java.util.concurrent.atomic.AtomicInteger(0);
+
+  protected Random random = new Random();
 
   /**
    * Populates agents, OD matrix, for the simulation. It creates a set of agents with the learner
@@ -63,153 +65,142 @@ public class Populate {
     // Create agents with parameter true
     int totalAgents = Pars.numAgents;
     logger.info("Creating " + totalAgents + " Agents. Building Their Cognitive Maps");
-    List<Agent> newAgents = IntStream.range(0, totalAgents)
-      .mapToObj(this::createAgent)
-      .collect(Collectors.toList());
+    List<Agent> newAgents =
+        IntStream.range(0, totalAgents).mapToObj(this::createAgent).collect(Collectors.toList());
 
     // Step 2: Register agents sequentially (Thread-safe state update)
     for (Agent agent : newAgents) {
       state.agentsList.add(agent);
-      
+
       // Update agent position to its homeNode before adding to the layer
       if (agent.homeNode != null) {
-          agent.currentLocation.geometry = new GeometryFactory().createPoint(agent.homeNode.getCoordinate());
+        agent.currentLocation.geometry =
+            new GeometryFactory().createPoint(agent.homeNode.getCoordinate());
       }
-      
+
       state.agents.addGeometry(agent.getLocation());
       agent.updateAgentLists(false, true);
     }
-    
-    logger.info("Agent Routing Stats -> Spatial Jump Successes: " + spatialJumpSuccessCount.get() + 
-                " | Instant Random Fallbacks: " + randomFallbackCount.get());
+
+    logger.info("Agent Routing Stats -> Spatial Jump Successes: " + spatialJumpSuccessCount.get()
+        + " | Instant Random Fallbacks: " + randomFallbackCount.get());
     logger.info(state.agentsList.size() + " agents created");
   }
 
   private void prepareVulnerabilityZones() {
-    if (PedSimCity.vulnerabilityZones == null || PedSimCity.vulnerabilityZones.getGeometries().isEmpty()) {
+    if (PedSimCity.vulnerabilityZones == null
+        || PedSimCity.vulnerabilityZones.getGeometries().isEmpty()) {
       return;
     }
 
     logger.info("Mapping nodes to vulnerability zones...");
-    for (Object obj : PedSimCity.vulnerabilityZones.getGeometries()) {
-      MasonGeometry zone = (MasonGeometry) obj;
-      if (zone.getGeometry() == null) continue;
+
+    zonesList.clear();
+    zoneToNodesMap.clear();
+    zoneToWorkplaceWeight.clear();
+    zoneToNightWeight.clear();
+    nodeToZoneMap.clear();
+    totalProbability = 0.0;
+
+    // Load zones and cache attributes
+    for (MasonGeometry zone : PedSimCity.vulnerabilityZones.getGeometries()) {
+      if (zone == null || zone.getGeometry() == null) {
+        continue;
+      }
 
       zonesList.add(zone);
       zoneToNodesMap.put(zone, new ArrayList<>());
-      
-      // Parse residence percentage for spawning
-      Object attr = zone.getAttribute("zone_residence_pct");
-      double pct = 0.0;
-      if (attr != null) {
-          try {
-              Object val = ((sim.util.geo.AttributeValue) attr).getValue();
-              if (val != null) {
-                  pct = Double.parseDouble(val.toString().replace(",", "."));
-              }
-          } catch (Exception e) {
-              logger.warning("Failed to parse zone_residence_pct: " + e.getMessage());
-          }
-      }
-      totalProbability += pct;
 
-      // Parse and cache POI weights for destination selection
-      try {
-          Object workAttr = zone.getAttribute("workplace_count");
-          double workWeight = (workAttr != null) ? 
-              Double.parseDouble(((sim.util.geo.AttributeValue) workAttr).getValue().toString()) : 0.0;
-          zoneToWorkplaceWeight.put(zone, workWeight);
+      double residencePct = parseDoubleAttribute(zone, "zone_residence_pct");
+      double workWeight = parseDoubleAttribute(zone, "workplace_count");
+      double nightWeight = parseDoubleAttribute(zone, "night_dest_count");
 
-          Object nightAttr = zone.getAttribute("night_dest_count");
-          double nightWeight = (nightAttr != null) ? 
-              Double.parseDouble(((sim.util.geo.AttributeValue) nightAttr).getValue().toString()) : 0.0;
-          zoneToNightWeight.put(zone, nightWeight);
-      } catch (Exception e) {
-          logger.warning("Failed to parse POI counts for zone: " + e.getMessage());
-      }
-              logger.warning("Failed to parse zone_residence_pct for zone: " + e.getMessage());
-          }
-      }
-      totalProbability += pct;
+      totalProbability += residencePct;
+      zoneToWorkplaceWeight.put(zone, workWeight);
+      zoneToNightWeight.put(zone, nightWeight);
     }
 
+    // Build cumulative probabilities
     cumulativeProbabilities = new double[zonesList.size()];
     double currentSum = 0.0;
+
     for (int i = 0; i < zonesList.size(); i++) {
-        Object attr = zonesList.get(i).getAttribute("zone_residence_pct");
-        double pct = 0.0;
-        if (attr != null) {
-            try {
-                Object val = ((sim.util.geo.AttributeValue) attr).getValue();
-                if (val != null) {
-                    pct = Double.parseDouble(val.toString().replace(",", "."));
-                }
-            } catch (Exception e) {
-                logger.warning("Failed to parse cumulative pct: " + e.getMessage());
-            }
-        }
-        currentSum += pct;
-        cumulativeProbabilities[i] = currentSum;
+      MasonGeometry zone = zonesList.get(i);
+      double residencePct = parseDoubleAttribute(zone, "zone_residence_pct");
+      currentSum += residencePct;
+      cumulativeProbabilities[i] = currentSum;
     }
 
-    // Build a spatial index for the zones
+    // Build spatial index
     zoneIndex = new STRtree();
     for (MasonGeometry zone : zonesList) {
-        zoneIndex.insert(zone.getGeometry().getEnvelopeInternal(), zone);
+      zoneIndex.insert(zone.getGeometry().getEnvelopeInternal(), zone);
     }
     zoneIndex.build();
 
-    // Map all nodes to zones using the spatial index
+    // Map nodes to zones
     GeometryFactory gf = new GeometryFactory();
     List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
-    nodeToZoneMap.clear();
-    
+
     for (NodeGraph node : allNodes) {
       Point pt = gf.createPoint(node.getCoordinate());
-      
-      // Query the index for candidate zones (ones whose bounding box contains the point)
+
       @SuppressWarnings("unchecked")
-      List<MasonGeometry> candidates = (List<MasonGeometry>) zoneIndex.query(pt.getEnvelopeInternal());
-      
+      List<MasonGeometry> candidates =
+          (List<MasonGeometry>) zoneIndex.query(pt.getEnvelopeInternal());
+
       for (MasonGeometry zone : candidates) {
         if (zone.getGeometry().contains(pt) || zone.getGeometry().distance(pt) < 1e-6) {
           zoneToNodesMap.get(zone).add(node);
           nodeToZoneMap.put(node, zone);
-    // Map all nodes to zones to speed up agent spawning
-    GeometryFactory gf = new GeometryFactory();
-    List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
-    for (NodeGraph node : allNodes) {
-      Point pt = gf.createPoint(node.getCoordinate());
-      for (MasonGeometry zone : zonesList) {
-        if (zone.getGeometry().contains(pt) || zone.getGeometry().distance(pt) < 1e-6) {
-          zoneToNodesMap.get(zone).add(node);
-          break; // Assign node to first matching zone
+          break; // assign node to first matching zone
         }
       }
     }
   }
 
+  private double parseDoubleAttribute(MasonGeometry geometry, String attributeName) {
+    try {
+      Object attr = geometry.getAttribute(attributeName);
+      if (attr == null) {
+        return 0.0;
+      }
+
+      Object value = ((sim.util.geo.AttributeValue) attr).getValue();
+      if (value == null) {
+        return 0.0;
+      }
+
+      return Double.parseDouble(value.toString().replace(",", "."));
+    } catch (Exception e) {
+      logger.warning("Failed to parse attribute '" + attributeName + "': " + e.getMessage());
+      return 0.0;
+    }
+  }
+
   /**
-   * - [x] Update `Agent.java` (Core) with `hasWorkedToday` and 6-9 hour stay logic.
-   * - [x] Ensure `planTrip()` in `Agent.java` targets `workNode` during the day.
-   * - [x] Update `pedsim.night.agents.Agent.java` to stay consistent with core changes.
-   * - [x] Reset `hasWorkedToday` in `handleReachedHome()`.
-   * - [x] Verify the simulation boot and check the logs for agent walking patterns.
+   * - [x] Update `Agent.java` (Core) with `hasWorkedToday` and 6-9 hour stay logic. - [x] Ensure
+   * `planTrip()` in `Agent.java` targets `workNode` during the day. - [x] Update
+   * `pedsim.night.agents.Agent.java` to stay consistent with core changes. - [x] Reset
+   * `hasWorkedToday` in `handleReachedHome()`. - [x] Verify the simulation boot and check the logs
+   * for agent walking patterns.
+   * 
    * @param node The candidate destination node.
    * @param isDark Whether the simulation currently considers it "Night".
    * @return The weight (number of POIs) for that node's zone.
    */
   public static double getPOIWeight(NodeGraph node, boolean isDark) {
-      MasonGeometry zone = nodeToZoneMap.get(node);
-      if (zone == null) return 0.1; // Baseline for nodes outside any defined zone
-      
-      Double weight = isDark ? zoneToNightWeight.get(zone) : zoneToWorkplaceWeight.get(zone);
-      return (weight != null && weight > 0) ? weight : 0.1; // Return weight or baseline
+    MasonGeometry zone = nodeToZoneMap.get(node);
+    if (zone == null)
+      return 0.1; // Baseline for nodes outside any defined zone
+
+    Double weight = isDark ? zoneToNightWeight.get(zone) : zoneToWorkplaceWeight.get(zone);
+    return (weight != null && weight > 0) ? weight : 0.1; // Return weight or baseline
   }
 
   /**
-   * Creates a new agent but does NOT register it with simulation fields (VectorLayer, etc).
-   * This is intended to be called in parallel threads.
+   * Creates a new agent but does NOT register it with simulation fields (VectorLayer, etc). This is
+   * intended to be called in parallel threads.
    *
    * @param agentID The identifier of the agent.
    * @return The created agent.
@@ -218,176 +209,208 @@ public class Populate {
     Agent agent = new Agent(this.state, false);
     agent.agentID = agentID;
     defineHomeWorkLocations(agent);
-    return agent;
-    Agent agent = new Agent(this.state);
-    agent.agentID = agentID;
-    defineHomeWorkLocations(agent);
-    state.agentsList.add(agent);
     agent.updateAgentLists(false, true);
+    return agent;
   }
 
+  private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory();
+
   protected void defineHomeWorkLocations(Agent agent) {
+    LocationSelection selection = new LocationSelection();
+    boolean useCensusZones = hasUsableCensusZones();
 
-    // in the community network
-    NodeGraph homeNode = null;
-    NodeGraph workNode = null;
-    java.util.Random rnd = new java.util.Random();
-    
-    boolean useVulnerabilityZones = (zonesList != null && !zonesList.isEmpty() && totalProbability > 0);
-
-    if (useVulnerabilityZones) {
-      double r = rnd.nextDouble() * totalProbability;
-      int selectedZoneIndex = 0;
-      for (int i = 0; i < cumulativeProbabilities.length; i++) {
-        if (r <= cumulativeProbabilities[i]) {
-          selectedZoneIndex = i;
-          break;
-        }
-      }
-      
-      MasonGeometry selectedZone = zonesList.get(selectedZoneIndex);
-      List<NodeGraph> availableNodes = zoneToNodesMap.get(selectedZone);
-      
-      if (availableNodes != null && !availableNodes.isEmpty()) {
-        homeNode = availableNodes.get(rnd.nextInt(availableNodes.size()));
-      }
-      
-      Object vulnAttr = selectedZone.getAttribute("vulnerability_pct");
-      double vulnProb = 0.0;
-      if (vulnAttr != null) {
-          try {
-              Object val = ((sim.util.geo.AttributeValue) vulnAttr).getValue();
-              if (val != null) {
-                  vulnProb = Double.parseDouble(val.toString().replace(",", "."));
-              }
-          } catch (Exception e) {
-              logger.warning("Failed to parse vuln attribute: " + e.getMessage());
-          }
-      }
-      if (vulnProb > 1.0) vulnProb /= 100.0; // Assume 0-100 scale if value > 1
-      
-      double rVuln = rnd.nextDouble();
-      boolean isVuln = rVuln < vulnProb;
-      agent.setVulnerable(isVuln);
+    if (useCensusZones) {
+      MasonGeometry selectedZone = selectHomeZoneByResidenceWeight();
+      selection.homeNode = selectRandomNodeFromCensusZone(selectedZone);
     }
 
-    if (homeNode == null) {
-      int count = 0;
-      while (homeNode == null && count < 100) {
-        try {
-          homeNode = NodesLookup.randomNodeDMA(SharedCognitiveMap.getCommunityPrimalNetwork(), "live");
-        } catch (Exception e) {
-          homeNode = null;
-          break;
-        }
-        count++;
-      }
-    }
-    
-    // Fallback if no DMA found for homeNode
-    if (homeNode == null) {
-      java.util.List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
-      if (!allNodes.isEmpty()) {
-          homeNode = allNodes.get(rnd.nextInt(allNodes.size()));
-      }
-    }
+    if (selection.homeNode == null)
+      selection.homeNode = selectHomeNodeWithDMA();
 
-    int count = 0;
-    while (workNode == null && count < 20) {
-      if (useVulnerabilityZones) {
-          // Spatial Jump Optimization
-          Envelope env = new Envelope(homeNode.getCoordinate());
-          env.expandBy(RouteChoicePars.maxTripDistance);
-          @SuppressWarnings("unchecked")
-          List<MasonGeometry> candidates = (List<MasonGeometry>) zoneIndex.query(env);
-          
-          List<MasonGeometry> validZones = new ArrayList<>();
-          double totalW = 0.0;
-          Geometry pt = new GeometryFactory().createPoint(homeNode.getCoordinate());
-          
-          for(MasonGeometry z : candidates) {
-             // Calculate distance to centroid, not to nearest edge of the polygon
-             double d = z.getGeometry().getCentroid().distance(pt);
-             
-             // Euclidean distance is shorter than network distance, so relax the minimum constraint (e.g. 60%)
-             if (d >= (RouteChoicePars.minTripDistance * 0.6) && d <= RouteChoicePars.maxTripDistance) {
-                 validZones.add(z);
-                 Double rw = zoneToWorkplaceWeight.get(z);
-                 totalW += (rw != null ? rw : 0.0);
-             }
-          }
-          
-          if (!validZones.isEmpty() && totalW > 0) {
-              double rw = rnd.nextDouble() * totalW;
-              double cur = 0;
-              for(MasonGeometry z : validZones) {
-                  Double w = zoneToWorkplaceWeight.get(z);
-                  cur += (w != null ? w : 0.0);
-                  if (rw <= cur) {
-                      List<NodeGraph> znodes = zoneToNodesMap.get(z);
-                      if (znodes != null && !znodes.isEmpty()) {
-                          workNode = znodes.get(rnd.nextInt(znodes.size()));
-                          spatialJumpSuccessCount.incrementAndGet();
-                      }
-                      break;
-                  }
-              }
-          }
-          // Spatial jump is fast, but if it fails for this homeNode, do not loop 20 times!
-          // Break immediately to use the fast, random fallback node at the bottom.
-          break;
-      }
-      
+    if (selection.homeNode == null)
+      selection.homeNode = selectRandomNetworkNode();
 
-    int count = 0;
-    while (workNode == null && count < 20) {
-      if (useVulnerabilityZones && count > 0) {
-          // If we are using vulnerability zones, homeNode is fixed. If the first try fails,
-          // don't search from the same homeNode again 100 times. Break and use fallback.
-          break;
-      }
-      try {
-        workNode = NodesLookup.randomNodeBetweenDistanceIntervalDMA(
-            SharedCognitiveMap.getCommunityPrimalNetwork(), homeNode, RouteChoicePars.minTripDistance,
-            RouteChoicePars.maxTripDistance, "work");
-      } catch (Exception e) {
-        workNode = null;
+    assignWorkNode(selection, useCensusZones);
+    agent.setHomeWorkLoctations(selection.homeNode, selection.workNode);
+  }
+
+  private boolean hasUsableCensusZones() {
+    return zonesList != null && !zonesList.isEmpty() && cumulativeProbabilities != null
+        && cumulativeProbabilities.length == zonesList.size() && totalProbability > 0;
+  }
+
+  private MasonGeometry selectHomeZoneByResidenceWeight() {
+    double r = random.nextDouble() * totalProbability;
+
+    // Default to the last bucket to avoid edge cases caused by floating-point rounding.
+    int selectedZoneIndex = cumulativeProbabilities.length - 1;
+
+    for (int i = 0; i < cumulativeProbabilities.length; i++) {
+      if (r <= cumulativeProbabilities[i]) {
+        selectedZoneIndex = i;
         break;
       }
-      
-      // If we are not using vulnerability zones and workNode is still null, 
-      // the original logic would pick a new homeNode.
-      if (workNode == null && !useVulnerabilityZones) {
-          try {
-            homeNode = NodesLookup.randomNodeDMA(SharedCognitiveMap.getCommunityPrimalNetwork(), "live");
-          } catch (Exception e) {}
-      }
-      count++;
+    }
+    return zonesList.get(selectedZoneIndex);
+  }
+
+  private NodeGraph selectRandomNodeFromCensusZone(MasonGeometry zone) {
+    if (zone == null) {
+      return null;
     }
 
-    // Final fallback for workNode
-    // Fallback if no DMA found
-    if (homeNode == null) {
-      java.util.List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
-      homeNode = allNodes.get(rnd.nextInt(allNodes.size()));
+    List<NodeGraph> availableNodes = zoneToNodesMap.get(zone);
+    if (availableNodes == null || availableNodes.isEmpty()) {
+      return null;
     }
-    if (workNode == null) {
+
+    return availableNodes.get(random.nextInt(availableNodes.size()));
+  }
+
+  private NodeGraph selectHomeNodeWithDMA() {
+    try {
+      return NodesLookup.randomNodeDMA(SharedCognitiveMap.getCommunityPrimalNetwork(), "live");
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  private NodeGraph selectRandomNetworkNode() {
+    List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
+    if (allNodes == null || allNodes.isEmpty()) {
+      return null;
+    }
+
+    return allNodes.get(random.nextInt(allNodes.size()));
+  }
+
+  private void assignWorkNode(LocationSelection selection, boolean useCensusZones) {
+    if (selection == null || selection.homeNode == null) {
+      return;
+    }
+
+    if (useCensusZones && zoneIndex != null) {
+      selection.workNode = selectWorkNodeFromZones(selection.homeNode);
+    }
+
+    if (selection.workNode == null) {
+      selection.workNode = selectWorkNodeWithDMA(selection, useCensusZones);
+    }
+
+    if (selection.workNode == null) {
+      selection.workNode = selectWorkNodeWithDistanceFallback(selection.homeNode);
+    }
+
+    if (selection.workNode == null) {
+      selection.workNode = selectRandomNetworkNode();
+      if (selection.workNode != null) {
+        randomFallbackCount.incrementAndGet();
+      }
+    }
+  }
+
+  private NodeGraph selectWorkNodeFromZones(NodeGraph homeNode) {
+    Envelope env = new Envelope(homeNode.getCoordinate());
+    env.expandBy(RouteChoicePars.maxTripDistance);
+
+    @SuppressWarnings("unchecked")
+    List<MasonGeometry> candidates = (List<MasonGeometry>) zoneIndex.query(env);
+
+    if (candidates == null || candidates.isEmpty()) {
+      return null;
+    }
+
+    List<MasonGeometry> validZones = new ArrayList<>();
+    double totalWeight = 0.0;
+    Point homePoint = GEOMETRY_FACTORY.createPoint(homeNode.getCoordinate());
+
+    for (MasonGeometry zone : candidates) {
+      if (zone == null || zone.getGeometry() == null) {
+        continue;
+      }
+
+      // We use centroid distance as a cheap spatial pre-filter before picking a node in the zone.
+      double distanceToCentroid = zone.getGeometry().getCentroid().distance(homePoint);
+
+      // The 0.6 relaxation is intentional: Euclidean distance is usually shorter than network
+      // distance.
+      if (distanceToCentroid >= (RouteChoicePars.minTripDistance * 0.6)
+          && distanceToCentroid <= RouteChoicePars.maxTripDistance) {
+        validZones.add(zone);
+        totalWeight += getZoneWorkplaceWeight(zone);
+      }
+    }
+
+    if (validZones.isEmpty() || totalWeight <= 0.0) {
+      return null;
+    }
+
+    double r = random.nextDouble() * totalWeight;
+    double cumulative = 0.0;
+
+    for (MasonGeometry zone : validZones) {
+      cumulative += getZoneWorkplaceWeight(zone);
+
+      if (r <= cumulative) {
+        NodeGraph node = selectRandomNodeFromZone(zone);
+        if (node != null) {
+          spatialJumpSuccessCount.incrementAndGet();
+        }
+        return node;
+      }
+    }
+
+    return null;
+  }
+
+  private double getZoneWorkplaceWeight(MasonGeometry zone) {
+    Double weight = zoneToWorkplaceWeight.get(zone);
+    return weight != null ? weight : 0.0;
+  }
+
+  private NodeGraph selectWorkNodeWithDMA(LocationSelection selection,
+      boolean useVulnerabilityZones) {
+    int attempts = 0;
+
+    while (attempts < 20) {
       try {
-        workNode = NodesLookup.randomNodeBetweenDistanceInterval(
-            SharedCognitiveMap.getCommunityPrimalNetwork(), homeNode, RouteChoicePars.minTripDistance,
-            RouteChoicePars.maxTripDistance);
+        NodeGraph node = NodesLookup.randomNodeBetweenDistanceIntervalDMA(
+            SharedCognitiveMap.getCommunityPrimalNetwork(), selection.homeNode,
+            RouteChoicePars.minTripDistance, RouteChoicePars.maxTripDistance, "work");
+
+        if (node != null) {
+          return node;
+        }
       } catch (Exception e) {
-        workNode = null;
+        return null;
       }
-    }
-    if (workNode == null) {
-      java.util.List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
-      if (!allNodes.isEmpty()) {
-          workNode = allNodes.get(rnd.nextInt(allNodes.size()));
-          randomFallbackCount.incrementAndGet();
+
+      // In the non-zone workflow, the legacy logic retries with a different home node.
+      if (!useVulnerabilityZones) {
+        NodeGraph replacementHome = selectHomeNodeWithDMA();
+        if (replacementHome != null) {
+          selection.homeNode = replacementHome;
+        }
       }
+
+      attempts++;
     }
 
-    agent.setHomeWorkLoctations(homeNode, workNode);
+    return null;
+  }
+
+  private NodeGraph selectWorkNodeWithDistanceFallback(NodeGraph homeNode) {
+    try {
+      return NodesLookup.randomNodeBetweenDistanceInterval(
+          SharedCognitiveMap.getCommunityPrimalNetwork(), homeNode, RouteChoicePars.minTripDistance,
+          RouteChoicePars.maxTripDistance);
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  private static final class LocationSelection {
+    private NodeGraph homeNode;
+    private NodeGraph workNode;
   }
 }
