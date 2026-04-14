@@ -1,17 +1,15 @@
 package pedsim.core.engine;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
-import org.locationtech.jts.index.strtree.STRtree;
 import pedsim.core.agents.Agent;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.parameters.Pars;
@@ -29,25 +27,18 @@ public class Populate {
 
   protected PedSimCity state;
   protected static final Logger logger = LoggerUtil.getLogger();
+  final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory();
+  protected Random random = new Random();
 
-  private List<MasonGeometry> zonesList = new ArrayList<>();
   private double[] cumulativeProbabilities;
-  private Map<MasonGeometry, List<NodeGraph>> zoneToNodesMap = new HashMap<>();
   private double totalProbability = 0.0;
 
-  // Caches for POI-based destination selection
-  private static Map<MasonGeometry, Double> zoneToWorkplaceWeight = new HashMap<>();
-  private static Map<MasonGeometry, Double> zoneToNightWeight = new HashMap<>();
-  private static Map<NodeGraph, MasonGeometry> nodeToZoneMap = new HashMap<>();
-  private static STRtree zoneIndex;
+  private NodeGraph homeNode;
+  private NodeGraph workNode;
 
   // Counters to test Spatial Jump vs Fallback performance
-  public static java.util.concurrent.atomic.AtomicInteger spatialJumpSuccessCount =
-      new java.util.concurrent.atomic.AtomicInteger(0);
-  public static java.util.concurrent.atomic.AtomicInteger randomFallbackCount =
-      new java.util.concurrent.atomic.AtomicInteger(0);
-
-  protected Random random = new Random();
+  public static AtomicInteger spatialJumpSuccessCount = new AtomicInteger(0);
+  public static AtomicInteger randomFallbackCount = new AtomicInteger(0);
 
   /**
    * Populates agents, OD matrix, for the simulation. It creates a set of agents with the learner
@@ -58,8 +49,6 @@ public class Populate {
   public void populate(PedSimCity state) {
 
     this.state = state;
-
-    prepareVulnerabilityZones();
 
     // Step 1: Create agents in sequence (Fast with spatial index)
     // Create agents with parameter true
@@ -87,6 +76,7 @@ public class Populate {
     logger.info(state.agentsList.size() + " agents created");
   }
 
+<<<<<<< Updated upstream
   private void prepareVulnerabilityZones() {
     if (PedSimCity.censusZones == null
         || PedSimCity.censusZones.getGeometries().isEmpty()) {
@@ -198,6 +188,8 @@ public class Populate {
     return (weight != null && weight > 0) ? weight : 0.1; // Return weight or baseline
   }
 
+=======
+>>>>>>> Stashed changes
   /**
    * Creates a new agent but does NOT register it with simulation fields (VectorLayer, etc). This is
    * intended to be called in parallel threads.
@@ -213,30 +205,68 @@ public class Populate {
     return agent;
   }
 
-  private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory();
+  /**
+   * - [x] Update `Agent.java` (Core) with `hasWorkedToday` and 6-9 hour stay logic. - [x] Ensure
+   * `planTrip()` in `Agent.java` targets `workNode` during the day. - [x] Update
+   * `pedsim.night.agents.Agent.java` to stay consistent with core changes. - [x] Reset
+   * `hasWorkedToday` in `handleReachedHome()`. - [x] Verify the simulation boot and check the logs
+   * for agent walking patterns.
+   * 
+   * @param node The candidate destination node.
+   * @param isDark Whether the simulation currently considers it "Night".
+   * @return The weight (number of POIs) for that node's zone.
+   */
+  public static double getPOIWeight(NodeGraph node, boolean isDark) {
+    MasonGeometry zone = PedSimCity.nodesCensusZonesMap.get(node);
+    if (zone == null)
+      return 0.1; // Baseline for nodes outside any defined zone
+
+    Double weight = isDark ? PedSimCity.censusZonesNightWeight.get(zone)
+        : PedSimCity.censusZonesWorkplaceWeight.get(zone);
+    return (weight != null && weight > 0) ? weight : 0.1; // Return weight or baseline
+  }
 
   protected void defineHomeWorkLocations(Agent agent) {
-    LocationSelection selection = new LocationSelection();
+
     boolean useCensusZones = hasUsableCensusZones();
+    assignHomeNode(useCensusZones);
+    assignWorkNode(useCensusZones);
+    agent.setHomeWorkLoctations(homeNode, workNode);
+  }
+
+  private void assignHomeNode(boolean useCensusZones) {
 
     if (useCensusZones) {
+      buildResidenceProbabilities();
       MasonGeometry selectedZone = selectHomeZoneByResidenceWeight();
-      selection.homeNode = selectRandomNodeFromCensusZone(selectedZone);
+      homeNode = selectRandomNodeFromCensusZone(selectedZone);
     }
 
-    if (selection.homeNode == null)
-      selection.homeNode = selectHomeNodeWithDMA();
+    if (homeNode == null)
+      homeNode = selectHomeNodeWithDMA();
 
-    if (selection.homeNode == null)
-      selection.homeNode = selectRandomNetworkNode();
+    if (homeNode == null)
+      homeNode = selectRandomNode();
+  }
 
-    assignWorkNode(selection, useCensusZones);
-    agent.setHomeWorkLoctations(selection.homeNode, selection.workNode);
+  // Load census zones and build cumulative residence probabilities
+  private void buildResidenceProbabilities() {
+
+    cumulativeProbabilities = new double[PedSimCity.censusZonesList.size()];
+    double cumulative = 0.0;
+
+    for (MasonGeometry zone : PedSimCity.censusZonesList) {
+      double residencePct = zone.getDoubleAttribute("residence_pct");
+      totalProbability += residencePct;
+      cumulative += residencePct;
+      cumulativeProbabilities[PedSimCity.censusZonesList.indexOf(zone)] = cumulative;
+    }
   }
 
   private boolean hasUsableCensusZones() {
-    return zonesList != null && !zonesList.isEmpty() && cumulativeProbabilities != null
-        && cumulativeProbabilities.length == zonesList.size() && totalProbability > 0;
+    return !PedSimCity.censusZonesList.isEmpty() && cumulativeProbabilities != null
+        && cumulativeProbabilities.length == PedSimCity.censusZonesList.size()
+        && totalProbability > 0;
   }
 
   private MasonGeometry selectHomeZoneByResidenceWeight() {
@@ -251,19 +281,14 @@ public class Populate {
         break;
       }
     }
-    return zonesList.get(selectedZoneIndex);
+    return PedSimCity.censusZonesList.get(selectedZoneIndex);
   }
 
   private NodeGraph selectRandomNodeFromCensusZone(MasonGeometry zone) {
-    if (zone == null) {
-      return null;
-    }
 
-    List<NodeGraph> availableNodes = zoneToNodesMap.get(zone);
-    if (availableNodes == null || availableNodes.isEmpty()) {
+    List<NodeGraph> availableNodes = PedSimCity.censusZonesNodesMap.get(zone);
+    if (availableNodes == null || availableNodes.isEmpty())
       return null;
-    }
-
     return availableNodes.get(random.nextInt(availableNodes.size()));
   }
 
@@ -275,107 +300,97 @@ public class Populate {
     }
   }
 
-  private NodeGraph selectRandomNetworkNode() {
-    List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
-    if (allNodes == null || allNodes.isEmpty()) {
-      return null;
-    }
-
-    return allNodes.get(random.nextInt(allNodes.size()));
-  }
-
-  private void assignWorkNode(LocationSelection selection, boolean useCensusZones) {
-    if (selection == null || selection.homeNode == null) {
+  private void assignWorkNode(boolean useCensusZones) {
+    if (homeNode == null)
       return;
-    }
 
-    if (useCensusZones && zoneIndex != null) {
-      selection.workNode = selectWorkNodeFromZones(selection.homeNode);
-    }
+    if (useCensusZones)
+      workNode = selectWorkNodeFromZones(homeNode);
 
-    if (selection.workNode == null) {
-      selection.workNode = selectWorkNodeWithDMA(selection, useCensusZones);
-    }
+    if (workNode == null)
+      workNode = selectWorkNodeWithDMA(useCensusZones);
 
-    if (selection.workNode == null) {
-      selection.workNode = selectWorkNodeWithDistanceFallback(selection.homeNode);
-    }
+    if (workNode == null)
+      workNode = selectWorkNodeWithDistanceFallback(homeNode);
 
-    if (selection.workNode == null) {
-      selection.workNode = selectRandomNetworkNode();
-      if (selection.workNode != null) {
+
+    if (workNode == null) {
+      workNode = selectRandomNode();
+      if (workNode != null) {
         randomFallbackCount.incrementAndGet();
       }
     }
   }
 
   private NodeGraph selectWorkNodeFromZones(NodeGraph homeNode) {
-    Envelope env = new Envelope(homeNode.getCoordinate());
-    env.expandBy(RouteChoicePars.maxTripDistance);
+
+    Envelope envelope = new Envelope(homeNode.getCoordinate());
+    // TODO probably to improve?
+    envelope.expandBy(RouteChoicePars.maxTripDistance);
 
     @SuppressWarnings("unchecked")
-    List<MasonGeometry> candidates = (List<MasonGeometry>) zoneIndex.query(env);
+    List<MasonGeometry> candidates = PedSimCity.censusZonesSpatialIndex.query(envelope);
 
     if (candidates == null || candidates.isEmpty()) {
       return null;
     }
 
-    List<MasonGeometry> validZones = new ArrayList<>();
+    List<MasonGeometry> validCensusZones = new ArrayList<>();
     double totalWeight = 0.0;
     Point homePoint = GEOMETRY_FACTORY.createPoint(homeNode.getCoordinate());
 
-    for (MasonGeometry zone : candidates) {
-      if (zone == null || zone.getGeometry() == null) {
-        continue;
-      }
+    for (MasonGeometry candidateZone : candidates) {
 
       // We use centroid distance as a cheap spatial pre-filter before picking a node in the zone.
-      double distanceToCentroid = zone.getGeometry().getCentroid().distance(homePoint);
+      double distanceToCentroid = candidateZone.getGeometry().getCentroid().distance(homePoint);
 
       // The 0.6 relaxation is intentional: Euclidean distance is usually shorter than network
       // distance.
       if (distanceToCentroid >= (RouteChoicePars.minTripDistance * 0.6)
           && distanceToCentroid <= RouteChoicePars.maxTripDistance) {
-        validZones.add(zone);
-        totalWeight += getZoneWorkplaceWeight(zone);
+        validCensusZones.add(candidateZone);
+        totalWeight += getZoneWorkplaceWeight(candidateZone);
       }
     }
 
-    if (validZones.isEmpty() || totalWeight <= 0.0) {
+    if (validCensusZones.isEmpty() || totalWeight <= 0.0)
       return null;
-    }
 
     double r = random.nextDouble() * totalWeight;
     double cumulative = 0.0;
 
-    for (MasonGeometry zone : validZones) {
-      cumulative += getZoneWorkplaceWeight(zone);
+    for (MasonGeometry validCensusZone : validCensusZones) {
+      cumulative += getZoneWorkplaceWeight(validCensusZone);
 
       if (r <= cumulative) {
+<<<<<<< Updated upstream
         NodeGraph node = selectRandomNodeFromCensusZone(zone);
         if (node != null) {
           spatialJumpSuccessCount.incrementAndGet();
         }
+=======
+        NodeGraph node = selectRandomNodeFromCensusZone(validCensusZone);
+        spatialJumpSuccessCount.incrementAndGet();
+>>>>>>> Stashed changes
         return node;
       }
     }
-
     return null;
   }
 
   private double getZoneWorkplaceWeight(MasonGeometry zone) {
-    Double weight = zoneToWorkplaceWeight.get(zone);
+    Double weight = PedSimCity.censusZonesWorkplaceWeight.get(zone);
     return weight != null ? weight : 0.0;
   }
 
-  private NodeGraph selectWorkNodeWithDMA(LocationSelection selection,
-      boolean useVulnerabilityZones) {
+  // TODO, include the vulnerability in a overriding function in night.Populate
+  private NodeGraph selectWorkNodeWithDMA(boolean useVulnerability) {
     int attempts = 0;
 
     while (attempts < 20) {
       try {
         NodeGraph node = NodesLookup.randomNodeBetweenDistanceIntervalDMA(
-            SharedCognitiveMap.getCommunityPrimalNetwork(), selection.homeNode,
+            SharedCognitiveMap.getCommunityPrimalNetwork(), homeNode,
             RouteChoicePars.minTripDistance, RouteChoicePars.maxTripDistance, "work");
 
         if (node != null) {
@@ -386,16 +401,15 @@ public class Populate {
       }
 
       // In the non-zone workflow, the legacy logic retries with a different home node.
-      if (!useVulnerabilityZones) {
+      if (!useVulnerability) {
         NodeGraph replacementHome = selectHomeNodeWithDMA();
         if (replacementHome != null) {
-          selection.homeNode = replacementHome;
+          homeNode = replacementHome;
         }
       }
 
       attempts++;
     }
-
     return null;
   }
 
@@ -409,8 +423,8 @@ public class Populate {
     }
   }
 
-  private static final class LocationSelection {
-    private NodeGraph homeNode;
-    private NodeGraph workNode;
+  private NodeGraph selectRandomNode() {
+    List<NodeGraph> nodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
+    return nodes.get(random.nextInt(nodes.size()));
   }
 }
