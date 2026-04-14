@@ -44,10 +44,10 @@ public class Populate extends pedsim.core.engine.Populate {
     return agent;
   }
 
-  // TODO to link with census zones
-  private void assignVulnerabilityStatus(Agent agent, MasonGeometry zone) {
+  // TODO to link with agent
+  private void assignVulnerabilityStatus(Agent agent, MasonGeometry censusZone) {
 
-    double vulnProb = parseDoubleAttribute(zone, "vulnerability_pct");
+    double vulnProb = censusZone.getDoubleAttribute("vulnerability_pct");
     if (vulnProb > 1.0) {
       vulnProb /= 100.0;
     }
