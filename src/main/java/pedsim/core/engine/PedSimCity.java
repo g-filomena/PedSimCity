@@ -11,6 +11,7 @@ import org.javatuples.Pair;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.index.strtree.STRtree;
 import org.locationtech.jts.linearref.LengthIndexedLine;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.agents.Agent;
@@ -44,6 +45,13 @@ public class PedSimCity extends SimState {
   // TODO
   public static VectorLayer poiWeights;
 
+  // Caches for POI-based destination selection
+  public static Map<MasonGeometry, Double> censusZonesWorkplaceWeight = new HashMap<>();
+  public static Map<MasonGeometry, Double> censusZonesNightWeight = new HashMap<>();
+  public static Map<NodeGraph, MasonGeometry> nodesCensusZonesMap = new HashMap<>();
+  public static STRtree censusZonesSpatialIndex = new STRtree();
+  public static List<MasonGeometry> censusZonesList = new ArrayList<>();
+  public static Map<MasonGeometry, List<NodeGraph>> censusZonesNodesMap = new HashMap<>();
 
   final public static Graph network = new Graph();
   final public static Graph dualNetwork = new Graph();
