@@ -76,120 +76,6 @@ public class Populate {
     logger.info(state.agentsList.size() + " agents created");
   }
 
-<<<<<<< Updated upstream
-  private void prepareVulnerabilityZones() {
-    if (PedSimCity.censusZones == null
-        || PedSimCity.censusZones.getGeometries().isEmpty()) {
-      return;
-    }
-
-    logger.info("Mapping nodes to vulnerability zones...");
-
-    zonesList.clear();
-    zoneToNodesMap.clear();
-    zoneToWorkplaceWeight.clear();
-    zoneToNightWeight.clear();
-    nodeToZoneMap.clear();
-    totalProbability = 0.0;
-
-    // Load zones and cache attributes
-    for (MasonGeometry zone : PedSimCity.censusZones.getGeometries()) {
-      if (zone == null || zone.getGeometry() == null) {
-        continue;
-      }
-
-      zonesList.add(zone);
-      zoneToNodesMap.put(zone, new ArrayList<>());
-
-      double residencePct = parseDoubleAttribute(zone, "zone_residence_pct");
-      double workWeight = parseDoubleAttribute(zone, "workplace_count");
-      double nightWeight = parseDoubleAttribute(zone, "night_dest_count");
-
-      totalProbability += residencePct;
-      zoneToWorkplaceWeight.put(zone, workWeight);
-      zoneToNightWeight.put(zone, nightWeight);
-    }
-
-    // Build cumulative probabilities
-    cumulativeProbabilities = new double[zonesList.size()];
-    double currentSum = 0.0;
-
-    for (int i = 0; i < zonesList.size(); i++) {
-      MasonGeometry zone = zonesList.get(i);
-      double residencePct = parseDoubleAttribute(zone, "zone_residence_pct");
-      currentSum += residencePct;
-      cumulativeProbabilities[i] = currentSum;
-    }
-
-    // Build spatial index
-    zoneIndex = new STRtree();
-    for (MasonGeometry zone : zonesList) {
-      zoneIndex.insert(zone.getGeometry().getEnvelopeInternal(), zone);
-    }
-    zoneIndex.build();
-
-    // Map nodes to zones
-    GeometryFactory gf = new GeometryFactory();
-    List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
-
-    for (NodeGraph node : allNodes) {
-      Point pt = gf.createPoint(node.getCoordinate());
-
-      @SuppressWarnings("unchecked")
-      List<MasonGeometry> candidates =
-          (List<MasonGeometry>) zoneIndex.query(pt.getEnvelopeInternal());
-
-      for (MasonGeometry zone : candidates) {
-        if (zone.getGeometry().contains(pt) || zone.getGeometry().distance(pt) < 1e-6) {
-          zoneToNodesMap.get(zone).add(node);
-          nodeToZoneMap.put(node, zone);
-          break; // assign node to first matching zone
-        }
-      }
-    }
-  }
-
-  protected double parseDoubleAttribute(MasonGeometry geometry, String attributeName) {
-    try {
-      Object attr = geometry.getAttribute(attributeName);
-      if (attr == null) {
-        return 0.0;
-      }
-
-      Object value = ((sim.util.geo.AttributeValue) attr).getValue();
-      if (value == null) {
-        return 0.0;
-      }
-
-      return Double.parseDouble(value.toString().replace(",", "."));
-    } catch (Exception e) {
-      logger.warning("Failed to parse attribute '" + attributeName + "': " + e.getMessage());
-      return 0.0;
-    }
-  }
-
-  /**
-   * - [x] Update `Agent.java` (Core) with `hasWorkedToday` and 6-9 hour stay logic. - [x] Ensure
-   * `planTrip()` in `Agent.java` targets `workNode` during the day. - [x] Update
-   * `pedsim.night.agents.Agent.java` to stay consistent with core changes. - [x] Reset
-   * `hasWorkedToday` in `handleReachedHome()`. - [x] Verify the simulation boot and check the logs
-   * for agent walking patterns.
-   * 
-   * @param node The candidate destination node.
-   * @param isDark Whether the simulation currently considers it "Night".
-   * @return The weight (number of POIs) for that node's zone.
-   */
-  public static double getPOIWeight(NodeGraph node, boolean isDark) {
-    MasonGeometry zone = nodeToZoneMap.get(node);
-    if (zone == null)
-      return 0.1; // Baseline for nodes outside any defined zone
-
-    Double weight = isDark ? zoneToNightWeight.get(zone) : zoneToWorkplaceWeight.get(zone);
-    return (weight != null && weight > 0) ? weight : 0.1; // Return weight or baseline
-  }
-
-=======
->>>>>>> Stashed changes
   /**
    * Creates a new agent but does NOT register it with simulation fields (VectorLayer, etc). This is
    * intended to be called in parallel threads.
@@ -363,15 +249,8 @@ public class Populate {
       cumulative += getZoneWorkplaceWeight(validCensusZone);
 
       if (r <= cumulative) {
-<<<<<<< Updated upstream
-        NodeGraph node = selectRandomNodeFromCensusZone(zone);
-        if (node != null) {
-          spatialJumpSuccessCount.incrementAndGet();
-        }
-=======
         NodeGraph node = selectRandomNodeFromCensusZone(validCensusZone);
         spatialJumpSuccessCount.incrementAndGet();
->>>>>>> Stashed changes
         return node;
       }
     }
