@@ -88,8 +88,8 @@ public class Populate {
   }
 
   private void prepareVulnerabilityZones() {
-    if (PedSimCity.vulnerabilityZones == null
-        || PedSimCity.vulnerabilityZones.getGeometries().isEmpty()) {
+    if (PedSimCity.censusZones == null
+        || PedSimCity.censusZones.getGeometries().isEmpty()) {
       return;
     }
 
@@ -103,7 +103,7 @@ public class Populate {
     totalProbability = 0.0;
 
     // Load zones and cache attributes
-    for (MasonGeometry zone : PedSimCity.vulnerabilityZones.getGeometries()) {
+    for (MasonGeometry zone : PedSimCity.censusZones.getGeometries()) {
       if (zone == null || zone.getGeometry() == null) {
         continue;
       }
@@ -159,7 +159,7 @@ public class Populate {
     }
   }
 
-  private double parseDoubleAttribute(MasonGeometry geometry, String attributeName) {
+  protected double parseDoubleAttribute(MasonGeometry geometry, String attributeName) {
     try {
       Object attr = geometry.getAttribute(attributeName);
       if (attr == null) {
@@ -352,7 +352,7 @@ public class Populate {
       cumulative += getZoneWorkplaceWeight(zone);
 
       if (r <= cumulative) {
-        NodeGraph node = selectRandomNodeFromZone(zone);
+        NodeGraph node = selectRandomNodeFromCensusZone(zone);
         if (node != null) {
           spatialJumpSuccessCount.incrementAndGet();
         }

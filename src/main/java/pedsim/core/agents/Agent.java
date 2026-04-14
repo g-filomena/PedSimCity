@@ -26,7 +26,8 @@ import sim.routing.Route;
 import sim.util.geo.MasonGeometry;
 
 /**
- * This class represents an agent in the pedestrian simulation. Agents move along paths between
+ * This class represents an agent in the pedestrian simulation. Agents move
+ * along paths between
  * origin and destination nodes.
  */
 public class Agent implements Steppable {
@@ -67,7 +68,8 @@ public class Agent implements Steppable {
   protected boolean hasWorkedToday = false;
 
   /**
-   * Constructor Function. Creates a new agent with the specified agent properties.
+   * Constructor Function. Creates a new agent with the specified agent
+   * properties.
    *
    * @param state the PedSimCity simulation state.
    */
@@ -100,7 +102,8 @@ public class Agent implements Steppable {
     }
   }
 
-  public Agent() {}
+  public Agent() {
+  }
 
   /**
    * Initialises the agent properties.
@@ -110,7 +113,8 @@ public class Agent implements Steppable {
   }
 
   /**
-   * This is called every tick by the scheduler. It moves the agent along the path.
+   * This is called every tick by the scheduler. It moves the agent along the
+   * path.
    *
    * @param state the simulation state.
    */
@@ -185,8 +189,7 @@ public class Agent implements Steppable {
     Graph network = SharedCognitiveMap.getCommunityPrimalNetwork();
     List<NodeGraph> candidates = new ArrayList<>();
     while (candidates.isEmpty()) {
-      candidates =
-          NodesLookup.getNodesBetweenDistanceInterval(network, originNode, lowerLimit, upperLimit);
+      candidates = NodesLookup.getNodesBetweenDistanceInterval(network, originNode, lowerLimit, upperLimit);
       candidates.retainAll(GraphUtils.getNodesFromNodeIDs(getCognitiveMap().getAgentKnownNodes(),
           PedSimCity.nodesMap));
       lowerLimit = lowerLimit * 0.90;
@@ -200,7 +203,7 @@ public class Agent implements Steppable {
    * Selects a destination from a list of candidates weighted by POI counts.
    * 
    * @param candidates List of potential destination nodes.
-   * @param isDark Whether to use night weights (true) or day weights (false).
+   * @param isDark     Whether to use night weights (true) or day weights (false).
    * @return The selected destination NodeGraph.
    */
   protected NodeGraph selectWeightedDestination(List<NodeGraph> candidates, boolean isDark) {
@@ -310,7 +313,7 @@ public class Agent implements Steppable {
   /**
    * Updates the agent's status in the agent lists.
    *
-   * @param isWalking indicates whether the agent is walking or not.
+   * @param isWalking   indicates whether the agent is walking or not.
    * @param reachedHome indicates whether the agent has reached home.
    */
   public void updateAgentLists(boolean isWalking, boolean reachedHome) {
