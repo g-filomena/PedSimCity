@@ -136,7 +136,7 @@ public class Engine {
   private void handleNewDay() {
     kmCurrentDay = calculateMetersCurrentDay();
     logger.info("---------- Beginning day Nr " + (currentDay + 1));
-    currentDayReleaseManager = new AgentReleaseManager(state, kmCurrentDay);
+    currentDayReleaseManager = new AgentReleaseManager(state, kmCurrentDay, currentDay + 1);
   }
 
   /**

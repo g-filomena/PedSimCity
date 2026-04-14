@@ -39,6 +39,11 @@ public class PedSimCity extends SimState {
   public static VectorLayer barriers = new VectorLayer();
   public static VectorLayer junctions = new VectorLayer();
   public static VectorLayer sightLines = new VectorLayer();
+  public static VectorLayer censusZones = new VectorLayer();
+
+  // TODO
+  public static VectorLayer poiWeights;
+
 
   final public static Graph network = new Graph();
   final public static Graph dualNetwork = new Graph();
@@ -62,7 +67,7 @@ public class PedSimCity extends SimState {
   public static List<MasonGeometry> startingNodes = new ArrayList<>();
 
   public static Map<DirectedEdge, LengthIndexedLine> indexedEdgeCache = new ConcurrentHashMap<>();
-  public static Map<Pair<Coordinate, Coordinate>, Polygon> visibilityPolygonsCache =
+  public static Map<Pair<Coordinate, Coordinate>, Polygon> censusZonesCache =
       new ConcurrentHashMap<>();
   // cached alternative routes for night movement
   public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> alternativeRoutes =
@@ -78,8 +83,6 @@ public class PedSimCity extends SimState {
   public Set<Agent> agentsList = ConcurrentHashMap.newKeySet();
 
   public ScenarioConfig scenarioConfig;
-
-
 
   /**
    * Constructs a new instance of the PedSimCity simulation environment.

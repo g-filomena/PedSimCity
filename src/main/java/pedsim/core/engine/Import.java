@@ -26,6 +26,8 @@ public class Import {
     readLandmarksAndSightLines();
     readBarriers();
     readGraphs();
+    readCensusZones();
+    readPoiWeights();
   }
 
   /**
@@ -104,6 +106,41 @@ public class Import {
       logger.info("Barriers successfully imported.");
     } catch (Exception e) {
       handleImportError("Importing Barriers Failed", e);
+    }
+  }
+
+
+  /**
+   * Reads and imports census zones data for the simulation.
+   */
+  protected void readCensusZones() throws Exception {
+    readOptionalLayer("censusData", PedSimCity.censusZones);
+  }
+
+  /**
+   * Reads and imports POI weights data for the simulation.
+   */
+  protected void readPoiWeights() throws Exception {
+    readOptionalLayer("POIweights", PedSimCity.poiWeights);
+  }
+
+  /**
+   * Reads an optional GeoPackage layer into the given target layer.
+   */
+  protected void readOptionalLayer(String layerName, VectorLayer targetLayer) throws Exception {
+
+    try {
+      String resourceName = Pars.cityName + "/" + Pars.cityName + "_" + layerName + ".gpkg";
+      URL fileUrl = CLASSLOADER.getResource(resourceName);
+
+      if (fileUrl == null) {
+        throw new IllegalStateException("Resource not found: " + resourceName);
+      }
+      VectorLayer.readGPKG(fileUrl, targetLayer);
+      targetLayer.getGeometries().removeIf(obj -> obj.getGeometry() == null);
+      logger.info(layerName + " successfully imported.");
+    } catch (Exception e) {
+      handleImportError("Importing " + layerName + " Failed", e);
     }
   }
 
