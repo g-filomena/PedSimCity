@@ -54,6 +54,15 @@ public class Environment {
     }
 
     SharedCognitiveMap.setCommunityCognitiveMap();
+
+    if (!PedSimCity.censusZones.getGeometries().isEmpty()) {
+      prepareCensusZones();
+    }
+
+    // TODO
+    // if (!PedSimCity.poi.getGeometries().isEmpty()) {
+    // preparePOI();
+    // }
   }
 
   /**
@@ -333,6 +342,54 @@ public class Environment {
       region.primalGraph = primalGraph;
       region.dualGraph = dualGraph;
       region.regionNetwork = regionNetwork;
+    }
+  }
+
+  private static void prepareCensusZones() {
+
+    // Load census zones and cache attributes
+    for (MasonGeometry censusZone : PedSimCity.censusZones.getGeometries()) {
+
+      PedSimCity.censusZonesList.add(censusZone);
+      PedSimCity.censusZonesNodesMap.put(censusZone, new ArrayList<>());
+
+      double workWeight = censusZone.getDoubleAttribute("workplace_count");
+      double nightWeight = censusZone.getDoubleAttribute("night_dest_count");
+
+      PedSimCity.censusZonesWorkplaceWeight.put(censusZone, workWeight);
+      PedSimCity.censusZonesNightWeight.put(censusZone, nightWeight);
+    }
+
+    buildSpatialCensusZones();
+  }
+
+  private static void buildSpatialCensusZones() {
+
+    // Build spatial index of census zones
+    for (MasonGeometry censusZone : PedSimCity.censusZonesList) {
+      PedSimCity.censusZonesSpatialIndex.insert(censusZone.getGeometry().getEnvelopeInternal(),
+          censusZone);
+    }
+    PedSimCity.censusZonesSpatialIndex.build();
+
+    List<NodeGraph> nodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
+
+    for (NodeGraph node : nodes) {
+      Geometry nodeGeometry = node.getMasonGeometry().getGeometry();
+
+      @SuppressWarnings("unchecked")
+      List<MasonGeometry> candidateZones =
+          PedSimCity.censusZonesSpatialIndex.query(nodeGeometry.getEnvelopeInternal());
+
+      for (MasonGeometry zone : candidateZones) {
+        Geometry zoneGeometry = zone.getGeometry();
+
+        if (zoneGeometry.contains(nodeGeometry) || zoneGeometry.distance(nodeGeometry) < 1e-6) {
+          PedSimCity.censusZonesNodesMap.computeIfAbsent(zone, z -> new ArrayList<>()).add(node);
+          PedSimCity.nodesCensusZonesMap.put(node, zone);
+          break; // assign node to the first matching zone
+        }
+      }
     }
   }
 
