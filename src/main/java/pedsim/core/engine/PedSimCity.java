@@ -42,8 +42,11 @@ public class PedSimCity extends SimState {
   public static VectorLayer sightLines = new VectorLayer();
   public static VectorLayer censusZones = new VectorLayer();
 
-  // TODO
-  public static VectorLayer poiWeights;
+  // Caches for POI-based destination selection
+  public static VectorLayer poiWeights = new VectorLayer();
+  public static VectorLayer censusZonesVulnerability = new VectorLayer();
+  public static VectorLayer nightPoiDensities = new VectorLayer();
+  public static VectorLayer workplacePoiDensities = new VectorLayer();
 
   // Caches for POI-based destination selection
   public static Map<MasonGeometry, Double> censusZonesWorkplaceWeight = new HashMap<>();

@@ -36,6 +36,8 @@ public class Pars {
   public static String localPath =
       "C:/Users/gfilo/OneDrive - The University of Liverpool/Scripts/pedsimcityNight/src/main/resources/";
   public static boolean parallel = false;
+  
+  public static boolean isNight = false;
 
   static String[] primary = {"primary", "primary_link"};
   static String[] secondary = {"secondary", "secondary_link"};

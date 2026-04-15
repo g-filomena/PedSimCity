@@ -25,6 +25,7 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
 
   public PedSimCityNightApplet() {
     super();
+    Pars.isNight = true;
     routeParsButton.setVisible(false);
   }
 
@@ -41,6 +42,7 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
     if (headless) {
       LoggerUtil.getLogger().info("[SERVER] Running headless night simulation...");
       ParameterManager.initFromArgsForServer(args);
+      Pars.isNight = true;
 
       ScenarioConfig scenarioConfig =
           new ScenarioConfig(StringEnum.Vulnerable.values(), StringEnum.TimeOfDay.values());

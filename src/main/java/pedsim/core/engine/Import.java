@@ -110,18 +110,19 @@ public class Import {
   }
 
 
-  /**
-   * Reads and imports census zones data for the simulation.
-   */
   protected void readCensusZones() throws Exception {
     readOptionalLayer("censusData", PedSimCity.censusZones);
+    if (Pars.isNight) {
+      readOptionalLayer("censusData_vulnerability", PedSimCity.censusZonesVulnerability);
+    }
   }
 
-  /**
-   * Reads and imports POI weights data for the simulation.
-   */
   protected void readPoiWeights() throws Exception {
     readOptionalLayer("POIweights", PedSimCity.poiWeights);
+    if (Pars.isNight) {
+      readOptionalLayer("Night_POI_densities", PedSimCity.nightPoiDensities);
+      readOptionalLayer("Workplace_POI_densities", PedSimCity.workplacePoiDensities);
+    }
   }
 
   /**
