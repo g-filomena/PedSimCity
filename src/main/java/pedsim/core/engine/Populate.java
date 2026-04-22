@@ -184,6 +184,11 @@ public class Populate {
   }
 
   private NodeGraph selectHomeNodeWithDMA() {
+    // DMA attributes are only assigned when the landmarks/buildings layer is loaded.
+    // If it's empty, every node has dma="" and randomNodeDMA would spin forever.
+    if (PedSimCity.buildings.getGeometries().isEmpty()) {
+      return null;
+    }
     try {
       return NodesLookup.randomNodeDMA(SharedCognitiveMap.getCommunityPrimalNetwork(), "live");
     } catch (Exception e) {
@@ -278,6 +283,12 @@ public class Populate {
 
   // TODO, include the vulnerability in a overriding function in night.Populate
   private NodeGraph selectWorkNodeWithDMA(boolean useVulnerability) {
+    // DMA attributes are only assigned when the landmarks/buildings layer is loaded.
+    // If it's empty, every node has dma="" and randomNodeBetweenDistanceIntervalDMA would spin forever.
+    if (PedSimCity.buildings.getGeometries().isEmpty()) {
+      return null;
+    }
+
     int attempts = 0;
 
     while (attempts < 20) {
