@@ -102,6 +102,8 @@ public class PedSimCity extends SimState {
 
   public ScenarioConfig scenarioConfig;
 
+  public static volatile PedSimCity currentInstance;
+
   /**
    * Constructs a new instance of the PedSimCity simulation environment.
    *
@@ -116,6 +118,7 @@ public class PedSimCity extends SimState {
     this.agents = new VectorLayer();
     this.appName = this.getClass().getSimpleName();
     this.flowHandler = new FlowHandler(job, this, appName);
+    PedSimCity.currentInstance = this;
   }
 
   /**
