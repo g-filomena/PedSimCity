@@ -1,8 +1,10 @@
 package pedsim.night.engine;
 
+import java.util.Map;
 import pedsim.core.agents.Agent;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.utilities.StringEnum.Vulnerable;
+import sim.graph.NodeGraph;
 import sim.util.geo.MasonGeometry;
 
 /**
@@ -20,23 +22,20 @@ public class Populate extends pedsim.core.engine.Populate {
   }
 
   /**
-   * Creates a new agent with a assigned vulnerability status based on census data. Does NOT
-   * register it with simulation fields (VectorLayer, etc). Adds a new agent to the simulation with
-   * a assigned vulnerability status based on census data.
+   * Creates a new agent with an assigned vulnerability status based on the vulnerability dataset.
+   * If the vulnerability dataset was not loaded, all agents default to NON_VULNERABLE.
    *
    * @param agentID The identifier of the agent.
    * @return The created agent.
    */
-  // TODO check if it's clean
   @Override
   protected pedsim.core.agents.Agent createAgent(int agentID) {
 
     pedsim.night.agents.Agent agent = new pedsim.night.agents.Agent(this.state, false);
     agent.agentID = agentID;
 
-    // TODO CHECK IF IT DOES Synchronize the night-specific Vulnerable enum with the core boolean
-    // set by
     defineHomeWorkLocations(agent);
+    assignVulnerabilityStatus(agent);
     agent.vulnerable =
         agent.isVulnerableBoolean() ? Vulnerable.VULNERABLE : Vulnerable.NON_VULNERABLE;
 
@@ -44,13 +43,29 @@ public class Populate extends pedsim.core.engine.Populate {
     return agent;
   }
 
-  // TODO to link with agent
-  private void assignVulnerabilityStatus(Agent agent, MasonGeometry censusZone) {
+  /**
+   * Assigns vulnerability to the agent based on its home node and the vulnerability dataset.
+   * If the vulnerability dataset was not loaded (empty map) or the node has no zone,
+   * the agent defaults to NOT vulnerable.
+   *
+   * @param agent The agent to assign vulnerability to.
+   */
+  private void assignVulnerabilityStatus(pedsim.night.agents.Agent agent) {
 
-    double vulnProb = censusZone.getDoubleAttribute("vulnerability_pct");
+    Map<NodeGraph, Double> vulnMap = PedSimCity.nodesVulnerabilityWeight;
+
+    if (vulnMap.isEmpty() || agent.homeNode == null) {
+      agent.setVulnerable(false);
+      return;
+    }
+
+    double vulnProb = vulnMap.getOrDefault(agent.homeNode, 0.0);
+
+    // Normalise: values > 1.0 are assumed to be percentages (e.g. 45.2 -> 0.452)
     if (vulnProb > 1.0) {
       vulnProb /= 100.0;
     }
+
     agent.setVulnerable(random.nextDouble() < vulnProb);
   }
 

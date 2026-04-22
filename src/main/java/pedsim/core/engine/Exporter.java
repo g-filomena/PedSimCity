@@ -131,6 +131,10 @@ public class Exporter {
         }
       }
     }
+    if (routes.getGeometries().isEmpty()) {
+      logger.warning("No routes were found to save for day " + day);
+      return;
+    }
     ShapeFileExporter.write(outputRoutesDirectory, routes);
   }
 

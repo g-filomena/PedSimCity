@@ -2,12 +2,16 @@ package pedsim.core.engine;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import org.javatuples.Pair;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.index.strtree.STRtree;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import org.locationtech.jts.planargraph.DirectedEdgeStar;
 import pedsim.core.cognition.cityimage.Barrier;
@@ -59,10 +63,25 @@ public class Environment {
       prepareCensusZones();
     }
 
-    // TODO
-    // if (!PedSimCity.poi.getGeometries().isEmpty()) {
-    // preparePOI();
-    // }
+    // Independent spatial joins for each optional dataset.
+    // Each runs only when the layer was actually loaded.
+    joinWeightLayerToNodes(
+        PedSimCity.censusZonesVulnerability,
+        "vulnerability_pct",
+        PedSimCity.nodesVulnerabilityWeight,
+        "censusData_vulnerability");
+
+    joinWeightLayerToNodes(
+        PedSimCity.nightPoiDensities,
+        "poi_count",
+        PedSimCity.nodesNightPoiWeight,
+        "Night_POI_densities");
+
+    joinWeightLayerToNodes(
+        PedSimCity.workplacePoiDensities,
+        "poi_count",
+        PedSimCity.nodesWorkplacePoiWeight,
+        "Workplace_POI_densities");
   }
 
   /**
@@ -347,50 +366,204 @@ public class Environment {
 
   private static void prepareCensusZones() {
 
-    // Load census zones and cache attributes
-    for (MasonGeometry censusZone : PedSimCity.censusZones.getGeometries()) {
+    final double MAX_PROXIMITY_M = 100.0;
+    List<MasonGeometry> zones = PedSimCity.censusZones.getGeometries();
+    List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
 
-      PedSimCity.censusZonesList.add(censusZone);
-      PedSimCity.censusZonesNodesMap.put(censusZone, new ArrayList<>());
-
-      double workWeight = censusZone.getDoubleAttribute("workplace_count");
-      double nightWeight = censusZone.getDoubleAttribute("night_dest_count");
-
-      PedSimCity.censusZonesWorkplaceWeight.put(censusZone, workWeight);
-      PedSimCity.censusZonesNightWeight.put(censusZone, nightWeight);
+    // Register all zones and build spatial index
+    STRtree index = new STRtree();
+    for (MasonGeometry zone : zones) {
+      PedSimCity.censusZonesList.add(zone);
+      PedSimCity.censusZonesNodesMap.put(zone, new ArrayList<>());
+      index.insert(zone.getGeometry().getEnvelopeInternal(), zone);
     }
+    index.build();
+    PedSimCity.censusZonesSpatialIndex = index;
 
-    buildSpatialCensusZones();
-  }
-
-  private static void buildSpatialCensusZones() {
-
-    // Build spatial index of census zones
-    for (MasonGeometry censusZone : PedSimCity.censusZonesList) {
-      PedSimCity.censusZonesSpatialIndex.insert(censusZone.getGeometry().getEnvelopeInternal(),
-          censusZone);
-    }
-    PedSimCity.censusZonesSpatialIndex.build();
-
-    List<NodeGraph> nodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
-
-    for (NodeGraph node : nodes) {
-      Geometry nodeGeometry = node.getMasonGeometry().getGeometry();
+    // --- Pass 1: spatial overlap - assign nodes that fall inside a zone ---
+    Set<NodeGraph> assignedNodes = new HashSet<>();
+    for (NodeGraph node : allNodes) {
+      Geometry nodeGeom = node.getMasonGeometry().getGeometry();
 
       @SuppressWarnings("unchecked")
-      List<MasonGeometry> candidateZones =
-          PedSimCity.censusZonesSpatialIndex.query(nodeGeometry.getEnvelopeInternal());
+      List<MasonGeometry> candidates = index.query(nodeGeom.getEnvelopeInternal());
 
-      for (MasonGeometry zone : candidateZones) {
-        Geometry zoneGeometry = zone.getGeometry();
-
-        if (zoneGeometry.contains(nodeGeometry) || zoneGeometry.distance(nodeGeometry) < 1e-6) {
-          PedSimCity.censusZonesNodesMap.computeIfAbsent(zone, z -> new ArrayList<>()).add(node);
+      for (MasonGeometry zone : candidates) {
+        if (zone.getGeometry().contains(nodeGeom)
+            || zone.getGeometry().distance(nodeGeom) < 1e-6) {
+          PedSimCity.censusZonesNodesMap
+              .computeIfAbsent(zone, z -> new ArrayList<>()).add(node);
           PedSimCity.nodesCensusZonesMap.put(node, zone);
-          break; // assign node to the first matching zone
+          assignedNodes.add(node);
+          break;
         }
       }
     }
+
+    // --- Pass 2: for zones still empty, find nearest unassigned node within 100m ---
+    int fallbackZones = 0;
+    int outOfBoundsZones = 0;
+    for (MasonGeometry zone : zones) {
+      if (!PedSimCity.censusZonesNodesMap.get(zone).isEmpty()) {
+        continue; // already has nodes from overlap
+      }
+      NodeGraph nearest = nearestUnassignedNode(zone, allNodes, assignedNodes, MAX_PROXIMITY_M);
+      if (nearest != null) {
+        PedSimCity.censusZonesNodesMap.get(zone).add(nearest);
+        PedSimCity.nodesCensusZonesMap.put(nearest, zone);
+        assignedNodes.add(nearest);
+        fallbackZones++;
+      } else {
+        outOfBoundsZones++; // no node within 100m – zone is outside city centre
+      }
+    }
+
+    int matched = PedSimCity.nodesCensusZonesMap.size();
+    java.util.logging.Logger.getLogger("pedsim.core.engine.Environment")
+        .info("censusData: spatial join done. Nodes matched to a zone: " + matched
+            + " / " + allNodes.size()
+            + " | Fallback zones: " + fallbackZones
+            + " | Out-of-bounds zones: " + outOfBoundsZones);
+  }
+
+  /**
+   * Generic helper that joins a weight layer to the road network with value splitting.
+   *
+   * <p>For each zone polygon in {@code layer}:
+   * <ol>
+   *   <li>Spatial overlap: collect all network nodes that fall inside the zone.</li>
+   *   <li>Fallback: if a zone has no overlapping nodes, find the nearest <em>unassigned</em>
+   *       node within {@code MAX_PROXIMITY_M} metres and assign the zone to it.</li>
+   *   <li>Out-of-bounds: if still no node is found, the zone is skipped (assumed outside
+   *       the city-centre network).</li>
+   *   <li>The zone's attribute value is divided equally across all assigned nodes.</li>
+   * </ol>
+   * Nodes not assigned to any zone receive 0.0.
+   * If the layer is null or empty the method returns immediately without error.
+   *
+   * @param layer       The spatial layer to join (may be null or empty).
+   * @param attribute   The numeric attribute column to read from each zone polygon.
+   * @param targetMap   The per-node output map to populate.
+   * @param datasetName Human-readable name used only for log messages.
+   */
+  private static void joinWeightLayerToNodes(
+      sim.field.geo.VectorLayer layer,
+      String attribute,
+      Map<NodeGraph, Double> targetMap,
+      String datasetName) {
+
+    if (layer == null || layer.getGeometries().isEmpty()) {
+      return; // dataset not loaded – skip silently
+    }
+
+    final double MAX_PROXIMITY_M = 100.0;
+    List<MasonGeometry> zones = layer.getGeometries();
+    List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
+
+    // Build a temporary spatial index for this layer
+    STRtree index = new STRtree();
+    for (MasonGeometry zone : zones) {
+      index.insert(zone.getGeometry().getEnvelopeInternal(), zone);
+    }
+    index.build();
+
+    // --- Pass 1: spatial overlap - assign nodes that fall inside zones ---
+    Map<MasonGeometry, List<NodeGraph>> zoneNodesMap = new HashMap<>();
+    Set<NodeGraph> assignedNodes = new HashSet<>();
+
+    for (NodeGraph node : allNodes) {
+      Geometry nodeGeom = node.getMasonGeometry().getGeometry();
+
+      @SuppressWarnings("unchecked")
+      List<MasonGeometry> candidates = index.query(nodeGeom.getEnvelopeInternal());
+
+      for (MasonGeometry zone : candidates) {
+        if (zone.getGeometry().contains(nodeGeom)
+            || zone.getGeometry().distance(nodeGeom) < 1e-6) {
+          zoneNodesMap.computeIfAbsent(zone, z -> new ArrayList<>()).add(node);
+          assignedNodes.add(node);
+          break; // a node belongs to exactly one zone
+        }
+      }
+    }
+
+    // --- Pass 2: fallback for empty zones - nearest unassigned node within 100m ---
+    int fallbackZones = 0;
+    int outOfBoundsZones = 0;
+    for (MasonGeometry zone : zones) {
+      if (zoneNodesMap.containsKey(zone)) {
+        continue; // already has overlapping nodes
+      }
+      NodeGraph nearest = nearestUnassignedNode(zone, allNodes, assignedNodes, MAX_PROXIMITY_M);
+      if (nearest != null) {
+        zoneNodesMap.computeIfAbsent(zone, z -> new ArrayList<>()).add(nearest);
+        assignedNodes.add(nearest);
+        fallbackZones++;
+      } else {
+        outOfBoundsZones++; // no node within 100m – skip this zone
+      }
+    }
+
+    // --- Pass 3: divide zone value by node count and write to targetMap ---
+    int matched = 0;
+    for (Map.Entry<MasonGeometry, List<NodeGraph>> entry : zoneNodesMap.entrySet()) {
+      MasonGeometry zone = entry.getKey();
+      List<NodeGraph> nodesInZone = entry.getValue();
+
+      double zoneValue;
+      try {
+        zoneValue = zone.getDoubleAttribute(attribute);
+      } catch (Exception e) {
+        zoneValue = 0.0;
+      }
+
+      double perNodeValue = nodesInZone.isEmpty() ? 0.0 : zoneValue / nodesInZone.size();
+      for (NodeGraph node : nodesInZone) {
+        targetMap.put(node, perNodeValue);
+        matched++;
+      }
+    }
+
+    // Nodes not assigned to any zone get 0.0
+    for (NodeGraph node : allNodes) {
+      if (!assignedNodes.contains(node)) {
+        targetMap.put(node, 0.0);
+      }
+    }
+
+    java.util.logging.Logger.getLogger("pedsim.core.engine.Environment")
+        .info(datasetName + ": spatial join done. Nodes matched to a zone: " + matched
+            + " / " + allNodes.size()
+            + " | Fallback zones: " + fallbackZones
+            + " | Out-of-bounds zones: " + outOfBoundsZones);
+  }
+
+  /**
+   * Finds the nearest node that has not yet been assigned to any zone,
+   * within {@code maxDistanceMetres}. Returns null if no such node exists.
+   */
+  private static NodeGraph nearestUnassignedNode(
+      MasonGeometry zone,
+      List<NodeGraph> allNodes,
+      Set<NodeGraph> assignedNodes,
+      double maxDistanceMetres) {
+
+    org.locationtech.jts.geom.Point centroid = zone.getGeometry().getCentroid();
+    NodeGraph nearest = null;
+    double nearestDist = Double.MAX_VALUE;
+
+    for (NodeGraph node : allNodes) {
+      if (assignedNodes.contains(node)) {
+        continue; // already claimed by another zone
+      }
+      double dist = centroid.distance(node.getMasonGeometry().getGeometry());
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = node;
+      }
+    }
+
+    return (nearestDist <= maxDistanceMetres) ? nearest : null;
   }
 
   /**

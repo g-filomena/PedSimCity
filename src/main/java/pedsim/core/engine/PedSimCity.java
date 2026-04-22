@@ -26,6 +26,7 @@ import sim.graph.EdgeGraph;
 import sim.graph.Graph;
 import sim.graph.NodeGraph;
 import sim.util.geo.MasonGeometry;
+import pedsim.core.utilities.RobustVectorLayer;
 
 /**
  * The PedSimCity class represents the main simulation environment.
@@ -39,22 +40,28 @@ public class PedSimCity extends SimState {
   public static VectorLayer buildings = new VectorLayer();
   public static VectorLayer barriers = new VectorLayer();
   public static VectorLayer junctions = new VectorLayer();
-  public static VectorLayer sightLines = new VectorLayer();
-  public static VectorLayer censusZones = new VectorLayer();
+  public static RobustVectorLayer sightLines = new RobustVectorLayer();
+  public static RobustVectorLayer censusZones = new RobustVectorLayer();
 
-  // Caches for POI-based destination selection
-  public static VectorLayer poiWeights = new VectorLayer();
-  public static VectorLayer censusZonesVulnerability = new VectorLayer();
-  public static VectorLayer nightPoiDensities = new VectorLayer();
-  public static VectorLayer workplacePoiDensities = new VectorLayer();
+  // Optional night/vulnerability data layers
+  public static RobustVectorLayer censusZonesVulnerability = new RobustVectorLayer();
+  public static RobustVectorLayer nightPoiDensities = new RobustVectorLayer();
+  public static RobustVectorLayer workplacePoiDensities = new RobustVectorLayer();
 
-  // Caches for POI-based destination selection
-  public static Map<MasonGeometry, Double> censusZonesWorkplaceWeight = new HashMap<>();
-  public static Map<MasonGeometry, Double> censusZonesNightWeight = new HashMap<>();
+  // --- Census (residence) dataset ---
   public static Map<NodeGraph, MasonGeometry> nodesCensusZonesMap = new HashMap<>();
   public static STRtree censusZonesSpatialIndex = new STRtree();
   public static List<MasonGeometry> censusZonesList = new ArrayList<>();
   public static Map<MasonGeometry, List<NodeGraph>> censusZonesNodesMap = new HashMap<>();
+
+  // --- Vulnerability dataset (node -> vulnerability %) ---
+  public static Map<NodeGraph, Double> nodesVulnerabilityWeight = new HashMap<>();
+
+  // --- Night POI density dataset (node -> night POI count) ---
+  public static Map<NodeGraph, Double> nodesNightPoiWeight = new HashMap<>();
+
+  // --- Workplace POI density dataset (node -> workplace POI count) ---
+  public static Map<NodeGraph, Double> nodesWorkplacePoiWeight = new HashMap<>();
 
   final public static Graph network = new Graph();
   final public static Graph dualNetwork = new Graph();

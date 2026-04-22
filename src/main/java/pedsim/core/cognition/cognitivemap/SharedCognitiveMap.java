@@ -250,7 +250,8 @@ public class SharedCognitiveMap {
   private static void setLitNonLitEdges() {
     // Filter lit edges
     litEdges = communityNetwork.getEdges().stream()
-        .filter(edge -> edge.attributes.get("lit").getBoolean()).collect(Collectors.toSet());
+        .filter(edge -> edge.attributes.get("lit") != null && edge.attributes.get("lit").getBoolean())
+        .collect(Collectors.toSet());
 
     nonLitNonKnown = communityNetwork.getEdges().stream()
         .filter(edge -> !getLitEdges().contains(edge) && !getCommunityKnownEdges().contains(edge))

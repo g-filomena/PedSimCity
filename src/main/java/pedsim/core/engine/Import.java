@@ -118,7 +118,6 @@ public class Import {
   }
 
   protected void readPoiWeights() throws Exception {
-    readOptionalLayer("POIweights", PedSimCity.poiWeights);
     if (Pars.isNight) {
       readOptionalLayer("Night_POI_densities", PedSimCity.nightPoiDensities);
       readOptionalLayer("Workplace_POI_densities", PedSimCity.workplacePoiDensities);
@@ -138,7 +137,17 @@ public class Import {
         throw new IllegalStateException("Resource not found: " + resourceName);
       }
       VectorLayer.readGPKG(fileUrl, targetLayer);
-      targetLayer.getGeometries().removeIf(obj -> obj.getGeometry() == null);
+      if (targetLayer.getGeometries().isEmpty()) {
+        logger.warning("Layer " + layerName + " was loaded but is empty.");
+      } else {
+        targetLayer.getGeometries().removeIf(obj -> {
+          boolean isNull = obj.getGeometry() == null;
+          if (isNull) {
+            logger.warning("Found record with null geometry in " + layerName + ". Skipping.");
+          }
+          return isNull;
+        });
+      }
       logger.info(layerName + " successfully imported.");
     } catch (Exception e) {
       handleImportError("Importing " + layerName + " Failed", e);
@@ -150,5 +159,6 @@ public class Import {
    */
   protected static void handleImportError(String layerName, Exception e) {
     logger.severe(layerName + " | " + e.getClass().getSimpleName() + ": " + e.getMessage());
+    e.printStackTrace();
   }
 }

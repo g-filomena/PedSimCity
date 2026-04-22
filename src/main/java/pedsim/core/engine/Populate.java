@@ -2,6 +2,7 @@ package pedsim.core.engine;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
@@ -103,13 +104,17 @@ public class Populate {
    * @return The weight (number of POIs) for that node's zone.
    */
   public static double getPOIWeight(NodeGraph node, boolean isDark) {
-    MasonGeometry zone = PedSimCity.nodesCensusZonesMap.get(node);
-    if (zone == null)
-      return 0.1; // Baseline for nodes outside any defined zone
+    Map<NodeGraph, Double> weightMap = isDark
+        ? PedSimCity.nodesNightPoiWeight
+        : PedSimCity.nodesWorkplacePoiWeight;
 
-    Double weight = isDark ? PedSimCity.censusZonesNightWeight.get(zone)
-        : PedSimCity.censusZonesWorkplaceWeight.get(zone);
-    return (weight != null && weight > 0) ? weight : 0.1; // Return weight or baseline
+    // If the map is empty the dataset was not loaded; fall back to 0.0 (uniform selection)
+    if (weightMap.isEmpty()) {
+      return 0.0;
+    }
+
+    // Returns 0.0 for nodes that fell outside every zone polygon
+    return weightMap.getOrDefault(node, 0.0);
   }
 
   protected void defineHomeWorkLocations(Agent agent) {
@@ -258,8 +263,17 @@ public class Populate {
   }
 
   private double getZoneWorkplaceWeight(MasonGeometry zone) {
-    Double weight = PedSimCity.censusZonesWorkplaceWeight.get(zone);
-    return weight != null ? weight : 0.0;
+    List<NodeGraph> nodesInZone = PedSimCity.censusZonesNodesMap.get(zone);
+    if (nodesInZone == null || nodesInZone.isEmpty()) {
+      return 0.0;
+    }
+    // Sum the workplace POI weight across all nodes in the zone.
+    // Falls back to 0.0 per node when the dataset was not loaded.
+    double total = 0.0;
+    for (NodeGraph node : nodesInZone) {
+      total += PedSimCity.nodesWorkplacePoiWeight.getOrDefault(node, 0.0);
+    }
+    return total;
   }
 
   // TODO, include the vulnerability in a overriding function in night.Populate
