@@ -367,18 +367,64 @@ public class Environment {
   private static void prepareCensusZones() {
 
     final double MAX_PROXIMITY_M = 100.0;
-    List<MasonGeometry> zones = PedSimCity.censusZones.getGeometries();
+    List<MasonGeometry> rawZones = PedSimCity.censusZones.getGeometries();
     List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
 
-    // Register all zones and build spatial index
+    // --- Pass 0: Fusion of Type 36 into Type 1 ---
+    List<MasonGeometry> type1Zones = new ArrayList<>();
+    List<MasonGeometry> type36Zones = new ArrayList<>();
+    List<MasonGeometry> otherZones = new ArrayList<>();
+    for (MasonGeometry z : rawZones) {
+      int type = 0;
+      try {
+        type = z.getIntegerAttribute("censusZoneTypeID");
+      } catch (Exception e) {
+      }
+      if (type == 1)
+        type1Zones.add(z);
+      else if (type == 36)
+        type36Zones.add(z);
+      else
+        otherZones.add(z);
+    }
+
+    Map<MasonGeometry, MasonGeometry> fusionMap = new HashMap<>();
+    if (!type1Zones.isEmpty()) {
+      for (MasonGeometry z36 : type36Zones) {
+        MasonGeometry parent = findClosestZone(z36, type1Zones);
+        if (parent != null) {
+          fusionMap.put(z36, parent);
+          double w36 = 0, wP = 0;
+          try {
+            w36 = z36.getDoubleAttribute("residence_pct");
+          } catch (Exception e) {
+          }
+          try {
+            wP = parent.getDoubleAttribute("residence_pct");
+          } catch (Exception e) {
+          }
+          parent.getAttributes().put("residence_pct", new AttributeValue(wP + w36));
+        }
+      }
+    }
+
+    // Resulting zones to track (Type 1 and Others)
+    List<MasonGeometry> processedZones = new ArrayList<>(type1Zones);
+    processedZones.addAll(otherZones);
+
+    // Build spatial index of ALL zones (including Type 36) to capture nodes accurately
     STRtree index = new STRtree();
-    for (MasonGeometry zone : zones) {
-      PedSimCity.censusZonesList.add(zone);
-      PedSimCity.censusZonesNodesMap.put(zone, new ArrayList<>());
+    for (MasonGeometry zone : rawZones) {
       index.insert(zone.getGeometry().getEnvelopeInternal(), zone);
     }
     index.build();
     PedSimCity.censusZonesSpatialIndex = index;
+
+    // Register only result zones
+    for (MasonGeometry zone : processedZones) {
+      PedSimCity.censusZonesList.add(zone);
+      PedSimCity.censusZonesNodesMap.put(zone, new ArrayList<>());
+    }
 
     // --- Pass 1: spatial overlap - assign nodes that fall inside a zone ---
     Set<NodeGraph> assignedNodes = new HashSet<>();
@@ -391,19 +437,24 @@ public class Environment {
       for (MasonGeometry zone : candidates) {
         if (zone.getGeometry().contains(nodeGeom)
             || zone.getGeometry().distance(nodeGeom) < 1e-6) {
-          PedSimCity.censusZonesNodesMap
-              .computeIfAbsent(zone, z -> new ArrayList<>()).add(node);
-          PedSimCity.nodesCensusZonesMap.put(node, zone);
-          assignedNodes.add(node);
+          
+          // Fusion Logic: if node is in Type 36, redirect to Type 1 parent
+          MasonGeometry targetZone = fusionMap.getOrDefault(zone, zone);
+          
+          if (PedSimCity.censusZonesNodesMap.containsKey(targetZone)) {
+            PedSimCity.censusZonesNodesMap.get(targetZone).add(node);
+            PedSimCity.nodesCensusZonesMap.put(node, targetZone);
+            assignedNodes.add(node);
+          }
           break;
         }
       }
     }
 
-    // --- Pass 2: for zones still empty, find nearest unassigned node within 100m ---
+    // --- Pass 2: for processed zones still empty, find nearest unassigned node within 100m ---
     int fallbackZones = 0;
     int outOfBoundsZones = 0;
-    for (MasonGeometry zone : zones) {
+    for (MasonGeometry zone : processedZones) {
       if (!PedSimCity.censusZonesNodesMap.get(zone).isEmpty()) {
         continue; // already has nodes from overlap
       }
@@ -460,17 +511,60 @@ public class Environment {
     List<MasonGeometry> zones = layer.getGeometries();
     List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
 
-    // Build a temporary spatial index for this layer
+    // --- Pass 0: Fusion (Weight-based) ---
+    List<MasonGeometry> type1Zones = new ArrayList<>();
+    List<MasonGeometry> type36Zones = new ArrayList<>();
+    List<MasonGeometry> otherZones = new ArrayList<>();
+    for (MasonGeometry z : zones) {
+      int type = 0;
+      try {
+        type = z.getIntegerAttribute("censusZoneTypeID");
+      } catch (Exception e) {
+      }
+      if (type == 1)
+        type1Zones.add(z);
+      else if (type == 36)
+        type36Zones.add(z);
+      else
+        otherZones.add(z);
+    }
+
+    Map<MasonGeometry, MasonGeometry> fusionMap = new HashMap<>();
+    if (!type1Zones.isEmpty()) {
+      for (MasonGeometry z36 : type36Zones) {
+        MasonGeometry parent = findClosestZone(z36, type1Zones);
+        if (parent != null) {
+          fusionMap.put(z36, parent);
+          double w36 = 0, wP = 0;
+          try {
+            w36 = z36.getDoubleAttribute(attribute);
+          } catch (Exception e) {
+          }
+          try {
+            wP = parent.getDoubleAttribute(attribute);
+          } catch (Exception e) {
+          }
+          parent.getAttributes().put(attribute, new AttributeValue(wP + w36));
+        }
+      }
+    }
+
+    List<MasonGeometry> processedZones = new ArrayList<>(type1Zones);
+    processedZones.addAll(otherZones);
+
+    // Build a temporary spatial index for ALL zones in this layer
     STRtree index = new STRtree();
     for (MasonGeometry zone : zones) {
       index.insert(zone.getGeometry().getEnvelopeInternal(), zone);
     }
     index.build();
 
-    // --- Pass 1: spatial overlap - assign nodes that fall inside zones ---
+    // --- Pass 1: spatial overlap ---
     Map<MasonGeometry, List<NodeGraph>> zoneNodesMap = new HashMap<>();
-    Set<NodeGraph> assignedNodes = new HashSet<>();
+    for (MasonGeometry z : processedZones)
+      zoneNodesMap.put(z, new ArrayList<>());
 
+    Set<NodeGraph> assignedNodes = new HashSet<>();
     for (NodeGraph node : allNodes) {
       Geometry nodeGeom = node.getMasonGeometry().getGeometry();
 
@@ -480,18 +574,22 @@ public class Environment {
       for (MasonGeometry zone : candidates) {
         if (zone.getGeometry().contains(nodeGeom)
             || zone.getGeometry().distance(nodeGeom) < 1e-6) {
-          zoneNodesMap.computeIfAbsent(zone, z -> new ArrayList<>()).add(node);
-          assignedNodes.add(node);
+          
+          MasonGeometry targetZone = fusionMap.getOrDefault(zone, zone);
+          if (zoneNodesMap.containsKey(targetZone)) {
+            zoneNodesMap.get(targetZone).add(node);
+            assignedNodes.add(node);
+          }
           break; // a node belongs to exactly one zone
         }
       }
     }
 
-    // --- Pass 2: fallback for empty zones - nearest unassigned node within 100m ---
+    // --- Pass 2: fallback for empty processed zones - nearest unassigned node within 100m ---
     int fallbackZones = 0;
     int outOfBoundsZones = 0;
-    for (MasonGeometry zone : zones) {
-      if (zoneNodesMap.containsKey(zone)) {
+    for (MasonGeometry zone : processedZones) {
+      if (zoneNodesMap.get(zone) != null && !zoneNodesMap.get(zone).isEmpty()) {
         continue; // already has overlapping nodes
       }
       NodeGraph nearest = nearestUnassignedNode(zone, allNodes, assignedNodes, MAX_PROXIMITY_M);
@@ -564,6 +662,22 @@ public class Environment {
     }
 
     return (nearestDist <= maxDistanceMetres) ? nearest : null;
+  }
+
+  private static MasonGeometry findClosestZone(MasonGeometry target, List<MasonGeometry> candidates) {
+    if (candidates.isEmpty())
+      return null;
+    Geometry targetGeom = target.getGeometry();
+    MasonGeometry closest = null;
+    double minDist = Double.MAX_VALUE;
+    for (MasonGeometry cand : candidates) {
+      double dist = targetGeom.distance(cand.getGeometry());
+      if (dist < minDist) {
+        minDist = dist;
+        closest = cand;
+      }
+    }
+    return closest;
   }
 
   /**
