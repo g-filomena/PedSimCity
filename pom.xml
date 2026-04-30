@@ -215,6 +215,33 @@
 					</execution>
 				</executions>
 			</plugin>
+
+            <!-- Exec Plugin Configuration -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>default-cli</id>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>pedsim.core.applet.PedSimCityApplet</mainClass>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>night</id>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>pedsim.night.applet.PedSimCityNightApplet</mainClass>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
 		
 		</plugins>
     </build>
