@@ -7,8 +7,10 @@ import java.awt.Frame;
 import java.awt.Label;
 import java.awt.TextArea;
 import java.awt.TextField;
+import java.awt.Desktop;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.net.URI;
 import pedsim.core.engine.Engine;
 import pedsim.core.engine.Engine.StateFactory;
 import pedsim.core.engine.PedSimCity;
@@ -17,6 +19,8 @@ import pedsim.core.parameters.ParameterManager;
 import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
 import pedsim.core.utilities.StringEnum;
+import pedsim.core.website.SimulationApp;
+import pedsim.core.website.SimulationWebServer;
 
 public class PedSimCityApplet extends Frame {
 
@@ -191,6 +195,19 @@ public class PedSimCityApplet extends Frame {
       engine.runJobs(scenarioConfig, Pars.parallel);
 
     } else {
+      // Start Javelit browser dashboard (core/day simulation page)
+      SimulationWebServer.start(SimulationApp::render);
+
+      // Auto-open the browser
+      try {
+        if (Desktop.isDesktopSupported()) {
+          Desktop.getDesktop().browse(new URI("http://localhost:8080"));
+        }
+      } catch (Exception e) {
+        LoggerUtil.getLogger().warning("Could not open browser: " + e.getMessage());
+      }
+
+      // Also show the AWT control panel as a secondary fallback
       PedSimCityApplet applet = new PedSimCityApplet();
       applet.addWindowListener(new WindowAdapter() {
         @Override
