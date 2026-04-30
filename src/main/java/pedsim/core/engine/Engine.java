@@ -5,6 +5,7 @@ import java.util.stream.IntStream;
 import pedsim.core.parameters.Pars;
 import pedsim.core.parameters.TimePars;
 import pedsim.core.utilities.LoggerUtil;
+import pedsim.core.website.GeoJsonExporter;
 import sim.util.geo.Utilities;
 
 public class Engine {
@@ -31,6 +32,10 @@ public class Engine {
 
     Import importer = new Import();
     importer.importFiles();
+
+    // Export road network as GeoJSON once so the browser map can draw it
+    SimulationStateStore.getInstance().setRoadsGeoJson(
+        GeoJsonExporter.exportRoads(PedSimCity.roads));
 
     Environment.prepare();
     logger.info("Environment prepared. About to start simulation");
@@ -69,6 +74,22 @@ public class Engine {
     double nextAgentRelease = 1.0;
     while (continueSimulation()) {
       double steps = state.schedule.getSteps();
+
+      // Check whether the Javelit dashboard has requested a stop
+      if (SimulationStateStore.getInstance().stopRequested) {
+        logger.info("Stop requested by dashboard - ending simulation.");
+        break;
+      }
+
+      // Push step-level statistics to the browser dashboard
+      String simTime = TimePars.getTime(steps).toLocalTime().toString();
+      SimulationStateStore.getInstance().updateStep(
+          (int) steps,
+          simTime,
+          state.agentsWalking.size(),
+          state.agentsAtHome.size(),
+          0
+      );
 
       if (isNextDay(steps, currentDay)) {
         state.flowHandler.updateCognitiveMapsData(null);

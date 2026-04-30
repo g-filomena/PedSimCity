@@ -8,6 +8,7 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.linearref.LengthIndexedLine;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.engine.PedSimCity;
+import pedsim.core.engine.SimulationStateStore;
 import pedsim.core.parameters.Pars;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
@@ -109,6 +110,9 @@ public class AgentMovement {
       final Coordinate currentPos = indexedSegment.extractPoint(currentIndex);
       agent.updateAgentPosition(currentPos);
     }
+
+    // Push live position to the browser dashboard state store
+    SimulationStateStore.getInstance().updateAgent(agent);
   }
 
   /**
