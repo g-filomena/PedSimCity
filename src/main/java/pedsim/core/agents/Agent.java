@@ -512,4 +512,8 @@ public class Agent implements Steppable {
     this.vulnerable = vulnerable;
   }
 
+  public void setReachedDestination(boolean reached) {
+    this.reachedDestination.set(reached);
+  }
+
 }
