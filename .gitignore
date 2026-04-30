@@ -26,7 +26,6 @@ tmp/
 *.swp
 *~.nib
 *.log
-*
 .recommenders
 
 /cache
