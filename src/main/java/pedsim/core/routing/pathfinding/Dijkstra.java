@@ -55,6 +55,7 @@ public class Dijkstra {
 	protected Set<EdgeGraph> knownDualEdges = new HashSet<>();
 	protected Set<NodeGraph> knownNodes = new HashSet<>();
 	protected Set<NodeGraph> knownDualNodes = new HashSet<>();
+	protected SubGraph subGraph = null;
 
 	protected static final double MAX_DEFLECTION_ANGLE = 180.00;
 	protected static final double MIN_DEFLECTION_ANGLE = 0;
