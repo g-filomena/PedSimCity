@@ -240,6 +240,18 @@
                             <mainClass>pedsim.night.applet.PedSimCityNightApplet</mainClass>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>website</id>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>pedsim.core.applet.PedSimCityApplet</mainClass>
+                            <arguments>
+                                <argument>--website</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
 		

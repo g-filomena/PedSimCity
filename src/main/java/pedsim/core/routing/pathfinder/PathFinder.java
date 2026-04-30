@@ -22,8 +22,9 @@ import sim.routing.RoutingUtils;
  */
 public class PathFinder {
 
-  Agent agent;
-  Route route = new Route();
+  protected Agent agent;
+  protected Route route = new Route();
+
 
   protected Graph network = SharedCognitiveMap.getCommunityPrimalNetwork();
   protected NodeGraph originNode, destinationNode;

@@ -26,7 +26,6 @@ import sim.routing.Route;
  */
 public class AgentMovement extends pedsim.core.agents.AgentMovement {
 
-  private Agent agent;
   private NightBehaviour nightBehaviour;
   private List<DirectedEdge> edgesWalkedSoFar = new ArrayList<>();
   boolean originalRoute = true;
@@ -35,9 +34,10 @@ public class AgentMovement extends pedsim.core.agents.AgentMovement {
   private Graph network;
 
   public AgentMovement(Agent agent) {
-    super();
+    super(agent);
     this.network = SharedCognitiveMap.getCommunityPrimalNetwork();
     this.nightBehaviour = new NightBehaviour(agent, this);
+    this.state = (PedSimCityNight) agent.getState();
   }
 
   /**
@@ -125,7 +125,7 @@ public class AgentMovement extends pedsim.core.agents.AgentMovement {
         (NodeGraph) edgesWalkedSoFar.get(edgesWalkedSoFar.size() - 1).getToNode();
     Pair<NodeGraph, NodeGraph> routeKey = Pair.with(currentNode, agent.destinationNode);
     Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> cache =
-        (agent.isVulnerable() || nightBehaviour.avoidParksWater)
+        (agent.isVulnerableBoolean() || nightBehaviour.avoidParksWater)
             ? PedSimCityNight.altRoutesVulnerable
             : PedSimCityNight.altRoutesNonVulnerable;
 
@@ -150,7 +150,7 @@ public class AgentMovement extends pedsim.core.agents.AgentMovement {
           // Add secondary roads, still try avoiding non-lit and parks/water
           edgesToAvoid.removeAll(SharedCognitiveMap.getNeighbourhoodEdges());
           edgesToAvoid.addAll(SharedCognitiveMap.getEdgesNonLitNonCommunityKnown());
-          if (agent.isVulnerable() || nightBehaviour.avoidParksWater)
+          if (agent.isVulnerableBoolean() || nightBehaviour.avoidParksWater)
             edgesToAvoid.addAll(SharedCognitiveMap.getEdgesWithinParksOrAlongWater());
         }
         // give up park avoidance
@@ -192,7 +192,7 @@ public class AgentMovement extends pedsim.core.agents.AgentMovement {
     edgesToAvoid.addAll(SharedCognitiveMap.getEdgesNonLitNonCommunityKnown());
 
     // for vulnerable:
-    if (agent.isVulnerable()) {
+    if (agent.isVulnerableBoolean()) {
       // 1) add everything,
       edgesToAvoid.addAll(SharedCognitiveMap.getCommunityPrimalNetwork().getEdges());
       // 2) remove primary,
@@ -204,7 +204,7 @@ public class AgentMovement extends pedsim.core.agents.AgentMovement {
     }
 
     // for vulnerable and non-vulnerable agents who do not feel like water and parks
-    if (agent.isVulnerable() || nightBehaviour.avoidParksWater)
+    if (agent.isVulnerableBoolean() || nightBehaviour.avoidParksWater)
       edgesToAvoid.addAll(SharedCognitiveMap.getEdgesWithinParksOrAlongWater());
 
     edgesToAvoid.removeAll(agent.destinationNode.getEdges());

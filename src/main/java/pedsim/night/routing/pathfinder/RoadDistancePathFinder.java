@@ -11,9 +11,6 @@ import sim.routing.Route;
  */
 public class RoadDistancePathFinder extends pedsim.core.routing.pathfinder.RoadDistancePathFinder {
 
-  Agent agent;
-  Route route = new Route();
-
   /**
    * Formulates a route based on road distance between the given origin and destination nodes using
    * the provided agent properties.

@@ -263,18 +263,26 @@ public class CognitiveMap extends SharedCognitiveMap {
   }
 
   public Set<NodeGraph> getNodesInKnownNetwork() {
+    if (networkBuilder == null) {
+      return new HashSet<>(GraphUtils.getNodesFromNodeIDs(agentKnownNodes, PedSimCity.nodesMap));
+    }
     return new HashSet<>(networkBuilder.getNecessaryNodes());
   }
 
   public Set<EdgeGraph> getEdgesInKnownNetwork() {
+    if (networkBuilder == null) {
+      return new HashSet<>(GraphUtils.getEdgesFromEdgeIDs(agentKnownEdges, PedSimCity.edgesMap));
+    }
     return new HashSet<>(networkBuilder.getNecessaryEdges());
   }
 
   public Set<Integer> getNodeIDsInKnownNetwork() {
+    if (networkBuilder == null) return new HashSet<>(agentKnownNodes);
     return new HashSet<>(GraphUtils.getNodeIDs(networkBuilder.getNecessaryNodes()));
   }
 
   public Set<Integer> getEdgeIDsInKnownNetwork() {
+    if (networkBuilder == null) return new HashSet<>(agentKnownEdges);
     return new HashSet<>(GraphUtils.getEdgeIDs(networkBuilder.getNecessaryEdges()));
   }
 
@@ -287,10 +295,12 @@ public class CognitiveMap extends SharedCognitiveMap {
   }
 
   public Set<NodeGraph> getNodesInKnownDualNetwork() {
+    if (networkBuilder == null) return new HashSet<>();
     return new HashSet<>(networkBuilder.getNecessaryDualNodes());
   }
 
   public Set<EdgeGraph> getEdgesInKnownDualNetwork() {
+    if (networkBuilder == null) return new HashSet<>();
     return new HashSet<>(networkBuilder.getNecessaryDualEdges());
   }
 

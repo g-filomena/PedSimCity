@@ -93,7 +93,7 @@ public class DijkstraRoadDistance extends Dijkstra {
       }
 
       EdgeGraph commonEdge = agentNetwork.getEdgeBetween(currentNode, targetNode);
-      if (!isEdgeKnown(commonEdge) && agent.getCognitiveMap().individualised) {
+      if (agent.getCognitiveMap().individualised && !isEdgeKnown(commonEdge)) {
         continue;
       }
       if (edgesToAvoid.contains(commonEdge)) {

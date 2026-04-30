@@ -176,12 +176,13 @@ public class PedSimCityApplet extends Frame {
   // ---------------------------------------------------
   public static void main(String[] args) throws Exception {
     boolean headless = false;
+    boolean forceWebsite = false;
+    boolean forceGui = false;
 
     for (String arg : args) {
-      if ("--headless".equals(arg) || arg.startsWith("--headless=")) {
-        headless = true;
-        break;
-      }
+      if ("--headless".equals(arg) || arg.startsWith("--headless=")) headless = true;
+      if ("--website".equals(arg)) forceWebsite = true;
+      if ("--gui".equals(arg)) forceGui = true;
     }
 
     if (headless) {
@@ -193,8 +194,35 @@ public class PedSimCityApplet extends Frame {
 
       Engine engine = new Engine(stateFactory);
       engine.runJobs(scenarioConfig, Pars.parallel);
+      return;
+    }
 
+    // Interactive selection if no flags provided
+    int choice = 0;
+    if (forceWebsite) choice = 2;
+    else if (forceGui) choice = 1;
+    else {
+      System.out.println("\n========================================");
+      System.out.println("   PedSimCity Core - Startup Options    ");
+      System.out.println("========================================");
+      System.out.println(" 1. Run Standard GUI (AWT)");
+      System.out.println(" 2. Run Dashboard");
+      System.out.print("\nSelect an option [1-2]: ");
+      
+      java.util.Scanner scanner = new java.util.Scanner(System.in);
+      try {
+        choice = Integer.parseInt(scanner.nextLine().trim());
+      } catch (Exception e) {
+        choice = 1; // Default to GUI
+      }
+    }
+
+    if (choice == 2) {
+      LoggerUtil.getLogger().info("[STARTUP] Launching Web Dashboard...");
+      pedsim.core.website.SimulationWebServer.start(new pedsim.core.website.SimulationApp());
     } else {
+      LoggerUtil.getLogger().info("[STARTUP] Launching Standard GUI...");
+      
       // Start Javelit browser dashboard (core/day simulation page)
       SimulationWebServer.start(SimulationApp::render);
 
@@ -206,8 +234,6 @@ public class PedSimCityApplet extends Frame {
       } catch (Exception e) {
         LoggerUtil.getLogger().warning("Could not open browser: " + e.getMessage());
       }
-
-      // Also show the AWT control panel as a secondary fallback
       PedSimCityApplet applet = new PedSimCityApplet();
       applet.addWindowListener(new WindowAdapter() {
         @Override

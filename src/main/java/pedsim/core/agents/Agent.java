@@ -261,6 +261,7 @@ public class Agent implements Steppable {
     Point newLocation = geometryFactory.createPoint(coordinate);
     state.agents.setGeometryLocation(currentLocation, newLocation);
     currentLocation.geometry = newLocation;
+    pedsim.core.engine.SimulationStateStore.getInstance().updateAgent(this);
   }
 
   /**

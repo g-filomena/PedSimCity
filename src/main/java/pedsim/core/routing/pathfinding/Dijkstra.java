@@ -343,6 +343,7 @@ public class Dijkstra {
 	}
 
 	protected boolean isEdgeKnown(EdgeGraph commonEdge) {
+		if (knownEdges == null) return false;
 		if ((subGraph == null && !knownEdges.contains(commonEdge))
 				|| (subGraph != null && !knownEdges.contains(subGraph.getParentEdge(commonEdge)))) {
 			return false;
@@ -351,6 +352,7 @@ public class Dijkstra {
 	}
 
 	protected boolean isDualEdgeKnown(EdgeGraph commonEdge) {
+		if (knownDualEdges == null) return false;
 		if ((subGraph == null && !knownDualEdges.contains(commonEdge))
 				|| (subGraph != null && !knownDualEdges.contains(subGraph.getParentEdge(commonEdge)))) {
 			return false;
