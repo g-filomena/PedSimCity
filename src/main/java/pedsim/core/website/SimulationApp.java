@@ -80,7 +80,7 @@ public class SimulationApp {
 
     // City name dropdown — matches AWT Choice widget
     String cityName = Jt.selectbox("City Name",
-        List.of("Muenster", "TorinoCentre")).use(form);
+        List.of("TorinoCentre", "Muenster")).use(form);
 
     // Numeric text fields — match AWT TextField widgets exactly
     Number days       = Jt.numberInput("Duration in days").value(7).use(form);

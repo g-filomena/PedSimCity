@@ -44,6 +44,10 @@ public class AgentMovement extends pedsim.core.agents.AgentMovement {
    * Initialises the directedEdgesSequence (the path) for the agent.
    */
   public void initialisePath(Route route) {
+    if (route == null || route.directedEdgesSequence == null || route.directedEdgesSequence.isEmpty()) {
+      agent.reachedDestination.set(true);
+      return;
+    }
 
     indexOnSequence = 0;
     this.directedEdgesSequence = route.directedEdgesSequence;
