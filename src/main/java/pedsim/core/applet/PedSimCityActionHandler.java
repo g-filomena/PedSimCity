@@ -32,9 +32,6 @@ public class PedSimCityActionHandler {
       applet.setRunningOnServer(false);
       prepareEndButton();
 
-      SimulationViewer viewer = new SimulationViewer();
-      viewer.setVisible(true);
-
       Thread simThread = new Thread(() -> {
         try {
           ParameterManager.collectParameters(applet);

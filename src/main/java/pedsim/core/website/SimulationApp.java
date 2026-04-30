@@ -48,7 +48,7 @@ public class SimulationApp {
    */
   public static void render(SimulationApp app) {
     // ---- Header ----
-    Jt.title("PedSimCity — Real-Time Simulation Dashboard").use();
+    Jt.title(app.getTitle()).use();
     Jt.divider("header-div").use();
 
     // ---- Two-column layout: sidebar (30%) | main (70%) ----
@@ -135,8 +135,18 @@ public class SimulationApp {
   }
 
   // ----------------------------------------------------------------
-  // Extension point for subclasses
+  // Extension points for subclasses
   // ----------------------------------------------------------------
+
+  /**
+   * Returns the page title displayed in the dashboard header.
+   * Subclasses override this to customise the title per simulation variant.
+   *
+   * @return the page title string.
+   */
+  protected String getTitle() {
+    return "PedSimCity";
+  }
 
   /**
    * Hook for subclasses to inject additional form controls.
@@ -172,15 +182,22 @@ public class SimulationApp {
     store.reset();
     store.running = true;
 
+    // Apply Pars fields — cityName, population, percentagePopulationAgent, jobs, durationDays
     ParameterManager.applyParams(
         Map.of(
             "cityName",                  cityName,
-            "numberOfDays",              String.valueOf(days),
             "population",                String.valueOf(population),
             "percentagePopulationAgent", pctAgents,
-            "jobs",                      String.valueOf(jobs)
+            "jobs",                      String.valueOf(jobs),
+            "durationDays",              String.valueOf(days)
         ),
-        Pars.class, TimePars.class
+        Pars.class
+    );
+
+    // Apply TimePars field — numberOfDays
+    ParameterManager.applyParams(
+        Map.of("numberOfDays", String.valueOf(days)),
+        TimePars.class
     );
 
     ScenarioConfig      scenarioConfig = buildScenarioConfig();

@@ -31,6 +31,14 @@ public class NightSimulationApp extends SimulationApp {
   // ----------------------------------------------------------------
 
   /**
+   * Returns the page title for the night simulation dashboard.
+   */
+  @Override
+  protected String getTitle() {
+    return "PedSimCity - Night Time";
+  }
+
+  /**
    * Night-specific controls removed per request.
    *
    * @param form the Javelit form container to add widgets to.
