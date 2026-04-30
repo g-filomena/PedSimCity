@@ -65,7 +65,7 @@ public final class MapHtmlBuilder {
           }
           .legend-dot {
             display: inline-block; width: 10px; height: 10px;
-            border-radius: 50%; margin-right: 4px; vertical-align: middle;
+            border-radius: 50%%; margin-right: 4px; vertical-align: middle;
           }
         </style>
 

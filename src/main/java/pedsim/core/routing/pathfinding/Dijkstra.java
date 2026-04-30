@@ -48,14 +48,13 @@ public class Dijkstra {
 
 	protected Graph agentNetwork;
 	protected Graph agentDualNetwork;
-	protected Set<EdgeGraph> knownEdges;
-	protected Set<EdgeGraph> knownDualEdges;
-	protected Set<NodeGraph> knownNodes;
-	protected Set<NodeGraph> knownDualNodes;
-	protected SubGraph subGraph = null;
-
 	protected Agent agent;
 	protected Route route = new Route();
+
+	protected Set<EdgeGraph> knownEdges = new HashSet<>();
+	protected Set<EdgeGraph> knownDualEdges = new HashSet<>();
+	protected Set<NodeGraph> knownNodes = new HashSet<>();
+	protected Set<NodeGraph> knownDualNodes = new HashSet<>();
 
 	protected static final double MAX_DEFLECTION_ANGLE = 180.00;
 	protected static final double MIN_DEFLECTION_ANGLE = 0;
