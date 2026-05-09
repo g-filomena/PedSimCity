@@ -36,6 +36,7 @@ import sim.util.geo.MasonGeometry;
  * junctions, buildings, barriers, and regions.
  */
 public class Environment {
+  private static final java.util.logging.Logger logger = pedsim.core.utilities.LoggerUtil.getLogger();
 
   /**
    * Prepares the simulation environment by initializing junctions, buildings, barriers, attributes,
@@ -342,7 +343,7 @@ public class Environment {
             region.nodes.add(edge.getFromNode());
             region.nodes.add(edge.getToNode());
         } else {
-            logger.warning("RegionID " + regionID + " not found in regionsMap for edge " + edge.getEdgeID());
+            logger.warning("RegionID " + regionID + " not found in regionsMap for edge " + edge.getID());
         }
       } else {
         // gateway edge
