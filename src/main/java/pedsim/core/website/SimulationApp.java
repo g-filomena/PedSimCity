@@ -114,6 +114,19 @@ public class SimulationApp {
     // Status feedback
     Jt.divider("status-div").use(sidebar);
     SimulationStateStore store = SimulationStateStore.getInstance();
+    
+    if (store.running || store.finished) {
+      var stats = Jt.columns(2).use(sidebar);
+      Jt.text("Time: " + (store.simulationTime != null ? store.simulationTime : "00:00")).use(stats.col(0));
+      Jt.text("Step: " + store.currentStep).use(stats.col(1));
+      
+      var counts = Jt.columns(3).use(sidebar);
+      Jt.text("🚶 " + store.walkingCount).use(counts.col(0));
+      Jt.text("🏠 " + store.atHomeCount).use(counts.col(1));
+      Jt.text("🎯 " + store.atDestCount).use(counts.col(2));
+      Jt.divider("stats-sep").use(sidebar);
+    }
+
     if (store.running)       Jt.success("Simulation running...").use(sidebar);
     else if (store.finished) Jt.info("Simulation finished.").use(sidebar);
     else                     Jt.info("Configure parameters and click Run.").use(sidebar);
