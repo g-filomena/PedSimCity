@@ -143,7 +143,8 @@ public class SimulationApp {
    */
   private static void renderMainPanel(JtContainer main) {
     double[] centre = deriveCentre();
-    String mapHtml = MapHtmlBuilder.build(centre, DEFAULT_ZOOM, SimulationWebServer.API_PORT);
+    // Pass 0,0,0 as centre/zoom are now handled internally by the Canvas engine
+    String mapHtml = MapHtmlBuilder.build(new double[]{0,0}, 0, SimulationWebServer.API_PORT);
     Jt.html(mapHtml).use(main);
   }
 

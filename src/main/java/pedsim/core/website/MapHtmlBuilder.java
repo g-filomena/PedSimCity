@@ -37,126 +37,25 @@ public final class MapHtmlBuilder {
     double lon = centreLatLon[1];
     String apiUrl = "http://localhost:" + apiPort + "/api/state";
 
+    // We use an iframe with srcdoc to isolate the canvas engine from Javelit's lifecycle.
+    // This ensures scripts run reliably and allows for high-performance rendering.
     return """
-        <style>
-          #sim-map {
-            height: 560px;
-            border-radius: 12px;
-            border: 1px solid #333;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.5);
-          }
-          .sim-stats {
-            display: flex;
-            gap: 24px;
-            margin-top: 10px;
-            padding: 10px 16px;
-            background: #1a1a2e;
-            border-radius: 8px;
-            font-family: 'Inter', sans-serif;
-            color: #e2e8f0;
-            font-size: 13px;
-          }
-          .sim-stat { display: flex; flex-direction: column; align-items: center; }
-          .sim-stat-label { color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
-          .sim-stat-value { font-size: 18px; font-weight: 600; color: #f8fafc; }
-          .sim-legend {
-            display: flex; gap: 16px; margin-top: 6px;
-            font-family: sans-serif; font-size: 12px; color: #94a3b8;
-          }
-          .legend-dot {
-            display: inline-block; width: 10px; height: 10px;
-            border-radius: 50%%; margin-right: 4px; vertical-align: middle;
-          }
-        </style>
-
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-        <div id="sim-map"></div>
-
-        <div class="sim-stats">
-          <div class="sim-stat">
-            <span class="sim-stat-label">Sim Time</span>
-            <span class="sim-stat-value" id="stat-time">—</span>
-          </div>
-          <div class="sim-stat">
-            <span class="sim-stat-label">Step</span>
-            <span class="sim-stat-value" id="stat-step">—</span>
-          </div>
-          <div class="sim-stat">
-            <span class="sim-stat-label">Walking</span>
-            <span class="sim-stat-value" id="stat-walking">—</span>
-          </div>
-          <div class="sim-stat">
-            <span class="sim-stat-label">At Home</span>
-            <span class="sim-stat-value" id="stat-home">—</span>
-          </div>
-          <div class="sim-stat">
-            <span class="sim-stat-label">At Dest</span>
-            <span class="sim-stat-value" id="stat-dest">—</span>
-          </div>
+        <div class="map-container" style="height: 600px; border-radius: 16px; overflow: hidden; background: #0f172a; box-shadow: 0 10px 40px rgba(0,0,0,0.4); border: 1px solid #334155;">
+          <iframe id="map-iframe" style="width:100%%; height:100%%; border:none;" srcdoc='
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <style>
+                body { margin: 0; padding: 0; background: #0f172a; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
+                #canvas { width: 100vw; height: 100vh; }
+              </style>
+            </head>
+            <body>
+              <canvas id="canvas"></canvas>
+            </body>
+            </html>
+          '></iframe>
         </div>
-
-        <div class="sim-legend">
-          <span><span class="legend-dot" style="background:#3b82f6"></span>Normal agent</span>
-          <span><span class="legend-dot" style="background:#ef4444"></span>Vulnerable agent</span>
-        </div>
-
-        <script>
-          // Initialise Leaflet map
-          var map = L.map('sim-map', { preferCanvas: true })
-                     .setView([%s, %s], %d);
-
-          L.tileLayer(
-            'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-            { attribution: '&copy; CartoDB', maxZoom: 19 }
-          ).addTo(map);
-
-          var agentLayer = L.layerGroup().addTo(map);
-          var roadLayerAdded = false;
-
-          // Fetch state and refresh agents every 500 ms
-          function refreshState() {
-            fetch('%s')
-              .then(r => r.json())
-              .then(data => {
-                // Draw roads once when GeoJSON is available
-                if (data.roadsGeoJson && !roadLayerAdded) {
-                  try {
-                    L.geoJSON(JSON.parse(data.roadsGeoJson), {
-                      style: { color: '#475569', weight: 1.2, opacity: 0.7 }
-                    }).addTo(map);
-                    roadLayerAdded = true;
-                  } catch (e) { console.warn('Road GeoJSON parse error', e); }
-                }
-
-                // Update agent dots
-                agentLayer.clearLayers();
-                (data.agents || []).forEach(a => {
-                  var color = a.vulnerable ? '#ef4444' : '#3b82f6';
-                  L.circleMarker([a.lat, a.lon], {
-                    radius: 4,
-                    fillColor: color,
-                    color: '#ffffff',
-                    weight: 0.5,
-                    opacity: 1,
-                    fillOpacity: 0.9
-                  }).bindTooltip('Agent ' + a.id + ' — ' + a.status).addTo(agentLayer);
-                });
-
-                // Update stat labels
-                document.getElementById('stat-time').textContent    = data.simulationTime || '—';
-                document.getElementById('stat-step').textContent    = data.currentStep    || '—';
-                document.getElementById('stat-walking').textContent = data.walkingCount   || '0';
-                document.getElementById('stat-home').textContent    = data.atHomeCount    || '0';
-                document.getElementById('stat-dest').textContent    = data.atDestCount    || '0';
-              })
-              .catch(() => {}); // silently ignore if sim hasn't started yet
-          }
-
-          setInterval(refreshState, 500);
-          refreshState();
-        </script>
-        """.formatted(lat, lon, zoom, apiUrl);
+        """.formatted(apiUrl);
   }
 }
