@@ -80,7 +80,7 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
 
     if (choice == 2) {
       LoggerUtil.getLogger().info("[STARTUP] Launching Web Dashboard...");
-      pedsim.core.website.SimulationWebServer.start(new pedsim.night.website.NightSimulationApp());
+      pedsim.core.website.SimulationWebServer.start(pedsim.night.website.NightSimulationApp::render);
     } else {
       LoggerUtil.getLogger().info("[STARTUP] Launching Standard GUI...");
 

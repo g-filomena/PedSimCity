@@ -219,7 +219,7 @@ public class PedSimCityApplet extends Frame {
 
     if (choice == 2) {
       LoggerUtil.getLogger().info("[STARTUP] Launching Web Dashboard...");
-      pedsim.core.website.SimulationWebServer.start(new pedsim.core.website.SimulationApp());
+      pedsim.core.website.SimulationWebServer.start(pedsim.core.website.SimulationApp::render);
     } else {
       LoggerUtil.getLogger().info("[STARTUP] Launching Standard GUI...");
       
