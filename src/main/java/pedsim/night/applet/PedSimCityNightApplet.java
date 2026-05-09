@@ -12,9 +12,8 @@ import pedsim.core.parameters.ParameterManager;
 import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
 import pedsim.core.utilities.StringEnum;
-import pedsim.core.website.SimulationWebServer;
+import pedsim.core.website.SimulationRestApi;
 import pedsim.night.engine.PedSimCityNight;
-import pedsim.night.website.NightSimulationApp;
 
 /**
  * A graphical user interface (GUI) applet for configuring and running the PedSimCity simulation.
@@ -67,7 +66,7 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
       System.out.println("   PedSimCity Night - Startup Options   ");
       System.out.println("========================================");
       System.out.println(" 1. Run Standard GUI (AWT)");
-      System.out.println(" 2. Run Dashboard");
+      System.out.println(" 2. Start REST API for External Dashboard (Streamlit)");
       System.out.print("\nSelect an option [1-2]: ");
       
       java.util.Scanner scanner = new java.util.Scanner(System.in);
@@ -79,13 +78,13 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
     }
 
     if (choice == 2) {
-      LoggerUtil.getLogger().info("[STARTUP] Launching Web Dashboard...");
-      pedsim.core.website.SimulationWebServer.start(pedsim.night.website.NightSimulationApp::render);
+      LoggerUtil.getLogger().info("[STARTUP] Starting REST API for External Dashboard...");
+      SimulationRestApi.start(8081);
     } else {
       LoggerUtil.getLogger().info("[STARTUP] Launching Standard GUI...");
 
-      // Start Javelit browser dashboard (night simulation page)
-      SimulationWebServer.start(NightSimulationApp::render);
+      // Start REST API in background for external visualization
+      SimulationRestApi.start(8081);
 
       // Auto-open the browser
       try {
