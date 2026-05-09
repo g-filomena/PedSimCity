@@ -117,7 +117,6 @@ while True:
                     st.session_state.view_state = pdk.ViewState(
                         latitude=lat if is_geospatial else 0, 
                         longitude=lon if is_geospatial else 0,
-                        # If not geospatial, we use these as offsets in a linear space
                         target=[lon, lat, 0] if not is_geospatial else None,
                         zoom=14 if is_geospatial else -2, 
                         pitch=0
@@ -136,7 +135,7 @@ while True:
                 stroke_width_min_pixels=1,
                 get_line_color=[71, 85, 105, 150],
                 get_fill_color=[71, 85, 105, 150],
-                coordinate_system=0 if is_geospatial else 1, # 0=LNGLAT, 1=CARTESIAN (roughly)
+                coordinate_system=0 if is_geospatial else 1, # 0=LNGLAT, 1=CARTESIAN
             ))
 
         # 2. Agent Layer
@@ -154,17 +153,24 @@ while True:
                 opacity=0.8,
             ))
 
-        # Render Map
-        with map_placeholder.container():
-            if not is_geospatial:
-                st.info("💡 Local Coordinate System detected (Meters). Base map disabled.")
-            
-            st.pydeck_chart(pdk.Deck(
-                map_style='mapbox://styles/mapbox/dark-v10' if is_geospatial else None,
-                initial_view_state=st.session_state.view_state,
-                layers=layers,
-                tooltip={"text": "Agent ID: {id}\nWalking: {walking}"}
-            ))
+        # Render Map only if we have data
+        if st.session_state.roads or agents:
+            with map_placeholder.container():
+                if not is_geospatial:
+                    st.info("💡 Local Coordinate System detected (Meters). Base map disabled.")
+                
+                view = pdk.View(type="MapView", controller=True) if is_geospatial else pdk.View(type="OrthographicView", controller=True)
+
+                st.pydeck_chart(pdk.Deck(
+                    views=[view],
+                    map_style='mapbox://styles/mapbox/dark-v10' if is_geospatial else None,
+                    initial_view_state=st.session_state.view_state,
+                    layers=layers,
+                    tooltip={"text": "Agent ID: {id}\nWalking: {walking}"}
+                ))
+        else:
+            with map_placeholder.container():
+                st.info("Waiting for data from the Java Backend...")
             
     else:
         with map_placeholder.container():

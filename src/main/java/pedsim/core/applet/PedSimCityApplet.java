@@ -218,7 +218,17 @@ public class PedSimCityApplet extends Frame {
 
     if (choice == 2) {
       LoggerUtil.getLogger().info("[STARTUP] Starting REST API for External Dashboard...");
-      
+      // Pre-load default GIS data so the dashboard can show the map immediately
+      try {
+          pedsim.core.engine.PedSimCity.clearStaticData();
+          pedsim.core.parameters.Pars.setSimulationParameters();
+          new pedsim.core.engine.Import().importFiles();
+          pedsim.core.engine.SimulationStateStore.getInstance().setRoadsGeoJson(
+              pedsim.core.website.GeoJsonExporter.exportRoads(pedsim.core.engine.PedSimCity.roads));
+      } catch (Exception e) {
+          LoggerUtil.getLogger().warning("Could not pre-load default roads: " + e.getMessage());
+      }
+
       SimulationRestApi.setOnStart((params) -> {
         try {
           // Apply parameters if provided
