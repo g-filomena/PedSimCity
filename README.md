@@ -77,3 +77,15 @@ The user can also change other simulation-related parameters by clicking on the 
 
 When choosing option 3, the route choice models of interest need to be chosen by clicking the ```Choose Route Choices``` button. 
 The user can also define the number of ```jobs```, and ```numberTripsPerAgent``` (one route choice model = one agent).
+
+**How to use the Web Dashboard:**
+
+PedSimCity now features a high-performance web-based dashboard for real-time simulation monitoring.
+
+1. Start the simulation via terminal (as described above).
+2. When the startup menu appears, select **Option 2 (Dashboard)**.
+3. Once the server starts, the dashboard will be available at `http://localhost:8080`.
+4. The dashboard features:
+   - **Real-time Map**: A Canvas-based renderer for city networks and agent movement.
+   - **Live Stats**: Monitoring of simulation time, steps, and agent states (Walking, Home, etc.).
+   - **Control Panel**: Configure city, population, and simulation duration directly from the browser.
