@@ -175,7 +175,8 @@ public class SharedCognitiveMap {
     cityCenterEdges = new HashSet<>();
     for (int regionID : RouteChoicePars.cityCentreRegionsID) {
       communityKnownRegions.add(regionID);
-      cityCenterEdges.addAll(PedSimCity.regionsMap.get(regionID).edges);
+      Region r = PedSimCity.regionsMap.get(regionID);
+      if (r != null) cityCenterEdges.addAll(r.edges);
     }
 
     communityKnownEdges.addAll(cityCenterEdges);

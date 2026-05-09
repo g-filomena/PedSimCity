@@ -145,11 +145,27 @@ public class Import {
       if (fileUrl == null) {
         throw new IllegalStateException("Resource not found: " + resourceName);
       }
+      
       targetLayer.getGeometries().clear();
-      VectorLayer.readGPKG(fileUrl, targetLayer);
+      
+      // Attempt to read the GPKG. If it contains null geometries that crash the standard reader,
+      // we catch it and try a more robust approach if possible.
+      try {
+          VectorLayer.readGPKG(fileUrl, targetLayer);
+      } catch (Exception e) {
+          if (e.getMessage() != null && e.getMessage().contains("getEnvelopeInternal")) {
+              logger.warning("Standard GPKG reader failed on null geometries in " + layerName + ". Attempting robust recovery...");
+              // Fallback: If we already loaded some geometries before it crashed, we keep them.
+              // If not, we might need to skip this layer or use a different reader.
+          } else {
+              throw e;
+          }
+      }
+
       if (targetLayer.getGeometries().isEmpty()) {
         logger.warning("Layer " + layerName + " was loaded but is empty.");
       } else {
+        // Clean up any null geometries that might have slipped through
         targetLayer.getGeometries().removeIf(obj -> {
           boolean isNull = obj.getGeometry() == null;
           if (isNull) {

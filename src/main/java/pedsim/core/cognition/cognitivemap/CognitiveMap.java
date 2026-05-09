@@ -86,7 +86,8 @@ public class CognitiveMap extends SharedCognitiveMap {
       queue.add(node);
       int region = node.getRegionID();
       agentKnownRegions.add(region);
-      activityBoneNodesTmp.addAll(PedSimCity.regionsMap.get(region).nodes);
+      Region r = PedSimCity.regionsMap.get(region);
+      if (r != null) activityBoneNodesTmp.addAll(r.nodes);
     }
 
     Map<NodeGraph, Double> distanceMap = new HashMap<>();
@@ -120,7 +121,8 @@ public class CognitiveMap extends SharedCognitiveMap {
 
     if (RouteChoicePars.cityCentreRegionsID.length > 0) {
       for (Integer regionID : RouteChoicePars.cityCentreRegionsID) {
-        activityBoneNodesTmp.addAll(PedSimCity.regionsMap.get(regionID).nodes);
+        Region r = PedSimCity.regionsMap.get(regionID);
+        if (r != null) activityBoneNodesTmp.addAll(r.nodes);
       }
     }
 
@@ -142,7 +144,8 @@ public class CognitiveMap extends SharedCognitiveMap {
     for (NodeGraph node : knownNodes) {
       int region = node.getRegionID();
       agentKnownRegions.add(region);
-      edges.addAll(PedSimCity.regionsMap.get(region).edges);
+      Region r = PedSimCity.regionsMap.get(region);
+      if (r != null) edges.addAll(r.edges);
       edges.addAll(node.getEdges());
       agentKnownEdges.addAll(GraphUtils.getEdgeIDs(edges));
     }

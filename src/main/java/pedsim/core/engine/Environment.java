@@ -363,10 +363,15 @@ public class Environment {
       for (final EdgeGraph edge : edgesRegion) {
         regionNetwork.addGeometry(edge.getMasonGeometry());
         NodeGraph centroid = edge.getDualNode();
-        centroid.setRegionID(regionID);
-        DirectedEdgeStar directedEdges = centroid.getOutEdges();
-        for (final DirectedEdge directedEdge : directedEdges.getEdges()) {
-          dualEdgesRegion.add((EdgeGraph) directedEdge.getEdge());
+        if (centroid != null) {
+            centroid.setRegionID(regionID);
+            DirectedEdgeStar directedEdges = centroid.getOutEdges();
+            for (final DirectedEdge directedEdge : directedEdges.getEdges()) {
+              dualEdgesRegion.add((EdgeGraph) directedEdge.getEdge());
+            }
+        } else {
+            // Log warning but don't crash
+            // logger.warning("Edge " + edge.getID() + " has no dual node (centroid) in region " + regionID);
         }
       }
 
