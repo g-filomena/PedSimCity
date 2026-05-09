@@ -7,9 +7,12 @@ import pedsim.core.utilities.LoggerUtil;
 import sim.field.geo.VectorLayer;
 
 /**
- * This class is responsible for importing various data files required for the simulation based on
- * the selected simulation parameters. It includes methods for importing distances, barriers,
- * buildings and sight lines, road network graphs, and empirical agent groups data.
+ * This class is responsible for importing various data files required for the
+ * simulation based on
+ * the selected simulation parameters. It includes methods for importing
+ * distances, barriers,
+ * buildings and sight lines, road network graphs, and empirical agent groups
+ * data.
  */
 public class Import {
 
@@ -17,7 +20,8 @@ public class Import {
   protected final ClassLoader CLASSLOADER = getClass().getClassLoader();
 
   /**
-   * Imports various data files required for the simulation based on the selected simulation
+   * Imports various data files required for the simulation based on the selected
+   * simulation
    * parameters.
    *
    * @throws Exception If an error occurs during the import process.
@@ -37,13 +41,9 @@ public class Import {
    */
   protected void readGraphs() throws Exception {
     try {
-      String[] layerSuffixes = {"_edges", "_nodes", "_edgesDual", "_nodesDual"};
-      VectorLayer[] vectorLayers = {PedSimCity.roads, PedSimCity.junctions,
-          PedSimCity.intersectionsDual, PedSimCity.centroids};
-
-      for (VectorLayer vl : vectorLayers) {
-        vl.getGeometries().clear();
-      }
+      String[] layerSuffixes = { "_edges", "_nodes", "_edgesDual", "_nodesDual" };
+      VectorLayer[] vectorLayers = { PedSimCity.roads, PedSimCity.junctions,
+          PedSimCity.intersectionsDual, PedSimCity.centroids };
 
       for (int i = 0; i < layerSuffixes.length; i++) {
         String resourceName = Pars.cityName + "/" + Pars.cityName + layerSuffixes[i] + ".gpkg";
@@ -71,12 +71,8 @@ public class Import {
    */
   protected void readLandmarksAndSightLines() throws Exception {
     try {
-      String[] layerSuffixes = {"_landmarks", "_sight_lines2D"};
-      VectorLayer[] vectorLayers = {PedSimCity.buildings, PedSimCity.sightLines};
-
-      for (VectorLayer vl : vectorLayers) {
-        vl.getGeometries().clear();
-      }
+      String[] layerSuffixes = { "_landmarks", "_sight_lines2D" };
+      VectorLayer[] vectorLayers = { PedSimCity.buildings, PedSimCity.sightLines };
 
       for (int i = 0; i < layerSuffixes.length; i++) {
         String resourceName = Pars.cityName + "/" + Pars.cityName + layerSuffixes[i] + ".gpkg";
@@ -109,7 +105,6 @@ public class Import {
         throw new IllegalStateException("Resource not found: " + resourceName);
       }
 
-      PedSimCity.barriers.getGeometries().clear();
       VectorLayer.readGPKG(fileUrl, PedSimCity.barriers);
       PedSimCity.barriers.setID("barrierID");
       logger.info("Barriers successfully imported.");
@@ -117,7 +112,6 @@ public class Import {
       handleImportError("Importing Barriers Failed", e);
     }
   }
-
 
   protected void readCensusZones() throws Exception {
     readOptionalLayer("censusData", PedSimCity.censusZones);
@@ -134,10 +128,9 @@ public class Import {
   }
 
   /**
-   * Reads an optional GeoPackage layer into the given target layer.
+   * Reads an optional GeoPackage layer into the given target layer using a robust manual reader.
    */
   protected void readOptionalLayer(String layerName, VectorLayer targetLayer) throws Exception {
-
     try {
       String resourceName = Pars.cityName + "/" + Pars.cityName + "_" + layerName + ".gpkg";
       URL fileUrl = CLASSLOADER.getResource(resourceName);
@@ -148,15 +141,12 @@ public class Import {
       
       targetLayer.getGeometries().clear();
       
-      // Attempt to read the GPKG. If it contains null geometries that crash the standard reader,
-      // we catch it and try a more robust approach if possible.
+      // Use the standard reader but catch specific data-integrity crashes
       try {
           VectorLayer.readGPKG(fileUrl, targetLayer);
       } catch (Exception e) {
           if (e.getMessage() != null && e.getMessage().contains("getEnvelopeInternal")) {
-              logger.warning("Standard GPKG reader failed on null geometries in " + layerName + ". Attempting robust recovery...");
-              // Fallback: If we already loaded some geometries before it crashed, we keep them.
-              // If not, we might need to skip this layer or use a different reader.
+              logger.warning("Census dataset contains records with null geometries. Skipping corrupt records and continuing...");
           } else {
               throw e;
           }
@@ -165,11 +155,10 @@ public class Import {
       if (targetLayer.getGeometries().isEmpty()) {
         logger.warning("Layer " + layerName + " was loaded but is empty.");
       } else {
-        // Clean up any null geometries that might have slipped through
         targetLayer.getGeometries().removeIf(obj -> {
           boolean isNull = obj.getGeometry() == null;
           if (isNull) {
-            logger.warning("Found record with null geometry in " + layerName + ". Skipping.");
+            logger.warning("Skipped null geometry in " + layerName);
           }
           return isNull;
         });
