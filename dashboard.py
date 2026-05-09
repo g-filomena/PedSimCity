@@ -28,6 +28,17 @@ if 'view_state' not in st.session_state:
 
 # --- SIDEBAR ---
 st.sidebar.header("Simulation Control")
+
+if st.sidebar.button("▶️ Run Simulation", use_container_container_width=True):
+    try:
+        r = requests.post("http://localhost:8081/api/start")
+        if r.status_code == 200:
+            st.sidebar.success("Simulation started!")
+        else:
+            st.sidebar.error("Failed to start simulation.")
+    except Exception as e:
+        st.sidebar.error(f"Error: {e}")
+
 refresh_rate = st.sidebar.slider("Refresh Rate (seconds)", 0.1, 5.0, 1.0)
 show_roads = st.sidebar.checkbox("Show Road Network", True)
 

@@ -79,6 +79,16 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
 
     if (choice == 2) {
       LoggerUtil.getLogger().info("[STARTUP] Starting REST API for External Dashboard...");
+      
+      SimulationRestApi.setOnStart(() -> {
+        try {
+          ScenarioConfig config = new ScenarioConfig(StringEnum.Vulnerable.values(), StringEnum.TimeOfDay.values());
+          new Engine(PedSimCityNight::new).runJobs(config, Pars.parallel);
+        } catch (Exception e) {
+          LoggerUtil.getLogger().severe("Simulation failed: " + e.getMessage());
+        }
+      });
+      
       SimulationRestApi.start(8081);
     } else {
       LoggerUtil.getLogger().info("[STARTUP] Launching Standard GUI...");
