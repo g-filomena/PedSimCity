@@ -14,6 +14,8 @@ import pedsim.core.utilities.LoggerUtil;
  */
 public final class SimulationRestApi {
 
+  private static final Logger logger = LoggerUtil.getLogger();
+
   private static Runnable startListener;
 
   /**
