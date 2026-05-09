@@ -63,8 +63,8 @@ public class PedSimCity extends SimState {
   // --- Workplace POI density dataset (node -> workplace POI count) ---
   public static Map<NodeGraph, Double> nodesWorkplacePoiWeight = new HashMap<>();
 
-  final public static Graph network = new Graph();
-  final public static Graph dualNetwork = new Graph();
+  public static Graph network = new Graph();
+  public static Graph dualNetwork = new Graph();
   public static Envelope MBR = null;
 
   // dual graph
@@ -206,8 +206,8 @@ public class PedSimCity extends SimState {
     nodesNightPoiWeight.clear();
     nodesWorkplacePoiWeight.clear();
     
-    network.clear();
-    dualNetwork.clear();
+    network = new Graph();
+    dualNetwork = new Graph();
     
     buildingsMap.clear();
     regionsMap.clear();

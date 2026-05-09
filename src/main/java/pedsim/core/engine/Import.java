@@ -71,6 +71,7 @@ public class Import {
    */
   protected void readLandmarksAndSightLines() throws Exception {
     try {
+      String[] layerSuffixes = {"_landmarks", "_sight_lines2D"};
       VectorLayer[] vectorLayers = {PedSimCity.buildings, PedSimCity.sightLines};
 
       for (VectorLayer vl : vectorLayers) {
