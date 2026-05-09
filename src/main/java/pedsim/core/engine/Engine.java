@@ -28,34 +28,48 @@ public class Engine {
   }
 
   public void runJobs(ScenarioConfig scenarioConfig, boolean parallel) throws Exception {
-    PedSimCity.clearStaticData();
-    Pars.setSimulationParameters();
+    if (SimulationStateStore.getInstance().running) {
+        logger.warning("Simulation is already running! Ignoring new run request.");
+        return;
+    }
+    
+    try {
+        SimulationStateStore.getInstance().running = true;
+        SimulationStateStore.getInstance().finished = false;
+        SimulationStateStore.getInstance().stopRequested = false;
 
-    Import importer = new Import();
-    importer.importFiles();
+        PedSimCity.clearStaticData();
+        Pars.setSimulationParameters();
 
-    // Export road network as GeoJSON once so the browser map can draw it
-    SimulationStateStore.getInstance().setRoadsGeoJson(
-        GeoJsonExporter.exportRoads(PedSimCity.roads));
+        Import importer = new Import();
+        importer.importFiles();
 
-    Environment.prepare();
-    logger.info("Environment prepared. About to start simulation");
+        // Export road network as GeoJSON once so the browser map can draw it
+        SimulationStateStore.getInstance().setRoadsGeoJson(
+            GeoJsonExporter.exportRoads(PedSimCity.roads));
 
-    if (parallel) {
-      IntStream.range(0, Pars.jobs).parallel().forEach(jobNr -> {
-        try {
-          Engine engine = new Engine(stateFactory); // one engine per worker
-          logger.info("Executing Job nr.: " + jobNr);
-          engine.executeJob(jobNr, scenarioConfig);
-        } catch (Exception e) {
-          throw new RuntimeException("Error executing job " + jobNr, e);
+        Environment.prepare();
+        logger.info("Environment prepared. About to start simulation");
+
+        if (parallel) {
+          IntStream.range(0, Pars.jobs).parallel().forEach(jobNr -> {
+            try {
+              Engine engine = new Engine(stateFactory); // one engine per worker
+              logger.info("Executing Job nr.: " + jobNr);
+              engine.executeJob(jobNr, scenarioConfig);
+            } catch (Exception e) {
+              logger.severe("Error in parallel job " + jobNr + ": " + e.getMessage());
+            }
+          });
+        } else {
+          for (int jobNr = 0; jobNr < Pars.jobs; jobNr++) {
+            logger.info("Executing Job nr.: " + jobNr);
+            executeJob(jobNr, scenarioConfig);
+          }
         }
-      });
-    } else {
-      for (int jobNr = 0; jobNr < Pars.jobs; jobNr++) {
-        logger.info("Executing Job nr.: " + jobNr);
-        executeJob(jobNr, scenarioConfig);
-      }
+    } finally {
+        SimulationStateStore.getInstance().running = false;
+        SimulationStateStore.getInstance().finished = true;
     }
   }
 
