@@ -29,7 +29,7 @@ if 'view_state' not in st.session_state:
 # --- SIDEBAR ---
 st.sidebar.header("Simulation Control")
 
-if st.sidebar.button("▶️ Run Simulation", use_container_container_width=True):
+if st.sidebar.button("▶️ Run Simulation", use_container_width=True):
     try:
         r = requests.post("http://localhost:8081/api/start")
         if r.status_code == 200:
