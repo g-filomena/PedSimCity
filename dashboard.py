@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 import pandas as pd
-import pydeck as pdk
 import json
 import time
 
@@ -23,8 +22,6 @@ API_URL = "http://localhost:8081/api/state"
 # --- SESSION STATE ---
 if 'roads' not in st.session_state:
     st.session_state.roads = None
-if 'view_state' not in st.session_state:
-    st.session_state.view_state = pdk.ViewState(latitude=0, longitude=0, zoom=12, pitch=0)
 
 # --- SIDEBAR ---
 st.sidebar.header("Simulation Settings")
@@ -88,89 +85,60 @@ while True:
             c2.metric("Home", data.get('atHomeCount', 0))
             st.metric("At Destination", data.get('atDestCount', 0))
 
-        # --- COORDINATE DETECTION ---
-        is_geospatial = True
-        
-        # Check Agent coords
-        agents = data.get('agents', [])
-        if agents:
-            first_agent = agents[0]
-            lat, lon = first_agent.get('lat', 0), first_agent.get('lon', 0)
-            if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-                is_geospatial = False
-
-        # Handle Road Network
-        if st.session_state.roads is None and data.get('roadsGeoJson'):
-            try:
-                st.session_state.roads = json.loads(data['roadsGeoJson'])
-                features = st.session_state.roads.get('features', [])
-                if features:
-                    coords = features[0]['geometry']['coordinates']
-                    # Handle both LineString and MultiLineString
-                    first_coord = coords[0][0] if isinstance(coords[0][0], list) else coords[0]
-                    lon, lat = first_coord[0], first_coord[1]
-                    
-                    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-                        is_geospatial = False
-                    
-                    # Update view state to center on the data
-                    st.session_state.view_state = pdk.ViewState(
-                        latitude=lat if is_geospatial else 0, 
-                        longitude=lon if is_geospatial else 0,
-                        target=[lon, lat, 0] if not is_geospatial else None,
-                        zoom=14 if is_geospatial else -2, 
-                        pitch=0
-                    )
-            except:
-                pass
-
-        # Prepare Map Layers
-        layers = []
-        
-        # 1. Road Layer
-        if show_roads and st.session_state.roads:
-            layers.append(pdk.Layer(
-                "GeoJsonLayer",
-                st.session_state.roads,
-                stroke_width_min_pixels=1,
-                get_line_color=[71, 85, 105, 150],
-                get_fill_color=[71, 85, 105, 150],
-                coordinate_system=0 if is_geospatial else 1, # 0=LNGLAT, 1=CARTESIAN
-            ))
-
-        # 2. Agent Layer
-        if agents:
-            df = pd.DataFrame(agents)
-            df['color'] = df['vulnerable'].apply(lambda v: [239, 68, 68] if v else [59, 130, 246])
+        # --- STATIC IMAGE GENERATION ---
+        with map_placeholder.container():
+            st.info("📷 Generating static image for the current step...")
             
-            layers.append(pdk.Layer(
-                "ScatterplotLayer",
-                df,
-                get_position='[lon, lat]',
-                get_color='color',
-                get_radius=8 if is_geospatial else 50, # Scale radius for local coords
-                pickable=True,
-                opacity=0.8,
-            ))
+            import matplotlib.pyplot as plt
+            import geopandas as gpd
+            from shapely.geometry import shape
+            
+            # Create a Matplotlib figure
+            fig, ax = plt.subplots(figsize=(12, 8), dpi=100)
+            ax.set_facecolor('#0f172a')
+            fig.patch.set_facecolor('#0f172a')
+            
+            # Hide axes
+            ax.set_xticks([])
+            ax.set_yticks([])
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+            
+            # 1. Plot Roads (Edges)
+            if st.session_state.roads is None and data.get('roadsGeoJson'):
+                try:
+                    st.session_state.roads = json.loads(data['roadsGeoJson'])
+                except:
+                    pass
+                    
+            if show_roads and st.session_state.roads:
+                try:
+                    features = st.session_state.roads.get('features', [])
+                    if features:
+                        geoms = [shape(f['geometry']) for f in features]
+                        roads_gdf = gpd.GeoDataFrame(geometry=geoms)
+                        roads_gdf.plot(ax=ax, color='#475569', linewidth=1, alpha=0.7)
+                except Exception as e:
+                    st.warning(f"Failed to plot roads: {e}")
 
-        # Render Map only if we have data
-        if st.session_state.roads or agents:
-            with map_placeholder.container():
-                if not is_geospatial:
-                    st.info("💡 Local Coordinate System detected (Meters). Base map disabled.")
+            # 2. Plot Agents (Nodes)
+            agents = data.get('agents', [])
+            if agents:
+                df = pd.DataFrame(agents)
                 
-                view = pdk.View(type="MapView", controller=True) if is_geospatial else pdk.View(type="OrthographicView", controller=True)
-
-                st.pydeck_chart(pdk.Deck(
-                    views=[view],
-                    map_style='mapbox://styles/mapbox/dark-v10' if is_geospatial else None,
-                    initial_view_state=st.session_state.view_state,
-                    layers=layers,
-                    tooltip={"text": "Agent ID: {id}\nWalking: {walking}"}
-                ))
-        else:
-            with map_placeholder.container():
-                st.info("Waiting for data from the Java Backend...")
+                # Plot non-vulnerable agents
+                non_vuln = df[df['vulnerable'] == False]
+                if not non_vuln.empty:
+                    ax.scatter(non_vuln['lon'], non_vuln['lat'], c='#3b82f6', s=15, zorder=5, label='Agent')
+                    
+                # Plot vulnerable agents
+                vuln = df[df['vulnerable'] == True]
+                if not vuln.empty:
+                    ax.scatter(vuln['lon'], vuln['lat'], c='#ef4444', s=15, zorder=6, label='Vulnerable Agent')
+            
+            # Render the static image in Streamlit
+            st.pyplot(fig)
+            plt.close(fig)
             
     else:
         with map_placeholder.container():
