@@ -336,9 +336,14 @@ public class Environment {
       if (edge.getFromNode().getRegionID() == edge.getToNode().getRegionID()) {
         int regionID = edge.getFromNode().getRegionID();
         edge.setRegionID(regionID);
-        PedSimCity.regionsMap.get(regionID).edges.add(edge);
-        PedSimCity.regionsMap.get(regionID).nodes.add(edge.getFromNode());
-        PedSimCity.regionsMap.get(regionID).nodes.add(edge.getToNode());
+        Region region = PedSimCity.regionsMap.get(regionID);
+        if (region != null) {
+            region.edges.add(edge);
+            region.nodes.add(edge.getFromNode());
+            region.nodes.add(edge.getToNode());
+        } else {
+            logger.warning("RegionID " + regionID + " not found in regionsMap for edge " + edge.getEdgeID());
+        }
       } else {
         // gateway edge
         edge.setRegionID(-1);

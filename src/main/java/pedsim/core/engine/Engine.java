@@ -27,7 +27,7 @@ public class Engine {
     this.stateFactory = stateFactory;
   }
 
-  public void runJobs(ScenarioConfig scenarioConfig, boolean parallel) throws Exception {
+  public synchronized void runJobs(ScenarioConfig scenarioConfig, boolean parallel) throws Exception {
     if (SimulationStateStore.getInstance().running) {
         logger.warning("Simulation is already running! Ignoring new run request.");
         return;
