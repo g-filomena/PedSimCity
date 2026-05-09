@@ -22,6 +22,10 @@ package pedsim.core.website;
  */
 public final class MapHtmlBuilder {
 
+  /**
+   * High-performance Canvas renderer implementation.
+   * Handles GeoJSON road projection and glowing agent dots.
+   */
   private MapHtmlBuilder() {}
 
   /**
