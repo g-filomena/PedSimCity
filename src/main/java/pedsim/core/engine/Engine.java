@@ -28,6 +28,7 @@ public class Engine {
   }
 
   public void runJobs(ScenarioConfig scenarioConfig, boolean parallel) throws Exception {
+    PedSimCity.clearStaticData();
     Pars.setSimulationParameters();
 
     Import importer = new Import();

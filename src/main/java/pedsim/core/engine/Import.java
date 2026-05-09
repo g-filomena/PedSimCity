@@ -41,6 +41,10 @@ public class Import {
       VectorLayer[] vectorLayers = {PedSimCity.roads, PedSimCity.junctions,
           PedSimCity.intersectionsDual, PedSimCity.centroids};
 
+      for (VectorLayer vl : vectorLayers) {
+        vl.getGeometries().clear();
+      }
+
       for (int i = 0; i < layerSuffixes.length; i++) {
         String resourceName = Pars.cityName + "/" + Pars.cityName + layerSuffixes[i] + ".gpkg";
 
@@ -67,8 +71,11 @@ public class Import {
    */
   protected void readLandmarksAndSightLines() throws Exception {
     try {
-      String[] layerSuffixes = {"_landmarks", "_sight_lines2D"};
       VectorLayer[] vectorLayers = {PedSimCity.buildings, PedSimCity.sightLines};
+
+      for (VectorLayer vl : vectorLayers) {
+        vl.getGeometries().clear();
+      }
 
       for (int i = 0; i < layerSuffixes.length; i++) {
         String resourceName = Pars.cityName + "/" + Pars.cityName + layerSuffixes[i] + ".gpkg";
@@ -101,6 +108,7 @@ public class Import {
         throw new IllegalStateException("Resource not found: " + resourceName);
       }
 
+      PedSimCity.barriers.getGeometries().clear();
       VectorLayer.readGPKG(fileUrl, PedSimCity.barriers);
       PedSimCity.barriers.setID("barrierID");
       logger.info("Barriers successfully imported.");
@@ -136,6 +144,7 @@ public class Import {
       if (fileUrl == null) {
         throw new IllegalStateException("Resource not found: " + resourceName);
       }
+      targetLayer.getGeometries().clear();
       VectorLayer.readGPKG(fileUrl, targetLayer);
       if (targetLayer.getGeometries().isEmpty()) {
         logger.warning("Layer " + layerName + " was loaded but is empty.");

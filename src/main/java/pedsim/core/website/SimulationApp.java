@@ -116,14 +116,46 @@ public class SimulationApp {
     SimulationStateStore store = SimulationStateStore.getInstance();
     
     if (store.running || store.finished) {
-      var stats = Jt.columns(2).use(sidebar);
-      Jt.text("Time: " + (store.simulationTime != null ? store.simulationTime : "00:00")).use(stats.col(0));
-      Jt.text("Step: " + store.currentStep).use(stats.col(1));
-      
-      var counts = Jt.columns(3).use(sidebar);
-      Jt.text("🚶 " + store.walkingCount).use(counts.col(0));
-      Jt.text("🏠 " + store.atHomeCount).use(counts.col(1));
-      Jt.text("🎯 " + store.atDestCount).use(counts.col(2));
+      Jt.html("""
+        <div id="live-stats" style="margin-bottom: 16px; font-family: system-ui, sans-serif;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span style="color: #94a3b8; font-size: 12px;">TIME: <b id="side-time" style="color: #f8fafc;">%s</b></span>
+            <span style="color: #94a3b8; font-size: 12px;">STEP: <b id="side-step" style="color: #f8fafc;">%d</b></span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center;">
+            <div style="background: #1e293b; padding: 8px; border-radius: 8px; border: 1px solid #334155;">
+              <div style="font-size: 18px;">🚶</div>
+              <div id="side-walking" style="font-weight: 600; color: #f8fafc;">%d</div>
+            </div>
+            <div style="background: #1e293b; padding: 8px; border-radius: 8px; border: 1px solid #334155;">
+              <div style="font-size: 18px;">🏠</div>
+              <div id="side-home" style="font-weight: 600; color: #f8fafc;">%d</div>
+            </div>
+            <div style="background: #1e293b; padding: 8px; border-radius: 8px; border: 1px solid #334155;">
+              <div style="font-size: 18px;">🎯</div>
+              <div id="side-dest" style="font-weight: 600; color: #f8fafc;">%d</div>
+            </div>
+          </div>
+        </div>
+        <script>
+          function updateSidebar() {
+            fetch('http://localhost:%d/api/state')
+              .then(r => r.json())
+              .then(data => {
+                document.getElementById('side-time').textContent = data.simulationTime || '—';
+                document.getElementById('side-step').textContent = data.currentStep || '0';
+                document.getElementById('side-walking').textContent = data.walkingCount || '0';
+                document.getElementById('side-home').textContent = data.atHomeCount || '0';
+                document.getElementById('side-dest').textContent = data.atDestCount || '0';
+              }).catch(e => console.error('Sidebar update failed', e));
+          }
+          setInterval(updateSidebar, 1000);
+        </script>
+        """.formatted(
+            store.simulationTime, store.currentStep, 
+            store.walkingCount, store.atHomeCount, store.atDestCount,
+            SimulationWebServer.API_PORT
+        )).use(sidebar);
       Jt.divider("stats-sep").use(sidebar);
     }
 

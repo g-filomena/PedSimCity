@@ -182,4 +182,48 @@ public class PedSimCity extends SimState {
   public void finish() {
     super.finish();
   }
+
+  /**
+   * Clears all static data structures to allow for a clean simulation restart.
+   */
+  public static void clearStaticData() {
+    roads.getGeometries().clear();
+    buildings.getGeometries().clear();
+    barriers.getGeometries().clear();
+    junctions.getGeometries().clear();
+    sightLines.getGeometries().clear();
+    censusZones.getGeometries().clear();
+    censusZonesVulnerability.getGeometries().clear();
+    nightPoiDensities.getGeometries().clear();
+    workplacePoiDensities.getGeometries().clear();
+    intersectionsDual.getGeometries().clear();
+    centroids.getGeometries().clear();
+
+    nodesCensusZonesMap.clear();
+    censusZonesList.clear();
+    censusZonesNodesMap.clear();
+    nodesVulnerabilityWeight.clear();
+    nodesNightPoiWeight.clear();
+    nodesWorkplacePoiWeight.clear();
+    
+    network.clear();
+    dualNetwork.clear();
+    
+    buildingsMap.clear();
+    regionsMap.clear();
+    barriersMap.clear();
+    gatewaysMap.clear();
+    nodesMap.clear();
+    edgesMap.clear();
+    centroidsMap.clear();
+    edges.clear();
+    startingNodes.clear();
+    
+    indexedEdgeCache.clear();
+    censusZonesCache.clear();
+    alternativeRoutes.clear();
+    
+    censusZonesSpatialIndex = new STRtree();
+    MBR = null;
+  }
 }

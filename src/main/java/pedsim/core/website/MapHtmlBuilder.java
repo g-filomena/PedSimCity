@@ -81,28 +81,34 @@ public final class MapHtmlBuilder {
 
                 function project(lat, lon) {
                   if (!bounds) return { x: 0, y: 0 };
-                  const x = (lon - bounds.minX) / (bounds.maxX - bounds.minX) * window.innerWidth;
-                  const y = (1 - (lat - bounds.minY) / (bounds.maxY - bounds.minY)) * window.innerHeight;
+                  const x = (lon - bounds.minX) / (bounds.maxX - bounds.minX) * canvas.width / window.devicePixelRatio;
+                  const y = (1 - (lat - bounds.minY) / (bounds.maxY - bounds.minY)) * canvas.height / window.devicePixelRatio;
                   return { x, y };
+                }
+
+                function drawLine(coords) {
+                  if (!coords || coords.length < 2) return;
+                  const p0 = project(coords[0][1], coords[0][0]);
+                  ctx.moveTo(p0.x, p0.y);
+                  for (let i = 1; i < coords.length; i++) {
+                    const p = project(coords[i][1], coords[i][0]);
+                    ctx.lineTo(p.x, p.y);
+                  }
                 }
 
                 function draw() {
                   ctx.fillStyle = "#0f172a";
-                  ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
                   if (roads && bounds) {
-                    ctx.strokeStyle = "#334155";
-                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = "#475569";
+                    ctx.lineWidth = 1.5;
                     ctx.beginPath();
                     roads.features.forEach(f => {
                       if (f.geometry.type === "LineString") {
-                        const coords = f.geometry.coordinates;
-                        const p0 = project(coords[0][1], coords[0][0]);
-                        ctx.moveTo(p0.x, p0.y);
-                        for (let i = 1; i < coords.length; i++) {
-                          const p = project(coords[i][1], coords[i][0]);
-                          ctx.lineTo(p.x, p.y);
-                        }
+                        drawLine(f.geometry.coordinates);
+                      } else if (f.geometry.type === "MultiLineString") {
+                        f.geometry.coordinates.forEach(line => drawLine(line));
                       }
                     });
                     ctx.stroke();
@@ -112,19 +118,17 @@ public final class MapHtmlBuilder {
                     const p = project(a.lat, a.lon);
                     const color = a.vulnerable ? "#ef4444" : "#3b82f6";
                     
-                    // Glow
-                    ctx.shadowBlur = 10;
+                    ctx.shadowBlur = 12;
                     ctx.shadowColor = color;
                     ctx.fillStyle = color;
                     ctx.beginPath();
-                    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                    ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
                     ctx.fill();
                     
-                    // Core
                     ctx.shadowBlur = 0;
                     ctx.fillStyle = "#ffffff";
                     ctx.beginPath();
-                    ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
+                    ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
                     ctx.fill();
                   });
 
@@ -139,20 +143,28 @@ public final class MapHtmlBuilder {
                     
                     if (data.roadsGeoJson && !roads) {
                       roads = JSON.parse(data.roadsGeoJson);
-                      // Calculate bounds from roads
+                      console.log("Roads loaded:", roads.features.length);
+                      
                       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+                      const processCoord = c => {
+                        minX = Math.min(minX, c[0]); maxX = Math.max(maxX, c[0]);
+                        minY = Math.min(minY, c[1]); maxY = Math.max(maxY, c[1]);
+                      };
+
                       roads.features.forEach(f => {
-                        f.geometry.coordinates.forEach(c => {
-                          minX = Math.min(minX, c[0]); maxX = Math.max(maxX, c[0]);
-                          minY = Math.min(minY, c[1]); maxY = Math.max(maxY, c[1]);
-                        });
+                        if (f.geometry.type === "LineString") {
+                          f.geometry.coordinates.forEach(processCoord);
+                        } else if (f.geometry.type === "MultiLineString") {
+                          f.geometry.coordinates.forEach(line => line.forEach(processCoord));
+                        }
                       });
-                      // Add padding
+                      
                       const dx = (maxX - minX) * 0.1;
                       const dy = (maxY - minY) * 0.1;
                       bounds = { minX: minX - dx, maxX: maxX + dx, minY: minY - dy, maxY: maxY + dy };
+                      console.log("Bounds calculated:", bounds);
                     }
-                  } catch (e) { console.error(e); }
+                  } catch (e) { console.error("Update failed:", e); }
                   setTimeout(update, 200);
                 }
 

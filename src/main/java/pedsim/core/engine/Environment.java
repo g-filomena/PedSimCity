@@ -237,9 +237,19 @@ public class Environment {
     for (EdgeGraph edge : edges) {
       int edgeID = edge.attributes.get("edgeID").getInteger();
 
-      Optional.ofNullable(edge.attributes.get("lit")).map(AttributeValue::getInteger) // Integer
-          .map(i -> new AttributeValue(i != 0)) // AttributeValue(boolean)
-          .ifPresent(v -> edge.attributes.put("lit", v));
+      // Robust conversion of "lit" attribute.
+      // If it's an Integer (1/0), convert to Boolean.
+      // If it's already a Boolean, keep it.
+      AttributeValue litAttr = edge.attributes.get("lit");
+      if (litAttr != null) {
+        Object val = litAttr.getValue();
+        if (val instanceof Integer i) {
+          edge.attributes.put("lit", new AttributeValue(i != 0));
+        } else if (!(val instanceof Boolean)) {
+          // Fallback or ignore if it's something else
+          edge.attributes.put("lit", new AttributeValue(false));
+        }
+      }
 
       edge.attributes.put("roadType", edge.attributes.get("highway"));
       edge.setID(edgeID);
@@ -415,7 +425,9 @@ public class Environment {
     // Build spatial index of ALL zones (including Type 36) to capture nodes accurately
     STRtree index = new STRtree();
     for (MasonGeometry zone : rawZones) {
-      index.insert(zone.getGeometry().getEnvelopeInternal(), zone);
+      if (zone.getGeometry() != null) {
+        index.insert(zone.getGeometry().getEnvelopeInternal(), zone);
+      }
     }
     index.build();
     PedSimCity.censusZonesSpatialIndex = index;
@@ -555,7 +567,9 @@ public class Environment {
     // Build a temporary spatial index for ALL zones in this layer
     STRtree index = new STRtree();
     for (MasonGeometry zone : zones) {
-      index.insert(zone.getGeometry().getEnvelopeInternal(), zone);
+      if (zone.getGeometry() != null) {
+        index.insert(zone.getGeometry().getEnvelopeInternal(), zone);
+      }
     }
     index.build();
 
@@ -651,8 +665,8 @@ public class Environment {
     double nearestDist = Double.MAX_VALUE;
 
     for (NodeGraph node : allNodes) {
-      if (assignedNodes.contains(node)) {
-        continue; // already claimed by another zone
+      if (assignedNodes.contains(node) || node.getMasonGeometry().getGeometry() == null) {
+        continue; // already claimed or no geometry
       }
       double dist = centroid.distance(node.getMasonGeometry().getGeometry());
       if (dist < nearestDist) {
