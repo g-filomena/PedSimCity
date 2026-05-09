@@ -16,12 +16,12 @@ public final class SimulationRestApi {
 
   private static final Logger logger = LoggerUtil.getLogger();
 
-  private static Runnable startListener;
+  private static java.util.function.Consumer<java.util.Map<String, Object>> startListener;
 
   /**
    * Registers a listener to be called when the /api/start endpoint is hit.
    */
-  public static void setOnStart(Runnable listener) {
+  public static void setOnStart(java.util.function.Consumer<java.util.Map<String, Object>> listener) {
     startListener = listener;
   }
 
@@ -73,8 +73,20 @@ public final class SimulationRestApi {
           }
 
           if (startListener != null) {
-            new Thread(startListener).start();
-            logger.info("[REST API] Simulation start triggered.");
+            java.util.Map<String, Object> params = new java.util.HashMap<>();
+            try {
+              if (exchange.getRequestBody().available() > 0) {
+                params = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readValue(exchange.getRequestBody(), java.util.Map.class);
+              }
+            } catch (Exception e) {
+              logger.warning("Failed to parse start parameters: " + e.getMessage());
+            }
+
+            final java.util.Map<String, Object> finalParams = params;
+            new Thread(() -> startListener.accept(finalParams)).start();
+            
+            logger.info("[REST API] Simulation start triggered with params: " + params);
             exchange.sendResponseHeaders(200, 0);
           } else {
             exchange.sendResponseHeaders(503, 0); // Service Unavailable

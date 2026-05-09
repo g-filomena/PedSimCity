@@ -27,20 +27,35 @@ if 'view_state' not in st.session_state:
     st.session_state.view_state = pdk.ViewState(latitude=0, longitude=0, zoom=12, pitch=0)
 
 # --- SIDEBAR ---
-st.sidebar.header("Simulation Control")
+st.sidebar.header("Simulation Settings")
+
+city_name = st.sidebar.selectbox("City Name", ["TorinoCentre", "Muenster"], index=0)
+duration = st.sidebar.number_input("Duration (days)", 1, 30, 7)
+population = st.sidebar.number_input("Actual Population", 1000, 500000, 100000)
+percentage = st.sidebar.slider("% Represented", 0.001, 1.0, 0.01, format="%.3f")
+jobs = st.sidebar.number_input("Parallel Jobs", 1, 16, 1)
 
 if st.sidebar.button("▶️ Run Simulation", use_container_width=True):
     try:
-        r = requests.post("http://localhost:8081/api/start")
+        params = {
+            "cityName": city_name,
+            "days": duration,
+            "actualPopulation": population,
+            "percentage": percentage,
+            "jobs": jobs
+        }
+        r = requests.post("http://localhost:8081/api/start", json=params)
         if r.status_code == 200:
-            st.sidebar.success("Simulation started!")
+            st.sidebar.success(f"Simulation started for {city_name}!")
         else:
             st.sidebar.error("Failed to start simulation.")
     except Exception as e:
         st.sidebar.error(f"Error: {e}")
 
+st.sidebar.divider()
+st.sidebar.header("View Controls")
 refresh_rate = st.sidebar.slider("Refresh Rate (seconds)", 0.1, 5.0, 1.0)
-show_roads = st.sidebar.checkbox("Show Road Network", True)
+show_roads = st.sidebar.checkbox("Show Edges (Roads)", True)
 
 stats_container = st.sidebar.empty()
 log_container = st.sidebar.empty()
@@ -73,20 +88,40 @@ while True:
             c2.metric("Home", data.get('atHomeCount', 0))
             st.metric("At Destination", data.get('atDestCount', 0))
 
+        # --- COORDINATE DETECTION ---
+        is_geospatial = True
+        
+        # Check Agent coords
+        agents = data.get('agents', [])
+        if agents:
+            first_agent = agents[0]
+            lat, lon = first_agent.get('lat', 0), first_agent.get('lon', 0)
+            if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                is_geospatial = False
+
         # Handle Road Network
         if st.session_state.roads is None and data.get('roadsGeoJson'):
             try:
                 st.session_state.roads = json.loads(data['roadsGeoJson'])
-                # Calculate initial view state from roads
                 features = st.session_state.roads.get('features', [])
                 if features:
-                    # Get center of the first feature as a starting point
                     coords = features[0]['geometry']['coordinates']
-                    if isinstance(coords[0], list): # LineString
-                        lon, lat = coords[0]
-                    else:
-                        lon, lat = coords
-                    st.session_state.view_state = pdk.ViewState(latitude=lat, longitude=lon, zoom=14, pitch=0)
+                    # Handle both LineString and MultiLineString
+                    first_coord = coords[0][0] if isinstance(coords[0][0], list) else coords[0]
+                    lon, lat = first_coord[0], first_coord[1]
+                    
+                    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                        is_geospatial = False
+                    
+                    # Update view state to center on the data
+                    st.session_state.view_state = pdk.ViewState(
+                        latitude=lat if is_geospatial else 0, 
+                        longitude=lon if is_geospatial else 0,
+                        # If not geospatial, we use these as offsets in a linear space
+                        target=[lon, lat, 0] if not is_geospatial else None,
+                        zoom=14 if is_geospatial else -2, 
+                        pitch=0
+                    )
             except:
                 pass
 
@@ -99,15 +134,14 @@ while True:
                 "GeoJsonLayer",
                 st.session_state.roads,
                 stroke_width_min_pixels=1,
-                get_line_color=[71, 85, 105, 150], # #475569
+                get_line_color=[71, 85, 105, 150],
                 get_fill_color=[71, 85, 105, 150],
+                coordinate_system=0 if is_geospatial else 1, # 0=LNGLAT, 1=CARTESIAN (roughly)
             ))
 
         # 2. Agent Layer
-        agents = data.get('agents', [])
         if agents:
             df = pd.DataFrame(agents)
-            # Add color column based on vulnerability
             df['color'] = df['vulnerable'].apply(lambda v: [239, 68, 68] if v else [59, 130, 246])
             
             layers.append(pdk.Layer(
@@ -115,15 +149,18 @@ while True:
                 df,
                 get_position='[lon, lat]',
                 get_color='color',
-                get_radius=8,
+                get_radius=8 if is_geospatial else 50, # Scale radius for local coords
                 pickable=True,
                 opacity=0.8,
             ))
 
         # Render Map
         with map_placeholder.container():
+            if not is_geospatial:
+                st.info("💡 Local Coordinate System detected (Meters). Base map disabled.")
+            
             st.pydeck_chart(pdk.Deck(
-                map_style='mapbox://styles/mapbox/dark-v10',
+                map_style='mapbox://styles/mapbox/dark-v10' if is_geospatial else None,
                 initial_view_state=st.session_state.view_state,
                 layers=layers,
                 tooltip={"text": "Agent ID: {id}\nWalking: {walking}"}

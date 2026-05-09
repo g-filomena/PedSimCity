@@ -80,10 +80,19 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
     if (choice == 2) {
       LoggerUtil.getLogger().info("[STARTUP] Starting REST API for External Dashboard...");
       
-      SimulationRestApi.setOnStart(() -> {
+      SimulationRestApi.setOnStart((params) -> {
         try {
+          // Apply parameters if provided
+          if (params.containsKey("cityName")) Pars.cityName = (String) params.get("cityName");
+          if (params.containsKey("days")) Pars.durationDays = Integer.parseInt(params.get("days").toString());
+          if (params.containsKey("actualPopulation")) Pars.population = Integer.parseInt(params.get("actualPopulation").toString());
+          if (params.containsKey("percentage")) Pars.percentagePopulationAgent = Double.parseDouble(params.get("percentage").toString());
+          if (params.containsKey("jobs")) Pars.jobs = Integer.parseInt(params.get("jobs").toString());
+
+          Pars.setSimulationParameters(); // Recalculate derived parameters
+
           ScenarioConfig config = new ScenarioConfig(StringEnum.Vulnerable.values(), StringEnum.TimeOfDay.values());
-          new Engine(PedSimCityNight::new).runJobs(config, Pars.parallel);
+          new Engine(PedSimCityNight::new).runJobs(config, Pars.jobs); // Use Pars.jobs (int)
         } catch (Exception e) {
           LoggerUtil.getLogger().severe("Simulation failed: " + e.getMessage());
         }
