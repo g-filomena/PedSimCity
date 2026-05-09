@@ -87,12 +87,15 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
           if (params.containsKey("days")) Pars.durationDays = Integer.parseInt(params.get("days").toString());
           if (params.containsKey("actualPopulation")) Pars.population = Integer.parseInt(params.get("actualPopulation").toString());
           if (params.containsKey("percentage")) Pars.percentagePopulationAgent = Double.parseDouble(params.get("percentage").toString());
-          if (params.containsKey("jobs")) Pars.jobs = Integer.parseInt(params.get("jobs").toString());
+          if (params.containsKey("jobs")) {
+              Pars.jobs = Integer.parseInt(params.get("jobs").toString());
+              Pars.parallel = (Pars.jobs > 1);
+          }
 
           Pars.setSimulationParameters(); // Recalculate derived parameters
 
           ScenarioConfig config = new ScenarioConfig(StringEnum.Vulnerable.values(), StringEnum.TimeOfDay.values());
-          new Engine(PedSimCityNight::new).runJobs(config, Pars.jobs); // Use Pars.jobs (int)
+          new Engine(PedSimCityNight::new).runJobs(config, Pars.jobs > 1); // Use boolean for parallel
         } catch (Exception e) {
           LoggerUtil.getLogger().severe("Simulation failed: " + e.getMessage());
         }
