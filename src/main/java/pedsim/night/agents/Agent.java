@@ -14,192 +14,153 @@ import sim.graph.Graph;
 import sim.graph.NodeGraph;
 import sim.graph.NodesLookup;
 
-/**
- * This class represents an agent in the pedestrian simulation. Agents move
- * along paths between origin and destination nodes.
- */
+/** Agent implementation for night simulations. */
 public class Agent extends pedsim.core.agents.Agent implements Steppable {
 
-	private static final long serialVersionUID = 1L;
-	public StringEnum.Vulnerable vulnerable;
-	private Graph agentNetwork;
-	protected pedsim.night.agents.AgentMovement nightMovement;
-	protected PedSimCityNight state;
-	private boolean nightRoute = false;
+  private static final long serialVersionUID = 1L;
 
-	/**
-	 * Constructor Function. Creates a new agent with the specified agent
-	 * properties.
-	 *
-	 * @param state the PedSimCity simulation state.
-	 */
-	public Agent(PedSimCityNight state) {
-		this(state, true);
-	}
+  public StringEnum.Vulnerable vulnerable;
 
-	public Agent(PedSimCityNight state, boolean registerSpatial) {
-		super(state, registerSpatial);
-		this.state = state;
-		this.agentNetwork = SharedCognitiveMap.getCommunityPrimalNetwork();
-	}
+  private final Graph agentNetwork;
+  protected pedsim.night.agents.AgentMovement nightMovement;
+  protected PedSimCityNight state;
+  private boolean nightRoute = false;
 
-	/**
-	 * This is called every tick by the scheduler. It moves the agent along the
-	 * path.
-	 *
-	 * @param state the simulation state.
-	 */
-	@Override
-	public void step(SimState state) {
+  public Agent(PedSimCityNight state) {
+    this(state, true);
+  }
 
-		if (isWaiting())
-			return;
+  public Agent(PedSimCityNight state, boolean registerSpatial) {
+    super(state, registerSpatial);
+    this.state = state;
+    this.agentNetwork = SharedCognitiveMap.getCommunityPrimalNetwork();
+  }
 
-		if (isWalkingAlone() && destinationNode == null) {
-			// simple cognitive map in this sim
-			if (!cognitiveMap.formed) {
-				getCognitiveMap().buildSimpleActivityBone();
-				cognitiveMap.formed = true;
-			}
-			if (this.state.isDark) {
-				planNightTrip();
-				nightRoute = true;
-			} else
-				planTrip();
-		} else if (reachedDestination.get()) {
-			nightRoute = false;
-			handleReachedDestination();
-		} else if (isAtDestination() && timeAtDestination <= state.schedule.getSteps())
-			goHome();
-		else if (isAtDestination())
-			;
-		else if (nightRoute)
-			nightMovement.keepWalking();
-		else
-			agentMovement.keepWalking();
-	}
+  @Override
+  public void step(SimState state) {
+    if (isWaiting()) {
+      return;
+    }
 
-	private synchronized void planNightTrip() {
-		defineOrigin();
-		if (isGoingHome()) {
-			destinationNode = homeNode;
-		} else {
-			defineRandomDestination();
-		}
-		// safety check
-		if (destinationNode.getID() == originNode.getID()) {
-			reachedDestination.set(true);
-			return;
-		}
-		planNightRoute();
-		nightMovement = new AgentMovement(this);
-		nightMovement.initialisePath(getRoute());
-	}
+    if (isWalkingAlone() && destinationNode == null) {
+      if (!cognitiveMap.formed) {
+        getCognitiveMap().buildSimpleActivityBone();
+        cognitiveMap.formed = true;
+      }
 
-	/**
-	 * Plans the route for the agent.
-	 */
-	protected void planNightRoute() {
+      if (this.state.isDark) {
+        planNightTrip();
+        nightRoute = true;
+      } else {
+        planTrip();
+        nightRoute = false;
+      }
+      return;
+    }
 
-		Heuristics heuristics = new Heuristics(this);
-		heuristics.defineHeuristic(originNode, destinationNode, true);
-		RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
-		setRoute(planner.definePath());
-	}
+    if (reachedDestination.get()) {
+      nightRoute = false;
+      handleReachedDestination();
+    } else if (isAtDestination() && timeAtDestination <= state.schedule.getSteps()) {
+      goHome();
+    } else if (isAtDestination()) {
+      return;
+    } else if (nightRoute) {
+      nightMovement.keepWalking();
+    } else {
+      agentMovement.keepWalking();
+    }
+  }
 
-	/**
-	 * Plans the route for the agent.
-	 */
-	@Override
-	protected void planTrip() {
-		defineOrigin();
-		if (isGoingHome()) {
-			destinationNode = homeNode;
-		} else {
-			// If it's day (not dark) and they haven't worked today, go to work!
-			if (workNode != null && !hasWorkedToday && !state.isDark) {
-				destinationNode = workNode;
-			} else {
-				defineRandomDestination();
-			}
-		}
-		// safety check
-		if (destinationNode.getID() == originNode.getID()) {
-			reachedDestination.set(true);
-			return;
-		}
-		planRoute();
-		agentMovement = new AgentMovement(this);
-		agentMovement.initialisePath(getRoute());
-	}
+  private synchronized void planNightTrip() {
+    defineOrigin();
+    if (isGoingHome()) {
+      destinationNode = homeNode;
+    } else {
+      defineRandomDestination();
+    }
 
-	/**
-	 * Plans the route for the agent.
-	 */
-	@Override
-	protected void planRoute() {
-		Heuristics heuristics = new Heuristics(this);
-		heuristics.defineHeuristic(originNode, destinationNode, true);
-		pedsim.night.routing.RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
-		setRoute(planner.definePath());
-	}
+    if (destinationNode.getID() == originNode.getID()) {
+      reachedDestination.set(true);
+      return;
+    }
 
-	/**
-	 * Randomly selects a destination node within a specified distance range.
-	 */
-	private void defineRandomDestination() {
+    planNightRoute();
+    nightMovement = new AgentMovement(this);
+    nightMovement.initialisePath(getRoute());
+  }
 
-		// Initialise limits for distance calculation
-		double lowerLimit = distanceNextDestination * 0.90;
-		double upperLimit = distanceNextDestination * 1.10;
+  protected void planNightRoute() {
+    Heuristics heuristics = new Heuristics(this);
+    heuristics.defineHeuristic(originNode, destinationNode, true);
+    RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
+    setRoute(planner.definePath());
+  }
 
-		// Get the network graph from the cognitive map
+  @Override
+  protected synchronized void planTrip() {
+    defineOrigin();
+    if (isGoingHome()) {
+      destinationNode = homeNode;
+    } else if (workNode != null && !hasWorkedToday && !state.isDark) {
+      destinationNode = workNode;
+    } else {
+      defineRandomDestination();
+    }
 
-		// Loop until a valid destination is found
-		while (destinationNode == null) {
+    if (destinationNode.getID() == originNode.getID()) {
+      reachedDestination.set(true);
+      return;
+    }
 
-			// Get candidate nodes between the current distance range
-			List<NodeGraph> destinationCandidates = NodesLookup.getNodesBetweenDistanceInterval(agentNetwork,
-					originNode, lowerLimit, upperLimit);
+    planRoute();
+    agentMovement = new pedsim.core.agents.AgentMovement(this);
+    agentMovement.initialisePath(getRoute());
+  }
 
-			if (destinationCandidates.isEmpty()) {
-				// Skip this iteration and adjust the limits if no candidates found
-				lowerLimit *= 0.90;
-				upperLimit *= 1.10;
-				continue; // Continue with the next loop iteration
-			}
+  @Override
+  protected void planRoute() {
+    Heuristics heuristics = new Heuristics(this);
+    heuristics.defineHeuristic(originNode, destinationNode, true);
 
-			// Select a weighted destination node from the list of candidates
-			destinationNode = selectWeightedDestination(destinationCandidates, state.isDark);
+    // Daytime behaviour inside a night simulation should use the core route planner.
+    pedsim.core.routing.RoutePlanner planner =
+        new pedsim.core.routing.RoutePlanner(originNode, destinationNode, this);
+    setRoute(planner.definePath());
+  }
 
-			// If it's dark, filter out destination nodes that lie in parks or along rivers
-			if (state.isDark && destinationNode.getEdges().stream()
-					.anyMatch(SharedCognitiveMap.getEdgesWithinParksOrAlongWater()::contains)) {
-				destinationNode = null; // Set destination to null and try again
+  private void defineRandomDestination() {
+    double lowerLimit = distanceNextDestination * 0.90;
+    double upperLimit = distanceNextDestination * 1.10;
 
-				// Adjust the distance range for the next iteration
-				lowerLimit *= 0.90;
-				upperLimit *= 1.10;
-			}
-		}
-	}
+    while (destinationNode == null) {
+      List<NodeGraph> destinationCandidates =
+          NodesLookup.getNodesBetweenDistanceInterval(agentNetwork, originNode, lowerLimit, upperLimit);
 
-	/**
-	 * Checks if the agent is vulnerable.
-	 *
-	 * @return true if the agent is vulnerable, false otherwise.
-	 */
-	public boolean isVulnerable() {
-		return vulnerable.equals(Vulnerable.VULNERABLE);
-	}
+      if (destinationCandidates.isEmpty()) {
+        lowerLimit *= 0.90;
+        upperLimit *= 1.10;
+        continue;
+      }
 
-	/**
-	 * Gets the simulation state of the agent.
-	 *
-	 * @return The PedSimCity simulation state.
-	 */
-	@Override
-	public PedSimCityNight getState() {
-		return state;
-	}
+      destinationNode = selectWeightedDestination(destinationCandidates, state.isDark);
+
+      if (state.isDark
+          && destinationNode.getEdges().stream()
+              .anyMatch(SharedCognitiveMap.getEdgesWithinParksOrAlongWater()::contains)) {
+        destinationNode = null;
+        lowerLimit *= 0.90;
+        upperLimit *= 1.10;
+      }
+    }
+  }
+
+  public boolean isVulnerable() {
+    return isVulnerableBoolean() || vulnerable == Vulnerable.VULNERABLE;
+  }
+
+  @Override
+  public PedSimCityNight getState() {
+    return state;
+  }
 }
