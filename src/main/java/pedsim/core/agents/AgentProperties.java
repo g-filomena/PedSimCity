@@ -3,218 +3,216 @@ package pedsim.core.agents;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
-
 import pedsim.core.utilities.StringEnum.AgentBarrierType;
 import pedsim.core.utilities.StringEnum.LandmarkType;
 import pedsim.core.utilities.StringEnum.LocalHeuristicMode;
 import pedsim.core.utilities.StringEnum.MinimisationMode;
 import pedsim.core.utilities.StringEnum.RouteChoiceElement;
 
-public final class AgentProperties {
+public class AgentProperties {
 
-	private MinimisationMode minimisationMode;
-	private LocalHeuristicMode localHeuristicMode;
-	private final EnumSet<RouteChoiceElement> elements;
+  private MinimisationMode minimisationMode;
+  private LocalHeuristicMode localHeuristicMode;
+  private final EnumSet<RouteChoiceElement> elements;
 
-	private boolean preferenceNaturalBarriers;
-	private boolean aversionSeveringBarriers;
+  protected boolean preferenceNaturalBarriers;
+  protected boolean aversionSeveringBarriers;
+  protected double naturalBarriersMean;
+  protected double naturalBarriersSD;
+  protected double severingBarriersMean;
+  protected double severingBarriersSD;
 
-	private double naturalBarriersMean;
-	private double naturalBarriersSD;
-	private double severingBarriersMean;
-	private double severingBarriersSD;
+  private AgentBarrierType barrierType;
+  private LandmarkType landmarkType;
 
-	private AgentBarrierType barrierType;
-	private LandmarkType landmarkType;
+  public AgentProperties() {
+    this.elements = EnumSet.noneOf(RouteChoiceElement.class);
+    reset();
+  }
 
-	public AgentProperties() {
-		this.elements = EnumSet.noneOf(RouteChoiceElement.class);
-		reset();
-	}
+  // // Optional compatibility constructor
+  // public AgentProperties(Agent ignoredAgent) {
+  // this();
+  // }
 
-	// Optional compatibility constructor
-	public AgentProperties(Agent ignoredAgent) {
-		this();
-	}
+  public void reset() {
+    minimisationMode = MinimisationMode.NONE;
+    localHeuristicMode = LocalHeuristicMode.NONE;
+    elements.clear();
 
-	public void reset() {
-		minimisationMode = MinimisationMode.NONE;
-		localHeuristicMode = LocalHeuristicMode.NONE;
-		elements.clear();
+    preferenceNaturalBarriers = false;
+    aversionSeveringBarriers = false;
 
-		preferenceNaturalBarriers = false;
-		aversionSeveringBarriers = false;
+    naturalBarriersMean = 0.0;
+    naturalBarriersSD = 0.0;
+    severingBarriersMean = 0.0;
+    severingBarriersSD = 0.0;
 
-		naturalBarriersMean = 0.0;
-		naturalBarriersSD = 0.0;
-		severingBarriersMean = 0.0;
-		severingBarriersSD = 0.0;
+    barrierType = null;
+    landmarkType = null;
+  }
 
-		barrierType = null;
-		landmarkType = null;
-	}
+  public boolean shouldOnlyUseMinimization() {
+    return minimisationMode != MinimisationMode.NONE;
+  }
 
-	public boolean shouldOnlyUseMinimization() {
-		return minimisationMode != MinimisationMode.NONE;
-	}
+  public boolean shouldUseLocalHeuristic() {
+    return localHeuristicMode != LocalHeuristicMode.NONE;
+  }
 
-	public boolean shouldUseLocalHeuristic() {
-		return localHeuristicMode != LocalHeuristicMode.NONE;
-	}
+  public boolean hasElement(RouteChoiceElement element) {
+    return elements.contains(element);
+  }
 
-	public boolean hasElement(RouteChoiceElement element) {
-		return elements.contains(element);
-	}
+  public void addElement(RouteChoiceElement element) {
+    elements.add(element);
+  }
 
-	public void addElement(RouteChoiceElement element) {
-		elements.add(element);
-	}
+  public void removeElement(RouteChoiceElement element) {
+    elements.remove(element);
+  }
 
-	public void removeElement(RouteChoiceElement element) {
-		elements.remove(element);
-	}
+  public void setElement(RouteChoiceElement element, boolean enabled) {
+    if (enabled) {
+      elements.add(element);
+    } else {
+      elements.remove(element);
+    }
+  }
 
-	public void setElement(RouteChoiceElement element, boolean enabled) {
-		if (enabled) {
-			elements.add(element);
-		} else {
-			elements.remove(element);
-		}
-	}
+  public void clearElements() {
+    elements.clear();
+  }
 
-	public void clearElements() {
-		elements.clear();
-	}
+  public Set<RouteChoiceElement> getElements() {
+    return Collections.unmodifiableSet(elements);
+  }
 
-	public Set<RouteChoiceElement> getElements() {
-		return Collections.unmodifiableSet(elements);
-	}
+  public MinimisationMode getMinimisationMode() {
+    return minimisationMode;
+  }
 
-	public MinimisationMode getMinimisationMode() {
-		return minimisationMode;
-	}
+  public void setMinimisationMode(MinimisationMode minimisationMode) {
+    this.minimisationMode = minimisationMode;
+  }
 
-	public void setMinimisationMode(MinimisationMode minimisationMode) {
-		this.minimisationMode = minimisationMode;
-	}
+  public LocalHeuristicMode getLocalHeuristicMode() {
+    return localHeuristicMode;
+  }
 
-	public LocalHeuristicMode getLocalHeuristicMode() {
-		return localHeuristicMode;
-	}
+  public void setLocalHeuristicMode(LocalHeuristicMode localHeuristicMode) {
+    this.localHeuristicMode = localHeuristicMode;
+  }
 
-	public void setLocalHeuristicMode(LocalHeuristicMode localHeuristicMode) {
-		this.localHeuristicMode = localHeuristicMode;
-	}
+  public boolean isMinimisingDistance() {
+    return minimisationMode == MinimisationMode.DISTANCE;
+  }
 
-	public boolean isMinimisingDistance() {
-		return minimisationMode == MinimisationMode.DISTANCE;
-	}
+  public boolean isMinimisingAngular() {
+    return minimisationMode == MinimisationMode.ANGULAR;
+  }
 
-	public boolean isMinimisingAngular() {
-		return minimisationMode == MinimisationMode.ANGULAR;
-	}
+  public boolean isLocalHeuristicDistance() {
+    return localHeuristicMode == LocalHeuristicMode.DISTANCE;
+  }
 
-	public boolean isLocalHeuristicDistance() {
-		return localHeuristicMode == LocalHeuristicMode.DISTANCE;
-	}
+  public boolean isLocalHeuristicAngular() {
+    return localHeuristicMode == LocalHeuristicMode.ANGULAR;
+  }
 
-	public boolean isLocalHeuristicAngular() {
-		return localHeuristicMode == LocalHeuristicMode.ANGULAR;
-	}
+  public boolean isUsingLocalLandmarks() {
+    return hasElement(RouteChoiceElement.LOCAL_LANDMARKS);
+  }
 
-	public boolean isUsingLocalLandmarks() {
-		return hasElement(RouteChoiceElement.LOCAL_LANDMARKS);
-	}
+  public void setUsingLocalLandmarks(boolean enabled) {
+    setElement(RouteChoiceElement.LOCAL_LANDMARKS, enabled);
+  }
 
-	public void setUsingLocalLandmarks(boolean enabled) {
-		setElement(RouteChoiceElement.LOCAL_LANDMARKS, enabled);
-	}
+  public boolean isUsingDistantLandmarks() {
+    return hasElement(RouteChoiceElement.DISTANT_LANDMARKS);
+  }
 
-	public boolean isUsingDistantLandmarks() {
-		return hasElement(RouteChoiceElement.DISTANT_LANDMARKS);
-	}
+  public void setUsingDistantLandmarks(boolean enabled) {
+    setElement(RouteChoiceElement.DISTANT_LANDMARKS, enabled);
+  }
 
-	public void setUsingDistantLandmarks(boolean enabled) {
-		setElement(RouteChoiceElement.DISTANT_LANDMARKS, enabled);
-	}
+  public boolean isRegionBasedNavigation() {
+    return hasElement(RouteChoiceElement.REGION_BASED_NAVIGATION);
+  }
 
-	public boolean isRegionBasedNavigation() {
-		return hasElement(RouteChoiceElement.REGION_BASED_NAVIGATION);
-	}
+  public void setRegionBasedNavigation(boolean enabled) {
+    setElement(RouteChoiceElement.REGION_BASED_NAVIGATION, enabled);
+  }
 
-	public void setRegionBasedNavigation(boolean enabled) {
-		setElement(RouteChoiceElement.REGION_BASED_NAVIGATION, enabled);
-	}
+  public boolean isBarrierBasedNavigation() {
+    return hasElement(RouteChoiceElement.BARRIER_BASED_NAVIGATION);
+  }
 
-	public boolean isBarrierBasedNavigation() {
-		return hasElement(RouteChoiceElement.BARRIER_BASED_NAVIGATION);
-	}
+  public void setBarrierBasedNavigation(boolean enabled) {
+    setElement(RouteChoiceElement.BARRIER_BASED_NAVIGATION, enabled);
+  }
 
-	public void setBarrierBasedNavigation(boolean enabled) {
-		setElement(RouteChoiceElement.BARRIER_BASED_NAVIGATION, enabled);
-	}
+  public boolean isPreferenceNaturalBarriers() {
+    return preferenceNaturalBarriers;
+  }
 
-	public boolean isPreferenceNaturalBarriers() {
-		return preferenceNaturalBarriers;
-	}
+  public void setPreferenceNaturalBarriers(boolean preferenceNaturalBarriers) {
+    this.preferenceNaturalBarriers = preferenceNaturalBarriers;
+  }
 
-	public void setPreferenceNaturalBarriers(boolean preferenceNaturalBarriers) {
-		this.preferenceNaturalBarriers = preferenceNaturalBarriers;
-	}
+  public boolean isAversionSeveringBarriers() {
+    return aversionSeveringBarriers;
+  }
 
-	public boolean isAversionSeveringBarriers() {
-		return aversionSeveringBarriers;
-	}
+  public void setAversionSeveringBarriers(boolean aversionSeveringBarriers) {
+    this.aversionSeveringBarriers = aversionSeveringBarriers;
+  }
 
-	public void setAversionSeveringBarriers(boolean aversionSeveringBarriers) {
-		this.aversionSeveringBarriers = aversionSeveringBarriers;
-	}
+  public double getNaturalBarriersMean() {
+    return naturalBarriersMean;
+  }
 
-	public double getNaturalBarriersMean() {
-		return naturalBarriersMean;
-	}
+  public void setNaturalBarriersMean(double naturalBarriersMean) {
+    this.naturalBarriersMean = naturalBarriersMean;
+  }
 
-	public void setNaturalBarriersMean(double naturalBarriersMean) {
-		this.naturalBarriersMean = naturalBarriersMean;
-	}
+  public double getNaturalBarriersSD() {
+    return naturalBarriersSD;
+  }
 
-	public double getNaturalBarriersSD() {
-		return naturalBarriersSD;
-	}
+  public void setNaturalBarriersSD(double naturalBarriersSD) {
+    this.naturalBarriersSD = naturalBarriersSD;
+  }
 
-	public void setNaturalBarriersSD(double naturalBarriersSD) {
-		this.naturalBarriersSD = naturalBarriersSD;
-	}
+  public double getSeveringBarriersMean() {
+    return severingBarriersMean;
+  }
 
-	public double getSeveringBarriersMean() {
-		return severingBarriersMean;
-	}
+  public void setSeveringBarriersMean(double severingBarriersMean) {
+    this.severingBarriersMean = severingBarriersMean;
+  }
 
-	public void setSeveringBarriersMean(double severingBarriersMean) {
-		this.severingBarriersMean = severingBarriersMean;
-	}
+  public double getSeveringBarriersSD() {
+    return severingBarriersSD;
+  }
 
-	public double getSeveringBarriersSD() {
-		return severingBarriersSD;
-	}
+  public void setSeveringBarriersSD(double severingBarriersSD) {
+    this.severingBarriersSD = severingBarriersSD;
+  }
 
-	public void setSeveringBarriersSD(double severingBarriersSD) {
-		this.severingBarriersSD = severingBarriersSD;
-	}
+  public AgentBarrierType getBarrierType() {
+    return barrierType;
+  }
 
-	public AgentBarrierType getBarrierType() {
-		return barrierType;
-	}
+  public void setBarrierType(AgentBarrierType barrierType) {
+    this.barrierType = barrierType;
+  }
 
-	public void setBarrierType(AgentBarrierType barrierType) {
-		this.barrierType = barrierType;
-	}
+  public LandmarkType getLandmarkType() {
+    return landmarkType;
+  }
 
-	public LandmarkType getLandmarkType() {
-		return landmarkType;
-	}
-
-	public void setLandmarkType(LandmarkType landmarkType) {
-		this.landmarkType = landmarkType;
-	}
+  public void setLandmarkType(LandmarkType landmarkType) {
+    this.landmarkType = landmarkType;
+  }
 }

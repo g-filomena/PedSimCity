@@ -172,6 +172,10 @@ public class PedSimCity extends SimState {
     agents.setMBR(MBR);
   }
 
+  public Set<Agent> getAgentsList() {
+    return this.agentsList;
+  }
+
   // ---------------------------------------------------
   // Shared simulation core (used by GUI + headless)
   // ---------------------------------------------------

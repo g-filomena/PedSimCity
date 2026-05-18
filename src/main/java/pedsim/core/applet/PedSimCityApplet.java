@@ -12,7 +12,6 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.net.URI;
 import pedsim.core.engine.Engine;
-import pedsim.core.engine.Engine.StateFactory;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.parameters.ParameterManager;
@@ -26,12 +25,13 @@ public class PedSimCityApplet extends Frame {
   private static final long serialVersionUID = 1L;
 
   protected Choice cityName;
-  Button startButton;
-  Button runServerButton;
-  Button configButton;
-  Button endButton;
+  protected Button startButton;
+  protected Button runServerButton;
+  protected Button configButton;
+  protected Button endButton;
   protected Button routeParsButton;
   protected Button otherParsButton;
+
   private TextField daysTextField;
   private TextField jobsTextField;
   private TextField populationTextField;
@@ -41,7 +41,6 @@ public class PedSimCityApplet extends Frame {
   private boolean runningOnServer = false;
   private Thread simulationThread;
 
-  // keep references if user opens them
   private RouteChoiceParametersPanel routePanel;
   private ParsPanel otherParsPanel;
 
@@ -50,7 +49,7 @@ public class PedSimCityApplet extends Frame {
     setTitle(getAppletTitle());
     setLayout(null);
 
-    // --- GUI fields ---
+    // --- GUI fields --
     Label cityNameLabel = new Label("City Name:");
     cityNameLabel.setBounds(10, 70, 80, 20);
     add(cityNameLabel);
@@ -102,12 +101,12 @@ public class PedSimCityApplet extends Frame {
     endButton = new Button("End Simulation");
     endButton.setBackground(Color.PINK);
 
+    // Parameter panel buttons
     configButton = new Button("Server Settings");
     configButton.setBounds(150, 280, 120, 40);
     configButton.setBackground(new Color(200, 200, 0));
     add(configButton);
 
-    // Parameter panel buttons
     routeParsButton = new Button("Route Parameters");
     routeParsButton.setBounds(320, 100, 150, 30);
     routeParsButton.setBackground(new Color(180, 220, 250));
@@ -129,13 +128,13 @@ public class PedSimCityApplet extends Frame {
     // --- Handlers ---
     ServerLauncherApplet serverLauncher = new ServerLauncherApplet(buildServerProjectConfig());
     PedSimCityActionHandler handler = new PedSimCityActionHandler(this, serverLauncher);
+    configureStartButton(handler);
 
-    startButton.addActionListener(handler.runLocalListener());
+    // --- Action Listeners ---
     runServerButton.addActionListener(handler.runServerListener());
     configButton.addActionListener(e -> serverLauncher.openConfigPanel());
     endButton.addActionListener(handler.endListener());
 
-    // Redirect logger output to both console + TextArea
     LoggerUtil.redirectToTextArea(logArea);
 
     setSize(500, 520);
@@ -149,7 +148,32 @@ public class PedSimCityApplet extends Frame {
     cityName.validate();
   }
 
-  // --- Logging utility ---
+  /**
+   * @param handler
+   */
+  protected void configureStartButton(PedSimCityActionHandler handler) {
+    startButton.addActionListener(e -> launchSimulation(false));
+  }
+
+  protected void launchSimulation(boolean runInParallel) {
+    setRunningOnServer(false);
+
+    final ScenarioConfig scenarioConfig = buildScenarioConfig();
+    final Engine engine = buildEngine();
+
+    Thread thread = new Thread(() -> {
+      try {
+        engine.runJobs(scenarioConfig, runInParallel);
+      } catch (Exception ex) {
+        LoggerUtil.getLogger().severe("Simulation failed: " + ex.getMessage());
+        ex.printStackTrace();
+      }
+    }, runInParallel ? "pedsim-parallel-simulation" : "pedsim-local-simulation");
+
+    setSimulationThread(thread);
+    thread.start();
+  }
+
   public void appendLog(String msg) {
     LoggerUtil.getLogger().info(msg);
     if (logArea != null) {
@@ -157,16 +181,17 @@ public class PedSimCityApplet extends Frame {
     }
   }
 
-  // --- Open parameter panels ---
   private void openRoutePanel() {
-    if (routePanel == null)
+    if (routePanel == null) {
       routePanel = new RouteChoiceParametersPanel();
+    }
     routePanel.setVisible(true);
   }
 
   private void openOtherParsPanel() {
-    if (otherParsPanel == null)
+    if (otherParsPanel == null) {
       otherParsPanel = new ParsPanel();
+    }
     otherParsPanel.setVisible(true);
   }
 
@@ -189,9 +214,7 @@ public class PedSimCityApplet extends Frame {
       ParameterManager.initFromArgsForServer(args);
 
       ScenarioConfig scenarioConfig = new ScenarioConfig(null, null);
-      StateFactory stateFactory = PedSimCity::new;
-
-      Engine engine = new Engine(stateFactory);
+      Engine engine = new Engine(PedSimCity::new);
       engine.runJobs(scenarioConfig, Pars.parallel);
       return;
     }
@@ -287,6 +310,18 @@ public class PedSimCityApplet extends Frame {
     return "PedSimCity Applet";
   }
 
+  protected ScenarioConfig buildScenarioConfig() {
+    return new ScenarioConfig(StringEnum.Learner.values(), null);
+  }
+
+  protected Engine.StateFactory buildStateFactory() {
+    return PedSimCity::new;
+  }
+
+  protected Engine buildEngine() {
+    return new Engine(buildStateFactory());
+  }
+
   public String getCityName() {
     return cityName.getSelectedItem();
   }
@@ -330,13 +365,4 @@ public class PedSimCityApplet extends Frame {
   public ParsPanel getOtherParsPanel() {
     return otherParsPanel;
   }
-
-  protected ScenarioConfig buildScenarioConfig() {
-    return new ScenarioConfig(StringEnum.Learner.values(), null);
-  }
-
-  protected Engine.StateFactory buildStateFactory() {
-    return PedSimCity::new;
-  }
-
 }

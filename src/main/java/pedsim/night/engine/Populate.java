@@ -68,5 +68,4 @@ public class Populate extends pedsim.core.engine.Populate {
 
     agent.setVulnerable(random.nextDouble() < vulnProb);
   }
-
 }
