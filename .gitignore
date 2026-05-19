@@ -86,9 +86,10 @@ desktop.ini
 /notebook/input/
 /notebook/figures/
 /notebook/outputs/
-/notebook/analysis_outputs/
+/notebook/learning/
 /notebook/.ipynb_checkpoints/
 /notebook/__pycache__/
+
 
 *.ipynb_checkpoints/
 __pycache__/
