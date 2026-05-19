@@ -12,7 +12,6 @@ import org.locationtech.jts.planargraph.DirectedEdge;
 
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.PedSimCity;
-import pedsim.core.engine.SimulationStateStore;
 import pedsim.night.engine.PedSimCityNight;
 import sim.graph.EdgeGraph;
 import sim.graph.Graph;
@@ -21,7 +20,9 @@ import sim.graph.NodeGraph;
 import sim.routing.Astar;
 import sim.routing.Route;
 
-/** Handles movement along paths, including night-time rerouting and speed adjustments. */
+/**
+ * Handles movement along paths, including night-time rerouting and speed adjustments.
+ */
 public class AgentMovement extends pedsim.core.agents.AgentMovement {
 
   private static final int MAX_ALTERNATIVE_ROUTE_RELAXATIONS = 5;
@@ -37,10 +38,9 @@ public class AgentMovement extends pedsim.core.agents.AgentMovement {
     this.network = SharedCognitiveMap.getCommunityPrimalNetwork();
     this.nightBehaviour = new NightBehaviour(agent, this);
     this.state = (PedSimCityNight) agent.getState();
-    this.edgesToAvoid = new HashSet<>();
   }
 
-  @Override
+  /** Initialises the directed edge sequence for the agent. */
   public void initialisePath(Route route) {
     if (route == null || route.directedEdgesSequence == null || route.directedEdgesSequence.isEmpty()) {
       agent.setReachedDestination(true);
@@ -48,13 +48,18 @@ public class AgentMovement extends pedsim.core.agents.AgentMovement {
     }
 
     indexOnSequence = 0;
-    this.directedEdgesSequence = new ArrayList<>(route.directedEdgesSequence);
-    firstDirectedEdge = this.directedEdgesSequence.get(indexOnSequence);
+    this.directedEdgesSequence = route.directedEdgesSequence;
+    firstDirectedEdge = directedEdgesSequence.get(indexOnSequence);
     currentNode = (NodeGraph) firstDirectedEdge.getFromNode();
     agent.updateAgentPosition(currentNode.getCoordinate());
     setupEdge(firstDirectedEdge);
   }
 
+  /**
+   * Sets the agent up to proceed along a specified edge.
+   *
+   * @param directedEdge the edge to traverse next
+   */
   @Override
   protected void setupEdge(DirectedEdge directedEdge) {
     nightBehaviour.avoidParksWater = false;
@@ -80,6 +85,7 @@ public class AgentMovement extends pedsim.core.agents.AgentMovement {
     endIndex = indexedSegment.getEndIndex();
   }
 
+  /** Moves the agent along the current path. */
   @Override
   public void keepWalking() {
     resetReach();
@@ -99,11 +105,14 @@ public class AgentMovement extends pedsim.core.agents.AgentMovement {
       final Coordinate currentPos = indexedSegment.extractPoint(currentIndex);
       agent.updateAgentPosition(currentPos);
     }
-
-    SimulationStateStore.getInstance().updateAgent(agent);
   }
 
-  /** Computes an alternative route from the current node to the destination. */
+  /**
+   * Computes an alternative route from the current node to the destination.
+   *
+   * <p>The previous implementation relied on an auxiliary walked-edge list before it was guaranteed
+   * to contain an element. The current directed edge already gives the rerouting origin.
+   */
   void computeAlternativeRoute() {
     NodeGraph routeOrigin = (NodeGraph) currentDirectedEdge.getFromNode();
     Pair<NodeGraph, NodeGraph> routeKey = Pair.with(routeOrigin, agent.destinationNode);
@@ -166,8 +175,8 @@ public class AgentMovement extends pedsim.core.agents.AgentMovement {
     }
   }
 
+  /** Defines the set of edges the agent should avoid during rerouting. */
   private void defineEdgesToAvoid() {
-    edgesToAvoid.clear();
     edgesToAvoid.add(currentEdge);
     edgesToAvoid.addAll(SharedCognitiveMap.getEdgesNonLitNonCommunityKnown());
 
@@ -189,26 +198,23 @@ public class AgentMovement extends pedsim.core.agents.AgentMovement {
     edgesToAvoid.removeAll(agent.destinationNode.getEdges());
   }
 
-  @Override
-  protected void resetPath(List<DirectedEdge> directedEdgesSequence) {
-    if (directedEdgesSequence == null || directedEdgesSequence.isEmpty()) {
-      agent.setReachedDestination(true);
-      return;
-    }
-
-    indexOnSequence = 0;
-    this.directedEdgesSequence = new ArrayList<>(directedEdgesSequence);
-    firstDirectedEdge = this.directedEdgesSequence.get(indexOnSequence);
-    currentNode = (NodeGraph) firstDirectedEdge.getFromNode();
-    agent.updateAgentPosition(currentNode.getCoordinate());
-    edgesToAvoid.clear();
-    setupEdge(firstDirectedEdge);
-  }
-
+  /**
+   * Checks if the agent can reroute based on the current edge and destination.
+   *
+   * @return true if the agent can reroute; false otherwise
+   */
   protected boolean canReroute() {
-    return !currentEdge.getNodes().contains(agent.destinationNode) && indexOnSequence != 0 && originalRoute;
+    return !currentEdge.getNodes().contains(agent.destinationNode)
+        && indexOnSequence != 0
+        && originalRoute;
   }
 
+  /**
+   * Checks if the edge is known by the agent.
+   *
+   * @param edge the edge to check
+   * @return true if the edge is known by the agent
+   */
   protected boolean isEdgeKnown(EdgeGraph edge) {
     return agent.getCognitiveMap().isEdgeKnown(edge);
   }
