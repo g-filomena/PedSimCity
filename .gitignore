@@ -1,5 +1,16 @@
-/bin/
+# -------------------------------------------------------------------
+# Java / Maven build outputs
+# -------------------------------------------------------------------
+
 target/
+bin/
+/bin/
+
+*.class
+*.jar
+*.war
+*.ear
+
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
@@ -7,35 +18,108 @@ pom.xml.next
 release.properties
 dependency-reduced-pom.xml
 buildNumber.properties
+
 .mvn/timing.properties
-# https://github.com/takari/maven-wrapper#usage-without-binary-jar
+
+# Maven wrapper binary jar
+# Keep ignored only if you do NOT want to version the wrapper jar.
+# See: https://github.com/takari/maven-wrapper#usage-without-binary-jar
 .mvn/wrapper/maven-wrapper.jar
 
 
-# Eclipse m2e generated files
-# Eclipse Core
+# -------------------------------------------------------------------
+# Eclipse / m2e
+# -------------------------------------------------------------------
+
 .project
 .classpath
-.metadata
+.metadata/
 .settings/
 .loadpath
-bin/
+.recommenders/
+
+
+# -------------------------------------------------------------------
+# IntelliJ / VS Code
+# -------------------------------------------------------------------
+
+.idea/
+*.iml
+.vscode/
+
+
+# -------------------------------------------------------------------
+# Temporary / backup files
+# -------------------------------------------------------------------
+
 tmp/
 *.tmp
 *.bak
 *.swp
+*~
 *~.nib
 *.log
-.recommenders
 
-/cache
-/Obsolete
-/outputs
-/notebook/input
-/notebook/figures
-/notebook/outputs
-/notebook/analysis_outputs
+
+# -------------------------------------------------------------------
+# OS-specific files
+# -------------------------------------------------------------------
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+
+# -------------------------------------------------------------------
+# Project runtime/cache/output folders
+# -------------------------------------------------------------------
+
+/cache/
+/Obsolete/
+/outputs/
+
+
+# -------------------------------------------------------------------
+# Notebooks / analysis outputs
+# -------------------------------------------------------------------
+
+/notebook/input/
+/notebook/figures/
+/notebook/outputs/
+/notebook/analysis_outputs/
 /notebook/.ipynb_checkpoints/
-/notebook/__pycache__
+/notebook/__pycache__/
+
+*.ipynb_checkpoints/
+__pycache__/
+*.py[cod]
+
+
+# -------------------------------------------------------------------
+# Local secrets / keys
+# -------------------------------------------------------------------
 
 id_ed25519*
+*.pem
+*.key
+.env
+.env.*
+!.env.example
+
+
+# -------------------------------------------------------------------
+# Local data / geospatial heavy files
+# -------------------------------------------------------------------
+
+*.gpkg
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.geojson
+*.sqlite
+*.sqlite3
+*.parquet
+*.pkl
+*.pickle
