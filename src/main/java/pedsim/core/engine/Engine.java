@@ -11,186 +11,184 @@ import sim.util.geo.Utilities;
 
 public class Engine {
 
-  private static final Logger logger = LoggerUtil.getLogger();
+	private static final Logger logger = LoggerUtil.getLogger();
 
-  protected final StateFactory stateFactory;
-  protected final long baseSeed;
+	protected final StateFactory stateFactory;
+	protected final long baseSeed;
 
-  @FunctionalInterface
-  public interface StateFactory {
-    PedSimCity create(long seed, int job, ScenarioConfig scenarioConfig);
-  }
+	@FunctionalInterface
+	public interface StateFactory {
+		PedSimCity create(long seed, int job, ScenarioConfig scenarioConfig);
+	}
 
-  public Engine(StateFactory stateFactory) {
-    this(stateFactory, System.currentTimeMillis());
-  }
+	public Engine(StateFactory stateFactory) {
+		this(stateFactory, System.currentTimeMillis());
+	}
 
-  public Engine(StateFactory stateFactory, long baseSeed) {
-    this.stateFactory = stateFactory;
-    this.baseSeed = baseSeed;
-  }
+	public Engine(StateFactory stateFactory, long baseSeed) {
+		this.stateFactory = stateFactory;
+		this.baseSeed = baseSeed;
+	}
 
-  public synchronized void runJobs(ScenarioConfig scenarioConfig, boolean parallel) throws Exception {
-    if (SimulationStateStore.getInstance().running) {
-      logger.warning("Simulation is already running! Ignoring new run request.");
-      return;
+	public synchronized void runJobs(ScenarioConfig scenarioConfig, boolean parallel) throws Exception {
+		if (SimulationStateStore.getInstance().running) {
+			logger.warning("Simulation is already running! Ignoring new run request.");
+			return;
+		}
+
+		try {
+			SimulationStateStore.getInstance().running = true;
+			SimulationStateStore.getInstance().finished = false;
+			SimulationStateStore.getInstance().stopRequested = false;
+
+			clearStaticData();
+			Pars.setSimulationParameters();
+
+			Import importer = new Import();
+			importer.importFiles();
+
+			// Export road network as GeoJSON once so the browser map can draw it
+			SimulationStateStore.getInstance().setRoadsGeoJson(GeoJsonExporter.exportRoads(PedSimCity.roads));
+
+			Environment.prepare();
+			logger.info("Environment prepared. About to start simulation");
+
+			if (parallel) {
+				IntStream.range(0, Pars.jobs).parallel().forEach(jobNr -> {
+					try {
+						Engine engine = createWorkerEngine(); // one engine per worker
+						logger.info("Executing Job nr.: " + jobNr);
+						engine.executeJob(jobNr, scenarioConfig);
+					} catch (Exception e) {
+						throw new RuntimeException("Error executing parallel job " + jobNr, e);
+					}
+				});
+			} else {
+				for (int jobNr = 0; jobNr < Pars.jobs; jobNr++) {
+					logger.info("Executing Job nr.: " + jobNr);
+					executeJob(jobNr, scenarioConfig);
+				}
+			}
+
+		} finally {
+			SimulationStateStore.getInstance().running = false;
+			SimulationStateStore.getInstance().finished = true;
+		}
+	}
+
+	
+    protected void clearStaticData() {
+        PedSimCity.clearStaticData();
     }
 
-    try {
-      SimulationStateStore.getInstance().running = true;
-      SimulationStateStore.getInstance().finished = false;
-      SimulationStateStore.getInstance().stopRequested = false;
-
-      clearStaticData();
-      prepareToRun();
-
-      if (parallel) {
-        IntStream.range(0, Pars.jobs)
-            .parallel()
-            .forEach(
-                jobNr -> {
-                  try {
-                    Engine engine = createWorkerEngine();
-                    logger.info("Executing Job nr.: " + jobNr);
-                    engine.executeJob(jobNr, scenarioConfig);
-                  } catch (Exception e) {
-                    throw new RuntimeException("Error executing parallel job " + jobNr, e);
-                  }
-                });
-      } else {
-        for (int jobNr = 0; jobNr < Pars.jobs; jobNr++) {
-          logger.info("Executing Job nr.: " + jobNr);
-          executeJob(jobNr, scenarioConfig);
-        }
-      }
-    } finally {
-      SimulationStateStore.getInstance().running = false;
-      SimulationStateStore.getInstance().finished = true;
-    }
-  }
-
-  protected void clearStaticData() {
-    PedSimCity.clearStaticData();
-  }
-
-  protected Engine createWorkerEngine() {
-    return new Engine(stateFactory, baseSeed);
-  }
-
-  protected void prepareToRun() throws Exception {
-    Pars.setSimulationParameters();
-
-    Import importer = new Import();
-    importer.importFiles();
-
-    // Export road network as GeoJSON once so the browser map can draw it.
-    SimulationStateStore.getInstance().setRoadsGeoJson(GeoJsonExporter.exportRoads(PedSimCity.roads));
-
-    Environment.prepare();
-    logger.info("Environment prepared. About to start simulation");
-  }
-
-  public void executeJob(int job, ScenarioConfig scenarioConfig) throws Exception {
-    int currentDay = 0;
-
-    long seed = seedForJob(job);
-    PedSimCity state = stateFactory.create(seed, job, scenarioConfig);
-    state.start();
-
-    onJobStarted(job, state, scenarioConfig);
-
-    double kmCurrentDay = calculateMetersCurrentDay();
-    logger.info("---------- Beginning day Nr " + (currentDay + 1));
-    AgentReleaseManager currentDayReleaseManager =
-        new AgentReleaseManager(state, kmCurrentDay, currentDay + 1);
-
-    double nextAgentRelease = 1.0;
-
-    while (continueSimulation(state)) {
-      onJobStep(job, state, scenarioConfig);
-
-      double steps = state.schedule.getSteps();
-
-      // Check whether the Javelit dashboard has requested a stop.
-      if (SimulationStateStore.getInstance().stopRequested) {
-        logger.info("Stop requested by dashboard - ending simulation.");
-        break;
-      }
-
-      // Push step-level statistics to the browser dashboard.
-      String simTime = TimePars.getTime(steps).toLocalTime().toString();
-      SimulationStateStore.getInstance()
-          .updateStep(
-              (int) steps,
-              simTime,
-              state.agentsWalking.size(),
-              state.agentsAtHome.size(),
-              0);
-
-      if (isNextDay(steps, currentDay)) {
-        state.flowHandler.updateCognitiveMapsData(null);
-        state.flowHandler.exportFlowsData(currentDay + 1);
-        state.flowHandler.exportCognitiveMapsData(currentDay + 1);
-        currentDay++;
-
-        if (currentDay % 6 == 0) {
-          handleEndWeek(state, job, scenarioConfig);
-        } else {
-          kmCurrentDay = calculateMetersCurrentDay();
-          logger.info("---------- Beginning day Nr " + (currentDay + 1));
-          currentDayReleaseManager = new AgentReleaseManager(state, kmCurrentDay, currentDay + 1);
-        }
-      }
-
-      if (nextAgentRelease == steps) {
-        currentDayReleaseManager.releaseAgents(steps);
-        nextAgentRelease += TimePars.releaseAgentsEverySteps;
-      }
+    protected Engine createWorkerEngine() {
+        return new Engine(stateFactory, baseSeed);
     }
 
-    state.flowHandler.updateCognitiveMapsData(null);
-    state.flowHandler.exportFlowsData(currentDay + 1);
-    state.flowHandler.exportCognitiveMapsData(currentDay + 1);
+protected void prepareToRun() throws Exception {
+		Pars.setSimulationParameters();
 
-    onJobFinished(job, state, scenarioConfig);
-    state.finish();
-  }
+		Import importer = new Import();
+		importer.importFiles();
 
-  protected long seedForJob(int job) {
-    return baseSeed + job;
-  }
+		Environment.prepare();
+		logger.info("Environment prepared. About to start simulation");
+	}
 
-  protected boolean continueSimulation(PedSimCity state) {
-    return state.schedule.step(state)
-        && (state.schedule.getSteps() <= TimePars.simulationDurationInSteps);
-  }
+	public void executeJob(int job, ScenarioConfig scenarioConfig) throws Exception {
+		int currentDay = 0;
 
-  protected void onJobStarted(int job, PedSimCity state, ScenarioConfig scenarioConfig) {
-    // no-op
-  }
+		long seed = seedForJob(job);
+		PedSimCity state = stateFactory.create(seed, job, scenarioConfig);
+		state.start();
 
-  protected void onJobStep(int job, PedSimCity state, ScenarioConfig scenarioConfig) {
-    // no-op
-  }
+		onJobStarted(job, state, scenarioConfig);
 
-  protected void onJobFinished(int job, PedSimCity state, ScenarioConfig scenarioConfig) {
-    // no-op
-  }
+		double kmCurrentDay = calculateMetersCurrentDay();
+		logger.info("---------- Beginning day Nr " + (currentDay + 1));
+		AgentReleaseManager currentDayReleaseManager = new AgentReleaseManager(state, kmCurrentDay, currentDay + 1);
 
-  protected void handleEndWeek(PedSimCity state, int job, ScenarioConfig scenarioConfig) {
-    // no-op
-  }
+		double nextAgentRelease = 1.0;
 
-  protected boolean isNextDay(double steps, int currentDay) {
-    return getDays(steps) > currentDay && (currentDay + 1 < TimePars.numberOfDays);
-  }
+		while (continueSimulation(state)) {
+			onJobStep(job, state, scenarioConfig);
 
-  public static long getDays(double totalSteps) {
-    long totalMinutes = (long) (totalSteps * (TimePars.STEP_DURATION / 60));
-    return totalMinutes / (24 * 60);
-  }
+			double steps = state.schedule.getSteps();
 
-  protected double calculateMetersCurrentDay() {
-    return Pars.metersPerDay * Utilities.fromDistribution(1.0, 0.10, null);
-  }
+			// Check whether the Javelit dashboard has requested a stop
+			if (SimulationStateStore.getInstance().stopRequested) {
+				logger.info("Stop requested by dashboard - ending simulation.");
+				break;
+			}
+
+			// Push step-level statistics to the browser dashboard
+			String simTime = TimePars.getTime(steps).toLocalTime().toString();
+			SimulationStateStore.getInstance().updateStep((int) steps, simTime, state.agentsWalking.size(),
+					state.agentsAtHome.size(), 0);
+
+			if (isNextDay(steps, currentDay)) {
+				state.flowHandler.updateCognitiveMapsData(null);
+				state.flowHandler.exportFlowsData(currentDay + 1);
+				state.flowHandler.exportCognitiveMapsData(currentDay + 1);
+				currentDay++;
+
+				if (currentDay % 6 == 0) {
+					handleEndWeek(state, job, scenarioConfig);
+				} else {
+					kmCurrentDay = calculateMetersCurrentDay();
+					logger.info("---------- Beginning day Nr " + (currentDay + 1));
+					currentDayReleaseManager = new AgentReleaseManager(state, kmCurrentDay, currentDay + 1);
+				}
+			}
+
+			if (nextAgentRelease == steps) {
+				currentDayReleaseManager.releaseAgents(steps);
+				nextAgentRelease += TimePars.releaseAgentsEverySteps;
+			}
+		}
+
+		state.flowHandler.updateCognitiveMapsData(null);
+		state.flowHandler.exportFlowsData(currentDay + 1);
+		state.flowHandler.exportCognitiveMapsData(currentDay + 1);
+
+		onJobFinished(job, state, scenarioConfig);
+		state.finish();
+	}
+
+	protected long seedForJob(int job) {
+		return baseSeed + job;
+	}
+
+	protected boolean continueSimulation(PedSimCity state) {
+		return state.schedule.step(state) && (state.schedule.getSteps() <= TimePars.simulationDurationInSteps);
+	}
+
+	protected void onJobStarted(int job, PedSimCity state, ScenarioConfig scenarioConfig) {
+		// no-op
+	}
+
+	protected void onJobStep(int job, PedSimCity state, ScenarioConfig scenarioConfig) {
+		// no-op
+	}
+
+	protected void onJobFinished(int job, PedSimCity state, ScenarioConfig scenarioConfig) {
+		// no-op
+	}
+
+	protected void handleEndWeek(PedSimCity state, int job, ScenarioConfig scenarioConfig) {
+		// no-op
+	}
+
+	protected boolean isNextDay(double steps, int currentDay) {
+		return getDays(steps) > currentDay && (currentDay + 1 < TimePars.numberOfDays);
+	}
+
+	public static long getDays(double totalSteps) {
+		long totalMinutes = (long) (totalSteps * (TimePars.STEP_DURATION / 60));
+		return totalMinutes / (24 * 60);
+	}
+
+	protected double calculateMetersCurrentDay() {
+		return Pars.metersPerDay * Utilities.fromDistribution(1.0, 0.10, null);
+	}
 }
