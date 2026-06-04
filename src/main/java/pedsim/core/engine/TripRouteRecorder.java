@@ -30,19 +30,21 @@ public class TripRouteRecorder {
     public List<Coordinate> pathCoords = new ArrayList<>();
     public List<Integer> edgeIds = new ArrayList<>();
     public List<Integer> nodeIds = new ArrayList<>();
+    public List<Coordinate> spookLocations = new ArrayList<>();
   }
 
   private static final ConcurrentLinkedQueue<TripRecord> records = new ConcurrentLinkedQueue<>();
 
-  public static void recordTrip(int agentId, double startStep, double endStep, List<DirectedEdge> edges, boolean vulnerable) {
+  public static void recordTrip(pedsim.core.agents.Agent agent, double startStep, double endStep, List<DirectedEdge> edges, boolean vulnerable) {
     if (edges == null || edges.isEmpty()) {
       return;
     }
     TripRecord record = new TripRecord();
-    record.agentId = agentId;
+    record.agentId = agent.agentID;
     record.startStep = startStep;
     record.endStep = endStep;
     record.vulnerable = vulnerable;
+    record.spookLocations = new ArrayList<>(agent.spookLocations);
     
     // First node of the first edge is the origin node
     DirectedEdge firstEdge = edges.get(0);

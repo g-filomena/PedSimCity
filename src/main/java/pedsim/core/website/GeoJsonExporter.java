@@ -95,6 +95,11 @@ public final class GeoJsonExporter {
         }
       }
 
+      double meanLux = 0.0;
+      if (mg.hasAttribute("mean_lux")) {
+        meanLux = mg.getDoubleAttribute("mean_lux");
+      }
+
       if (!first)
         sb.append(',');
       first = false;
@@ -102,7 +107,8 @@ public final class GeoJsonExporter {
       sb.append("{\"type\":\"Feature\",\"geometry\":");
       sb.append(geomToGeoJson(geom));
       sb.append(",\"properties\":{\"edgeID\":").append(edgeId)
-        .append(",\"volume\":").append(totalVolume).append("}}");
+        .append(",\"volume\":").append(totalVolume)
+        .append(",\"mean_lux\":").append(meanLux).append("}}");
     }
 
     sb.append("]}");

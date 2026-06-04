@@ -31,6 +31,36 @@ print("Extracting geographic bounding box to pull active retail POIs...")
 edges_wgs84 = edges.to_crs(epsg=4326)
 minx, miny, maxx, maxy = edges_wgs84.total_bounds
 
+
+def download_osm_pois(tags, bbox, target_crs, tile_size_deg=0.015):
+    """Query OSM in smaller tiles to avoid oversized Overpass requests."""
+    minx, miny, maxx, maxy = bbox
+    chunk_frames = []
+
+    for x0 in np.arange(minx, maxx, tile_size_deg):
+        x1 = min(x0 + tile_size_deg, maxx)
+        if x1 <= x0:
+            continue
+
+        for y0 in np.arange(miny, maxy, tile_size_deg):
+            y1 = min(y0 + tile_size_deg, maxy)
+            if y1 <= y0:
+                continue
+
+            try:
+                chunk = ox.features_from_bbox(bbox=(y1, y0, x1, x0), tags=tags)
+                if not chunk.empty:
+                    chunk_frames.append(chunk)
+            except Exception as exc:
+                print(f"  Chunk ({x0:.5f},{y0:.5f}) -> {exc}")
+
+    if not chunk_frames:
+        return gpd.GeoDataFrame(geometry=[], crs=target_crs)
+
+    combined = pd.concat(chunk_frames, ignore_index=True)
+    combined = gpd.GeoDataFrame(combined, geometry='geometry', crs='EPSG:4326')
+    return combined.to_crs(target_crs)
+
 # 1. Exhaustive OSM Tags for ACTIVE frontages
 active_tags = {
     'shop': True,
@@ -50,10 +80,9 @@ inactive_tags = {
     'barrier': ['wall', 'fence', 'noise_barrier']
 }
 
-print("Downloading active frontages/POIs from OpenStreetMap via OSMnx...")
+print("Downloading active frontages/POIs from OpenStreetMap via OSMnx (tile-based)...")
 try:
-    active_pois = ox.features_from_bbox(bbox=(maxy, miny, maxx, minx), tags=active_tags)
-    active_pois = active_pois.to_crs(target_crs)
+    active_pois = download_osm_pois(active_tags, edges_wgs84.total_bounds, target_crs)
     # Convert polygons to centroids to prevent whole building perimeters from becoming active
     active_pois['geometry'] = active_pois.geometry.centroid
     print(f"Successfully retrieved {len(active_pois)} active POIs.")
@@ -61,10 +90,9 @@ except Exception as e:
     print(f"OSMnx query timed out or failed for active POIs: {e}. Falling back to an empty POI dataframe.")
     active_pois = gpd.GeoDataFrame(geometry=[], crs=target_crs)
 
-print("Downloading inactive/hostile POIs from OpenStreetMap via OSMnx...")
+print("Downloading inactive/hostile POIs from OpenStreetMap via OSMnx (tile-based)...")
 try:
-    inactive_pois = ox.features_from_bbox(bbox=(maxy, miny, maxx, minx), tags=inactive_tags)
-    inactive_pois = inactive_pois.to_crs(target_crs)
+    inactive_pois = download_osm_pois(inactive_tags, edges_wgs84.total_bounds, target_crs)
     # Convert polygons to centroids
     inactive_pois['geometry'] = inactive_pois.geometry.centroid
     print(f"Successfully retrieved {len(inactive_pois)} inactive POIs.")

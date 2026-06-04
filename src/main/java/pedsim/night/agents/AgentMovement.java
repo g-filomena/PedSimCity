@@ -120,6 +120,7 @@ public class AgentMovement extends pedsim.core.agents.AgentMovement {
    */
   void computeAlternativeRoute() {
     NodeGraph routeOrigin = (NodeGraph) currentDirectedEdge.getFromNode();
+    agent.spookLocations.add(routeOrigin.getCoordinate());
     Pair<NodeGraph, NodeGraph> routeKey = Pair.with(routeOrigin, agent.destinationNode);
 
     Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> cache =
