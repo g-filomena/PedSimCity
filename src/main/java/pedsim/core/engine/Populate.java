@@ -118,6 +118,8 @@ public class Populate {
   }
 
   protected void defineHomeWorkLocations(Agent agent) {
+    this.homeNode = null;
+    this.workNode = null;
 
     boolean useCensusZones = hasUsableCensusZones();
     assignHomeNode(useCensusZones);

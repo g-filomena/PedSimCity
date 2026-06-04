@@ -1,5 +1,7 @@
 package pedsim.core.engine;
 
+import java.awt.Desktop;
+import java.io.File;
 import java.util.logging.Logger;
 import java.util.stream.IntStream;
 
@@ -15,6 +17,9 @@ public class Engine {
 
 	protected final StateFactory stateFactory;
 	protected final long baseSeed;
+
+	/** Records a compact agent-position snapshot at every simulation step. */
+	private TrajectoryRecorder trajectoryRecorder;
 
 	@FunctionalInterface
 	public interface StateFactory {
@@ -100,6 +105,11 @@ protected void prepareToRun() throws Exception {
 
 		long seed = seedForJob(job);
 		PedSimCity state = stateFactory.create(seed, job, scenarioConfig);
+
+		// Clear and initialise the trajectory recorders for this job
+		TripRouteRecorder.clear();
+		trajectoryRecorder = new TrajectoryRecorder(state);
+
 		state.start();
 
 		onJobStarted(job, state, scenarioConfig);
@@ -125,6 +135,9 @@ protected void prepareToRun() throws Exception {
 			String simTime = TimePars.getTime(steps).toLocalTime().toString();
 			SimulationStateStore.getInstance().updateStep((int) steps, simTime, state.agentsWalking.size(),
 					state.agentsAtHome.size(), 0);
+
+			// Record agent positions for the HTML dashboard
+			trajectoryRecorder.record((long) steps);
 
 			if (isNextDay(steps, currentDay)) {
 				state.flowHandler.updateCognitiveMapsData(null);
@@ -153,6 +166,32 @@ protected void prepareToRun() throws Exception {
 
 		onJobFinished(job, state, scenarioConfig);
 		state.finish();
+
+		TripRouteRecorder.saveToFile("test_trips.csv");
+
+		// Generate the self-contained HTML dashboard and open it in the browser
+		generateAndOpenHtmlDashboard(job, state, currentDay);
+	}
+
+	private void generateAndOpenHtmlDashboard(int job, PedSimCity state, int currentDay) {
+		try {
+			logger.info("[Engine] Compiling HTML dashboard for job " + job + "…");
+
+			String htmlPath = HtmlExporter.export(
+				currentDay + 1, // day (1-based)
+				job,
+				TripRouteRecorder.getRecords(),
+				state.flowHandler.volumesMap
+			);
+
+			if (htmlPath != null && Desktop.isDesktopSupported()) {
+				Desktop.getDesktop().browse(new File(htmlPath).toURI());
+				logger.info("[Engine] Opened dashboard in browser: " + htmlPath);
+			}
+
+		} catch (Exception e) {
+			logger.warning("[Engine] Could not open HTML dashboard: " + e.getMessage());
+		}
 	}
 
 	protected long seedForJob(int job) {

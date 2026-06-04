@@ -275,19 +275,8 @@ public class PedSimCityApplet extends Frame {
       
       SimulationRestApi.start(8081);
     } else {
+      // Option 1: Standard GUI only — no REST API server is started.
       LoggerUtil.getLogger().info("[STARTUP] Launching Standard GUI...");
-      
-      // Start REST API in background for external visualization
-      SimulationRestApi.start(8081);
-
-      // Auto-open the browser
-      try {
-        if (Desktop.isDesktopSupported()) {
-          Desktop.getDesktop().browse(new URI("http://localhost:8080"));
-        }
-      } catch (Exception e) {
-        LoggerUtil.getLogger().warning("Could not open browser: " + e.getMessage());
-      }
       PedSimCityApplet applet = new PedSimCityApplet();
       applet.addWindowListener(new WindowAdapter() {
         @Override

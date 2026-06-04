@@ -10,6 +10,9 @@ import org.javatuples.Pair;
 import pedsim.cityimage.utilities.StringEnum.Groups;
 import pedsim.core.utilities.StringEnum.BarrierType;
 import pedsim.core.utilities.StringEnum.RouteChoiceProperty;
+import pedsim.core.utilities.StringEnum.LandmarkType;
+import pedsim.core.agents.AgentProperties;
+import pedsim.core.agents.Agent;
 import sim.util.geo.Utilities;
 
 /**

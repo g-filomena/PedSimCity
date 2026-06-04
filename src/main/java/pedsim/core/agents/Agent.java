@@ -64,6 +64,7 @@ public class Agent implements Steppable {
 	private int tripsDone = 0;
 	public double metersWalkedTot = 0.0;
 	public double metersWalkedDay = 0.0;
+	public double tripStartStep = 0.0;
 
 	private Heuristics heuristics;
 	Enum<?> agentScenario;
@@ -161,6 +162,7 @@ public class Agent implements Steppable {
 			return;
 		}
 		planRoute();
+		tripStartStep = state.schedule.getSteps();
 		agentMovement = new AgentMovement(this);
 		agentMovement.initialisePath(getRoute());
 	}

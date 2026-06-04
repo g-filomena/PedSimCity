@@ -199,6 +199,13 @@ public class AgentMovement {
   public void updateData() {
     agent.getRoute().resetRoute(new ArrayList<>(edgesWalkedSoFar));
     state.flowHandler.updateFlowsData(agent, agent.getRoute(), agent.getAgentScenario(), null);
+    pedsim.core.engine.TripRouteRecorder.recordTrip(
+        agent.agentID,
+        agent.tripStartStep,
+        state.schedule.getSteps(),
+        edgesWalkedSoFar,
+        agent.isVulnerableBoolean()
+    );
   }
 
   /**

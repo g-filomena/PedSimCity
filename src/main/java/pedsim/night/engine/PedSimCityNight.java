@@ -59,4 +59,14 @@ public class PedSimCityNight extends PedSimCity {
     Populate populate = new Populate();
     populate.populate(this);
   }
+
+  public static void clearNightStaticData() {
+    indexedEdgeCache.clear();
+    edges.clear();
+    routesDay.clear();
+    routesNonVulnerableNight.clear();
+    routesVulnerableNight.clear();
+    altRoutesVulnerable.clear();
+    altRoutesNonVulnerable.clear();
+  }
 }

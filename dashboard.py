@@ -4,17 +4,17 @@ import pandas as pd
 import json
 import time
 
-st.set_page_config(layout="wide", page_title="PedSimCity Dashboard", page_icon="🏙️")
+st.set_page_config(layout="wide", page_title="PedSimCity Dashboard")
 
 # --- CUSTOM CSS ---
 st.markdown("""
     <style>
-    .main { background-color: #0f172a; color: #f8fafc; }
-    .stMetric { background-color: #1e293b; padding: 15px; border-radius: 10px; border: 1px solid #334155; }
+    .main { background-color: #000000; color: #f8fafc; }
+    .stMetric { background-color: #111111; padding: 15px; border-radius: 10px; border: 1px solid #222222; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🏙️ PedSimCity Live Dashboard")
+st.title("PedSimCity Live Dashboard")
 
 # --- CONFIG ---
 API_URL = "http://localhost:8081/api/state"
@@ -32,7 +32,7 @@ population = st.sidebar.number_input("Actual Population", 1000, 500000, 100000)
 percentage = st.sidebar.slider("% Represented", 0.001, 1.0, 0.01, format="%.3f")
 jobs = st.sidebar.number_input("Parallel Jobs", 1, 16, 1)
 
-if st.sidebar.button("▶️ Run Simulation", use_container_width=True):
+if st.sidebar.button("Run Simulation", use_container_width=True):
     try:
         params = {
             "cityName": city_name,
@@ -87,7 +87,7 @@ while True:
 
         # --- STATIC IMAGE GENERATION ---
         with map_placeholder.container():
-            st.info("📷 Generating static image for the current step...")
+            st.info("Generating static image for the current step...")
             
             import matplotlib.pyplot as plt
             import geopandas as gpd
@@ -95,8 +95,8 @@ while True:
             
             # Create a Matplotlib figure
             fig, ax = plt.subplots(figsize=(12, 8), dpi=100)
-            ax.set_facecolor('#0f172a')
-            fig.patch.set_facecolor('#0f172a')
+            ax.set_facecolor('#000000')
+            fig.patch.set_facecolor('#000000')
             
             # Hide axes
             ax.set_xticks([])
@@ -120,7 +120,7 @@ while True:
                         roads_gdf.plot(ax=ax, color='#475569', linewidth=1, alpha=0.7)
                 except Exception as e:
                     st.warning(f"Failed to plot roads: {e}")
-
+ 
             # 2. Plot Agents (Nodes)
             agents = data.get('agents', [])
             if agents:
@@ -142,7 +142,7 @@ while True:
             
     else:
         with map_placeholder.container():
-            st.warning("⚠️ Waiting for simulation data... Make sure the Java simulation is running with the REST API enabled (Option 2).")
+            st.warning("Waiting for simulation data... Make sure the Java simulation is running with the REST API enabled (Option 2).")
             st.info(f"Polling {API_URL}...")
 
     time.sleep(refresh_rate)

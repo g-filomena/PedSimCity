@@ -2,6 +2,7 @@ package pedsim.core.website;
 
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
+import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.logging.Logger;
@@ -26,83 +27,108 @@ public final class SimulationRestApi {
   }
 
   /**
-   * Starts the REST API server on the specified port.
+   * Maximum number of consecutive ports to try if the preferred port is occupied.
    */
-  public static void start(int port) {
-    try {
-      HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+  private static final int MAX_PORT_RETRIES = 10;
 
-      // --- GET /api/state ---
-      server.createContext("/api/state", exchange -> {
-        try {
-          if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
-            exchange.sendResponseHeaders(405, -1);
-            return;
+  /**
+   * Starts the REST API server on {@code preferredPort}, automatically retrying
+   * on up to {@value #MAX_PORT_RETRIES} subsequent ports if the preferred one is
+   * already in use.  If all ports are occupied the method logs a warning and
+   * returns without throwing, so the calling GUI thread is never crashed.
+   *
+   * @param preferredPort The first port to try (e.g. 8081).
+   */
+  public static void start(int preferredPort) {
+    for (int attempt = 0; attempt < MAX_PORT_RETRIES; attempt++) {
+      int port = preferredPort + attempt;
+      try {
+        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+
+        // --- GET /api/state ---
+        server.createContext("/api/state", exchange -> {
+          try {
+            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+              exchange.sendResponseHeaders(405, -1);
+              return;
+            }
+            byte[] responseBytes = SimulationStateStore.getInstance()
+                .toJson()
+                .getBytes(StandardCharsets.UTF_8);
+
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+            exchange.sendResponseHeaders(200, responseBytes.length);
+            try (var body = exchange.getResponseBody()) {
+              body.write(responseBytes);
+            }
+          } catch (Exception ex) {
+            exchange.sendResponseHeaders(500, -1);
           }
-          byte[] responseBytes = SimulationStateStore.getInstance()
-              .toJson()
-              .getBytes(StandardCharsets.UTF_8);
+        });
 
-          exchange.getResponseHeaders().add("Content-Type", "application/json");
-          exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-          exchange.sendResponseHeaders(200, responseBytes.length);
-          try (var body = exchange.getResponseBody()) {
-            body.write(responseBytes);
-          }
-        } catch (Exception ex) {
-          exchange.sendResponseHeaders(500, -1);
-        }
-      });
+        // --- POST /api/start ---
+        server.createContext("/api/start", exchange -> {
+          try {
+            // Allow CORS preflight
+            exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+            exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+            exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
 
-      // --- POST /api/start ---
-      server.createContext("/api/start", exchange -> {
-        try {
-          // Allow CORS preflight
-          exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-          exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-          exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
-
-          if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
-            exchange.sendResponseHeaders(204, -1);
-            return;
-          }
-
-          if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
-            exchange.sendResponseHeaders(405, -1);
-            return;
-          }
-
-          if (startListener != null) {
-            java.util.Map<String, Object> params = new java.util.HashMap<>();
-            try {
-              if (exchange.getRequestBody().available() > 0) {
-                params = new com.fasterxml.jackson.databind.ObjectMapper()
-                    .readValue(exchange.getRequestBody(), java.util.Map.class);
-              }
-            } catch (Exception e) {
-              logger.warning("Failed to parse start parameters: " + e.getMessage());
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+              exchange.sendResponseHeaders(204, -1);
+              return;
             }
 
-            final java.util.Map<String, Object> finalParams = params;
-            new Thread(() -> startListener.accept(finalParams)).start();
-            
-            logger.info("[REST API] Simulation start triggered with params: " + params);
-            exchange.sendResponseHeaders(200, 0);
-          } else {
-            exchange.sendResponseHeaders(503, 0); // Service Unavailable
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+              exchange.sendResponseHeaders(405, -1);
+              return;
+            }
+
+            if (startListener != null) {
+              java.util.Map<String, Object> params = new java.util.HashMap<>();
+              try {
+                if (exchange.getRequestBody().available() > 0) {
+                  params = new com.fasterxml.jackson.databind.ObjectMapper()
+                      .readValue(exchange.getRequestBody(), java.util.Map.class);
+                }
+              } catch (Exception e) {
+                logger.warning("Failed to parse start parameters: " + e.getMessage());
+              }
+
+              final java.util.Map<String, Object> finalParams = params;
+              new Thread(() -> startListener.accept(finalParams)).start();
+
+              logger.info("[REST API] Simulation start triggered with params: " + params);
+              exchange.sendResponseHeaders(200, 0);
+            } else {
+              exchange.sendResponseHeaders(503, 0); // Service Unavailable
+            }
+            exchange.getResponseBody().close();
+          } catch (Exception ex) {
+            exchange.sendResponseHeaders(500, -1);
           }
-          exchange.getResponseBody().close();
-        } catch (Exception ex) {
-          exchange.sendResponseHeaders(500, -1);
-        }
-      });
+        });
 
-      server.setExecutor(null);
-      server.start();
-      logger.info("[REST API] Simulation state endpoint started on port " + port);
+        server.setExecutor(null);
+        server.start();
+        logger.info("[REST API] Simulation state endpoint started on port " + port);
+        return; // Successfully bound — exit the retry loop
 
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to start SimulationRestApi on port " + port, e);
+      } catch (BindException be) {
+        // Port is taken — try the next one
+        logger.warning("[REST API] Port " + port + " already in use, trying " + (port + 1) + "…");
+      } catch (IOException e) {
+        // Any other IO problem — log and give up gracefully (do NOT crash the GUI)
+        logger.warning("[REST API] Could not start on port " + port + ": " + e.getMessage()
+            + " — live dashboard will be unavailable.");
+        return;
+      }
     }
+
+    // All ports in the range were occupied
+    logger.warning("[REST API] Could not bind to any port in range "
+        + preferredPort + "–" + (preferredPort + MAX_PORT_RETRIES - 1)
+        + ". Live dashboard will be unavailable, but the GUI will continue normally.");
   }
 }
