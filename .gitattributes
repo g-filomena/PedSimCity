@@ -1,2 +1,33 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Normalise text files and avoid editor/OS line-ending churn.
+* text=auto eol=lf
+
+# Source/config files.
+*.java text eol=lf
+*.xml text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+
+# Windows scripts.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary artefacts/data.
+*.class binary
+*.jar binary
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.gpkg binary
+*.shp binary
+*.dbf binary
+*.shx binary
+*.zip binary

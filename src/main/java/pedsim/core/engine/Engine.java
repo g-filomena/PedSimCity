@@ -41,7 +41,7 @@ public class Engine {
 			SimulationStateStore.getInstance().finished = false;
 			SimulationStateStore.getInstance().stopRequested = false;
 
-			PedSimCity.clearStaticData();
+			clearStaticData();
 			Pars.setSimulationParameters();
 
 			Import importer = new Import();
@@ -56,7 +56,7 @@ public class Engine {
 			if (parallel) {
 				IntStream.range(0, Pars.jobs).parallel().forEach(jobNr -> {
 					try {
-						Engine engine = new Engine(stateFactory); // one engine per worker
+						Engine engine = createWorkerEngine(); // one engine per worker
 						logger.info("Executing Job nr.: " + jobNr);
 						engine.executeJob(jobNr, scenarioConfig);
 					} catch (Exception e) {
@@ -76,7 +76,16 @@ public class Engine {
 		}
 	}
 
-	protected void prepareToRun() throws Exception {
+	
+    protected void clearStaticData() {
+        PedSimCity.clearStaticData();
+    }
+
+    protected Engine createWorkerEngine() {
+        return new Engine(stateFactory, baseSeed);
+    }
+
+protected void prepareToRun() throws Exception {
 		Pars.setSimulationParameters();
 
 		Import importer = new Import();
