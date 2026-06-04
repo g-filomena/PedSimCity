@@ -18,7 +18,49 @@ public class Populate extends pedsim.core.engine.Populate {
   @Override
   public void populate(PedSimCity state) {
     this.state = (PedSimCityNight) state;
-    super.populate(state);
+    if (this.state.getEnableLightABTesting()) {
+      populateABTest();
+    } else {
+      super.populate(state);
+    }
+  }
+
+  private void populateABTest() {
+    int pairs = 50;
+    int currentAgentID = 0;
+    for (int i = 0; i < pairs; i++) {
+      // Create a dummy agent just to get valid home/work locations from the core logic
+      pedsim.night.agents.Agent dummy = new pedsim.night.agents.Agent(this.state, false);
+      super.defineHomeWorkLocations(dummy);
+      
+      // Vulnerable twin
+      pedsim.night.agents.Agent vulnerableTwin = new pedsim.night.agents.Agent(this.state, false);
+      vulnerableTwin.agentID = currentAgentID++;
+      vulnerableTwin.setHomeWorkLoctations(dummy.homeNode, dummy.workNode);
+      vulnerableTwin.setVulnerable(true);
+      vulnerableTwin.vulnerable = Vulnerable.VULNERABLE;
+      
+      // Normal twin
+      pedsim.night.agents.Agent normalTwin = new pedsim.night.agents.Agent(this.state, false);
+      normalTwin.agentID = currentAgentID++;
+      normalTwin.setHomeWorkLoctations(dummy.homeNode, dummy.workNode);
+      normalTwin.setVulnerable(false);
+      normalTwin.vulnerable = Vulnerable.NON_VULNERABLE;
+      
+      registerAgent(vulnerableTwin);
+      registerAgent(normalTwin);
+    }
+    System.out.println("Spawned " + pairs + " A/B testing identical twin pairs (Vulnerable vs Normal).");
+  }
+
+  private void registerAgent(pedsim.night.agents.Agent agent) {
+    agent.updateAgentLists(false, true);
+    this.state.agentsList.add(agent);
+    if (agent.homeNode != null) {
+      agent.currentLocation.geometry =
+          new org.locationtech.jts.geom.GeometryFactory().createPoint(agent.homeNode.getCoordinate());
+    }
+    this.state.agents.addGeometry(agent.getLocation());
   }
 
   /**

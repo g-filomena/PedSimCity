@@ -26,6 +26,8 @@ public class PedSimCityNight extends PedSimCity {
   public double minVulnerableLightSensitivity = 5.0;
   public double maxVulnerableLightSensitivity = 15.0;
   public double nonVulnerableLightSensitivity = 0.0;
+  
+  public boolean enableLightABTesting = false;
 
   public static final Map<DirectedEdge, LengthIndexedLine> indexedEdgeCache = new HashMap<>();
 
@@ -89,6 +91,14 @@ public class PedSimCityNight extends PedSimCity {
 
   public void setNonVulnerableLightSensitivity(double nonVulnerableLightSensitivity) {
     this.nonVulnerableLightSensitivity = nonVulnerableLightSensitivity;
+  }
+
+  public boolean getEnableLightABTesting() {
+    return enableLightABTesting;
+  }
+
+  public void setEnableLightABTesting(boolean enableLightABTesting) {
+    this.enableLightABTesting = enableLightABTesting;
   }
 
   // ---------------------------------

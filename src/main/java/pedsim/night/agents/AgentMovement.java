@@ -71,6 +71,11 @@ public class AgentMovement extends pedsim.core.agents.AgentMovement {
     if (state.isDark && currentDirectedEdge != firstDirectedEdge) {
       nightBehaviour.checkLightLevel();
     }
+    
+    if (currentEdge.attributes.get("mean_lux") != null) {
+      ((pedsim.night.agents.Agent) agent).accumulatedLux += currentEdge.attributes.get("mean_lux").getDouble();
+    }
+    ((pedsim.night.agents.Agent) agent).edgesWalked++;
 
     updateCounts();
 
