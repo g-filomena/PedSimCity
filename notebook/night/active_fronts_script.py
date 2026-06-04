@@ -31,23 +31,46 @@ print("Extracting geographic bounding box to pull active retail POIs...")
 edges_wgs84 = edges.to_crs(epsg=4326)
 minx, miny, maxx, maxy = edges_wgs84.total_bounds
 
-# Define tags that signify active visual engagement on the ground floor
-osm_tags = {
-    'shop': True, 
-    'amenity': ['restaurant', 'cafe', 'bar', 'pub', 'fast_food', 'bank', 'pharmacy', 'marketplace'],
-    'tourism': ['museum', 'gallery']
+# 1. Exhaustive OSM Tags for ACTIVE frontages
+active_tags = {
+    'shop': True,
+    'amenity': ['restaurant', 'cafe', 'bar', 'pub', 'fast_food', 'ice_cream', 'food_court', 'marketplace', 
+                'bank', 'pharmacy', 'post_office', 'library', 'community_centre', 'social_facility', 
+                'clinic', 'dentist', 'doctors', 'theatre', 'cinema', 'arts_centre', 'nightclub'],
+    'tourism': ['museum', 'gallery', 'information', 'aquarium', 'theme_park', 'zoo'],
+    'leisure': ['fitness_centre', 'sports_centre', 'amusement_arcade', 'bowling_alley'],
+    'office': ['estate_agent', 'travel_agent', 'insurance', 'government', 'employment_agency'],
+    'craft': True
+}
+
+# 2. OSM Tags for INACTIVE / HOSTILE frontages
+inactive_tags = {
+    'building': ['industrial', 'warehouse', 'garage', 'garages', 'manufacture'],
+    'amenity': ['parking', 'parking_entrance'],
+    'barrier': ['wall', 'fence', 'noise_barrier']
 }
 
 print("Downloading active frontages/POIs from OpenStreetMap via OSMnx...")
 try:
-    # Fetch active POI points within the network boundary box
-    pois = ox.features_from_bbox(bbox=(maxy, miny, maxx, minx), tags=osm_tags)
-    pois = pois.to_crs(target_crs)
-    print(f"Successfully retrieved {len(pois)} active POIs.")
+    active_pois = ox.features_from_bbox(bbox=(maxy, miny, maxx, minx), tags=active_tags)
+    active_pois = active_pois.to_crs(target_crs)
+    # Convert polygons to centroids to prevent whole building perimeters from becoming active
+    active_pois['geometry'] = active_pois.geometry.centroid
+    print(f"Successfully retrieved {len(active_pois)} active POIs.")
 except Exception as e:
-    print(f"OSMnx query timed out or failed: {e}. Falling back to an empty POI dataframe.")
-    pois = gpd.GeoDataFrame(geometry=[], crs=target_crs)
+    print(f"OSMnx query timed out or failed for active POIs: {e}. Falling back to an empty POI dataframe.")
+    active_pois = gpd.GeoDataFrame(geometry=[], crs=target_crs)
 
+print("Downloading inactive/hostile POIs from OpenStreetMap via OSMnx...")
+try:
+    inactive_pois = ox.features_from_bbox(bbox=(maxy, miny, maxx, minx), tags=inactive_tags)
+    inactive_pois = inactive_pois.to_crs(target_crs)
+    # Convert polygons to centroids
+    inactive_pois['geometry'] = inactive_pois.geometry.centroid
+    print(f"Successfully retrieved {len(inactive_pois)} inactive POIs.")
+except Exception as e:
+    print(f"OSMnx query timed out or failed for inactive POIs: {e}. Falling back to an empty POI dataframe.")
+    inactive_pois = gpd.GeoDataFrame(geometry=[], crs=target_crs)
 
 # take just STREET-FACING facades
 
@@ -57,35 +80,45 @@ buildings_lines = buildings[['geometry']].copy()
 buildings_lines['geometry'] = buildings_lines.geometry.boundary
 
 print("Isolating facades sitting close to street segments...")
-# Buffer the street centerlines by 12 meters to capture the adjacent sidewalk building walls
 edges_buffered = edges[['edge_unique_id', 'geometry']].copy()
-edges_buffered['geometry'] = edges_buffered.geometry.buffer(12.0)
+
+# Adaptive buffering if 'highway' column exists, otherwise fallback to 15m
+if 'highway' in edges.columns:
+    def get_buffer(hw):
+        if pd.isna(hw): return 15.0
+        hw = str(hw).lower()
+        if 'primary' in hw or 'trunk' in hw: return 20.0
+        elif 'secondary' in hw: return 15.0
+        elif 'tertiary' in hw: return 12.0
+        elif 'residential' in hw or 'living_street' in hw: return 10.0
+        return 15.0
+    edges_buffered['geometry'] = edges.apply(lambda row: row.geometry.buffer(get_buffer(row['highway'])), axis=1)
+else:
+    edges_buffered['geometry'] = edges_buffered.geometry.buffer(15.0)
 
 # Intersect building walls with the street buffer zones 
 # This breaks building lines down and assigns each piece to its specific street ID
 facades_per_edge = gpd.overlay(buildings_lines, edges_buffered, how='intersection')
 facades_per_edge['total_wall_len'] = facades_per_edge.geometry.length
 
-
 # MEASURE ACTIVE VS INACTIVE FRONTAGES
 
-if not pois.empty:
-    print("Mapping active POI footprints onto street-facing walls...")
-    # Buffer POI points by 8 meters to account for depth inside building envelopes
-    pois_buffered = gpd.GeoDataFrame(geometry=pois.geometry.buffer(8.0), crs=target_crs)
-    
-    # Clip the street-facing building walls strictly inside active POI footprints
-    active_facades = gpd.overlay(facades_per_edge, pois_buffered, how='intersection')
-    active_facades['active_wall_len'] = active_facades.geometry.length
-    
-    # Sum up the continuous active frontage length per unique street edge
-    active_totals = active_facades.groupby('edge_unique_id')['active_wall_len'].sum().reset_index()
-else:
-    active_totals = pd.DataFrame(columns=['edge_unique_id', 'active_wall_len'])
+def measure_frontages(poi_gdf, name_prefix):
+    if not poi_gdf.empty:
+        # Buffer POI points by 10 meters to capture the nearest facade wall
+        pois_buffered = gpd.GeoDataFrame(geometry=poi_gdf.geometry.buffer(10.0), crs=target_crs)
+        intersected = gpd.overlay(facades_per_edge, pois_buffered, how='intersection')
+        intersected[f'{name_prefix}_wall_len'] = intersected.geometry.length
+        return intersected.groupby('edge_unique_id')[f'{name_prefix}_wall_len'].sum().reset_index()
+    else:
+        return pd.DataFrame(columns=['edge_unique_id', f'{name_prefix}_wall_len'])
+
+print("Mapping POI footprints onto street-facing walls...")
+active_totals = measure_frontages(active_pois, 'active')
+inactive_totals = measure_frontages(inactive_pois, 'hostile')
 
 # Sum up the global total facade wall length per unique street edge
 total_facade_lengths = facades_per_edge.groupby('edge_unique_id')['total_wall_len'].sum().reset_index()
-
 
 # AGGREGATE METRICS TO ROAD NETWORK
 
@@ -93,16 +126,28 @@ print("Compiling final indicators and frontage ratios onto network lines...")
 # Merge metrics back onto the primary street layer
 edges = edges.merge(total_facade_lengths, on='edge_unique_id', how='left')
 edges = edges.merge(active_totals, on='edge_unique_id', how='left')
+edges = edges.merge(inactive_totals, on='edge_unique_id', how='left')
 
-# Clean missing values safely (if a street has no buildings or active POIs)
+# Clean missing values safely
 edges['total_wall_len'] = edges['total_wall_len'].fillna(0.0)
 edges['active_wall_len'] = edges['active_wall_len'].fillna(0.0)
-edges['inactive_wall_len'] = edges['total_wall_len'] - edges['active_wall_len']
+edges['hostile_wall_len'] = edges['hostile_wall_len'].fillna(0.0)
+
+# Inactive frontages are whatever is left over (e.g. residential windows)
+edges['inactive_wall_len'] = edges['total_wall_len'] - edges['active_wall_len'] - edges['hostile_wall_len']
+edges['inactive_wall_len'] = edges['inactive_wall_len'].clip(lower=0.0)
 
 # Calculate Frontage Activity Ratio (Active Frontage / Total Built Frontage)
 edges['frontage_activity_ratio'] = np.where(
     edges['total_wall_len'] > 0,
     edges['active_wall_len'] / edges['total_wall_len'],
+    0.0
+)
+
+# Calculate Blank Wall / Hostile Ratio
+edges['blank_wall_ratio'] = np.where(
+    edges['total_wall_len'] > 0,
+    edges['hostile_wall_len'] / edges['total_wall_len'],
     0.0
 )
 
