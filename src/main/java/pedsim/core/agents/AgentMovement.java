@@ -22,7 +22,7 @@ public class AgentMovement {
   // start, current, end position along current line
   protected DirectedEdge firstDirectedEdge = null;
   public EdgeGraph currentEdge = null;
-  protected DirectedEdge currentDirectedEdge = null;
+  public DirectedEdge currentDirectedEdge = null;
   protected double currentIndex = 0.0;
   protected double endIndex = 0.0;
 

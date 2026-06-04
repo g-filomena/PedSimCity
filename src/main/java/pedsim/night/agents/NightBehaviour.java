@@ -5,6 +5,7 @@ import java.util.Random;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.Crowdness;
 import sim.graph.EdgeGraph;
+import sim.graph.NodeGraph;
 
 public class NightBehaviour {
 
