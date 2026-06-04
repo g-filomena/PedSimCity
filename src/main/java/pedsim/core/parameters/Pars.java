@@ -11,7 +11,7 @@ import pedsim.core.utilities.StringEnum.RoadType;
 public class Pars {
 
   // General parameters
-  public static String cityName = "TorinoCentre";
+  public static String cityName = "Torino";
   public static int population = 1500000;
   public static double percentagePopulationAgent = 0.001;
   public static double metersPerDayPerPerson = 4000; // 4k
