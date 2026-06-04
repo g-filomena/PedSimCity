@@ -167,7 +167,15 @@ public class NightBehaviour {
 
   /** Checks the light level of the current edge. */
   protected void checkLightLevel() {
-    if (SharedCognitiveMap.getLitEdges().contains(nightMovement.currentEdge)) {
+    double meanLux = 0.0;
+    
+    if (nightMovement.currentEdge.attributes.get("mean_lux") != null) {
+      meanLux = nightMovement.currentEdge.attributes.get("mean_lux").getDouble();
+    } else if (SharedCognitiveMap.getLitEdges().contains(nightMovement.currentEdge)) {
+      meanLux = Double.MAX_VALUE; // Fallback to fully lit if old binary data is used
+    }
+    
+    if (meanLux >= agent.lightSensitivityThreshold) {
       whenLit(nightMovement.currentEdge);
     } else {
       whenNonLit(nightMovement.currentEdge);

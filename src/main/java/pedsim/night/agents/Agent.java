@@ -27,6 +27,8 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 	protected PedSimCityNight state;
 	private boolean nightRoute = false;
 
+	public double lightSensitivityThreshold;
+
 	/**
 	 * Constructor Function. Creates a new agent with the specified agent
 	 * properties.
@@ -41,6 +43,15 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 		super(state, registerSpatial);
 		this.state = state;
 		this.agentNetwork = SharedCognitiveMap.getCommunityPrimalNetwork();
+		
+		// Initialize light sensitivity threshold based on vulnerability
+		if (isVulnerable()) {
+			double min = state.getMinVulnerableLightSensitivity();
+			double max = state.getMaxVulnerableLightSensitivity();
+			this.lightSensitivityThreshold = min + (state.random.nextDouble() * (max - min));
+		} else {
+			this.lightSensitivityThreshold = state.getNonVulnerableLightSensitivity();
+		}
 	}
 
 	/**

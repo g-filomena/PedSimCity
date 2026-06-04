@@ -22,6 +22,11 @@ public class PedSimCityNight extends PedSimCity {
   private static final long serialVersionUID = 1L;
   public boolean isDark = false;
 
+  // GUI Configurable parameters for light sensitivity (Lux)
+  public double minVulnerableLightSensitivity = 5.0;
+  public double maxVulnerableLightSensitivity = 15.0;
+  public double nonVulnerableLightSensitivity = 0.0;
+
   public static final Map<DirectedEdge, LengthIndexedLine> indexedEdgeCache = new HashMap<>();
 
   public static Set<EdgeGraph> edges = new HashSet<>();
@@ -59,6 +64,34 @@ public class PedSimCityNight extends PedSimCity {
     Populate populate = new Populate();
     populate.populate(this);
   }
+
+  // --- Getters & Setters for GUI ---
+
+  public double getMinVulnerableLightSensitivity() {
+    return minVulnerableLightSensitivity;
+  }
+
+  public void setMinVulnerableLightSensitivity(double minVulnerableLightSensitivity) {
+    this.minVulnerableLightSensitivity = minVulnerableLightSensitivity;
+  }
+
+  public double getMaxVulnerableLightSensitivity() {
+    return maxVulnerableLightSensitivity;
+  }
+
+  public void setMaxVulnerableLightSensitivity(double maxVulnerableLightSensitivity) {
+    this.maxVulnerableLightSensitivity = maxVulnerableLightSensitivity;
+  }
+
+  public double getNonVulnerableLightSensitivity() {
+    return nonVulnerableLightSensitivity;
+  }
+
+  public void setNonVulnerableLightSensitivity(double nonVulnerableLightSensitivity) {
+    this.nonVulnerableLightSensitivity = nonVulnerableLightSensitivity;
+  }
+
+  // ---------------------------------
 
   public static void clearNightStaticData() {
     indexedEdgeCache.clear();

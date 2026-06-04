@@ -16,6 +16,8 @@ import sim.util.geo.Utilities;
 
 /**
  * Road-distance shortest path for night-time routing.
+ * 
+ * ## Possible to do -add agents filter out zero light edges but add look up table so when they arrive at a node and the start of an edge is dark they reroute
  */
 public class DijkstraRoadDistanceNight extends DijkstraRoadDistance {
 
