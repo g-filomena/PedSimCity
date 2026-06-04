@@ -27,6 +27,8 @@ public class PedSimCityNight extends PedSimCity {
   public double maxVulnerableLightSensitivity = 15.0;
   public double nonVulnerableLightSensitivity = 0.0;
   
+  public double crowdednessPercentile = 80.0;
+  
   public boolean enableLightABTesting = false;
 
   // Directional entrance light mapping (Node_A -> Node_B : min_lux)
@@ -134,6 +136,14 @@ public class PedSimCityNight extends PedSimCity {
 
   public void setEnableLightABTesting(boolean enableLightABTesting) {
     this.enableLightABTesting = enableLightABTesting;
+  }
+  
+  public double getCrowdednessPercentile() {
+    return crowdednessPercentile;
+  }
+  
+  public void setCrowdednessPercentile(double crowdednessPercentile) {
+    this.crowdednessPercentile = crowdednessPercentile;
   }
 
   // ---------------------------------
