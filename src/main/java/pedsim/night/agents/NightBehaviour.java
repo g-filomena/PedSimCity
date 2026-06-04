@@ -175,7 +175,20 @@ public class NightBehaviour {
       meanLux = Double.MAX_VALUE; // Fallback to fully lit if old binary data is used
     }
     
-    if (meanLux >= agent.lightSensitivityThreshold) {
+    double entranceLux = Double.MAX_VALUE;
+    if (nightMovement.currentDirectedEdge != null) {
+      NodeGraph fromNode = (NodeGraph) nightMovement.currentDirectedEdge.getFromNode();
+      NodeGraph toNode = (NodeGraph) nightMovement.currentDirectedEdge.getToNode();
+      if (fromNode != null && toNode != null) {
+        String edgeKey = fromNode.getID() + "-" + toNode.getID();
+        if (pedsim.night.engine.PedSimCityNight.directionalLuxMap.containsKey(edgeKey)) {
+          entranceLux = pedsim.night.engine.PedSimCityNight.directionalLuxMap.get(edgeKey);
+        }
+      }
+    }
+    
+    // If either the average street light or the immediate entrance is too dark, reroute
+    if (meanLux >= agent.lightSensitivityThreshold && entranceLux >= agent.lightSensitivityThreshold) {
       whenLit(nightMovement.currentEdge);
     } else {
       whenNonLit(nightMovement.currentEdge);

@@ -29,6 +29,9 @@ public class PedSimCityNight extends PedSimCity {
   
   public boolean enableLightABTesting = false;
 
+  // Directional entrance light mapping (Node_A -> Node_B : min_lux)
+  public static final Map<String, Double> directionalLuxMap = new ConcurrentHashMap<>();
+
   public static final Map<DirectedEdge, LengthIndexedLine> indexedEdgeCache = new HashMap<>();
 
   public static Set<EdgeGraph> edges = new HashSet<>();
@@ -65,6 +68,38 @@ public class PedSimCityNight extends PedSimCity {
   protected void populateEnvironment() {
     Populate populate = new Populate();
     populate.populate(this);
+  }
+
+  @Override
+  public void start() {
+    super.start();
+    loadDirectionalLighting();
+  }
+
+  private void loadDirectionalLighting() {
+    directionalLuxMap.clear();
+    try {
+      String resourceName = pedsim.core.parameters.Pars.cityName + "/" + pedsim.core.parameters.Pars.cityName + "_directional_lighting_lookup.csv";
+      java.net.URL fileUrl = getClass().getClassLoader().getResource(resourceName);
+      if (fileUrl != null) {
+        try (java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(fileUrl.openStream()))) {
+          String line = br.readLine(); // skip header
+          while ((line = br.readLine()) != null) {
+            String[] parts = line.split(",");
+            if (parts.length >= 5) {
+              String key = parts[0] + "-" + parts[1]; // current_node_id - target_node_id
+              double minLux = Double.parseDouble(parts[4]); // visibility_min_lux
+              directionalLuxMap.put(key, minLux);
+            }
+          }
+        }
+        System.out.println("Loaded " + directionalLuxMap.size() + " directional lighting entries.");
+      } else {
+        System.out.println("Directional lighting lookup not found at: " + resourceName);
+      }
+    } catch (Exception e) {
+      System.err.println("Failed to load directional lighting: " + e.getMessage());
+    }
   }
 
   // --- Getters & Setters for GUI ---
@@ -111,5 +146,6 @@ public class PedSimCityNight extends PedSimCity {
     routesVulnerableNight.clear();
     altRoutesVulnerable.clear();
     altRoutesNonVulnerable.clear();
+    directionalLuxMap.clear();
   }
 }
