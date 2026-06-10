@@ -1,14 +1,20 @@
-package pedSim.applet;
+package pedsim.empirical.applet;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.IntStream;
 
 import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 
-import pedSim.agents.Agent;
-import pedSim.engine.PedSimCity;
-import pedSim.parameters.Pars;
+import pedsim.core.agents.Agent;
+import pedsim.core.engine.FlowHandler;
+import pedsim.core.engine.PedSimCity;
+import pedsim.core.parameters.Pars;
+import pedsim.cityimage.parameters.TestPars;
+import pedsim.cityimage.applet.Display;
+import pedsim.cityimage.applet.PedSimCityImageApplet;
+import pedsim.core.applet.PedSimCityApplet;
 import sim.engine.SimState;
 
 public class Run {

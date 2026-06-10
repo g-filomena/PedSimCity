@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import pedsim.cityimage.agents.Agent;
 import pedsim.cityimage.agents.AgentProperties;
-import pedsim.cityimage.agents.EmpiricalAgentProperties;
+import pedsim.empirical.agent.EmpiricalAgentProperties;
 import pedsim.cityimage.parameters.TestPars;
 import pedsim.cityimage.utilities.RouteData;
 import pedsim.core.engine.PedSimCity;
@@ -54,7 +54,7 @@ public class FlowHandler extends pedsim.core.engine.FlowHandler {
    * Updates the edge data on the basis of the passed agent's route and its edges sequence.
    *
    * @param agent The agent for which edge data is updated.
-   * @param directedEdgesSequence The sequence of directed edges travelled by the agent.
+   * @param route The sequence of directed edges travelled by the agent.
    */
   public synchronized void updateFlowsData(Agent agent, Route route) {
 

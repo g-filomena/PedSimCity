@@ -7,6 +7,8 @@ import javax.swing.JPanel;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
+import pedsim.cityimage.agents.Agent;
+import pedsim.core.engine.PedSimCity;
 import sim.util.geo.MasonGeometry;
 
 public class Display extends JPanel {

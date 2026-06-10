@@ -341,8 +341,6 @@ public class PedSimCityApplet extends Frame implements ItemListener {
 
   /**
    * Updates the text of the remainingTripsLabel to display the count of missing trips.
-   * 
-   * @return
    */
   public static void updateRemainingTripsLabel(boolean runInParallel) {
     if (runInParallel)
