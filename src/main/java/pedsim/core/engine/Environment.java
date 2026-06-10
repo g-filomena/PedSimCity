@@ -83,6 +83,11 @@ public class Environment {
         "poi_count",
         PedSimCity.nodesWorkplacePoiWeight,
         "Workplace_POI_densities");
+
+    // Join illuminated edges (mean_lux) onto the primal graph if the night dataset was loaded.
+    if (!PedSimCity.illuminatedEdges.getGeometries().isEmpty()) {
+      joinIlluminatedEdges();
+    }
   }
 
   /**
@@ -252,10 +257,45 @@ public class Environment {
         }
       }
 
-      edge.attributes.put("roadType", edge.attributes.get("highway"));
+    edge.attributes.put("roadType", edge.attributes.get("highway"));
       edge.setID(edgeID);
       PedSimCity.edgesMap.put(edgeID, edge);
     }
+  }
+
+  /**
+   * Joins mean_lux from the illuminated edges dataset onto the primal graph edges by edgeID.
+   * Only edges present in both datasets receive a mean_lux attribute.
+   * Edges not present in the illuminated dataset are left without the attribute (default 0.0 in AgentMovement).
+   */
+  static private void joinIlluminatedEdges() {
+    List<MasonGeometry> illuminatedGeoms = PedSimCity.illuminatedEdges.getGeometries();
+    int joined = 0;
+    int missing = 0;
+    for (MasonGeometry geom : illuminatedGeoms) {
+      AttributeValue edgeIDAttr = geom.getAttributes().get("edgeID");
+      AttributeValue meanLuxAttr = geom.getAttributes().get("mean_lux");
+      if (edgeIDAttr == null || meanLuxAttr == null) {
+        missing++;
+        continue;
+      }
+      int edgeID = edgeIDAttr.getInteger();
+      EdgeGraph edge = PedSimCity.edgesMap.get(edgeID);
+      if (edge == null) {
+        missing++;
+        continue;
+      }
+      double meanLux;
+      try {
+        meanLux = meanLuxAttr.getDouble();
+      } catch (Exception e) {
+        missing++;
+        continue;
+      }
+      edge.attributes.put("mean_lux", new AttributeValue(meanLux));
+      joined++;
+    }
+    logger.info("Illuminated edges join: " + joined + " edges received mean_lux, " + missing + " skipped (no match or null).");
   }
 
   /**

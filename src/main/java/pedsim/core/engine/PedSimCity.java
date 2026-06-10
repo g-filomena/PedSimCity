@@ -48,6 +48,9 @@ public class PedSimCity extends SimState {
   public static RobustVectorLayer nightPoiDensities = new RobustVectorLayer();
   public static RobustVectorLayer workplacePoiDensities = new RobustVectorLayer();
 
+  // Illuminated edges dataset (contains mean_lux per edge for night simulation)
+  public static VectorLayer illuminatedEdges = new VectorLayer();
+
   // --- Census (residence) dataset ---
   public static Map<NodeGraph, MasonGeometry> nodesCensusZonesMap = new HashMap<>();
   public static STRtree censusZonesSpatialIndex = new STRtree();
@@ -200,6 +203,7 @@ public class PedSimCity extends SimState {
     censusZonesVulnerability.getGeometries().clear();
     nightPoiDensities.getGeometries().clear();
     workplacePoiDensities.getGeometries().clear();
+    illuminatedEdges.getGeometries().clear();
     intersectionsDual.getGeometries().clear();
     centroids.getGeometries().clear();
 

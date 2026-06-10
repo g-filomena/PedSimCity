@@ -67,6 +67,27 @@ public final class SimulationRestApi {
           }
         });
 
+        // --- GET /api/roads --- (served once; heavy GeoJSON not bundled in /api/state)
+        server.createContext("/api/roads", exchange -> {
+          try {
+            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+              exchange.sendResponseHeaders(405, -1);
+              return;
+            }
+            String roads = SimulationStateStore.getInstance().roadsGeoJson;
+            if (roads == null) roads = "{\"type\":\"FeatureCollection\",\"features\":[]}";
+            byte[] responseBytes = roads.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+            exchange.sendResponseHeaders(200, responseBytes.length);
+            try (var body = exchange.getResponseBody()) {
+              body.write(responseBytes);
+            }
+          } catch (Exception ex) {
+            exchange.sendResponseHeaders(500, -1);
+          }
+        });
+
         // --- POST /api/start ---
         server.createContext("/api/start", exchange -> {
           try {

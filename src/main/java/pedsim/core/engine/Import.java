@@ -124,6 +124,27 @@ public class Import {
     if (Pars.isNight) {
       readOptionalLayer("Night_POI_densities", PedSimCity.nightPoiDensities);
       readOptionalLayer("Workplace_POI_densities", PedSimCity.workplacePoiDensities);
+      readIlluminatedEdges();
+    }
+  }
+
+  /**
+   * Loads the illuminated edges dataset (edges_illuminated_continuous.gpkg) which provides
+   * mean_lux values per street edge for the night simulation.
+   */
+  protected void readIlluminatedEdges() {
+    try {
+      String resourceName = Pars.cityName + "/edges_illuminated_continuous.gpkg";
+      URL fileUrl = CLASSLOADER.getResource(resourceName);
+      if (fileUrl == null) {
+        logger.warning("Illuminated edges dataset not found at: " + resourceName + " — mean_lux will default to 0.");
+        return;
+      }
+      PedSimCity.illuminatedEdges.getGeometries().clear();
+      VectorLayer.readGPKG(fileUrl, PedSimCity.illuminatedEdges);
+      logger.info("Illuminated edges loaded: " + PedSimCity.illuminatedEdges.getGeometries().size() + " features.");
+    } catch (Exception e) {
+      logger.warning("Failed to load illuminated edges: " + e.getMessage());
     }
   }
 

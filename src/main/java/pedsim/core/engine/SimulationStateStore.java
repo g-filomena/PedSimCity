@@ -187,7 +187,6 @@ public final class SimulationStateStore {
     @JsonProperty("atDestCount")    public final int atDestCount;
     @JsonProperty("running")        public final boolean running;
     @JsonProperty("finished")       public final boolean finished;
-    @JsonProperty("roadsGeoJson")   public final String roadsGeoJson;
     @JsonProperty("agents")         public final List<AgentSnapshot> agents;
 
     StateSnapshot(SimulationStateStore store) {
@@ -198,7 +197,6 @@ public final class SimulationStateStore {
       this.atDestCount    = store.atDestCount;
       this.running        = store.running;
       this.finished       = store.finished;
-      this.roadsGeoJson   = store.roadsGeoJson;
       this.agents         = store.getAgents();
     }
   }
