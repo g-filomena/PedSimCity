@@ -134,7 +134,7 @@ public class Import {
    */
   protected void readIlluminatedEdges() {
     try {
-      String resourceName = Pars.cityName + "/edges_illuminated_continuous.gpkg";
+      String resourceName = Pars.cityName + "/" + Pars.cityName + "_edges_illuminated_continuous.gpkg";
       URL fileUrl = CLASSLOADER.getResource(resourceName);
       if (fileUrl == null) {
         logger.warning("Illuminated edges dataset not found at: " + resourceName + " — mean_lux will default to 0.");
