@@ -61,9 +61,10 @@ If the user desires to use the applet within Eclipse, for example, to explore th
 1. Ensure **Maven** and **Java** (JDK 17) are installed on your computer.
 2. Open the project folder in your editor (e.g. VS Code or Cursor).
 3. Open the terminal and ensure you are in the project folder with the `pom.xml` file.
-4. Run the command: `mvn clean install` to build the project and create the jar file with dependencies.
-5. To run the applet (e.g. the night applet version), run the following command in the terminal:
-   `java -cp "target\pedsimcity-1.23-jar-with-dependencies.jar" pedsim.night.applet.PedSimCityNightApplet`
+4. The fastest way to run the simulation after making changes is:
+   `mvn compile exec:java` (or `mvn compile exec:java@night` for the Night Applet).
+   *Note: Only use `mvn clean compile exec:java` if you are experiencing caching issues or have changed your dependencies in `pom.xml`. Skipping `clean` makes incremental builds much faster.*
+5. Alternatively, you can use your IDE's built-in run button to launch `PedSimCityNightApplet.java` directly without using the terminal.
 
 The applet allows the user to run the simulation with three different configurations:
 1. Testing Landmarks (London, Muenster).
