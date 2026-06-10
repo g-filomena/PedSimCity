@@ -60,14 +60,14 @@ public class PedSimCityApplet extends Frame {
     add(cityName);
 
     Label daysLabel = new Label("Duration in days:");
-    daysTextField = new TextField("7");
+    daysTextField = new TextField("1");
     daysLabel.setBounds(10, 100, 120, 20);
     daysTextField.setBounds(190, 100, 100, 20);
     add(daysLabel);
     add(daysTextField);
 
     Label populationLabel = new Label("Actual Population:");
-    populationTextField = new TextField("100000");
+    populationTextField = new TextField("1000");
     populationLabel.setBounds(10, 130, 120, 20);
     populationTextField.setBounds(190, 130, 100, 20);
     add(populationLabel);
@@ -157,6 +157,10 @@ public class PedSimCityApplet extends Frame {
 
   protected void launchSimulation(boolean runInParallel) {
     setRunningOnServer(false);
+
+    // Read the GUI text fields into Pars BEFORE building the engine
+    ParameterManager.collectParameters(this);
+    Pars.setSimulationParameters();
 
     final ScenarioConfig scenarioConfig = buildScenarioConfig();
     final Engine engine = buildEngine();
