@@ -39,6 +39,7 @@ public class Populate extends pedsim.core.engine.Populate {
       vulnerableTwin.setHomeWorkLoctations(dummy.homeNode, dummy.workNode);
       vulnerableTwin.setVulnerable(true);
       vulnerableTwin.vulnerable = Vulnerable.VULNERABLE;
+      vulnerableTwin.initSensitivity();
       
       // Normal twin
       pedsim.night.agents.Agent normalTwin = new pedsim.night.agents.Agent(this.state, false);
@@ -46,6 +47,7 @@ public class Populate extends pedsim.core.engine.Populate {
       normalTwin.setHomeWorkLoctations(dummy.homeNode, dummy.workNode);
       normalTwin.setVulnerable(false);
       normalTwin.vulnerable = Vulnerable.NON_VULNERABLE;
+      normalTwin.initSensitivity();
       
       registerAgent(vulnerableTwin);
       registerAgent(normalTwin);
@@ -81,6 +83,7 @@ public class Populate extends pedsim.core.engine.Populate {
     agent.vulnerable =
         agent.isVulnerableBoolean() ? Vulnerable.VULNERABLE : Vulnerable.NON_VULNERABLE;
 
+    agent.initSensitivity();
     agent.updateAgentLists(false, true);
     return agent;
   }

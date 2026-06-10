@@ -45,7 +45,9 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 		super(state, registerSpatial);
 		this.state = state;
 		this.agentNetwork = SharedCognitiveMap.getCommunityPrimalNetwork();
-		
+	}
+
+	public void initSensitivity() {
 		// Initialize light sensitivity threshold based on vulnerability
 		if (isVulnerable()) {
 			double min = state.getMinVulnerableLightSensitivity();
@@ -211,7 +213,7 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 	 * @return true if the agent is vulnerable, false otherwise.
 	 */
 	public boolean isVulnerable() {
-		return vulnerable.equals(Vulnerable.VULNERABLE);
+		return vulnerable == Vulnerable.VULNERABLE;
 	}
 
 	/**
