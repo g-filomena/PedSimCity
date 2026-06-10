@@ -264,6 +264,8 @@ public class Environment {
   static private void prepareDualGraph() {
 
     List<MasonGeometry> centroids = PedSimCity.centroids.getGeometries();
+    int missingPrimalEdgeCount = 0;
+    
     for (final MasonGeometry centroidGeometry : centroids) {
       int edgeID = centroidGeometry.getIntegerAttribute("edgeID");
       NodeGraph centroid =
@@ -275,10 +277,14 @@ public class Environment {
         centroid.setPrimalEdge(primalEdge);
         primalEdge.setDualNode(centroid);
       } else {
-        logger.warning("Centroid with edgeID " + edgeID + " has no corresponding primal edge in edgesMap.");
+        missingPrimalEdgeCount++;
       }
       
       PedSimCity.centroidsMap.put(edgeID, centroid);
+    }
+
+    if (missingPrimalEdgeCount > 0) {
+      logger.warning("Found " + missingPrimalEdgeCount + " centroids with no corresponding primal edge in edgesMap.");
     }
 
     List<EdgeGraph> dualEdges = PedSimCity.dualNetwork.getEdges();
