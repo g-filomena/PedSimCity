@@ -200,9 +200,9 @@ public class HtmlExporter {
         + "<div id=\"container\">\n"
         + "  <canvas id=\"canvas\"></canvas>\n"
         + "  <div id=\"floating-controls\">\n"
-        + "    <label class=\"toggle-label\"><input type=\"checkbox\" id=\"tg-light\" /> Light Level Map</label>\n"
-        + "    <label class=\"toggle-label\"><input type=\"checkbox\" id=\"tg-spooks\" checked /> Show Spooks</label>\n"
-        + "    <label class=\"toggle-label\"><input type=\"checkbox\" id=\"tg-tethers\" checked /> Show A/B Tethers</label>\n"
+        + "    <label class=\"toggle-label\" id=\"lbl-light\"><input type=\"checkbox\" id=\"tg-light\" /> Light Level Map</label>\n"
+        + "    <label class=\"toggle-label\" id=\"lbl-spooks\"><input type=\"checkbox\" id=\"tg-spooks\" checked /> Show Spooks</label>\n"
+        + "    <label class=\"toggle-label\" id=\"lbl-tethers\"><input type=\"checkbox\" id=\"tg-tethers\" checked /> Show A/B Tethers</label>\n"
         + "    <button class=\"btn-float\" id=\"reset-btn\">Reset Zoom</button>\n"
         + "  </div>\n"
         + "</div>\n"
@@ -224,6 +224,11 @@ public class HtmlExporter {
         + "<script>\n"
         + "const ROADS_GEOJSON = " + roadsGeoJson + ";\n"
         + "const TRIPS = " + tripsJs + ";\n"
+        + "const isNight = " + Pars.isNight + ";\n"
+        + "const enableAB = " + isABTestingEnabled() + ";\n"
+        + "if (!isNight) document.getElementById('lbl-light').style.display = 'none';\n"
+        + "if (!isNight) document.getElementById('lbl-spooks').style.display = 'none';\n"
+        + "if (!enableAB) { document.getElementById('lbl-tethers').style.display = 'none'; document.getElementById('tg-tethers').checked = false; }\n"
         + "let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;\n"
         + "function getPoints(geom) {\n"
         + "  let pts = [];\n"
@@ -361,10 +366,10 @@ public class HtmlExporter {
         + "      });\n"
         + "    });\n"
         + "  }\n"
-        + "  ctx.beginPath();\n"
         + "  agents.forEach(a => {\n"
         + "    const p = posById[a.id];\n"
-        + "    ctx.moveTo(p.x, p.y); ctx.arc(p.x, p.y, a.vuln ? 7 : 5, 0, Math.PI * 2);\n"
+        + "    ctx.beginPath();\n"
+        + "    ctx.arc(p.x, p.y, a.vuln ? 7 : 5, 0, Math.PI * 2);\n"
         + "    ctx.fillStyle = a.vuln ? '#ef4444' : '#38bdf8';\n"
         + "    ctx.fill();\n"
         + "  });\n"
@@ -387,9 +392,22 @@ public class HtmlExporter {
         + "  document.getElementById('m-vuln').textContent = total > 0 ? (vuln/total*100).toFixed(1)+'%' : '0%';\n"
         + "  document.getElementById('m-time').textContent = 'Day 1 ' + String(Math.floor(step*20/60)%24).padStart(2,'0') + ':' + String(Math.floor(step*20)%60).padStart(2,'0');\n"
         + "  document.getElementById('time-label').textContent = document.getElementById('m-time').textContent;\n"
-        // Try to map agent to street lux
         + "  if (tgLight.checked && total > 0) {\n"
-        + "    document.getElementById('m-lux').textContent = 'Simulating...';\n"
+        + "    let sumLux = 0;\n"
+        + "    agents.forEach(a => {\n"
+        + "      let minD = Infinity; let bestLux = 0;\n"
+        + "      ROADS_GEOJSON.features.forEach(f => {\n"
+        + "        if (!f.geometry) return;\n"
+        + "        const lx = f.properties.mean_lux || 0;\n"
+        + "        const pts = getPoints(f.geometry);\n"
+        + "        for(let i=0; i<pts.length; i++) {\n"
+        + "          const d = (pts[i][0]-a.x)**2 + (pts[i][1]-a.y)**2;\n"
+        + "          if(d < minD){ minD = d; bestLux = lx; }\n"
+        + "        }\n"
+        + "      });\n"
+        + "      sumLux += bestLux;\n"
+        + "    });\n"
+        + "    document.getElementById('m-lux').textContent = (sumLux / total).toFixed(2);\n"
         + "  } else {\n"
         + "    document.getElementById('m-lux').textContent = '-';\n"
         + "  }\n"
@@ -416,5 +434,15 @@ public class HtmlExporter {
         + "</script>\n"
         + "</body>\n"
         + "</html>\n";
+  }
+
+  private static boolean isABTestingEnabled() {
+    try {
+      Class<?> cls = Class.forName("pedsim.night.parameters.NightPars");
+      java.lang.reflect.Field f = cls.getField("enableLightABTesting");
+      return f.getBoolean(null);
+    } catch (Exception e) {
+      return false;
+    }
   }
 }
