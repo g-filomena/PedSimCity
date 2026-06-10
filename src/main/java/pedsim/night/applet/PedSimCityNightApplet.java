@@ -148,14 +148,6 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
 			// Start REST API in background for external visualization
 			SimulationRestApi.start(8081);
 
-			// Auto-open the browser
-			try {
-				if (Desktop.isDesktopSupported()) {
-					Desktop.getDesktop().browse(new URI("http://localhost:8080"));
-				}
-			} catch (Exception e) {
-				LoggerUtil.getLogger().warning("Could not open browser: " + e.getMessage());
-			}
 			PedSimCityNightApplet applet = new PedSimCityNightApplet();
 			applet.addWindowListener(new WindowAdapter() {
 				@Override
