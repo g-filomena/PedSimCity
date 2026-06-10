@@ -22,14 +22,8 @@ public class PedSimCityNight extends PedSimCity {
   private static final long serialVersionUID = 1L;
   public boolean isDark = false;
 
-  // GUI Configurable parameters for light sensitivity (Lux)
-  public double minVulnerableLightSensitivity = 5.0;
-  public double maxVulnerableLightSensitivity = 15.0;
-  public double nonVulnerableLightSensitivity = 0.0;
-  
-  public double crowdednessPercentile = 80.0;
-  
-  public boolean enableLightABTesting = false;
+  // Parameters are now stored statically in NightPars
+
 
   // Directional entrance light mapping (Node_A -> Node_B : min_lux)
   public static final Map<String, Double> directionalLuxMap = new ConcurrentHashMap<>();
@@ -107,43 +101,43 @@ public class PedSimCityNight extends PedSimCity {
   // --- Getters & Setters for GUI ---
 
   public double getMinVulnerableLightSensitivity() {
-    return minVulnerableLightSensitivity;
+    return pedsim.night.parameters.NightPars.minVulnerableLightSensitivity;
   }
 
   public void setMinVulnerableLightSensitivity(double minVulnerableLightSensitivity) {
-    this.minVulnerableLightSensitivity = minVulnerableLightSensitivity;
+    pedsim.night.parameters.NightPars.minVulnerableLightSensitivity = minVulnerableLightSensitivity;
   }
 
   public double getMaxVulnerableLightSensitivity() {
-    return maxVulnerableLightSensitivity;
+    return pedsim.night.parameters.NightPars.maxVulnerableLightSensitivity;
   }
 
   public void setMaxVulnerableLightSensitivity(double maxVulnerableLightSensitivity) {
-    this.maxVulnerableLightSensitivity = maxVulnerableLightSensitivity;
+    pedsim.night.parameters.NightPars.maxVulnerableLightSensitivity = maxVulnerableLightSensitivity;
   }
 
   public double getNonVulnerableLightSensitivity() {
-    return nonVulnerableLightSensitivity;
+    return pedsim.night.parameters.NightPars.nonVulnerableLightSensitivity;
   }
 
   public void setNonVulnerableLightSensitivity(double nonVulnerableLightSensitivity) {
-    this.nonVulnerableLightSensitivity = nonVulnerableLightSensitivity;
+    pedsim.night.parameters.NightPars.nonVulnerableLightSensitivity = nonVulnerableLightSensitivity;
   }
 
   public boolean getEnableLightABTesting() {
-    return enableLightABTesting;
+    return pedsim.night.parameters.NightPars.enableLightABTesting;
   }
 
   public void setEnableLightABTesting(boolean enableLightABTesting) {
-    this.enableLightABTesting = enableLightABTesting;
+    pedsim.night.parameters.NightPars.enableLightABTesting = enableLightABTesting;
   }
   
   public double getCrowdednessPercentile() {
-    return crowdednessPercentile;
+    return pedsim.night.parameters.NightPars.crowdednessPercentile;
   }
   
   public void setCrowdednessPercentile(double crowdednessPercentile) {
-    this.crowdednessPercentile = crowdednessPercentile;
+    pedsim.night.parameters.NightPars.crowdednessPercentile = crowdednessPercentile;
   }
 
   // ---------------------------------

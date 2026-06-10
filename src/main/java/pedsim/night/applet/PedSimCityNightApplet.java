@@ -28,10 +28,28 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
 
 	private static final long serialVersionUID = 1L;
 
+	private NightParametersPanel nightPanel;
+
 	public PedSimCityNightApplet() {
 		super();
 		Pars.isNight = true;
-		routeParsButton.setVisible(false);
+		
+		routeParsButton.setVisible(true);
+		routeParsButton.setLabel("Night Parameters");
+		
+		// Remove existing action listeners from superclass
+		for (java.awt.event.ActionListener al : routeParsButton.getActionListeners()) {
+			routeParsButton.removeActionListener(al);
+		}
+		
+		routeParsButton.addActionListener(e -> openNightPanel());
+	}
+
+	private void openNightPanel() {
+		if (nightPanel == null) {
+			nightPanel = new NightParametersPanel();
+		}
+		nightPanel.setVisible(true);
 	}
 
 	public static void main(String[] args) throws Exception {

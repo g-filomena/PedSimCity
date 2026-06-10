@@ -269,9 +269,15 @@ public class Environment {
       NodeGraph centroid =
           PedSimCity.dualNetwork.findNode(centroidGeometry.geometry.getCoordinate());
       centroid.setID(edgeID);
-      centroid.setPrimalEdge(PedSimCity.edgesMap.get(edgeID));
-
-      PedSimCity.edgesMap.get(edgeID).setDualNode(centroid);
+      
+      EdgeGraph primalEdge = PedSimCity.edgesMap.get(edgeID);
+      if (primalEdge != null) {
+        centroid.setPrimalEdge(primalEdge);
+        primalEdge.setDualNode(centroid);
+      } else {
+        logger.warning("Centroid with edgeID " + edgeID + " has no corresponding primal edge in edgesMap.");
+      }
+      
       PedSimCity.centroidsMap.put(edgeID, centroid);
     }
 
