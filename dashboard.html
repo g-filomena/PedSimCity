@@ -33,6 +33,16 @@
 
     html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; }
 
+      .agent-label {
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        color: var(--text);
+        font-weight: bold;
+        font-size: 10px;
+        text-shadow: 1px 1px 2px black;
+      }
+
     /* ── Layout ──────────────────────────────────────────────── */
     #layout { display: flex; height: 100vh; }
 
@@ -263,7 +273,7 @@ let roadsLayer   = null;
 let roadsLoaded  = false;
 let agentLayer   = L.layerGroup().addTo(map);
 
-// ── DOM refs ───────────────────────────────────────────────────────────────
+// ── DOM refs ───────────────────────────────────────────────
 const pill       = document.getElementById('status-pill');
 const pillText   = document.getElementById('status-text');
 const errBanner  = document.getElementById('error-banner');
@@ -393,7 +403,8 @@ function updateAgents(agents) {
     } else {
       // New agent
       const m = L.marker([a.lat, a.lon], { icon, interactive: false })
-        .addTo(agentLayer);
+          .bindTooltip(`Agent ${a.id}`, { permanent: true, direction: 'right', className: 'agent-label', offset: [5, 0] })
+          .addTo(agentLayer);
       agentMarkers.set(a.id, m);
     }
   }

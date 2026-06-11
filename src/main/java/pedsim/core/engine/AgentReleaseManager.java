@@ -63,8 +63,7 @@ public class AgentReleaseManager {
     currentTime = TimePars.getTime(steps);
     metersWalkedSoFarToday = computeMetersWalkedSoFar();
     double metersToAllocate = (metersToWalkCurrentDay * TimePars.computeTimeStepShare(currentTime));
-    double metersAdjusted =
-        (metersToAllocate + (expectedMetersWalkedSoFarToday - metersWalkedSoFarToday)) * 0.5;
+    double metersAdjusted = metersToAllocate;
 
     int agentsReleased = 0;
     if (metersAdjusted > 0) {
