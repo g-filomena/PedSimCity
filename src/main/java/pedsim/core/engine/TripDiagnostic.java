@@ -16,10 +16,10 @@ import pedsim.core.utilities.LoggerUtil;
  * <p>Columns written:
  * <ul>
  *   <li>agent_id        – integer agent identifier</li>
- *   <li>start_time      – human-readable time (HH:mm on day D) when the trip began</li>
- *   <li>end_time        – human-readable time when the trip finished</li>
- *   <li>duration_min    – trip duration in minutes</li>
- *   <li>distance_m      – total path length in metres (sum of Euclidean segment lengths)</li>
+ *   <li>start_time      – human-readable time (Day D HH:mm) when walking began</li>
+ *   <li>end_time        – human-readable time when walking finished</li>
+ *   <li>duration_min    – walking duration in minutes</li>
+ *   <li>distance_m      – path length in metres (Euclidean, coordinates are projected metres EPSG:3003)</li>
  *   <li>nodes_walked    – semicolon-separated list of node IDs visited</li>
  *   <li>edges_walked    – semicolon-separated list of edge IDs traversed</li>
  *   <li>vulnerable      – true/false</li>
@@ -32,8 +32,8 @@ public class TripDiagnostic {
     private static final Logger logger = LoggerUtil.getLogger();
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("'Day 'D' 'HH:mm");
 
-    /** Metres per degree (approximate – good enough for diagnostic purposes). */
-    private static final double METRES_PER_DEGREE = 111_320.0;
+    // Coordinates are in a projected CRS (EPSG:3003, units = metres).
+    // Raw Euclidean distance is therefore already in metres – no conversion needed.
 
     // -----------------------------------------------------------------------
 
@@ -110,7 +110,8 @@ public class TripDiagnostic {
 
     /**
      * Sums Euclidean segment lengths over the path coordinate list.
-     * Coordinates are in degrees (lon/lat), converted to metres via a flat-earth approximation.
+     * Coordinates are in a projected CRS (EPSG:3003), so units are already metres.
+     * Raw Euclidean distance is used directly – no degree-to-metre conversion needed.
      */
     private static double computeDistanceMetres(List<Coordinate> coords) {
         if (coords == null || coords.size() < 2) return 0.0;
@@ -118,9 +119,9 @@ public class TripDiagnostic {
         for (int i = 0; i < coords.size() - 1; i++) {
             Coordinate a = coords.get(i);
             Coordinate b = coords.get(i + 1);
-            double dLon = (b.x - a.x) * METRES_PER_DEGREE * Math.cos(Math.toRadians((a.y + b.y) / 2.0));
-            double dLat = (b.y - a.y) * METRES_PER_DEGREE;
-            total += Math.sqrt(dLon * dLon + dLat * dLat);
+            double dx = b.x - a.x;
+            double dy = b.y - a.y;
+            total += Math.sqrt(dx * dx + dy * dy);
         }
         return total;
     }

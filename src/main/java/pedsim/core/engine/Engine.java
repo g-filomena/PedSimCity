@@ -154,10 +154,11 @@ protected void prepareToRun() throws Exception {
 				}
 			}
 
-			if (nextAgentRelease == steps) {
+			if (steps >= nextAgentRelease) {
 				currentDayReleaseManager.releaseAgents(steps);
 				nextAgentRelease += TimePars.releaseAgentsEverySteps;
 			}
+
 		}
 
 		state.flowHandler.updateCognitiveMapsData(null);

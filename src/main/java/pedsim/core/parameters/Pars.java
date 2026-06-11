@@ -24,8 +24,9 @@ public class Pars {
   // Euclidean Distance between Origin and Destination
   public static double homeWorkRadius = 600;
 
-  // One step == 10 minutes, average speed 1 meter/sec., --> moveRate = 60*10
-  // meters per second
+  // One step == 20 minutes (STEP_DURATION = 1200s), average pedestrian speed 1.42 m/s
+  // --> moveRate = 1200 * 1.42 = 1704 metres per step (distance walked in one step)
+
   protected static double pedestrianSpeed = 1.42;
   public static double SPEED_INCREMENT_FACTOR = 0.20;
   // meters per step;

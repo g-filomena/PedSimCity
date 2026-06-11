@@ -13,6 +13,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
 import pedsim.core.agents.Agent;
 import pedsim.core.parameters.RouteChoicePars;
 import pedsim.core.parameters.TimePars;
@@ -170,20 +171,16 @@ public class AgentReleaseManager {
       return homeAgents;
     }
 
+    // Sort agents by metres walked ascending (least-walked first), then apply weighted selection
     List<Agent> agents = new ArrayList<>(homeAgents);
-    // Sort agents by kmWalked in ascending order (less walked first) using parallel
-    // sort
-    agents.parallelStream().sorted(Comparator.comparingDouble(Agent::getTotalMetersWalked))
-        .collect(Collectors.toList());
+    agents.sort(Comparator.comparingDouble(Agent::getTotalMetersWalked));
 
-    Set<Agent> selectedAgents = agents.parallelStream().limit(nrAgents) // Select only the first
-                                                                        // 'nrAgents' after
-                                                                        // sorting
-        .map(agent -> {
-          // Weighted selection: lower km-Walked has a higher probability
-          int weightedIndex = (int) (Math.pow(random.nextDouble(), 1.5) * agents.size());
-          return agents.get(weightedIndex);
-        }).collect(Collectors.toSet());
+    Set<Agent> selectedAgents = new HashSet<>();
+    while (selectedAgents.size() < Math.min(nrAgents, agents.size())) {
+      // Weighted random: lower index (less walked) more likely to be chosen
+      int weightedIndex = (int) (Math.pow(random.nextDouble(), 1.5) * agents.size());
+      selectedAgents.add(agents.get(weightedIndex));
+    }
 
     return selectedAgents;
   }
