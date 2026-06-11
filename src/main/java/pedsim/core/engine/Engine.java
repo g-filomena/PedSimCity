@@ -125,6 +125,19 @@ protected void prepareToRun() throws Exception {
 
 			double steps = state.schedule.getSteps();
 
+			if (state instanceof pedsim.night.engine.PedSimCityNight nightState) {
+				java.time.LocalTime time = TimePars.getTime(steps).toLocalTime();
+				nightState.isDark = time.isAfter(java.time.LocalTime.of(19, 59)) || time.isBefore(java.time.LocalTime.of(6, 0));
+			}
+
+			if (SimulationStateStore.getInstance().running) {
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+				}
+			}
+
 			// Check whether the Javelit dashboard has requested a stop
 			if (SimulationStateStore.getInstance().stopRequested) {
 				logger.info("Stop requested by dashboard - ending simulation.");

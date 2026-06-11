@@ -89,7 +89,7 @@ public final class SimulationStateStore {
         agent.agentID,
         coord.x,
         coord.y,
-        agent.getClass().getSimpleName(),
+        agent.getStatus().toString(),
         agent.isVulnerableBoolean()
     );
     // replace existing entry or add new one

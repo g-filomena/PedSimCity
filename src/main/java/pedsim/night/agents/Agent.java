@@ -115,6 +115,7 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 			return;
 		}
 		planNightRoute();
+		tripStartStep = state.schedule.getSteps();
 		nightMovement = new AgentMovement(this);
 		nightMovement.initialisePath(getRoute());
 	}
@@ -152,6 +153,7 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 			return;
 		}
 		planRoute();
+		tripStartStep = state.schedule.getSteps();
 		agentMovement = new AgentMovement(this);
 		agentMovement.initialisePath(getRoute());
 	}

@@ -247,6 +247,7 @@ public class Agent implements Steppable {
 		switch (status) {
 		case WALKING_ALONE:
 			handleReachedSoloDestination();
+			pedsim.core.engine.SimulationStateStore.getInstance().removeAgent(this.agentID);
 			break;
 		case GOING_HOME:
 			handleReachedHome();
@@ -395,6 +396,10 @@ public class Agent implements Steppable {
 	 */
 	public CognitiveMap getCognitiveMap() {
 		return cognitiveMap;
+	}
+
+	public AgentStatus getStatus() {
+		return status;
 	}
 
 	/**
