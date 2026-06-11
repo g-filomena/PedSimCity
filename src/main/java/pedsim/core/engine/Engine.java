@@ -168,6 +168,8 @@ protected void prepareToRun() throws Exception {
 		state.finish();
 
 		TripRouteRecorder.saveToFile("test_trips.csv");
+		TripDiagnostic.save("trip_diagnostic.csv");
+
 
 		// Generate the self-contained HTML dashboard and open it in the browser
 		generateAndOpenHtmlDashboard(job, state, currentDay);
