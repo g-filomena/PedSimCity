@@ -286,6 +286,7 @@ public class Agent implements Steppable {
 	protected void handleReachedHome() {
 		status = AgentStatus.WAITING;
 		hasWorkedToday = false; // Reset for the next day
+		pedsim.core.engine.SimulationStateStore.getInstance().removeAgent(this.agentID);
 	}
 
 	/**

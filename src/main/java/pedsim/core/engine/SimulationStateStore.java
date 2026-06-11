@@ -98,6 +98,16 @@ public final class SimulationStateStore {
   }
 
   /**
+   * Removes an agent from the live snapshot so the browser dashboard no longer
+   * shows it (called when an agent finishes its journey and reaches home).
+   *
+   * @param agentId the ID of the agent to remove.
+   */
+  public void removeAgent(int agentId) {
+    agents.removeIf(s -> s.id == agentId);
+  }
+
+  /**
    * Updates aggregate step-level statistics.
    */
   public void updateStep(int step, String simTime,
