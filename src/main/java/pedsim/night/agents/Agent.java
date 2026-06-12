@@ -84,14 +84,6 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 				planTrip();
 		} else if (reachedDestination.get()) {
 			nightRoute = false;
-			if (this.state.getEnableLightABTesting()) {
-				double avgLux = edgesWalked > 0 ? accumulatedLux / edgesWalked : 0.0;
-				String type = isVulnerable() ? "Vulnerable" : "Normal";
-				System.out.printf("Test Agent %d (%s) reached destination. Avg Lux Exposure: %.2f%n", agentID, type, avgLux);
-			} else if (isVulnerable() && edgesWalked > 0) {
-				double avgLux = accumulatedLux / edgesWalked;
-				System.out.printf("Vulnerable Agent %d reached destination. Avg Lux Exposure: %.2f%n", agentID, avgLux);
-			}
 			handleReachedDestination();
 		} else if (isAtDestination() && timeAtDestination <= state.schedule.getSteps())
 			goHome();
