@@ -190,15 +190,17 @@ public final class SimulationStateStore {
    */
   public static class StateSnapshot {
 
-    @JsonProperty("currentStep")    public final int currentStep;
-    @JsonProperty("simulationTime") public final String simulationTime;
-    @JsonProperty("walkingCount")   public final int walkingCount;
-    @JsonProperty("atHomeCount")    public final int atHomeCount;
-    @JsonProperty("atDestCount")    public final int atDestCount;
-    @JsonProperty("running")        public final boolean running;
-    @JsonProperty("finished")       public final boolean finished;
-    @JsonProperty("enableAB")       public final boolean enableAB;
-    @JsonProperty("agents")         public final List<AgentSnapshot> agents;
+    @JsonProperty("currentStep")       public final int currentStep;
+    @JsonProperty("simulationTime")    public final String simulationTime;
+    @JsonProperty("walkingCount")      public final int walkingCount;
+    @JsonProperty("atHomeCount")       public final int atHomeCount;
+    @JsonProperty("atDestCount")       public final int atDestCount;
+    @JsonProperty("running")           public final boolean running;
+    @JsonProperty("finished")          public final boolean finished;
+    @JsonProperty("enableAB")          public final boolean enableAB;
+    @JsonProperty("avgVulnTripM")      public final double avgVulnTripM;
+    @JsonProperty("avgNormalTripM")    public final double avgNormalTripM;
+    @JsonProperty("agents")            public final List<AgentSnapshot> agents;
 
     StateSnapshot(SimulationStateStore store) {
       this.currentStep    = store.currentStep;
@@ -210,6 +212,27 @@ public final class SimulationStateStore {
       this.finished       = store.finished;
       this.enableAB       = pedsim.night.parameters.NightPars.enableLightABTesting;
       this.agents         = store.getAgents();
+
+      // Compute average completed trip distances from TripRouteRecorder records
+      java.util.List<pedsim.core.engine.TripRouteRecorder.TripRecord> records =
+          pedsim.core.engine.TripRouteRecorder.getRecords();
+      double vulnSum = 0, normalSum = 0;
+      int vulnCount = 0, normalCount = 0;
+      for (pedsim.core.engine.TripRouteRecorder.TripRecord t : records) {
+        double dist = 0;
+        if (t.pathCoords != null && t.pathCoords.size() >= 2) {
+          for (int i = 0; i < t.pathCoords.size() - 1; i++) {
+            org.locationtech.jts.geom.Coordinate a = t.pathCoords.get(i);
+            org.locationtech.jts.geom.Coordinate b = t.pathCoords.get(i + 1);
+            double dx = b.x - a.x, dy = b.y - a.y;
+            dist += Math.sqrt(dx * dx + dy * dy);
+          }
+        }
+        if (t.vulnerable) { vulnSum += dist; vulnCount++; }
+        else              { normalSum += dist; normalCount++; }
+      }
+      this.avgVulnTripM   = vulnCount   > 0 ? vulnSum   / vulnCount   : -1;
+      this.avgNormalTripM = normalCount > 0 ? normalSum / normalCount : -1;
     }
   }
 }

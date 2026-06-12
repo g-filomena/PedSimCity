@@ -5,10 +5,12 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 import pedsim.core.parameters.Pars;
+import pedsim.core.parameters.TimePars;
 import pedsim.core.utilities.LoggerUtil;
 import pedsim.core.website.GeoJsonExporter;
 
@@ -17,6 +19,7 @@ import pedsim.core.website.GeoJsonExporter;
  * <ul>
  *   <li>The road network as a GeoJSON FeatureCollection (with edgeID + cumulative volume per edge).</li>
  *   <li>All agent trips with exact street coordinates traversed.</li>
+ *   <li>A second tab showing hourly pedestrian volumes per street (24h animation with sky gradient).</li>
  *   <li>The full interactive visualizer engine inline.</li>
  * </ul>
  *
@@ -28,10 +31,6 @@ public class HtmlExporter {
   private static final Logger logger = LoggerUtil.getLogger();
   private static final String USER = System.getProperty("user.name");
 
-  /**
-   * The root output directory for all HTML dashboard files.
-   * Mirrors the pattern used by {@link Exporter}.
-   */
   private static final String OUTPUT_ROOT =
       "C:" + File.separator + "Users" + File.separator + USER
       + File.separator + "PedSimCity" + File.separator + "Output"
@@ -39,36 +38,27 @@ public class HtmlExporter {
 
   /**
    * Exports a complete, self-contained HTML dashboard.
-   *
-   * @param day         The simulated day number (1-based).
-   * @param job         The job index of this run.
-   * @param trips       All trip records from {@link TripRouteRecorder}.
-   * @param volumesMap  Map of edgeID → (scenario → cumulativeVolume) from {@link FlowHandler}.
-   * @return The absolute path of the written HTML file, or {@code null} on failure.
    */
   public static String export(int day, int job,
       List<TripRouteRecorder.TripRecord> trips,
       Map<Integer, Map<String, Integer>> volumesMap) {
 
     try {
-      // 1. Ensure the output directory exists
       Files.createDirectories(Paths.get(OUTPUT_ROOT));
 
       String city = Pars.cityName;
       String filename = "results_" + city + "_day" + day + "_job" + job + ".html";
       String outputPath = OUTPUT_ROOT + File.separator + filename;
 
-      // 2. Build the embedded data as compact JS strings
       String roadsGeoJson = GeoJsonExporter.exportRoadsWithVolumes(
           PedSimCity.roads, volumesMap);
 
       String tripsJs = buildTripsJs(trips);
+      String hourlyVolJs = buildHourlyVolumesJs(trips);
 
-      // 3. Determine map centre from the road network bounding box
       double[] centre = computeCentre();
 
-      // 4. Render the full HTML and write it
-      String html = renderHtml(city, day, job, roadsGeoJson, tripsJs, centre);
+      String html = renderHtml(city, day, job, roadsGeoJson, tripsJs, hourlyVolJs, centre);
       try (FileWriter fw = new FileWriter(outputPath)) {
         fw.write(html);
       }
@@ -88,7 +78,6 @@ public class HtmlExporter {
 
   /**
    * Converts the trip records list into a compact JavaScript array literal.
-   * Format: [[agentID, startStep, endStep, [[x1, y1], [x2, y2], ...], vulnerable], ...]
    */
   private static String buildTripsJs(List<TripRouteRecorder.TripRecord> trips) {
     StringBuilder sb = new StringBuilder("[");
@@ -125,10 +114,45 @@ public class HtmlExporter {
     return sb.toString();
   }
 
+  /**
+   * Builds a JS object: { edgeId: [vol_h0, vol_h1, ..., vol_h23], ... }
+   * Each trip is attributed to the hour-of-day bucket of its startStep.
+   * Steps per day = 72 (each step = 20 min), so step mod 72 / 3 = hour.
+   */
+  private static String buildHourlyVolumesJs(List<TripRouteRecorder.TripRecord> trips) {
+    // edgeId -> int[24]
+    Map<Integer, int[]> hourlyMap = new HashMap<>();
+
+    for (TripRouteRecorder.TripRecord trip : trips) {
+      // Determine hour-of-day (0-23) from startStep
+      long totalMinutes = (long) (trip.startStep * (TimePars.STEP_DURATION / 60));
+      int hourOfDay = (int) ((totalMinutes / 60) % 24);
+      for (int edgeId : trip.edgeIds) {
+        hourlyMap.computeIfAbsent(edgeId, k -> new int[24])[hourOfDay]++;
+      }
+    }
+
+    StringBuilder sb = new StringBuilder("{");
+    boolean first = true;
+    for (Map.Entry<Integer, int[]> entry : hourlyMap.entrySet()) {
+      if (!first) sb.append(',');
+      first = false;
+      sb.append(entry.getKey()).append(":[");
+      int[] counts = entry.getValue();
+      for (int h = 0; h < 24; h++) {
+        if (h > 0) sb.append(',');
+        sb.append(counts[h]);
+      }
+      sb.append(']');
+    }
+    sb.append('}');
+    return sb.toString();
+  }
+
   /** Returns [centreLatitude, centreLongitude] from the road layer MBR. */
   private static double[] computeCentre() {
     if (PedSimCity.MBR == null) {
-      return new double[]{45.07, 7.68}; // Torino fallback
+      return new double[]{45.07, 7.68};
     }
     double cx = (PedSimCity.MBR.getMinX() + PedSimCity.MBR.getMaxX()) / 2.0;
     double cy = (PedSimCity.MBR.getMinY() + PedSimCity.MBR.getMaxY()) / 2.0;
@@ -139,25 +163,25 @@ public class HtmlExporter {
   // HTML template
   // -------------------------------------------------------------------------
 
-  /**
-   * Renders the full, self-contained HTML string.
-   */
   private static String renderHtml(String city, int day, int job,
-      String roadsGeoJson, String tripsJs, double[] centre) {
+      String roadsGeoJson, String tripsJs, String hourlyVolJs, double[] centre) {
+
+    String isNight = String.valueOf(Pars.isNight);
+    String enableAB = String.valueOf(isABTestingEnabled());
 
     return "<!DOCTYPE html>\n"
         + "<html lang=\"en\">\n"
         + "<head>\n"
         + "<meta charset=\"UTF-8\"/>\n"
         + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"/>\n"
-        + "<title>PedSimCity – " + city + "</title>\n"
+        + "<title>Night Pedestrian Simulation: Torino — March 12</title>\n"
         + "<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n"
         + "<link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap\" rel=\"stylesheet\">\n"
         + "<style>\n"
         + "  *{box-sizing:border-box;margin:0;padding:0}\n"
         + "  body{font-family:'Inter',sans-serif;background:#000000;color:#f1f5f9;display:flex;flex-direction:column;height:100vh;overflow:hidden}\n"
-        + "  #header{padding:14px 20px;background:rgba(0,0,0,0.95);border-bottom:1px solid #1e293b;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-shrink:0}\n"
-        + "  #header h1{font-size:1.15rem;font-weight:700;color:#818cf8;letter-spacing:0.02em}\n"
+        + "  #header{padding:12px 20px;background:rgba(0,0,0,0.95);border-bottom:1px solid #1e293b;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-shrink:0}\n"
+        + "  #header h1{font-size:1.05rem;font-weight:700;color:#818cf8;letter-spacing:0.02em}\n"
         + "  .metrics{display:flex;gap:12px}\n"
         + "  .card{background:rgba(30,41,59,0.45);border:1px solid #1e293b;border-radius:10px;padding:10px 18px;min-width:120px}\n"
         + "  .card .label{font-size:.65rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em}\n"
@@ -165,9 +189,20 @@ public class HtmlExporter {
         + "  .card .value.red{color:#ef4444}\n"
         + "  .card .value.orange{color:#fb923c}\n"
         + "  .card .value.yellow{color:#fde047}\n"
+        // Tabs
+        + "  #tab-bar{flex-shrink:0;display:flex;gap:0;background:rgba(0,0,0,0.98);border-bottom:1px solid #1e293b;padding:0 20px}\n"
+        + "  .tab-btn{padding:10px 22px;font-size:.8rem;font-weight:600;color:#64748b;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;letter-spacing:.03em}\n"
+        + "  .tab-btn.active{color:#818cf8;border-bottom-color:#6366f1}\n"
+        + "  .tab-btn:hover:not(.active){color:#a5b4fc}\n"
+        // Panels
+        + "  .tab-panel{display:none;flex:1;position:relative;overflow:hidden}\n"
+        + "  .tab-panel.active{display:flex;flex-direction:column}\n"
         + "  #container{position:relative;flex:1;width:100%;overflow:hidden;background:#000000}\n"
         + "  #canvas{width:100%;height:100%;display:block;cursor:grab}\n"
         + "  #canvas:active{cursor:grabbing}\n"
+        + "  #hv-container{position:relative;flex:1;width:100%;overflow:hidden}\n"
+        + "  #hv-canvas{width:100%;height:100%;display:block;cursor:grab}\n"
+        + "  #hv-canvas:active{cursor:grabbing}\n"
         + "  #floating-controls{position:absolute;top:20px;right:20px;display:flex;flex-direction:column;gap:8px}\n"
         + "  .btn-float{background:rgba(30,41,59,0.85);border:1px solid #334155;border-radius:8px;color:#f1f5f9;padding:8px 14px;font-size:.75rem;font-weight:600;cursor:pointer;backdrop-filter:blur(4px);transition:all .2s;display:flex;align-items:center;gap:6px}\n"
         + "  .btn-float:hover{background:#6366f1;color:#f1f5f9;border-color:#6366f1}\n"
@@ -179,6 +214,16 @@ public class HtmlExporter {
         + "  input[type=\"checkbox\"] { display: none; }\n"
         + "  #timeline-panel{flex-shrink:0;padding:14px 20px 16px;background:rgba(0,0,0,0.98);border-top:1px solid #1e293b}\n"
         + "  #timeline-panel .row{display:flex;align-items:center;gap:14px}\n"
+        + "  #hv-timeline-panel{flex-shrink:0;padding:14px 20px 16px;background:rgba(0,0,0,0.98);border-top:1px solid #1e293b}\n"
+        + "  #hv-timeline-panel .row{display:flex;align-items:center;gap:14px}\n"
+        + "  #hv-time-label{font-size:1rem;font-weight:700;color:#f8c56d;min-width:90px;text-align:center}\n"
+        + "  #hv-hour-slider{flex:1;-webkit-appearance:none;height:5px;border-radius:3px;background:#1e293b;outline:none;cursor:pointer}\n"
+        + "  #hv-hour-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#f8c56d;cursor:pointer;box-shadow:0 0 6px rgba(248,197,109,0.6)}\n"
+        + "  .hv-btn{width:42px;height:42px;border-radius:50%;border:2px solid #f8c56d;background:transparent;color:#f8c56d;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;padding-left:3px;}\n"
+        + "  .hv-btn.playing{padding-left:0;}\n"
+        + "  .hv-btn:hover{background:#f8c56d;color:#0a0c14}\n"
+        + "  .hv-speed{background:rgba(30,41,59,0.85);color:#f1f5f9;border:1px solid #334155;border-radius:8px;padding:6px 12px;font-size:.75rem;font-weight:600;cursor:pointer;outline:none;transition:all .2s;}\n"
+        + "  .hv-speed:hover{background:#f8c56d;color:#0a0c14;border-color:#f8c56d}\n"
         + "  #speed-select{background:rgba(30,41,59,0.85);color:#f1f5f9;border:1px solid #334155;border-radius:8px;padding:6px 12px;font-size:.75rem;font-weight:600;cursor:pointer;outline:none;transition:all .2s;display:inline-flex;align-items:center}\n"
         + "  #speed-select:hover{background:#6366f1;color:#f1f5f9;border-color:#6366f1}\n"
         + "  #play-btn{width:42px;height:42px;border-radius:50%;border:2px solid #6366f1;background:transparent;color:#6366f1;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;padding-left:3px;}\n"
@@ -191,11 +236,14 @@ public class HtmlExporter {
         + "  .leg-item{display:flex;align-items:center;gap:6px}\n"
         + "  .leg-dot{width:8px;height:8px;border-radius:50%}\n"
         + "  .leg-line{width:20px;height:3px;border-radius:2px}\n"
+        + "  .hv-legend{position:absolute;bottom:16px;left:20px;display:flex;gap:6px;align-items:center;font-size:0.72rem;color:#94a3b8;background:rgba(0,0,0,0.7);padding:6px 12px;border-radius:8px;border:1px solid #1e293b;backdrop-filter:blur(4px);}\n"
+        + "  .hv-legend-bar{width:80px;height:8px;border-radius:4px;background:linear-gradient(to right,#161c2e,#3bbaf8,#ffaa00,#ff3300)}\n"
+        + "  .hv-floating{position:absolute;top:20px;right:20px;}\n"
         + "</style>\n"
         + "</head>\n"
         + "<body>\n"
         + "<div id=\"header\">\n"
-        + "  <h1>PedSimCity &nbsp;-&nbsp; " + city + "</h1>\n"
+        + "  <h1>Night Pedestrian Simulation: Torino &nbsp;—&nbsp; March 12</h1>\n"
         + "  <div class=\"metrics\">\n"
         + "    <div class=\"card\"><div class=\"label\">Active Agents</div><div class=\"value\" id=\"m-active\">-</div></div>\n"
         + "    <div class=\"card\"><div class=\"label\">% Vulnerable</div><div class=\"value red\" id=\"m-vuln\">-</div></div>\n"
@@ -203,35 +251,94 @@ public class HtmlExporter {
         + "    <div class=\"card\"><div class=\"label\">Sim Time</div><div class=\"value\" id=\"m-time\">-</div></div>\n"
         + "  </div>\n"
         + "</div>\n"
-        + "<div id=\"container\">\n"
-        + "  <canvas id=\"canvas\"></canvas>\n"
-        + "  <div id=\"floating-controls\">\n"
-        + "    <label class=\"toggle-label\" id=\"lbl-light\"><input type=\"checkbox\" id=\"tg-light\" /><div class=\"toggle-switch\"></div> Light Level Map</label>\n"
-        + "    <label class=\"toggle-label\" id=\"lbl-spooks\"><input type=\"checkbox\" id=\"tg-spooks\" checked /><div class=\"toggle-switch\"></div> Show Spooks</label>\n"
-        + "    <label class=\"toggle-label\" id=\"lbl-tethers\"><input type=\"checkbox\" id=\"tg-tethers\" checked /><div class=\"toggle-switch\"></div> Show A/B Tethers</label>\n"
-        + "    <button class=\"btn-float\" id=\"reset-btn\">Reset Zoom</button>\n"
+        // Tab bar
+        + "<div id=\"tab-bar\">\n"
+        + "  <button class=\"tab-btn active\" onclick=\"switchTab('trips')\">Agent Trips</button>\n"
+        + "  <button class=\"tab-btn\" onclick=\"switchTab('hourly')\">Hourly Volumes</button>\n"
+        + "</div>\n"
+        // ── TAB 1: Agent Trips ──
+        + "<div class=\"tab-panel active\" id=\"panel-trips\">\n"
+        + "  <div id=\"container\">\n"
+        + "    <canvas id=\"canvas\"></canvas>\n"
+        + "    <div id=\"floating-controls\">\n"
+        + "      <label class=\"toggle-label\" id=\"lbl-light\"><input type=\"checkbox\" id=\"tg-light\" /><div class=\"toggle-switch\"></div> Light Level Map</label>\n"
+        + "      <label class=\"toggle-label\" id=\"lbl-spooks\"><input type=\"checkbox\" id=\"tg-spooks\" checked /><div class=\"toggle-switch\"></div> Show Spooks</label>\n"
+        + "      <label class=\"toggle-label\" id=\"lbl-tethers\"><input type=\"checkbox\" id=\"tg-tethers\" checked /><div class=\"toggle-switch\"></div> Show A/B Tethers</label>\n"
+        + "      <button class=\"btn-float\" id=\"reset-btn\">Reset Zoom</button>\n"
+        + "    </div>\n"
+        + "  </div>\n"
+        + "  <div id=\"timeline-panel\">\n"
+        + "    <div class=\"row\">\n"
+        + "      <button id=\"play-btn\" title=\"Play/Pause\">▶</button>\n"
+        + "      <input type=\"range\" id=\"step-slider\" min=\"0\" value=\"0\"/>\n"
+        + "      <span id=\"time-label\">March 12 00:00</span>\n"
+        + "      <select id=\"speed-select\" title=\"Playback Speed\">\n"
+        + "        <option value=\"0.1\">0.1x Speed</option>\n"
+        + "        <option value=\"0.5\">0.5x Speed</option>\n"
+        + "        <option value=\"1\">1x Speed</option>\n"
+        + "        <option value=\"2\" selected>2x Speed</option>\n"
+        + "        <option value=\"5\">5x Speed</option>\n"
+        + "        <option value=\"10\">10x Speed</option>\n"
+        + "      </select>\n"
+        + "    </div>\n"
+        + "    <div class=\"legend\">\n"
+        + "      <div class=\"leg-item\"><div class=\"leg-dot\" style=\"background:#ef4444\"></div> Vulnerable agent</div>\n"
+        + "      <div class=\"leg-item\"><div class=\"leg-dot\" style=\"background:#38bdf8\"></div> Normal agent</div>\n"
+        + "      <div class=\"leg-item\"><div class=\"leg-dot\" style=\"background:#facc15\"></div> Spook location</div>\n"
+        + "    </div>\n"
         + "  </div>\n"
         + "</div>\n"
-        + "<div id=\"timeline-panel\">\n"
-        + "  <div class=\"row\">\n"
-        + "    <button id=\"play-btn\" title=\"Play/Pause\">▶</button>\n"
-        + "    <input type=\"range\" id=\"step-slider\" min=\"0\" value=\"0\"/>\n"
-        + "    <span id=\"time-label\">Day 1 00:00</span>\n"
-        + "    <select id=\"speed-select\" title=\"Playback Speed\">\n"
-        + "      <option value=\"0.1\">0.1x Speed</option>\n"
-        + "      <option value=\"0.5\">0.5x Speed</option>\n"
-        + "      <option value=\"1\">1x Speed</option>\n"
-        + "      <option value=\"2\" selected>2x Speed</option>\n"
-        + "      <option value=\"5\">5x Speed</option>\n"
-        + "      <option value=\"10\">10x Speed</option>\n"
-        + "    </select>\n"
+        // ── TAB 2: Hourly Volumes ──
+        + "<div class=\"tab-panel\" id=\"panel-hourly\">\n"
+        + "  <div id=\"hv-container\">\n"
+        + "    <canvas id=\"hv-canvas\"></canvas>\n"
+        + "    <div class=\"hv-legend\">\n"
+        + "      <span>Low</span><div class=\"hv-legend-bar\"></div><span>High</span>\n"
+        + "      &nbsp;&nbsp; Pedestrian volume/hour\n"
+        + "    </div>\n"
+        + "    <div class=\"hv-floating\">\n"
+        + "      <button class=\"btn-float\" id=\"hv-reset-btn\">Reset Zoom</button>\n"
+        + "    </div>\n"
+        + "  </div>\n"
+        + "  <div id=\"hv-timeline-panel\">\n"
+        + "    <div class=\"row\">\n"
+        + "      <button class=\"hv-btn\" id=\"hv-play-btn\" title=\"Play/Pause\">▶</button>\n"
+        + "      <input type=\"range\" id=\"hv-hour-slider\" min=\"0\" max=\"23\" value=\"0\"/>\n"
+        + "      <span id=\"hv-time-label\">00:00 – 01:00</span>\n"
+        + "      <select class=\"hv-speed\" id=\"hv-speed-select\">\n"
+        + "        <option value=\"0.5\">0.5x</option>\n"
+        + "        <option value=\"1\" selected>1x</option>\n"
+        + "        <option value=\"2\">2x</option>\n"
+        + "        <option value=\"4\">4x</option>\n"
+        + "      </select>\n"
+        + "    </div>\n"
+        + "    <div class=\"legend\" style=\"margin-top:8px\">\n"
+        + "      <div class=\"leg-item\"><div style=\"width:20px;height:3px;border-radius:2px;background:#161c2e\"></div> No traffic</div>\n"
+        + "      <div class=\"leg-item\"><div style=\"width:20px;height:3px;border-radius:2px;background:#3bbaf8\"></div> Light traffic</div>\n"
+        + "      <div class=\"leg-item\"><div style=\"width:20px;height:3px;border-radius:2px;background:#ffaa00\"></div> Moderate</div>\n"
+        + "      <div class=\"leg-item\"><div style=\"width:20px;height:3px;border-radius:2px;background:#ff3300\"></div> Heavy traffic</div>\n"
+        + "      <div class=\"leg-item\" style=\"margin-left:auto;font-style:italic;color:#f8c56d\">Sunrise 06:51 · Sunset 18:30</div>\n"
+        + "    </div>\n"
         + "  </div>\n"
         + "</div>\n"
         + "<script>\n"
         + "const ROADS_GEOJSON = " + roadsGeoJson + ";\n"
         + "const TRIPS = " + tripsJs + ";\n"
-        + "const isNight = " + Pars.isNight + ";\n"
-        + "const enableAB = " + isABTestingEnabled() + ";\n"
+        + "const HOURLY_VOL = " + hourlyVolJs + ";\n"
+        + "const isNight = " + isNight + ";\n"
+        + "const enableAB = " + enableAB + ";\n"
+
+        // ── Tab switch logic ──
+        + "function switchTab(name) {\n"
+        + "  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));\n"
+        + "  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));\n"
+        + "  document.getElementById('panel-' + (name === 'trips' ? 'trips' : 'hourly')).classList.add('active');\n"
+        + "  document.querySelectorAll('.tab-btn')[name === 'trips' ? 0 : 1].classList.add('active');\n"
+        + "  if (name === 'trips') { canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; roadsDirty = true; draw(); }\n"
+        + "  if (name === 'hourly') { hvCanvas.width = hvCanvas.clientWidth; hvCanvas.height = hvCanvas.clientHeight; hvDraw(currentHvHour); }\n"
+        + "}\n"
+
+        // ── Shared bounding box ──
         + "if (!isNight) document.getElementById('lbl-light').style.display = 'none';\n"
         + "if (!isNight) document.getElementById('lbl-spooks').style.display = 'none';\n"
         + "if (!enableAB) { document.getElementById('lbl-tethers').style.display = 'none'; document.getElementById('tg-tethers').checked = false; }\n"
@@ -251,6 +358,18 @@ public class HtmlExporter {
         + "  }\n"
         + "});\n"
         + "if (minX === Infinity) { minX = 0; maxX = 1000; minY = 0; maxY = 1000; }\n"
+
+        // Build edge coordinate lookup for hourly tab
+        + "const edgeCoords = {};\n"
+        + "ROADS_GEOJSON.features.forEach(f => {\n"
+        + "  if (!f.geometry || !f.properties || f.properties.edgeId == null) return;\n"
+        + "  edgeCoords[f.properties.edgeId] = getPoints(f.geometry);\n"
+        + "});\n"
+        + "const maxHourlyVol = (()=>{ let mx=0; Object.values(HOURLY_VOL).forEach(arr=>{ arr.forEach(v=>{ if(v>mx) mx=v; }); }); return mx||1; })();\n"
+
+        // ────────────────────────────────────────────────────────
+        // ── TAB 1: Agent Trips ──
+        // ────────────────────────────────────────────────────────
         + "let maxStep = 0;\n"
         + "TRIPS.forEach(t => {\n"
         + "  if (t[2] > maxStep) maxStep = t[2];\n"
@@ -353,7 +472,6 @@ public class HtmlExporter {
         + "  });\n"
         + "  roadsDirty = false;\n"
         + "}\n"
-        + "const activeSpooks = [];\n"
         + "function draw() {\n"
         + "  if (roadsDirty) buildRoadLayer();\n"
         + "  ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(offscreen, 0, 0);\n"
@@ -410,7 +528,9 @@ public class HtmlExporter {
         + "  const total = activeList.length, vuln = activeList.filter(t=>t[4]).length;\n"
         + "  document.getElementById('m-active').textContent = total;\n"
         + "  document.getElementById('m-vuln').textContent = total > 0 ? (vuln/total*100).toFixed(1)+'%' : '0%';\n"
-        + "  document.getElementById('m-time').textContent = 'Day 1 ' + String(Math.floor(step*20/60)%24).padStart(2,'0') + ':' + String(Math.floor(step*20)%60).padStart(2,'0');\n"
+        + "  const hh = String(Math.floor(step*20/60)%24).padStart(2,'0');\n"
+        + "  const mm = String(Math.floor(step*20)%60).padStart(2,'0');\n"
+        + "  document.getElementById('m-time').textContent = `March 12 ${hh}:${mm}`;\n"
         + "  document.getElementById('time-label').textContent = document.getElementById('m-time').textContent;\n"
         + "  if (tgLight.checked && total > 0) {\n"
         + "    let sumLux = 0;\n"
@@ -452,8 +572,135 @@ public class HtmlExporter {
         + "  }\n"
         + "  animId = requestAnimationFrame(animate);\n"
         + "}\n"
+
+        // ────────────────────────────────────────────────────────
+        // ── TAB 2: Hourly Volumes ──
+        // ────────────────────────────────────────────────────────
+        + "const hvCanvas = document.getElementById('hv-canvas');\n"
+        + "const hvCtx = hvCanvas.getContext('2d');\n"
+        + "let hvScale = 1.0, hvPanX = 0, hvPanY = 0, hvDragging = false, hvDX = 0, hvDY = 0;\n"
+        + "function toHvScreen(wx, wy) { return { x: (wx - minX) * hvScale + hvPanX, y: hvCanvas.height - ((wy - minY) * hvScale + hvPanY) }; }\n"
+        + "function resetHvView() {\n"
+        + "  const dx = maxX - minX, dy = maxY - minY, pad = 40;\n"
+        + "  hvScale = Math.min((hvCanvas.width - pad*2) / (dx || 1), (hvCanvas.height - pad*2) / (dy || 1));\n"
+        + "  hvPanX = hvCanvas.width / 2 - (dx / 2) * hvScale;\n"
+        + "  hvPanY = hvCanvas.height / 2 - (dy / 2) * hvScale;\n"
+        + "  hvDraw(currentHvHour);\n"
+        + "}\n"
+
+        // Sky background color based on hour (sunrise 6.85h, sunset 18.5h for Torino March 12)
+        + "function getSkyColor(hour) {\n"
+        + "  // hour is 0-23 as a float\n"
+        + "  // Night: deep indigo #0a0c1a\n"
+        + "  // Dawn/dusk transition zone: 30 min either side of sunrise/sunset\n"
+        + "  // Sunrise: 6:51 = 6.85h, Sunset: 18:30 = 18.5h\n"
+        + "  const SUNRISE = 6.85, SUNSET = 18.5, TWILIGHT = 0.75;\n"
+        + "  const nightColor = [10, 12, 26];\n"
+        + "  const dawnColor  = [255, 165, 80];\n"
+        + "  const dayColor   = [235, 240, 250];\n"
+        + "  const duskColor  = [255, 120, 60];\n"
+        + "  function lerp(a, b, t) { return a.map((v, i) => Math.round(v + (b[i] - v) * t)); }\n"
+        + "  function rgba(c, alpha) { return `rgba(${c[0]},${c[1]},${c[2]},${alpha})`; }\n"
+        + "  // Morning twilight: SUNRISE-TWILIGHT to SUNRISE+TWILIGHT/2\n"
+        + "  if (hour < SUNRISE - TWILIGHT) return rgba(nightColor, 1);\n"
+        + "  if (hour < SUNRISE) { const t = (hour - (SUNRISE-TWILIGHT)) / TWILIGHT; return rgba(lerp(nightColor, dawnColor, t), 1); }\n"
+        + "  if (hour < SUNRISE + TWILIGHT) { const t = (hour - SUNRISE) / TWILIGHT; return rgba(lerp(dawnColor, dayColor, t), 1); }\n"
+        + "  // Daytime\n"
+        + "  if (hour < SUNSET - TWILIGHT) return rgba(dayColor, 1);\n"
+        + "  // Evening twilight\n"
+        + "  if (hour < SUNSET) { const t = (hour - (SUNSET-TWILIGHT)) / TWILIGHT; return rgba(lerp(dayColor, duskColor, t), 1); }\n"
+        + "  if (hour < SUNSET + TWILIGHT) { const t = (hour - SUNSET) / TWILIGHT; return rgba(lerp(duskColor, nightColor, t), 1); }\n"
+        + "  return rgba(nightColor, 1);\n"
+        + "}\n"
+
+        // Road color for hourly heatmap
+        + "function getHvRoadColor(vol, maxV, isDay) {\n"
+        + "  if (vol === 0) return isDay ? 'rgba(120,130,150,0.35)' : 'rgba(30,35,55,0.7)';\n"
+        + "  const t = Math.min(Math.sqrt(vol) / Math.sqrt(maxV), 1);\n"
+        + "  // Low: cyan (#3bbaf8) → Mid: amber (#ffaa00) → High: red (#ff3300)\n"
+        + "  let r, g, b;\n"
+        + "  if (t < 0.5) { const u = t * 2; r = Math.round(59 + u*(255-59)); g = Math.round(186 + u*(170-186)); b = Math.round(248 + u*(0-248)); }\n"
+        + "  else { const u = (t - 0.5) * 2; r = 255; g = Math.round(170 + u*(51-170)); b = Math.round(0 + u*0); }\n"
+        + "  return `rgba(${r},${g},${b},${0.6 + t * 0.4})`;\n"
+        + "}\n"
+
+        + "function hvDraw(hour) {\n"
+        + "  hvCanvas.width = hvCanvas.clientWidth;\n"
+        + "  hvCanvas.height = hvCanvas.clientHeight;\n"
+        + "  const isDay = hour >= 6.85 && hour < 18.5;\n"
+        + "  // Sky background\n"
+        + "  hvCtx.fillStyle = getSkyColor(hour);\n"
+        + "  hvCtx.fillRect(0, 0, hvCanvas.width, hvCanvas.height);\n"
+        + "  // Draw all roads (grey base)\n"
+        + "  ROADS_GEOJSON.features.forEach(f => {\n"
+        + "    if (!f.geometry) return;\n"
+        + "    const pts = getPoints(f.geometry); if (pts.length < 2) return;\n"
+        + "    const eid = f.properties && f.properties.edgeID;\n"
+        + "    const vol = (eid != null && HOURLY_VOL[eid]) ? HOURLY_VOL[eid][hour] : 0;\n"
+        + "    const color = getHvRoadColor(vol, maxHourlyVol, isDay);\n"
+        + "    const weight = vol > 0 ? (2.5 + Math.min(Math.sqrt(vol) / Math.sqrt(maxHourlyVol), 1) * 6) : 1.5;\n"
+        + "    hvCtx.strokeStyle = color; hvCtx.lineWidth = weight;\n"
+        + "    hvCtx.lineCap = 'round'; hvCtx.lineJoin = 'round'; hvCtx.beginPath();\n"
+        + "    const p0 = toHvScreen(pts[0][0], pts[0][1]); hvCtx.moveTo(p0.x, p0.y);\n"
+        + "    for (let i = 1; i < pts.length; i++) { const pi = toHvScreen(pts[i][0], pts[i][1]); hvCtx.lineTo(pi.x, pi.y); }\n"
+        + "    hvCtx.stroke();\n"
+        + "  });\n"
+        + "  // Hour label overlay\n"
+        + "  const hh = String(hour).padStart(2,'0');\n"
+        + "  const nh = String((hour+1)%24).padStart(2,'0');\n"
+        + "  document.getElementById('hv-time-label').textContent = `${hh}:00 – ${nh}:00`;\n"
+        + "  // Sun position indicator\n"
+        + "  const sunTxt = hour < 6.85 ? '🌙 Pre-dawn' : hour < 7.35 ? '🌅 Sunrise' : hour < 18.0 ? '☀️ Daytime' : hour < 18.5 ? '🌇 Sunset' : '🌙 Night';\n"
+        + "  hvCtx.font = 'bold 13px Inter, sans-serif';\n"
+        + "  hvCtx.fillStyle = isDay ? 'rgba(20,20,40,0.85)' : 'rgba(200,210,240,0.9)';\n"
+        + "  hvCtx.fillText(`March 12   ${hh}:00 – ${nh}:00   ${sunTxt}`, 20, hvCanvas.height - 54);\n"
+        + "}\n"
+
+        // HV slider / animation
+        + "let currentHvHour = 0;\n"
+        + "const hvSlider = document.getElementById('hv-hour-slider');\n"
+        + "hvSlider.addEventListener('input', () => {\n"
+        + "  currentHvHour = parseInt(hvSlider.value);\n"
+        + "  hvDraw(currentHvHour);\n"
+        + "});\n"
+        + "let hvPlaying = false, hvAnimId = null, hvLastTs = 0, hvFrac = 0;\n"
+        + "const hvPlayBtn = document.getElementById('hv-play-btn');\n"
+        + "const hvSpeedSel = document.getElementById('hv-speed-select');\n"
+        + "hvPlayBtn.addEventListener('click', () => {\n"
+        + "  hvPlaying = !hvPlaying;\n"
+        + "  hvPlayBtn.textContent = hvPlaying ? '⏸' : '▶';\n"
+        + "  if (hvPlaying) { hvPlayBtn.classList.add('playing'); hvAnimate(); }\n"
+        + "  else { hvPlayBtn.classList.remove('playing'); cancelAnimationFrame(hvAnimId); }\n"
+        + "});\n"
+        + "function hvAnimate(ts) {\n"
+        + "  if (!hvPlaying) return;\n"
+        + "  const speed = parseFloat(hvSpeedSel.value) || 1;\n"
+        + "  if (!hvLastTs) hvLastTs = ts;\n"
+        + "  const dt = ts - hvLastTs; hvLastTs = ts;\n"
+        + "  hvFrac += dt * speed / 1500; // 1.5s per hour at 1x\n"
+        + "  if (hvFrac >= 1) { hvFrac -= 1; currentHvHour = (currentHvHour + 1) % 24; hvSlider.value = currentHvHour; hvDraw(currentHvHour); }\n"
+        + "  hvAnimId = requestAnimationFrame(hvAnimate);\n"
+        + "}\n"
+        // HV pan/zoom
+        + "hvCanvas.addEventListener('mousedown', e => { hvDragging = true; hvDX = e.clientX; hvDY = e.clientY; });\n"
+        + "window.addEventListener('mousemove', e => { if(!hvDragging) return; hvPanX += e.clientX-hvDX; hvPanY -= e.clientY-hvDY; hvDX=e.clientX; hvDY=e.clientY; hvDraw(currentHvHour); });\n"
+        + "window.addEventListener('mouseup', () => { hvDragging = false; });\n"
+        + "hvCanvas.addEventListener('wheel', e => {\n"
+        + "  e.preventDefault(); const rect = hvCanvas.getBoundingClientRect(), mx = e.clientX-rect.left, my = e.clientY-rect.top;\n"
+        + "  const wx = (mx-hvPanX)/hvScale+minX, wy = (hvCanvas.height-my-hvPanY)/hvScale+minY;\n"
+        + "  hvScale *= e.deltaY < 0 ? 1.12 : 1/1.12;\n"
+        + "  hvPanX = mx-(wx-minX)*hvScale; hvPanY = (hvCanvas.height-my)-(wy-minY)*hvScale;\n"
+        + "  hvDraw(currentHvHour);\n"
+        + "}, { passive: false });\n"
+        + "document.getElementById('hv-reset-btn').addEventListener('click', resetHvView);\n"
+
+        // ── Shared resize & init ──
         + "window.addEventListener('resize', () => { canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; roadsDirty = true; draw(); });\n"
         + "canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; resetView(); updateMetrics(0);\n"
+        + "// Init HV panel size (deferred, panel is hidden at start)\n"
+        + "document.querySelector('[onclick=\"switchTab(\\'hourly\\')\"]').addEventListener('click', () => {\n"
+        + "  setTimeout(() => { hvCanvas.width = hvCanvas.clientWidth; hvCanvas.height = hvCanvas.clientHeight; resetHvView(); }, 50);\n"
+        + "});\n"
         + "</script>\n"
         + "</body>\n"
         + "</html>\n";
