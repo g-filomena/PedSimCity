@@ -1,6 +1,7 @@
 package pedsim.core.agents;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.locationtech.jts.geom.Coordinate;
@@ -32,7 +33,7 @@ public class AgentMovement {
   protected List<DirectedEdge> directedEdgesSequence = new ArrayList<>();
   protected Agent agent;
   protected List<DirectedEdge> edgesWalkedSoFar = new ArrayList<>();
-  protected Set<EdgeGraph> edgesToAvoid;
+  protected Set<EdgeGraph> edgesToAvoid = new HashSet<>();
 
   PedSimCity state;
 
