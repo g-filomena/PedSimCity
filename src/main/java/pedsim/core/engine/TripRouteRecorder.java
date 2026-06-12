@@ -80,6 +80,18 @@ public class TripRouteRecorder {
     record.pathCoords = coords;
     record.destNodeId = record.nodeIds.get(record.nodeIds.size() - 1);
     records.add(record);
+
+    double distance = 0;
+    if (coords.size() >= 2) {
+      for (int i = 0; i < coords.size() - 1; i++) {
+        Coordinate a = coords.get(i);
+        Coordinate b = coords.get(i + 1);
+        double dx = b.x - a.x;
+        double dy = b.y - a.y;
+        distance += Math.sqrt(dx * dx + dy * dy);
+      }
+    }
+    SimulationStateStore.getInstance().addCompletedTrip(vulnerable, distance);
   }
 
   private static void addCoordinate(List<Coordinate> coords, Coordinate c) {

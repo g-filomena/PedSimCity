@@ -130,9 +130,9 @@ protected void prepareToRun() throws Exception {
 				nightState.isDark = time.isAfter(java.time.LocalTime.of(19, 59)) || time.isBefore(java.time.LocalTime.of(6, 0));
 			}
 
-			if (SimulationStateStore.getInstance().running) {
+			if (SimulationStateStore.getInstance().running && Pars.stepDelayMs > 0) {
 				try {
-					Thread.sleep(100);
+					Thread.sleep(Pars.stepDelayMs);
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
 				}

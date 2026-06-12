@@ -20,6 +20,7 @@ public class Pars {
 
   public static int jobs = 1;
   public static int durationDays = 7;
+  public static int stepDelayMs = 100;
 
   // Euclidean Distance between Origin and Destination
   public static double homeWorkRadius = 600;

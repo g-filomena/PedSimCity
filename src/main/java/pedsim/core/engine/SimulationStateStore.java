@@ -58,6 +58,36 @@ public final class SimulationStateStore {
   /** Whether the simulation has finished. */
   public volatile boolean finished = false;
 
+  private double vulnTripDistanceSum = 0;
+  private int vulnTripCount = 0;
+  private double normalTripDistanceSum = 0;
+  private int normalTripCount = 0;
+
+  public synchronized void addCompletedTrip(boolean vulnerable, double distance) {
+    if (vulnerable) {
+      vulnTripDistanceSum += distance;
+      vulnTripCount++;
+    } else {
+      normalTripDistanceSum += distance;
+      normalTripCount++;
+    }
+  }
+
+  public synchronized double getAvgVulnTripM() {
+    return vulnTripCount > 0 ? vulnTripDistanceSum / vulnTripCount : -1;
+  }
+
+  public synchronized double getAvgNormalTripM() {
+    return normalTripCount > 0 ? normalTripDistanceSum / normalTripCount : -1;
+  }
+
+  public synchronized void resetTripStats() {
+    vulnTripDistanceSum = 0;
+    vulnTripCount = 0;
+    normalTripDistanceSum = 0;
+    normalTripCount = 0;
+  }
+
   /**
    * Whether the Javelit dashboard has requested the simulation to stop.
    * The engine's run loop polls this flag.
@@ -146,6 +176,7 @@ public final class SimulationStateStore {
     finished       = false;
     stopRequested  = false;
     agents.clear();
+    resetTripStats();
   }
 
   // ----------------------------------------------------------------
@@ -213,26 +244,8 @@ public final class SimulationStateStore {
       this.enableAB       = pedsim.night.parameters.NightPars.enableLightABTesting;
       this.agents         = store.getAgents();
 
-      // Compute average completed trip distances from TripRouteRecorder records
-      java.util.List<pedsim.core.engine.TripRouteRecorder.TripRecord> records =
-          pedsim.core.engine.TripRouteRecorder.getRecords();
-      double vulnSum = 0, normalSum = 0;
-      int vulnCount = 0, normalCount = 0;
-      for (pedsim.core.engine.TripRouteRecorder.TripRecord t : records) {
-        double dist = 0;
-        if (t.pathCoords != null && t.pathCoords.size() >= 2) {
-          for (int i = 0; i < t.pathCoords.size() - 1; i++) {
-            org.locationtech.jts.geom.Coordinate a = t.pathCoords.get(i);
-            org.locationtech.jts.geom.Coordinate b = t.pathCoords.get(i + 1);
-            double dx = b.x - a.x, dy = b.y - a.y;
-            dist += Math.sqrt(dx * dx + dy * dy);
-          }
-        }
-        if (t.vulnerable) { vulnSum += dist; vulnCount++; }
-        else              { normalSum += dist; normalCount++; }
-      }
-      this.avgVulnTripM   = vulnCount   > 0 ? vulnSum   / vulnCount   : -1;
-      this.avgNormalTripM = normalCount > 0 ? normalSum / normalCount : -1;
+      this.avgVulnTripM   = store.getAvgVulnTripM();
+      this.avgNormalTripM = store.getAvgNormalTripM();
     }
   }
 }
