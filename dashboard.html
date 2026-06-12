@@ -203,17 +203,17 @@
     </div>
 
     <!-- Route Length Comparison -->
-    <div class="section-title" id="trip-length-section" style="display:none">Avg Trip Length</div>
-    <div class="stats-grid" id="trip-length-grid" style="display:none">
+    <div class="section-title" id="trip-length-section">Avg Trip Length</div>
+    <div class="stats-grid" id="trip-length-grid">
       <div class="stat-card">
         <div class="label">Avg Vulnerable (m)</div>
         <div class="value" id="s-avg-vuln" style="color:var(--danger)">—</div>
-        <div class="sub">night agents</div>
+        <div class="sub">completed trips</div>
       </div>
       <div class="stat-card">
         <div class="label">Avg Normal (m)</div>
         <div class="value" id="s-avg-normal" style="color:var(--safe)">—</div>
-        <div class="sub">night agents</div>
+        <div class="sub">completed trips</div>
       </div>
     </div>
 
@@ -425,15 +425,11 @@ function updateStats(data) {
   const total = (data.agents || []).length;
   document.getElementById('s-total').textContent  = total;
 
-  // Avg trip length by agent type (from completed trips)
-  const hasVuln   = data.avgVulnTripM   != null && data.avgVulnTripM   >= 0;
-  const hasNormal = data.avgNormalTripM != null && data.avgNormalTripM >= 0;
-  if (hasVuln || hasNormal) {
-    document.getElementById('trip-length-section').style.display = '';
-    document.getElementById('trip-length-grid').style.display = '';
-    document.getElementById('s-avg-vuln').textContent   = hasVuln   ? Math.round(data.avgVulnTripM)   + ' m' : '—';
-    document.getElementById('s-avg-normal').textContent = hasNormal ? Math.round(data.avgNormalTripM) + ' m' : '—';
-  }
+  // Avg trip length by agent type (from completed trips, -1 = no data yet)
+  const vd = data.avgVulnTripM;
+  const nd = data.avgNormalTripM;
+  document.getElementById('s-avg-vuln').textContent   = (vd   != null && vd   >= 0) ? Math.round(vd)   + ' m' : '—';
+  document.getElementById('s-avg-normal').textContent = (nd   != null && nd   >= 0) ? Math.round(nd)   + ' m' : '—';
 }
 
 // ── Diff-update agents (only move existing, add new, remove gone) ─────────────
