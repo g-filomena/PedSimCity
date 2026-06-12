@@ -21,6 +21,7 @@ import sim.graph.NodesLookup;
 public class Agent extends pedsim.core.agents.Agent implements Steppable {
 
 	private static final long serialVersionUID = 1L;
+	public Agent abTestTwin = null;
 	public StringEnum.Vulnerable vulnerable;
 	private Graph agentNetwork;
 	protected pedsim.night.agents.AgentMovement nightMovement;
@@ -173,6 +174,10 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 	 * Randomly selects a destination node within a specified distance range.
 	 */
 	private void defineRandomDestination() {
+		if (abTestTwin != null && abTestTwin.destinationNode != null && abTestTwin.destinationNode != abTestTwin.homeNode) {
+			this.destinationNode = abTestTwin.destinationNode;
+			return;
+		}
 
 		// Initialise limits for distance calculation
 		double lowerLimit = distanceNextDestination * 0.90;

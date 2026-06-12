@@ -26,7 +26,7 @@ public class Populate extends pedsim.core.engine.Populate {
   }
 
   private void populateABTest() {
-    int pairs = 50;
+    int pairs = 72;
     int currentAgentID = 0;
     for (int i = 0; i < pairs; i++) {
       // Create a dummy agent just to get valid home/work locations from the core logic
@@ -48,6 +48,9 @@ public class Populate extends pedsim.core.engine.Populate {
       normalTwin.setVulnerable(false);
       normalTwin.vulnerable = Vulnerable.NON_VULNERABLE;
       normalTwin.initSensitivity();
+      
+      vulnerableTwin.abTestTwin = normalTwin;
+      normalTwin.abTestTwin = vulnerableTwin;
       
       registerAgent(vulnerableTwin);
       registerAgent(normalTwin);

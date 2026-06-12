@@ -60,6 +60,35 @@ public class AgentReleaseManager {
    */
   public void releaseAgents(double steps) {
 
+    if (pedsim.night.parameters.NightPars.enableLightABTesting && dayNumber == 1) {
+      int pairIndex = (int) steps - 1;
+      if (pairIndex >= 0 && pairIndex < 72) {
+        pedsim.night.agents.Agent vulnAgent = null;
+        pedsim.night.agents.Agent normalAgent = null;
+        for (Agent a : state.agentsList) {
+          if (a instanceof pedsim.night.agents.Agent) {
+            pedsim.night.agents.Agent na = (pedsim.night.agents.Agent) a;
+            if (na.agentID == pairIndex * 2) {
+              vulnAgent = na;
+            } else if (na.agentID == pairIndex * 2 + 1) {
+              normalAgent = na;
+            }
+          }
+        }
+        if (vulnAgent != null && normalAgent != null) {
+          vulnAgent.setDistanceNextDestination(RouteChoicePars.avgTripDistance);
+          normalAgent.setDistanceNextDestination(RouteChoicePars.avgTripDistance);
+          
+          vulnAgent.startWalkingAlone();
+          normalAgent.startWalkingAlone();
+          
+          logger.info("A/B Testing: Released pair " + pairIndex + " (Agent " + vulnAgent.agentID + " & " + normalAgent.agentID + ") at step " + steps);
+          logRelease(steps, RouteChoicePars.avgTripDistance * 2, RouteChoicePars.avgTripDistance * 2, 2);
+        }
+      }
+      return;
+    }
+
     currentTime = TimePars.getTime(steps);
     metersWalkedSoFarToday = computeMetersWalkedSoFar();
     double metersToAllocate = (metersToWalkCurrentDay * TimePars.computeTimeStepShare(currentTime));

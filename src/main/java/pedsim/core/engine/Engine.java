@@ -183,6 +183,9 @@ protected void prepareToRun() throws Exception {
 
 		TripRouteRecorder.saveToFile("test_trips.csv");
 		TripDiagnostic.save("trip_diagnostic.csv");
+		if (pedsim.night.parameters.NightPars.enableLightABTesting) {
+			TripDiagnostic.saveABTestComparison("ab_test_comparison.csv");
+		}
 
 
 		// Generate the self-contained HTML dashboard and open it in the browser

@@ -227,6 +227,13 @@
           <span class="slider-track"></span>
         </label>
       </div>
+      <div class="toggle-row" id="ctrl-tethers" style="display: none;">
+        <span>Show A/B Tethers</span>
+        <label class="toggle">
+          <input type="checkbox" id="tg-tethers" checked/>
+          <span class="slider-track"></span>
+        </label>
+      </div>
     </div>
 
     <!-- Legend -->
@@ -272,6 +279,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
 let roadsLayer   = null;
 let roadsLoaded  = false;
 let agentLayer   = L.layerGroup().addTo(map);
+let tethersLayer = L.layerGroup().addTo(map);
 
 // ── DOM refs ───────────────────────────────────────────────
 const pill       = document.getElementById('status-pill');
@@ -295,8 +303,13 @@ document.getElementById('toggle-roads').addEventListener('change', e => {
 });
 
 document.getElementById('toggle-agents').addEventListener('change', e => {
-  if (e.target.checked) map.addLayer(agentLayer);
-  else map.removeLayer(agentLayer);
+  if (e.target.checked) {
+    map.addLayer(agentLayer);
+    map.addLayer(tethersLayer);
+  } else {
+    map.removeLayer(agentLayer);
+    map.removeLayer(tethersLayer);
+  }
 });
 
 // ── Logging ──────────────────────────────────────────────────────────────────
@@ -370,8 +383,17 @@ async function poll() {
     updateStats(data);
     await loadRoads();  // no-op if already loaded
 
+    const ctrlTethers = document.getElementById('ctrl-tethers');
+    if (ctrlTethers) {
+      ctrlTethers.style.display = data.enableAB ? 'flex' : 'none';
+    }
+
     const showAgents = document.getElementById('toggle-agents').checked;
-    if (showAgents) updateAgents(data.agents || []);
+    if (showAgents) {
+      updateAgents(data.agents || [], data.enableAB);
+    } else {
+      tethersLayer.clearLayers();
+    }
 
   } catch (e) {
     setOffline();
@@ -390,7 +412,7 @@ function updateStats(data) {
 }
 
 // ── Diff-update agents (only move existing, add new, remove gone) ─────────────
-function updateAgents(agents) {
+function updateAgents(agents, enableAB) {
   const incoming = new Set();
 
   for (const a of agents) {
@@ -416,12 +438,40 @@ function updateAgents(agents) {
       agentMarkers.delete(id);
     }
   }
+
+  // Redraw tethers
+  tethersLayer.clearLayers();
+  const showTethers = document.getElementById('tg-tethers') && document.getElementById('tg-tethers').checked;
+  if (enableAB && showTethers) {
+    const posById = {};
+    for (const a of agents) {
+      posById[a.id] = [a.lat, a.lon];
+    }
+    for (const a of agents) {
+      if (a.vulnerable && posById[a.id + 1]) {
+        L.polyline([posById[a.id], posById[a.id + 1]], {
+          color: 'rgba(255, 255, 255, 0.4)',
+          weight: 1.5,
+          dashArray: '4, 4',
+          interactive: false
+        }).addTo(tethersLayer);
+      }
+    }
+  }
 }
 
 // ── Start polling ─────────────────────────────────────────────────────────────
 addLog('Dashboard started — connecting to simulation...');
 let pollTimer = setInterval(poll, 2000);
 poll(); // immediate first fetch
+
+document.addEventListener('change', e => {
+  if (e.target && e.target.id === 'tg-tethers') {
+    if (!e.target.checked) {
+      tethersLayer.clearLayers();
+    }
+  }
+});
 </script>
 </body>
 </html>
