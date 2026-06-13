@@ -26,6 +26,8 @@ buildNumber.properties
 # See: https://github.com/takari/maven-wrapper#usage-without-binary-jar
 .mvn/wrapper/maven-wrapper.jar
 
+src/main/java/pedsim/social/
+src/main/java/pedsim/learning/
 
 # -------------------------------------------------------------------
 # Eclipse / m2e
