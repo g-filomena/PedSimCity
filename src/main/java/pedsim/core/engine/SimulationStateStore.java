@@ -5,7 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 import pedsim.core.agents.Agent;
 
 /**
@@ -100,7 +100,7 @@ public final class SimulationStateStore {
   public volatile String roadsGeoJson = null;
 
   /** Live snapshot of all agent positions, updated each simulation step. */
-  private final CopyOnWriteArrayList<AgentSnapshot> agents = new CopyOnWriteArrayList<>();
+  private final ConcurrentHashMap<Integer, AgentSnapshot> agents = new ConcurrentHashMap<>();
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -123,8 +123,7 @@ public final class SimulationStateStore {
         agent.isVulnerableBoolean()
     );
     // replace existing entry or add new one
-    agents.removeIf(s -> s.id == agent.agentID);
-    agents.add(snapshot);
+    agents.put(agent.agentID, snapshot);
   }
 
   /**
@@ -134,7 +133,7 @@ public final class SimulationStateStore {
    * @param agentId the ID of the agent to remove.
    */
   public void removeAgent(int agentId) {
-    agents.removeIf(s -> s.id == agentId);
+    agents.remove(agentId);
   }
 
   /**
@@ -187,7 +186,7 @@ public final class SimulationStateStore {
    * Returns a copy of the current agent snapshot list safe for JSON serialisation.
    */
   public List<AgentSnapshot> getAgents() {
-    return new ArrayList<>(agents);
+    return new ArrayList<>(agents.values());
   }
 
   /**
