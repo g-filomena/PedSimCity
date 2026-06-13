@@ -259,6 +259,32 @@
                 </executions>
             </plugin>
 		
+			<plugin>
+			  <groupId>com.diffplug.spotless</groupId>
+			  <artifactId>spotless-maven-plugin</artifactId>
+			  <version>3.6.0</version>
+
+			  <configuration>
+				<java>
+				  <includes>
+					<include>src/main/java/**/*.java</include>
+					<include>src/test/java/**/*.java</include>
+					<include>*.java</include>
+				  </includes>
+
+				  <googleJavaFormat>
+					<version>1.28.0</version>
+					<style>GOOGLE</style>
+					<reflowLongStrings>true</reflowLongStrings>
+					<formatJavadoc>false</formatJavadoc>
+				  </googleJavaFormat>
+
+				  <removeUnusedImports />
+				  <formatAnnotations />
+				</java>
+			  </configuration>
+			</plugin>
+		
 		</plugins>
     </build>
 		
