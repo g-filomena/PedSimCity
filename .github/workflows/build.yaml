@@ -1,6 +1,7 @@
 name: GitHub CI
 
 on:
+  workflow_dispatch:
   release:
     types: [created]
 
@@ -21,7 +22,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           server-id: github
-          server-username: g-filomena  # env variable name for username
+          server-username: g-filomena
           server-password: ${{ secrets.G_TOKEN }}
             
       - name: Publish package
@@ -29,4 +30,3 @@ jobs:
         env:
           GITHUB_USER: g-filomena
           GITHUB_TOKEN: ${{ secrets.G_TOKEN }}
-              
