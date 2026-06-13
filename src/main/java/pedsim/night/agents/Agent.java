@@ -181,7 +181,7 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 		while (destinationNode == null) {
 
 			// Get candidate nodes between the current distance range
-			List<NodeGraph> destinationCandidates = NodesLookup.getNodesBetweenDistanceInterval(agentNetwork,
+			List<NodeGraph> destinationCandidates = pedsim.core.agents.Agent.getNodesBetweenDistanceIntervalOptimized(agentNetwork,
 					originNode, lowerLimit, upperLimit);
 
 			if (destinationCandidates.isEmpty()) {
