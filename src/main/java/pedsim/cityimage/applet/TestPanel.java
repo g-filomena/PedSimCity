@@ -5,114 +5,99 @@ import java.awt.Checkbox;
 import java.awt.Frame;
 import java.awt.Label;
 import java.awt.TextField;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.List;
+
+import pedsim.cityimage.parameters.TestPars;
 import pedsim.cityimage.utilities.StringEnum.RouteChoice;
 import pedsim.core.parameters.Pars;
 
-/**
- * A graphical user interface (GUI) panel for setting and saving test parameters.
- */
+/** GUI panel for selecting route-choice models to test. */
 public class TestPanel extends Frame {
 
-  private static final long serialVersionUID = 1L;
-  private List<RouteChoice> selectedChoices;
-  private TextField jobsTextField;
-  private TextField numTripsPerAgentField;
+	private static final long serialVersionUID = 1L;
 
-  /**
-   * Initialises the TestPanel GUI with checkboxes and input fields.
-   */
-  public TestPanel() {
-    setTitle("Testing panel");
-    setLayout(null);
+	private final List<RouteChoice> selectedChoices = new ArrayList<>();
 
-    selectedChoices = new ArrayList<>();
+	private TextField jobsTextField;
+	private TextField numTripsPerAgentField;
 
-    // Add an action listener to the Save button to get the selected choices
-    Button saveButton = new Button("Save");
-    saveButton.addActionListener(new ActionListener() {
-      public void actionPerformed(ActionEvent e) {
-        getTestParameters(e); // Call the method `getTestParameters()` when the button is clicked
-      }
-    });
+	public TestPanel() {
+		setTitle("Testing panel");
+		setLayout(null);
 
-    int value = 30;
-    // Create checkboxes for each RouteChoice
-    for (RouteChoice choice : RouteChoice.values()) {
-      Checkbox checkbox = new Checkbox(choice.toString());
-      checkbox.setName(choice.name());
-      checkbox.setBounds(10, value, 400, 20);
-      value += 30;
-      add(checkbox);
-    }
+		Button saveButton = new Button("Save");
+		saveButton.addActionListener(event -> getTestParameters());
 
-    // Additional components for setting user-defined parameters
-    Label jobsLabel = new Label("Jobs:");
-    add(jobsLabel);
-    jobsLabel.setBounds(10, value, 80, 20);
-    jobsTextField = new TextField();
-    jobsTextField.setBounds(170, value, 100, 20);
-    add(jobsTextField);
-    value += 30;
+		int y = 30;
 
-    Label numTripsPerAgentLabel = new Label("Number of Trips per Agent:");
-    add(numTripsPerAgentLabel);
-    numTripsPerAgentLabel.setBounds(10, value, 155, 20);
-    numTripsPerAgentField = new TextField();
-    numTripsPerAgentField.setBounds(170, value, 100, 20);
-    add(numTripsPerAgentField);
-    value += 30;
+		for (RouteChoice choice : RouteChoice.values()) {
+			Checkbox checkbox = new Checkbox(choice.toString());
+			checkbox.setName(choice.name());
+			checkbox.setBounds(10, y, 400, 20);
+			y += 30;
+			add(checkbox);
+		}
 
-    saveButton.setBounds(10, value, 80, 30);
-    add(saveButton);
-    setSize(400, 700);
-    setVisible(true);
-  }
+		Label jobsLabel = new Label("Jobs:");
+		jobsLabel.setBounds(10, y, 80, 20);
+		add(jobsLabel);
 
-  /**
-   * Retrieves the selected choices from checkboxes and user-defined parameters from input fields.
-   *
-   * @param e The ActionEvent triggered by the Save button.
-   */
-  public void getTestParameters(ActionEvent e) {
-    // Update the selectedChoices list based on the checkboxes
-    selectedChoices.clear();
+		jobsTextField = new TextField(Integer.toString(Pars.jobs));
+		jobsTextField.setBounds(170, y, 100, 20);
+		add(jobsTextField);
 
-    for (int i = 0; i < getComponentCount(); i++) {
-      if (getComponent(i) instanceof Checkbox) {
-        Checkbox checkbox = (Checkbox) getComponent(i);
-        if (checkbox.getState()) {
-          selectedChoices.add(RouteChoice.valueOf(checkbox.getName()));
-        }
-      }
-    }
-    // Print the selected choices
-    System.out.println("Selected Choices: " + selectedChoices);
+		y += 30;
 
-    // Update user-defined parameters
-    try {
-      Pars.routeChoiceUser = new RouteChoice[selectedChoices.size()];
-      for (int counter = 0; counter < selectedChoices.size(); counter++) {
-        Pars.routeChoiceUser[counter] = selectedChoices.get(counter);
-      }
-      Pars.jobs = Integer.parseInt(jobsTextField.getText());
-      Pars.numberTripsPerAgent = Integer.parseInt(numTripsPerAgentField.getText());
-    } catch (NumberFormatException ex) {
-      System.err.println("Invalid input for jobs or numAgents.");
-    }
-    Pars.testingModels = true;
-    this.dispose(); // Close the window
-  }
+		Label numTripsPerAgentLabel = new Label("Number of Trips per Agent:");
+		numTripsPerAgentLabel.setBounds(10, y, 155, 20);
+		add(numTripsPerAgentLabel);
 
-  /**
-   * Gets the list of selected RouteChoice values.
-   *
-   * @return A list of selected RouteChoice values.
-   */
-  public List<RouteChoice> getSelectedChoices() {
-    return selectedChoices;
-  }
+		numTripsPerAgentField = new TextField(Integer.toString(TestPars.numberTripsPerAgent));
+		numTripsPerAgentField.setBounds(170, y, 100, 20);
+		add(numTripsPerAgentField);
+
+		y += 30;
+
+		saveButton.setBounds(10, y, 80, 30);
+		add(saveButton);
+
+		setSize(430, 720);
+		setVisible(true);
+	}
+
+	public void getTestParameters() {
+		selectedChoices.clear();
+
+		for (int i = 0; i < getComponentCount(); i++) {
+			if (getComponent(i) instanceof Checkbox checkbox && checkbox.getState()) {
+				selectedChoices.add(RouteChoice.valueOf(checkbox.getName()));
+			}
+		}
+
+		if (selectedChoices.isEmpty()) {
+			selectedChoices.add(RouteChoice.ROAD_DISTANCE);
+			selectedChoices.add(RouteChoice.ANGULAR_CHANGE);
+		}
+
+		TestPars.routeChoiceUser = selectedChoices.toArray(new RouteChoice[0]);
+
+		try {
+			Pars.jobs = Integer.parseInt(jobsTextField.getText().trim());
+			TestPars.numberTripsPerAgent = Integer.parseInt(numTripsPerAgentField.getText().trim());
+
+		} catch (NumberFormatException exception) {
+			System.err.println("Invalid input for jobs or number of trips per agent.");
+		}
+
+		TestPars.stringMode = "Testing Specific Route Choice Models";
+		TestPars.testingModels = true;
+		TestPars.defineMode();
+
+		dispose();
+	}
+
+	public List<RouteChoice> getSelectedChoices() {
+		return selectedChoices;
+	}
 }

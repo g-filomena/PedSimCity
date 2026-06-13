@@ -9,9 +9,11 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+
 import pedsim.cityimage.engine.CityImageEngine;
 import pedsim.cityimage.engine.PedSimCityImage;
 import pedsim.cityimage.parameters.TestPars;
+import pedsim.cityimage.utilities.StringEnum.RouteChoice;
 import pedsim.core.applet.PedSimCityActionHandler;
 import pedsim.core.applet.ServerProjectConfig;
 import pedsim.core.engine.Engine;
@@ -20,255 +22,286 @@ import pedsim.core.parameters.ParameterManager;
 import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
 
-public class PedSimCityImageApplet extends pedsim.core.applet.PedSimCityApplet
-    implements ItemListener {
+public class PedSimCityImageApplet extends pedsim.core.applet.PedSimCityApplet implements ItemListener {
 
-  private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 1L;
 
-  protected Choice simulationModeChoice;
-  protected Button startButtonParallel;
-  protected Checkbox specificODcheckBox;
-  protected Checkbox verboseCheckBox;
+	protected Choice simulationModeChoice;
+	protected Button startButtonParallel;
+	protected Checkbox specificODcheckBox;
+	protected Checkbox verboseCheckBox;
 
-  protected static Label jobLabel;
-  protected static Label jobsLabel;
-  protected static Label remainingTripsLabel;
-  protected static Label remainingTripsLabelParallel;
+	protected static Label jobLabel;
+	protected static Label jobsLabel;
+	protected static Label remainingTripsLabel;
+	protected static Label remainingTripsLabelParallel;
 
-  protected static int remainingTripsCount;
+	protected static int remainingTripsCount;
 
-  public PedSimCityImageApplet() {
-    super();
+	public PedSimCityImageApplet() {
+		super();
 
-    addCityImageControls();
-    refreshModeDependentControls();
-    setSize(520, 620);
-    validate();
-    repaint();
-  }
+		addCityImageControls();
+		refreshModeDependentControls();
 
-  private void addCityImageControls() {
+		setSize(520, 620);
+		validate();
+		repaint();
+	}
 
-    Label modeLabel = new Label("Simulation Mode:");
-    modeLabel.setBounds(10, 40, 120, 20);
-    add(modeLabel);
+	private void addCityImageControls() {
+		Label modeLabel = new Label("Simulation Mode:");
+		modeLabel.setBounds(10, 40, 120, 20);
+		add(modeLabel);
 
-    simulationModeChoice = new Choice();
-    simulationModeChoice.setBounds(140, 40, 230, 20);
-    simulationModeChoice.add("Testing Landmarks");
-    simulationModeChoice.add("Testing Urban Subdivisions");
-    simulationModeChoice.add("Testing Specific Route Choice Models");
-    simulationModeChoice.add("Empirical ABM");
-    simulationModeChoice.addItemListener(this);
-    add(simulationModeChoice);
+		simulationModeChoice = new Choice();
+		simulationModeChoice.setBounds(140, 40, 260, 20);
+		simulationModeChoice.add("Testing Landmarks");
+		simulationModeChoice.add("Testing Urban Subdivisions");
+		simulationModeChoice.add("Testing Specific Route Choice Models");
+		simulationModeChoice.addItemListener(this);
+		add(simulationModeChoice);
 
-    specificODcheckBox = new Checkbox("Testing Specific ODs");
-    specificODcheckBox.setBounds(320, 180, 160, 25);
-    specificODcheckBox.setEnabled(true);
-    specificODcheckBox.addItemListener(this);
-    add(specificODcheckBox);
+		specificODcheckBox = new Checkbox("Testing Specific ODs");
+		specificODcheckBox.setBounds(320, 180, 160, 25);
+		specificODcheckBox.setEnabled(true);
+		specificODcheckBox.addItemListener(this);
+		add(specificODcheckBox);
 
-    verboseCheckBox = new Checkbox("Verbose");
-    verboseCheckBox.setBounds(320, 210, 100, 25);
-    verboseCheckBox.setEnabled(true);
-    verboseCheckBox.addItemListener(this);
-    add(verboseCheckBox);
+		verboseCheckBox = new Checkbox("Verbose");
+		verboseCheckBox.setBounds(320, 210, 100, 25);
+		verboseCheckBox.setEnabled(true);
+		verboseCheckBox.addItemListener(this);
+		add(verboseCheckBox);
 
-    startButtonParallel = new Button("Run in Parallel");
-    startButtonParallel.setBounds(290, 330, 140, 50);
-    startButtonParallel.setBackground(new Color(0, 220, 0));
-    startButtonParallel.addActionListener(e -> {
-      applyCityImageSelections(true);
-      initialiseProgressLabels(true);
-      launchSimulation(true);
-    });
-    add(startButtonParallel);
+		startButtonParallel = new Button("Run in Parallel");
+		startButtonParallel.setBounds(290, 330, 140, 50);
+		startButtonParallel.setBackground(new Color(0, 220, 0));
+		startButtonParallel.addActionListener(event -> {
+			initialiseProgressLabels(true);
+			launchSimulation(true);
+		});
+		add(startButtonParallel);
 
-    jobLabel = new Label("Executing Job Nr:");
-    jobLabel.setBounds(10, 390, 180, 20);
-    jobLabel.setVisible(false);
-    add(jobLabel);
+		jobLabel = new Label("Executing Job Nr:");
+		jobLabel.setBounds(10, 390, 180, 20);
+		jobLabel.setVisible(false);
+		add(jobLabel);
 
-    remainingTripsLabel = new Label("Trips left:");
-    remainingTripsLabel.setBounds(10, 415, 180, 20);
-    remainingTripsLabel.setVisible(false);
-    add(remainingTripsLabel);
+		remainingTripsLabel = new Label("Trips left:");
+		remainingTripsLabel.setBounds(10, 415, 180, 20);
+		remainingTripsLabel.setVisible(false);
+		add(remainingTripsLabel);
 
-    jobsLabel = new Label("Parallelising jobs");
-    jobsLabel.setBounds(220, 390, 180, 20);
-    jobsLabel.setVisible(false);
-    add(jobsLabel);
+		jobsLabel = new Label("Parallelising jobs");
+		jobsLabel.setBounds(220, 390, 180, 20);
+		jobsLabel.setVisible(false);
+		add(jobsLabel);
 
-    remainingTripsLabelParallel = new Label("Trips left (jobs avg):");
-    remainingTripsLabelParallel.setBounds(220, 415, 180, 20);
-    remainingTripsLabelParallel.setVisible(false);
-    add(remainingTripsLabelParallel);
+		remainingTripsLabelParallel = new Label("Trips left (jobs avg):");
+		remainingTripsLabelParallel.setBounds(220, 415, 180, 20);
+		remainingTripsLabelParallel.setVisible(false);
+		add(remainingTripsLabelParallel);
 
-    updateCityNameOptions();
-  }
+		updateCityNameOptions();
+	}
 
-  @Override
-  protected String getAppletTitle() {
-    return "PedSimCity Image Applet";
-  }
+	@Override
+	protected String getAppletTitle() {
+		return "PedSimCity CityImage Applet";
+	}
 
-  @Override
-  protected void updateCityNameOptions() {
-    if (cityName == null) {
-      return;
-    }
+	@Override
+	protected void updateCityNameOptions() {
+		if (cityName == null) {
+			return;
+		}
 
-    cityName.removeAll();
+		cityName.removeAll();
 
-    String selectedMode =
-        simulationModeChoice != null ? simulationModeChoice.getSelectedItem() : null;
+		String selectedMode = simulationModeChoice != null ? simulationModeChoice.getSelectedItem()
+				: "Testing Landmarks";
 
-    if ("Testing Landmarks".equals(selectedMode)) {
-      cityName.add("London");
-      cityName.add("Muenster");
-    } else if ("Testing Urban Subdivisions".equals(selectedMode)) {
-      cityName.add("London");
-      cityName.add("Paris");
-      cityName.add("Muenster");
-    } else if ("Empirical ABM".equals(selectedMode)) {
-      cityName.add("Muenster");
-    } else if ("Testing Specific Route Choice Models".equals(selectedMode)) {
-      cityName.add("Muenster");
-    } else {
-      cityName.add("Muenster");
-    }
+		if ("Testing Landmarks".equals(selectedMode)) {
+			cityName.add("London");
+			cityName.add("Muenster");
 
-    cityName.validate();
-  }
+		} else if ("Testing Urban Subdivisions".equals(selectedMode)) {
+			cityName.add("London");
+			cityName.add("Paris");
+			cityName.add("Muenster");
 
-  @Override
-  protected void configureStartButton(PedSimCityActionHandler handler) {
-    startButton.addActionListener(e -> {
-      applyCityImageSelections(false);
-      initialiseProgressLabels(false);
-      launchSimulation(false);
-    });
-  }
+		} else if ("Testing Specific Route Choice Models".equals(selectedMode)) {
+			cityName.add("Muenster");
 
-  @Override
-  protected Engine.StateFactory buildStateFactory() {
-    return PedSimCityImage::new;
-  }
+		} else {
+			cityName.add("Muenster");
+		}
 
-  @Override
-  protected Engine buildEngine() {
-    return new CityImageEngine(buildStateFactory());
-  }
+		cityName.validate();
+	}
 
-  protected void applyCityImageSelections(boolean runInParallel) {
-    TestPars.cityName = getCityName();
-    TestPars.stringMode = simulationModeChoice.getSelectedItem();
-    TestPars.defineMode();
-    TestPars.verboseMode = verboseCheckBox.getState();
-    Pars.parallel = runInParallel;
-  }
+	@Override
+	protected void configureStartButton(PedSimCityActionHandler handler) {
+		startButton.addActionListener(event -> {
+			initialiseProgressLabels(false);
+			launchSimulation(false);
+		});
+	}
 
-  protected void initialiseProgressLabels(boolean runInParallel) {
-    if (runInParallel) {
-      jobsLabel.setText("Parallelising " + getJobs() + " Jobs");
-      jobsLabel.setVisible(true);
-      remainingTripsLabelParallel.setVisible(true);
-      updateRemainingTripsLabel(true);
-    } else {
-      jobLabel.setVisible(true);
-      remainingTripsLabel.setVisible(true);
-      updateRemainingTripsLabel(false);
-    }
-  }
+	@Override
+	protected ScenarioConfig buildScenarioConfig() {
+		return new ScenarioConfig(RouteChoice.values(), null);
+	}
 
-  protected void refreshModeDependentControls() {
-    if (simulationModeChoice == null) {
-      return;
-    }
+	@Override
+	protected Engine.StateFactory buildStateFactory() {
+		return PedSimCityImage::new;
+	}
 
-    String selectedMode = simulationModeChoice.getSelectedItem();
-    boolean routeChoiceMode = "Testing Specific Route Choice Models".equals(selectedMode);
-    boolean empiricalMode = "Empirical ABM".equals(selectedMode);
+	@Override
+	protected Engine buildEngine() {
+		return new CityImageEngine(buildStateFactory());
+	}
 
-    routeParsButton.setEnabled(routeChoiceMode);
-    specificODcheckBox.setEnabled(!empiricalMode);
+	@Override
+	protected void launchSimulation(boolean runInParallel) {
+		setRunningOnServer(false);
 
-    if (empiricalMode) {
-      specificODcheckBox.setState(false);
-    }
-  }
+		ParameterManager.collectParameters(this);
 
-  protected void handleSpecificODCheckbox() {
-    SpecificODpanel specificODpanel = new SpecificODpanel();
-    if (specificODcheckBox.getState()) {
-      specificODpanel.handleSpecificODCheckbox(specificODcheckBox);
-    } else {
-      specificODpanel.closeSpecificODCheckbox();
-    }
-  }
+		applyCityImageSelections(runInParallel);
 
-  @Override
-  public void itemStateChanged(ItemEvent e) {
-    Object source = e.getSource();
+		final ScenarioConfig scenarioConfig = buildScenarioConfig();
+		final Engine engine = buildEngine();
 
-    if (source == simulationModeChoice) {
-      updateCityNameOptions();
-      refreshModeDependentControls();
-    } else if (source == specificODcheckBox) {
-      handleSpecificODCheckbox();
-    } else if (source == verboseCheckBox) {
-      TestPars.verboseMode = verboseCheckBox.getState();
-    }
-  }
+		Thread thread = new Thread(() -> {
+			try {
+				engine.runJobs(scenarioConfig, runInParallel);
+			} catch (Exception exception) {
+				LoggerUtil.getLogger().severe("CityImage simulation failed: " + exception.getMessage());
+				exception.printStackTrace();
+			}
+		}, runInParallel ? "cityimage-parallel-simulation" : "cityimage-local-simulation");
 
-  public static void setRemainingTripsCount(int count) {
-    remainingTripsCount = count;
-  }
+		setSimulationThread(thread);
+		thread.start();
+	}
 
-  public static void updateRemainingTripsLabel(boolean runInParallel) {
-    if (runInParallel) {
-      if (remainingTripsLabelParallel != null) {
-        remainingTripsLabelParallel.setText("Trips left: " + remainingTripsCount);
-      }
-    } else {
-      if (remainingTripsLabel != null) {
-        remainingTripsLabel.setText("Trips left: " + remainingTripsCount);
-      }
-    }
-  }
+	protected void applyCityImageSelections(boolean runInParallel) {
+		Pars.cityName = getCityName();
 
-  @Override
-  protected ServerProjectConfig buildServerProjectConfig() {
-    return new ServerProjectConfig("/mnt/home/gabriele/PedSimCity",
-        "pedsim.cityimage.applet.PedSimCityImageApplet", "bin:lib/*:src/main/resources");
-  }
+		TestPars.stringMode = simulationModeChoice.getSelectedItem();
+		TestPars.testingSpecificOD = specificODcheckBox.getState();
+		TestPars.verboseMode = verboseCheckBox.getState();
+		TestPars.defineMode();
 
-  public static void main(String[] args) throws Exception {
-    boolean headless = false;
+		Pars.parallel = runInParallel;
+	}
 
-    for (String arg : args) {
-      if ("--headless".equals(arg) || arg.startsWith("--headless=")) {
-        headless = true;
-        break;
-      }
-    }
+	protected void initialiseProgressLabels(boolean runInParallel) {
+		if (runInParallel) {
+			jobsLabel.setText("Parallelising " + getJobs() + " Jobs");
+			jobsLabel.setVisible(true);
+			remainingTripsLabelParallel.setVisible(true);
+			updateRemainingTripsLabel(true);
 
-    if (headless) {
-      LoggerUtil.getLogger().info("[SERVER] Running headless simulation...");
-      ParameterManager.initFromArgsForServer(args);
+		} else {
+			jobLabel.setVisible(true);
+			remainingTripsLabel.setVisible(true);
+			updateRemainingTripsLabel(false);
+		}
+	}
 
-      ScenarioConfig scenarioConfig = new ScenarioConfig(null, null);
-      Engine engine = new CityImageEngine(PedSimCityImage::new);
-      engine.runJobs(scenarioConfig, Pars.parallel);
+	protected void refreshModeDependentControls() {
+		if (simulationModeChoice == null) {
+			return;
+		}
 
-    } else {
-      PedSimCityImageApplet applet = new PedSimCityImageApplet();
-      applet.addWindowListener(new WindowAdapter() {
-        @Override
-        public void windowClosing(WindowEvent e) {
-          applet.dispose();
-        }
-      });
-    }
-  }
+		String selectedMode = simulationModeChoice.getSelectedItem();
+		boolean routeChoiceMode = "Testing Specific Route Choice Models".equals(selectedMode);
+
+		routeParsButton.setEnabled(true);
+		specificODcheckBox.setEnabled(true);
+
+		if (routeChoiceMode) {
+			routeParsButton.setEnabled(true);
+		}
+	}
+
+	protected void handleSpecificODCheckbox() {
+		SpecificODpanel specificODpanel = new SpecificODpanel();
+
+		if (specificODcheckBox.getState()) {
+			specificODpanel.handleSpecificODCheckbox(specificODcheckBox);
+		} else {
+			specificODpanel.closeSpecificODCheckbox();
+		}
+	}
+
+	@Override
+	public void itemStateChanged(ItemEvent event) {
+		Object source = event.getSource();
+
+		if (source == simulationModeChoice) {
+			updateCityNameOptions();
+			refreshModeDependentControls();
+
+		} else if (source == specificODcheckBox) {
+			handleSpecificODCheckbox();
+
+		} else if (source == verboseCheckBox) {
+			TestPars.verboseMode = verboseCheckBox.getState();
+		}
+	}
+
+	public static void setRemainingTripsCount(int count) {
+		remainingTripsCount = count;
+	}
+
+	public static void updateRemainingTripsLabel(boolean runInParallel) {
+		if (runInParallel) {
+			if (remainingTripsLabelParallel != null) {
+				remainingTripsLabelParallel.setText("Trips left: " + remainingTripsCount);
+			}
+		} else if (remainingTripsLabel != null) {
+			remainingTripsLabel.setText("Trips left: " + remainingTripsCount);
+		}
+	}
+
+	@Override
+	protected ServerProjectConfig buildServerProjectConfig() {
+		return new ServerProjectConfig("/mnt/home/gabriele/PedSimCity", "pedsim.cityimage.applet.PedSimCityImageApplet",
+				"bin:lib/*:src/main/resources");
+	}
+
+	public static void main(String[] args) throws Exception {
+		boolean headless = false;
+
+		for (String arg : args) {
+			if ("--headless".equals(arg) || arg.startsWith("--headless=")) {
+				headless = true;
+				break;
+			}
+		}
+
+		if (headless) {
+			LoggerUtil.getLogger().info("[SERVER] Running CityImage headless simulation...");
+			ParameterManager.initFromArgsForServer(args);
+			TestPars.defineMode();
+
+			ScenarioConfig scenarioConfig = new ScenarioConfig(RouteChoice.values(), null);
+			Engine engine = new CityImageEngine(PedSimCityImage::new);
+			engine.runJobs(scenarioConfig, Pars.parallel);
+
+		} else {
+			PedSimCityImageApplet applet = new PedSimCityImageApplet();
+			applet.addWindowListener(new WindowAdapter() {
+				@Override
+				public void windowClosing(WindowEvent event) {
+					applet.dispose();
+				}
+			});
+		}
+	}
 }

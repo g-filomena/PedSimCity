@@ -2,59 +2,48 @@ package pedsim.cityimage.engine;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+
 import org.locationtech.jts.linearref.LengthIndexedLine;
 import org.locationtech.jts.planargraph.DirectedEdge;
+
+import pedsim.cityimage.utilities.StringEnum.RouteChoice;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
 
-/**
- * The PedSimCity class represents the main simulation environment.
- */
+/** Simulation state for the city-image testing module. */
 public class PedSimCityImage extends PedSimCity {
 
-  private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 1L;
 
-  public PedSimCityImage(long seed, int job, ScenarioConfig scenarioConfig) {
-    super(seed, job, scenarioConfig);
-  }
+	/**
+	 * Distance bins used by the landmark testing mode. They are populated by the
+	 * import/preparation pipeline when the relevant city resources are loaded.
+	 */
+	public static final ArrayList<Double> distances = new ArrayList<>();
 
-  // OD related variables
-  public static List<Float> distances = new ArrayList<>();
-  public static final Map<DirectedEdge, LengthIndexedLine> indexedEdgeCache = new HashMap<>();
+	/**
+	 * Kept for backward compatibility with city-image code paths that used their
+	 * own edge cache. Core also has an indexed-edge cache; new code should prefer
+	 * the core cache when possible.
+	 */
+	public static final Map<DirectedEdge, LengthIndexedLine> indexedEdgeCache = new HashMap<>();
 
-  /**
-   * Populates the simulation environment with agents and other entities based on the selected
-   * simulation parameters. This method uses the Populate class to generate the agent population.
-   */
-  @Override
-  protected void populateEnvironment() {
-    Populate populate = new Populate();
-    populate.populateTests(this);
-  }
+	public PedSimCityImage(long seed, int job, ScenarioConfig scenarioConfig) {
+		super(seed, job, defaultScenarioConfig(scenarioConfig));
+	}
 
-  // /**
-  // * The main function that allows the simulation to be run in stand-alone, non-GUI mode.
-  // *
-  // * @param args Command-line arguments.
-  // * @throws Exception If an error occurs during simulation execution.
-  // */
-  // public static void main(String[] args) throws Exception {
-  //
-  // TestPars.defineMode();
-  // Import importer = new Import();
-  // importer.importFiles();
-  // Environment.prepare();
-  //
-  // for (int job = 0; job < TestPars.jobs; job++) {
-  // System.out.println("Run nr.. " + job);
-  // final SimState state = new PedSimCity(System.currentTimeMillis(), job);
-  // state.start();
-  // ((PedSimCity) state).startSchedule();
-  // while (state.schedule.step(state)) {
-  // }
-  // }
-  // System.exit(0);
-  // }
+	private static ScenarioConfig defaultScenarioConfig(ScenarioConfig scenarioConfig) {
+		if (scenarioConfig != null) {
+			return scenarioConfig;
+		}
+
+		return new ScenarioConfig(RouteChoice.values(), null);
+	}
+
+	@Override
+	protected void populateEnvironment() {
+		Populate populate = new Populate();
+		populate.populateTests(this);
+	}
 }

@@ -2,183 +2,159 @@ package pedsim.cityimage.applet;
 
 import java.awt.Color;
 import java.awt.Graphics;
-import java.util.List;
+import java.util.Collection;
+import java.util.Collections;
+
 import javax.swing.JPanel;
+
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import pedsim.cityimage.agents.Agent;
+
+import pedsim.core.agents.Agent;
 import pedsim.core.engine.PedSimCity;
 import sim.util.geo.MasonGeometry;
 
 public class Display extends JPanel {
-  /**
-   * 
-   */
-  private static final long serialVersionUID = 1L;
 
-  private double minX, maxX, minY, maxY;
-  private List<Agent> agentList;
-  private int panelWidth;
-  private int panelHeight;
-  // maximum allowed dimension
-  private int maxResolution = 900;
-  private double scaleFactor = 1.0;
+	private static final long serialVersionUID = 1L;
 
-  public Display(List<Agent> agentList) {
+	private static final int MAX_RESOLUTION = 900;
 
-    this.agentList = agentList;
-    defineSize();
-  }
+	private double minX = 0.0;
+	private double maxX = 1.0;
+	private double minY = 0.0;
+	private double maxY = 1.0;
 
-  private void defineSize() {
-    Envelope envelope = PedSimCity.roads.getMBR(); // Get the bounding box
-    minX = envelope.getMinX();
-    maxX = envelope.getMaxX();
-    minY = envelope.getMinY();
-    maxY = envelope.getMaxY();
+	private int panelWidth = MAX_RESOLUTION;
+	private int panelHeight = MAX_RESOLUTION;
 
-    // Calculate dimensions of the bounding box
-    double width = maxX - minX;
-    double height = maxY - minY;
+	private Collection<? extends Agent> agentList = Collections.emptyList();
 
-    // Calculate the larger dimension of the bounding box
-    double maxDimension = Math.max(width, height);
+	public Display(Collection<? extends Agent> agentList) {
+		this.agentList = agentList;
+		defineSize();
+	}
 
-    System.out.println(width + " " + height);
+	public void setAgentList(Collection<? extends Agent> agentList) {
+		this.agentList = agentList;
+	}
 
-    // Check if rescaling is needed
-    if (maxDimension > maxResolution) {
-      // Calculate the scale factor to bring the largest dimension down to
-      // maxResolution
-      scaleFactor = maxDimension / maxResolution;
+	private void defineSize() {
+		if (PedSimCity.roads == null || PedSimCity.roads.getGeometries().isEmpty()) {
+			setSize(panelWidth, panelHeight);
+			setPreferredSize(getSize());
+			return;
+		}
 
-      // Rescale the width and height
-      panelWidth = (int) (width / scaleFactor);
-      panelHeight = (int) (height / scaleFactor);
-    } else {
-      // If no scaling is needed, keep the original dimensions
-      panelWidth = (int) width;
-      panelHeight = (int) height;
-    }
+		Envelope envelope = PedSimCity.roads.getMBR();
 
-    System.out.println(panelWidth + " " + panelHeight);
+		if (envelope == null || envelope.isNull()) {
+			setSize(panelWidth, panelHeight);
+			setPreferredSize(getSize());
+			return;
+		}
 
-    // Print the resulting dimensions and set the size
-    this.setSize(panelWidth, panelHeight);
-    PedSimCityImageApplet.frame.setSize((int) (panelWidth * 1.05), (int) (panelHeight * 1.05));
-  }
+		minX = envelope.getMinX();
+		maxX = envelope.getMaxX();
+		minY = envelope.getMinY();
+		maxY = envelope.getMaxY();
 
-  private int mapToPanelX(double x) {
-    return (int) ((x - minX) / (maxX - minX) * panelWidth);
-  }
+		double width = Math.max(1.0, maxX - minX);
+		double height = Math.max(1.0, maxY - minY);
+		double maxDimension = Math.max(width, height);
 
-  private int mapToPanelY(double y) {
-    return (int) ((maxY - y) / (maxY - minY) * panelHeight); // Invert Y for correct display
-  }
+		double scaleFactor = maxDimension / MAX_RESOLUTION;
 
-  @Override
-  protected void paintComponent(Graphics graphic) {
+		panelWidth = Math.max(400, (int) (width / scaleFactor));
+		panelHeight = Math.max(400, (int) (height / scaleFactor));
 
-    super.paintComponent(graphic);
+		setSize(panelWidth, panelHeight);
+		setPreferredSize(getSize());
+	}
 
-    // Draw background
-    graphic.setColor(Color.BLACK);
-    graphic.fillRect(0, 0, getWidth(), getHeight());
-    System.out.println("in paint " + getWidth() + " " + getHeight());
+	private int mapToPanelX(double x) {
+		return (int) ((x - minX) / Math.max(1.0, maxX - minX) * panelWidth);
+	}
 
-    renderRoads(graphic);
-    renderLandmarks(graphic);
-    renderAgents(graphic);
-  }
+	private int mapToPanelY(double y) {
+		return (int) ((maxY - y) / Math.max(1.0, maxY - minY) * panelHeight);
+	}
 
-  private void renderRoads(Graphics graphic) {
+	@Override
+	protected void paintComponent(Graphics graphic) {
+		super.paintComponent(graphic);
 
-    // Draw roads
-    graphic.setColor(new Color(64, 64, 64));
-    for (MasonGeometry road : PedSimCity.roads.getGeometries()) {
-      Geometry geometry = road.getGeometry();
-      if (geometry == null || geometry.getCoordinates().length < 2)
-        continue;
+		graphic.setColor(Color.BLACK);
+		graphic.fillRect(0, 0, getWidth(), getHeight());
 
-      Coordinate[] coords = geometry.getCoordinates();
-      for (int i = 0; i < coords.length - 1; i++) {
-        int x1 = mapToPanelX(coords[i].x);
-        int y1 = mapToPanelY(coords[i].y);
-        int x2 = mapToPanelX(coords[i + 1].x);
-        int y2 = mapToPanelY(coords[i + 1].y);
-        graphic.drawLine(x1, y1, x2, y2);
-      }
-    }
-  }
+		renderRoads(graphic);
+		renderLandmarks(graphic);
+		renderAgents(graphic);
+	}
 
-  private void renderLandmarks(Graphics graphic) {
-    // Draw landmarks
+	private void renderRoads(Graphics graphic) {
+		graphic.setColor(new Color(64, 64, 64));
 
-    graphic.setColor(new Color(128, 128, 0));
+		for (MasonGeometry road : PedSimCity.roads.getGeometries()) {
+			Geometry geometry = road.getGeometry();
 
-    for (MasonGeometry landmark : PedSimCity.buildings.getGeometries()) { // Assuming 'landmarks'
-                                                                          // exists
-      Geometry geometry = landmark.getGeometry();
+			if (geometry == null || geometry.getCoordinates().length < 2) {
+				continue;
+			}
 
-      Coordinate[] coords = geometry.getCoordinates();
-      int[] xPoints = new int[coords.length];
-      int[] yPoints = new int[coords.length];
+			Coordinate[] coordinates = geometry.getCoordinates();
 
-      for (int i = 0; i < coords.length; i++) {
-        xPoints[i] = mapToPanelX(coords[i].x);
-        yPoints[i] = mapToPanelY(coords[i].y);
-      }
+			for (int i = 0; i < coordinates.length - 1; i++) {
+				int x1 = mapToPanelX(coordinates[i].x);
+				int y1 = mapToPanelY(coordinates[i].y);
+				int x2 = mapToPanelX(coordinates[i + 1].x);
+				int y2 = mapToPanelY(coordinates[i + 1].y);
 
-      graphic.drawPolygon(xPoints, yPoints, coords.length);
-      graphic.fillPolygon(xPoints, yPoints, coords.length); // Optionally fill
-    }
-  }
+				graphic.drawLine(x1, y1, x2, y2);
+			}
+		}
+	}
 
-  private void renderAgents(Graphics graphic) {
+	private void renderLandmarks(Graphics graphic) {
+		graphic.setColor(new Color(128, 128, 0));
 
-    // Draw agents
-    graphic.setColor(Color.RED);
+		for (MasonGeometry landmark : PedSimCity.buildings.getGeometries()) {
+			Geometry geometry = landmark.getGeometry();
 
-    for (Agent agent : agentList) {
-      Coordinate point = agent.getGeometry().getGeometry().getCoordinate();
-      int x = mapToPanelX(point.x);
-      int y = mapToPanelY(point.y);
-      graphic.fillOval(x - 3, y - 3, 6, 6); // Draw agent as a small circle
+			if (geometry == null || geometry.getCoordinates().length < 3) {
+				continue;
+			}
 
-    }
-  }
+			Coordinate[] coordinates = geometry.getCoordinates();
 
-  // private void renderAgents(Graphics graphic) {
-  // // Define colors for each group
-  // Color[] groupColors = {
-  // Color.GRAY, // NULLGROUP
-  // Color.BLUE, // POPULATION
-  // Color.RED, // GROUP1
-  // Color.GREEN, // GROUP2
-  // Color.YELLOW, // GROUP3
-  // Color.CYAN, // GROUP4
-  // Color.MAGENTA, // GROUP5
-  // Color.ORANGE // GROUP6
-  // };
-  //
-  // // Iterate through agents and assign colors based on their group
-  // for (Agent agent : agentList) {
-  // // Get the group index
-  // int groupIndex = agent.group.ordinal(); // Convert enum to index
-  // if (groupIndex < 0 || groupIndex >= groupColors.length) {
-  // groupIndex = 0; // Default to NULLGROUP color if index is out of bounds
-  // }
-  //
-  // // Set the color based on the group
-  // graphic.setColor(groupColors[groupIndex]);
-  //
-  // // Draw the agent
-  // Coordinate point = agent.getGeometry().getGeometry().getCoordinate();
-  // int x = mapToPanelX(point.x);
-  // int y = mapToPanelY(point.y);
-  // graphic.fillOval(x - 3, y - 3, 6, 6); // Draw agent as a small circle
-  // }
-  // }
+			int[] xPoints = new int[coordinates.length];
+			int[] yPoints = new int[coordinates.length];
 
+			for (int i = 0; i < coordinates.length; i++) {
+				xPoints[i] = mapToPanelX(coordinates[i].x);
+				yPoints[i] = mapToPanelY(coordinates[i].y);
+			}
+
+			graphic.drawPolygon(xPoints, yPoints, coordinates.length);
+			graphic.fillPolygon(xPoints, yPoints, coordinates.length);
+		}
+	}
+
+	private void renderAgents(Graphics graphic) {
+		graphic.setColor(Color.RED);
+
+		for (Agent agent : agentList) {
+			if (agent == null || agent.getLocation() == null || agent.getLocation().getGeometry() == null) {
+				continue;
+			}
+
+			Coordinate point = agent.getLocation().getGeometry().getCoordinate();
+
+			int x = mapToPanelX(point.x);
+			int y = mapToPanelY(point.y);
+
+			graphic.fillOval(x - 3, y - 3, 6, 6);
+		}
+	}
 }
