@@ -1,6 +1,7 @@
 package pedsim.core.routing.pathfinding;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -37,7 +38,7 @@ public class Dijkstra {
 	protected NodeGraph previousJunction;
 	protected NodeGraph finalDestinationNode;
 	protected Set<NodeGraph> visitedNodes;
-	protected PriorityQueue<NodeGraph> unvisitedNodes;
+	protected PriorityQueue<Entry> unvisitedNodes;
 
 	protected Set<NodeGraph> centroidsToAvoid = new HashSet<>();
 	protected Set<DirectedEdge> directedEdgesToAvoid = new HashSet<>();
@@ -59,6 +60,51 @@ public class Dijkstra {
 
 	protected static final double MAX_DEFLECTION_ANGLE = 180.00;
 	protected static final double MIN_DEFLECTION_ANGLE = 0;
+
+	/**
+	 * Immutable priority-queue entry pairing a node with the cost snapshot it was enqueued with.
+	 *
+	 * <p>This enables proper lazy deletion: instead of ordering the queue with a comparator that
+	 * reads the live, mutable {@code gx} (which can break the heap invariant after a relaxation),
+	 * each entry carries a frozen cost. Entries whose snapshot is no longer the node's best cost,
+	 * or whose node is already finalised, are simply discarded on poll.
+	 */
+	protected static final class Entry {
+		final NodeGraph node;
+		final double cost;
+
+		Entry(NodeGraph node, double cost) {
+			this.node = node;
+			this.cost = cost;
+		}
+	}
+
+	/**
+	 * Creates a fresh priority queue ordered by each entry's frozen cost snapshot.
+	 */
+	protected void initialiseQueue() {
+		unvisitedNodes = new PriorityQueue<>(Comparator.comparingDouble(entry -> entry.cost));
+	}
+
+	/**
+	 * Polls the next node that still needs to be expanded, discarding stale entries.
+	 *
+	 * <p>An entry is stale if a cheaper relaxation has since lowered the node's best cost
+	 * ({@code entry.cost > getBest(node)}) or if the node has already been finalised. Each returned
+	 * node is therefore expanded exactly once, with the cost it was actually finalised at.
+	 *
+	 * @return the next node to expand, or {@code null} if the queue is exhausted
+	 */
+	protected NodeGraph pollFreshNode() {
+		while (!unvisitedNodes.isEmpty()) {
+			Entry entry = unvisitedNodes.poll();
+			if (entry.cost > getBest(entry.node) || !visitedNodes.add(entry.node)) {
+				continue;
+			}
+			return entry.node;
+		}
+		return null;
+	}
 
 	protected void initialise(NodeGraph originNode, NodeGraph destinationNode, NodeGraph finalDestinationNode,
 			Agent agent) {
@@ -166,20 +212,25 @@ public class Dijkstra {
 	protected double costPerceptionError(NodeGraph targetNode, EdgeGraph commonEdge, boolean dual) {
 
 		double error = Utilities.fromDistribution(1.0, 0.10, null);
+		List<Integer> knownBarriers = agent.getCognitiveMap().getAgentKnownBarriers();
 
 		if (positiveBarrierEffect()) {
-			List<Integer> pBarriers = dual ? targetNode.getPrimalEdge().attributes.get("positiveBarriers").getArray()
-					: commonEdge.attributes.get("positiveBarriers").getArray();
-			pBarriers.retainAll(agent.getCognitiveMap().getAgentKnownBarriers());
+			// Defensive copy: getArray() returns the stored list by reference, so retainAll must
+			// not be applied to it directly or it would permanently corrupt the edge's barrier data.
+			List<Integer> pBarriers = new ArrayList<>(dual
+					? targetNode.getPrimalEdge().attributes.get("positiveBarriers").getArray()
+					: commonEdge.attributes.get("positiveBarriers").getArray());
+			pBarriers.retainAll(knownBarriers);
 			if (!pBarriers.isEmpty()) {
 				error = Utilities.fromDistribution(properties.getNaturalBarriersMean(),
 						properties.getNaturalBarriersSD(), "left");
 			}
 		}
 		if (negativeBarrierEffect()) {
-			List<Integer> nBarriers = dual ? targetNode.getPrimalEdge().attributes.get("negativeBarriers").getArray()
-					: commonEdge.attributes.get("negativeBarriers").getArray();
-			nBarriers.retainAll(agent.getCognitiveMap().getAgentKnownBarriers());
+			List<Integer> nBarriers = new ArrayList<>(dual
+					? targetNode.getPrimalEdge().attributes.get("negativeBarriers").getArray()
+					: commonEdge.attributes.get("negativeBarriers").getArray());
+			nBarriers.retainAll(knownBarriers);
 			if (!nBarriers.isEmpty()) {
 				error = Utilities.fromDistribution(properties.getSeveringBarriersMean(),
 						properties.getSeveringBarriersSD(), "right");
@@ -256,7 +307,7 @@ public class Dijkstra {
 			nodeWrapper.nodeFrom = currentNode;
 			nodeWrapper.directedEdgeFrom = outEdge;
 			nodeWrapper.gx = tentativeCost;
-			unvisitedNodes.add(targetNode);
+			unvisitedNodes.add(new Entry(targetNode, tentativeCost));
 		}
 	}
 
@@ -276,7 +327,7 @@ public class Dijkstra {
 			nodeWrapper.directedEdgeFrom = outEdge;
 			nodeWrapper.commonPrimalJunction = RoutingUtils.getPrimalJunction(currentNode, targetNode);
 			nodeWrapper.gx = tentativeCost;
-			unvisitedNodes.add(targetNode);
+			unvisitedNodes.add(new Entry(targetNode, tentativeCost));
 		}
 	}
 

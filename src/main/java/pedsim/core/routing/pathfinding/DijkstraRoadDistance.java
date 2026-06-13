@@ -1,12 +1,13 @@
 package pedsim.core.routing.pathfinding;
 
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.PriorityQueue;
 import java.util.Set;
+
 import org.locationtech.jts.planargraph.DirectedEdge;
+
 import pedsim.core.agents.Agent;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
@@ -59,21 +60,25 @@ public class DijkstraRoadDistance extends Dijkstra {
 
   /**
    * Runs the Dijkstra algorithm to find the shortest path.
+   *
+   * <p>Uses lazy deletion: each node is enqueued with a frozen cost snapshot (see
+   * {@link Dijkstra.Entry}) and {@link #pollFreshNode()} discards stale entries, so every node is
+   * expanded exactly once at its finalised cost. This removes the redundant re-expansions caused
+   * by the previous live-comparator queue.
    */
   protected void runDijkstra() {
 
     visitedNodes = new HashSet<>();
-    unvisitedNodes = new PriorityQueue<>(Comparator.comparingDouble(this::getBest));
-    unvisitedNodes.add(this.originNode);
+    initialiseQueue();
 
     // NodeWrapper = container for the metainformation about a Node
     NodeWrapper nodeWrapper = new NodeWrapper(originNode);
     nodeWrapper.gx = 0.0;
     nodeWrappersMap.put(originNode, nodeWrapper);
+    unvisitedNodes.add(new Entry(originNode, 0.0));
 
-    while (!unvisitedNodes.isEmpty()) {
-      NodeGraph currentNode = unvisitedNodes.poll();
-      visitedNodes.add(currentNode);
+    NodeGraph currentNode;
+    while ((currentNode = pollFreshNode()) != null) {
       findMinDistances(currentNode);
     }
   }
@@ -81,12 +86,16 @@ public class DijkstraRoadDistance extends Dijkstra {
   /**
    * Finds the minimum distances for adjacent nodes of the given current node in the primal graph.
    *
+   * <p>Performance: the directed edge between the two nodes is resolved only when the relaxation
+   * actually improves the target, so the (frequent) non-improving neighbours skip that graph
+   * lookup. The random cost-perception draw is still performed for every candidate neighbour, so
+   * the random sequence and the resulting route are unchanged.
+   *
    * @param currentNode The current node in the primal graph for which to find adjacent nodes.
    */
   protected void findMinDistances(NodeGraph currentNode) {
 
-    List<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
-    for (NodeGraph targetNode : adjacentNodes) {
+    for (NodeGraph targetNode : currentNode.getAdjacentNodes()) {
 
       if (visitedNodes.contains(targetNode)) {
         continue;
@@ -100,17 +109,24 @@ public class DijkstraRoadDistance extends Dijkstra {
         continue;
       }
 
-      DirectedEdge outEdge = agentNetwork.getDirectedEdgeBetween(currentNode, targetNode);
       tentativeCost = 0.0;
       double error = costPerceptionError(targetNode, commonEdge, false);
       double edgeCost = commonEdge.getLength() * error;
       computeTentativeCost(currentNode, targetNode, edgeCost);
-      isBest(currentNode, targetNode, outEdge);
+
+      if (getBest(targetNode) > tentativeCost) {
+        DirectedEdge outEdge = agentNetwork.getDirectedEdgeBetween(currentNode, targetNode);
+        isBest(currentNode, targetNode, outEdge);
+      }
     }
   }
 
   /**
    * Reconstructs the sequence of directed edges composing the path.
+   *
+   * <p>Performance: each predecessor wrapper is fetched once per step (instead of repeatedly), and
+   * edges are appended then reversed once, avoiding the O(n^2) cost of repeated head insertions on
+   * an {@link ArrayList}. The returned order (origin to destination) is unchanged.
    *
    * @return An ArrayList of DirectedEdges representing the path sequence.
    */
@@ -118,21 +134,19 @@ public class DijkstraRoadDistance extends Dijkstra {
     List<DirectedEdge> directedEdgesSequence = new ArrayList<>();
     NodeGraph step = destinationNode;
 
-    // Check that the route has been formulated properly
-    // No route
-    if (nodeWrappersMap.get(destinationNode) == null || nodeWrappersMap.size() <= 1) {
-      directedEdgesSequence.clear();
-    } else {
-      while (nodeWrappersMap.get(step).nodeFrom != null) {
-        DirectedEdge directedEdge;
-        if (subGraph != null) {
-          directedEdge = retrieveFromPrimalParentGraph(step);
-        } else {
-          directedEdge = nodeWrappersMap.get(step).directedEdgeFrom;
+    // Check that the route has been formulated properly (otherwise: no route).
+    if (nodeWrappersMap.get(destinationNode) != null && nodeWrappersMap.size() > 1) {
+      while (true) {
+        NodeWrapper wrapper = nodeWrappersMap.get(step);
+        if (wrapper.nodeFrom == null) {
+          break;
         }
-        step = nodeWrappersMap.get(step).nodeFrom;
-        directedEdgesSequence.add(0, directedEdge);
+        DirectedEdge directedEdge =
+            (subGraph != null) ? retrieveFromPrimalParentGraph(step) : wrapper.directedEdgeFrom;
+        directedEdgesSequence.add(directedEdge);
+        step = wrapper.nodeFrom;
       }
+      Collections.reverse(directedEdgesSequence);
     }
 
     return directedEdgesSequence;

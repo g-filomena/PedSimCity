@@ -1,10 +1,8 @@
 package pedsim.core.routing.pathfinding;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.PriorityQueue;
 import java.util.Set;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.agents.Agent;
@@ -48,33 +46,34 @@ public class DijkstraAngularChange extends Dijkstra {
 
   /**
    * Runs the Dijkstra algorithm to find the shortest path.
+   *
+   * <p>Uses the shared lazy-deletion queue (see {@link Dijkstra.Entry} and
+   * {@link #pollFreshNode()}): each dual node is expanded exactly once at its finalised cost.
    */
   private void runDijkstra() {
 
     visitedNodes = new HashSet<>();
-    unvisitedNodes = new PriorityQueue<>(Comparator.comparingDouble(this::getBest));
-    unvisitedNodes.add(this.originNode);
+    initialiseQueue();
 
     // NodeWrapper = container for the metainformation about a Node
     NodeWrapper nodeWrapper = new NodeWrapper(this.originNode);
     nodeWrapper.gx = 0.0;
-
     if (previousJunction != null) {
       nodeWrapper.commonPrimalJunction = previousJunction;
     }
     nodeWrappersMap.put(this.originNode, nodeWrapper);
+
+    // centroids to avoid are pre-marked as visited so they are never expanded
     if (this.centroidsToAvoid != null) {
       for (NodeGraph centroid : this.centroidsToAvoid) {
         visitedNodes.add(centroid);
       }
     }
 
-    // add centroids to avoid in the visited set
-    while (unvisitedNodes.size() > 0) {
-      // at the beginning it takes originNode
-      NodeGraph currentNode = unvisitedNodes.peek();
-      visitedNodes.add(currentNode);
-      unvisitedNodes.remove(currentNode);
+    unvisitedNodes.add(new Entry(this.originNode, 0.0));
+
+    NodeGraph currentNode;
+    while ((currentNode = pollFreshNode()) != null) {
       findLeastAngularChange(currentNode);
     }
   }
