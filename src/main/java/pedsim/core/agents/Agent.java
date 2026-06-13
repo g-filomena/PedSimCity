@@ -187,6 +187,35 @@ public class Agent implements Steppable {
 		}
 	}
 
+	private static final java.util.concurrent.ConcurrentHashMap<String, List<NodeGraph>> candidateCache = 
+			new java.util.concurrent.ConcurrentHashMap<>();
+
+	public static List<NodeGraph> getNodesBetweenDistanceIntervalOptimized(
+			Graph network, NodeGraph originNode, double lowerLimit, double upperLimit) {
+		String key = originNode.getID() + "_" + lowerLimit + "_" + upperLimit;
+		return candidateCache.computeIfAbsent(key, k -> {
+			double minEuc = lowerLimit / 2.5;
+			double maxEuc = upperLimit;
+			Coordinate originCoord = originNode.getCoordinate();
+			boolean hasEucCandidates = false;
+			for (Object obj : network.getNodes()) {
+				NodeGraph node = (NodeGraph) obj;
+				Coordinate c = node.getCoordinate();
+				double dx = c.x - originCoord.x;
+				double dy = c.y - originCoord.y;
+				double euc = Math.sqrt(dx * dx + dy * dy);
+				if (euc >= minEuc && euc <= maxEuc) {
+					hasEucCandidates = true;
+					break;
+				}
+			}
+			if (!hasEucCandidates) {
+				return new ArrayList<>();
+			}
+			return NodesLookup.getNodesBetweenDistanceInterval(network, originNode, lowerLimit, upperLimit);
+		});
+	}
+
 	private void defineRandomDestination() {
 
 		double lowerLimit = distanceNextDestination * 0.90;
@@ -194,7 +223,7 @@ public class Agent implements Steppable {
 		Graph network = SharedCognitiveMap.getCommunityPrimalNetwork();
 		List<NodeGraph> candidates = new ArrayList<>();
 		while (candidates.isEmpty()) {
-			candidates = NodesLookup.getNodesBetweenDistanceInterval(network, originNode, lowerLimit, upperLimit);
+			candidates = getNodesBetweenDistanceIntervalOptimized(network, originNode, lowerLimit, upperLimit);
 			candidates.retainAll(
 					GraphUtils.getNodesFromNodeIDs(getCognitiveMap().getAgentKnownNodes(), PedSimCity.nodesMap));
 			lowerLimit = lowerLimit * 0.90;

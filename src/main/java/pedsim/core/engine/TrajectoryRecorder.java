@@ -2,7 +2,6 @@ package pedsim.core.engine;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Logger;
 import org.locationtech.jts.geom.Coordinate;
 import pedsim.core.agents.Agent;
@@ -37,7 +36,7 @@ public class TrajectoryRecorder {
    * Thread-safe list of all trajectory snapshots collected so far.
    * Each entry: [step, agentID, lon, lat, vulnerable(0/1)]
    */
-  private final CopyOnWriteArrayList<double[]> snapshots = new CopyOnWriteArrayList<>();
+  private final List<double[]> snapshots = new ArrayList<>();
 
   /**
    * Constructs a new TrajectoryRecorder for the given simulation state.
