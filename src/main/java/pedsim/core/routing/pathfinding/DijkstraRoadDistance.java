@@ -22,8 +22,6 @@ import sim.routing.NodeWrapper;
  **/
 public class DijkstraRoadDistance extends Dijkstra {
 
-  public List<Integer> disregardedNodes = new ArrayList<>();
-
   /**
    * Performs the Dijkstra's algorithm to find the shortest path from the origin node to the
    * destination node.
@@ -109,7 +107,6 @@ public class DijkstraRoadDistance extends Dijkstra {
         continue;
       }
 
-      tentativeCost = 0.0;
       double error = costPerceptionError(targetNode, commonEdge, false);
       double edgeCost = commonEdge.getLength() * error;
       computeTentativeCost(currentNode, targetNode, edgeCost);

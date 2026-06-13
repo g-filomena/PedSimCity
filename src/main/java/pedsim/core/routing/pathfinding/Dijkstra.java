@@ -129,7 +129,7 @@ public class Dijkstra {
 			knownNodes = agent.getCognitiveMap().getNodesInKnownNetwork();
 			knownEdges = agent.getCognitiveMap().getEdgesInKnownNetwork();
 		}
-		if (!segmentsToAvoid.isEmpty() && segmentsToAvoid != null) {
+		if (segmentsToAvoid != null && !segmentsToAvoid.isEmpty()) {
 			getEdgesToAvoid(segmentsToAvoid);
 		}
 		subGraphInitialisation();
@@ -147,7 +147,7 @@ public class Dijkstra {
 			knownDualEdges = new HashSet<>(agent.getCognitiveMap().getEdgesInKnownDualNetwork());
 			knownDualNodes = new HashSet<>(agent.getCognitiveMap().getNodesInKnownDualNetwork());
 		}
-		if (!centroidsToAvoid.isEmpty() && centroidsToAvoid != null) {
+		if (centroidsToAvoid != null && !centroidsToAvoid.isEmpty()) {
 			this.centroidsToAvoid = new HashSet<>(centroidsToAvoid);
 		}
 		this.previousJunction = previousJunction;
@@ -249,7 +249,6 @@ public class Dijkstra {
 	 * @param edgeCost    The cost of the edge between the current and target nodes.
 	 */
 	protected void computeTentativeCost(NodeGraph currentNode, NodeGraph targetNode, double edgeCost) {
-		tentativeCost = 0.0;
 		if (landmarkCondition(targetNode)) {
 			double globalLandmarkness = Landmarkness.globalLandmarknessNode(targetNode, finalDestinationNode);
 			double nodeLandmarkness = 1.0 - globalLandmarkness * agent.getHeuristics().getGlobalLandmarkWeight(false);
@@ -271,7 +270,6 @@ public class Dijkstra {
 	 *                    target node.
 	 */
 	protected void computeTentativeCostDual(NodeGraph currentNode, NodeGraph targetNode, double turnCost) {
-		tentativeCost = 0.0;
 		if (turnCost > MAX_DEFLECTION_ANGLE) {
 			turnCost = MAX_DEFLECTION_ANGLE;
 		}

@@ -112,7 +112,6 @@ public class DijkstraAngularChange extends Dijkstra {
       DirectedEdge outEdge = agentDualNetwork.getDirectedEdgeBetween(currentNode, targetNode);
       // compute errors in perception of road coasts with stochastic variables
       double error = costPerceptionError(targetNode, commonEdge, true);
-      // Use ExecutorService to calculate edgeCost in parallel
       double edgeCost = commonEdge.getDeflectionAngle() * error;
       computeTentativeCostDual(currentNode, targetNode, edgeCost);
       isBestDual(currentNode, targetNode, outEdge);
