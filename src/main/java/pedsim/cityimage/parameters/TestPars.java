@@ -1,100 +1,94 @@
 package pedsim.cityimage.parameters;
 
 import pedsim.cityimage.utilities.StringEnum.RouteChoice;
+import pedsim.core.parameters.Pars;
+import pedsim.core.parameters.TimePars;
 
 /**
- * The Parameters class contains global parameters and settings for the PedSimCity simulation. These
- * parameters are used to configure various aspects of the simulation, including simulation mode,
- * agent behavior, and data import options.
+ * Parameters for the city-image testing module.
+ *
+ * This module covers:
+ *
+ * - landmark-based route-choice testing; - urban-subdivision / region / barrier
+ * testing; - user-selected route-choice model testing; - optional specific OD
+ * testing.
+ *
+ * Empirical ABM parameters belong to pedsim.empirical, not to cityimage.
  */
-public class TestPars extends pedsim.core.parameters.Pars {
+public final class TestPars extends Pars {
 
-  public static String stringMode = "";
-  public static int numberTripsPerAgent = 2;
+	private TestPars() {
+	}
 
-  public static boolean testingLandmarks = false;
-  public static boolean testingSubdivisions = false;
-  public static boolean testingModels = false;
-  public static boolean testingSpecificOD = false;
+	public static String stringMode = "Testing Landmarks";
 
-  public static boolean testing = false;
-  // public static boolean userDefined = false;
+	public static int numberTripsPerAgent = 2;
 
-  // for development/testing purposes only
-  public static boolean javaProject = true;
-  public static boolean verboseMode = false;
-  public static String localPath =
-      "C:/Users/gfilo/OneDrive - The University of Liverpool/Scripts/pedsimcity/src/main/resources/";
+	public static boolean testingLandmarks = false;
+	public static boolean testingSubdivisions = false;
+	public static boolean testingModels = false;
+	public static boolean testingSpecificOD = false;
+	public static boolean testing = false;
 
-  /**
-   * Defines the simulation mode and sets simulation parameters based on the selected mode. Called
-   * at the beginning of the simulation to configure simulation settings.
-   */
-  public static void defineMode() {
+	public static boolean verboseMode = false;
 
-    if (stringMode.equals("Testing Landmarks")) {
-      resetParameters();
-      testingLandmarks = true;
-      routeChoiceModels = routeChoiceTestingLandmarks;
-      numAgents = routeChoiceModels.length;
-      numberTripsPerAgent = 255;
-      jobs = 50;
-    } else if (stringMode.equals("Testing Urban Subdivisions")) {
-      resetParameters();
-      testingSubdivisions = true;
-      routeChoiceModels = routeChoiceTestingSubdivisions;
-      numAgents = routeChoiceModels.length;
-      numberTripsPerAgent = 2000;
-      jobs = 10;
-    } else if (stringMode.equals("Empirical ABM")) {
-      resetParameters();
-      empirical = true;
-      numAgents = 301;
-      numberTripsPerAgent = 3;
-      jobs = 10;
-    } else if (stringMode.equals("Testing Specific Route Choice Models")) {
-      resetParameters();
-      testingModels = true;
-      routeChoiceModels = routeChoiceUser;
-      numAgents = routeChoiceModels.length;
-    }
-    if (testingSpecificOD)
-      numberTripsPerAgent = originsTmp.length;
+	public static String localPath = "C:/Users/gfilo/OneDrive - The University of Liverpool/Scripts/pedsimcity/src/main/resources/";
 
-    isTestingTrue();
-    moveRate = pedsim.core.parameters.TimePars.STEP_DURATION * pedestrianSpeed;
-  }
+	public static RouteChoice[] routeChoiceTestingLandmarks = { RouteChoice.ROAD_DISTANCE,
+			RouteChoice.LANDMARKS_DISTANCE, RouteChoice.ANGULAR_CHANGE, RouteChoice.LANDMARKS_ANGULAR,
+			RouteChoice.LOCAL_LANDMARKS_DISTANCE, RouteChoice.LOCAL_LANDMARKS_ANGULAR,
+			RouteChoice.DISTANT_LANDMARKS_DISTANCE, RouteChoice.DISTANT_LANDMARKS_ANGULAR,
+			RouteChoice.DISTANT_LANDMARKS };
 
-  /**
-   * Defines the simulation mode and sets simulation parameters based on the selected mode. Called
-   * at the beginning of the simulation to configure simulation settings.
-   */
-  private static void resetParameters() {
-    testingLandmarks = false;
-    testingSubdivisions = false;
-    testingModels = false;
-    empirical = false;
-  }
+	public static RouteChoice[] routeChoiceTestingSubdivisions = { RouteChoice.ANGULAR_CHANGE,
+			RouteChoice.REGION_ANGULAR, RouteChoice.BARRIER_ANGULAR, RouteChoice.REGION_BARRIER_ANGULAR,
+			RouteChoice.ROAD_DISTANCE, RouteChoice.REGION_DISTANCE, RouteChoice.BARRIER_DISTANCE,
+			RouteChoice.REGION_BARRIER_DISTANCE };
 
-  /**
-   * Checks if any testing mode (Landmarks, Subdivisions, or Specific Route Choice Models) is
-   * active. Updates the 'testing' flag accordingly.
-   */
-  public static void isTestingTrue() {
-    testing = testingLandmarks || testingSubdivisions || testingModels;
-  }
+	public static RouteChoice[] routeChoiceUser = { RouteChoice.ROAD_DISTANCE, RouteChoice.ANGULAR_CHANGE };
 
-  public static RouteChoice[] routeChoiceTestingLandmarks = {RouteChoice.ROAD_DISTANCE,
-      RouteChoice.LANDMARKS_DISTANCE, RouteChoice.ANGULAR_CHANGE, RouteChoice.LANDMARKS_ANGULAR,
-      RouteChoice.LOCAL_LANDMARKS_DISTANCE, RouteChoice.DISTANT_LANDMARKS};
+	public static RouteChoice[] routeChoiceModels = routeChoiceTestingLandmarks;
 
-  public static RouteChoice[] routeChoiceTestingSubdivisions = {RouteChoice.ANGULAR_CHANGE,
-      RouteChoice.REGION_ANGULAR, RouteChoice.BARRIER_ANGULAR, RouteChoice.REGION_BARRIER_ANGULAR};
+	public static Integer[] originsTmp = {};
+	public static Integer[] destinationsTmp = {};
 
-  public static RouteChoice[] routeChoiceUser;
-  public static RouteChoice[] routeChoiceModels;
+	public static void defineMode() {
+		resetParameters();
 
+		if ("Testing Landmarks".equals(stringMode)) {
+			testingLandmarks = true;
+			routeChoiceModels = routeChoiceTestingLandmarks;
+			numberTripsPerAgent = 255;
+			jobs = 50;
 
-  public static Integer[] originsTmp = {};
-  public static Integer[] destinationsTmp = {};
+		} else if ("Testing Urban Subdivisions".equals(stringMode)) {
+			testingSubdivisions = true;
+			routeChoiceModels = routeChoiceTestingSubdivisions;
+			numberTripsPerAgent = 2000;
+			jobs = 10;
+
+		} else if ("Testing Specific Route Choice Models".equals(stringMode)) {
+			testingModels = true;
+			routeChoiceModels = routeChoiceUser != null ? routeChoiceUser : new RouteChoice[0];
+
+			if (routeChoiceModels.length == 0) {
+				routeChoiceModels = new RouteChoice[] { RouteChoice.ROAD_DISTANCE, RouteChoice.ANGULAR_CHANGE };
+			}
+		}
+
+		if (testingSpecificOD && originsTmp != null && originsTmp.length > 0) {
+			numberTripsPerAgent = originsTmp.length;
+		}
+
+		numAgents = routeChoiceModels.length;
+		testing = testingLandmarks || testingSubdivisions || testingModels;
+		moveRate = TimePars.STEP_DURATION * pedestrianSpeed;
+	}
+
+	private static void resetParameters() {
+		testingLandmarks = false;
+		testingSubdivisions = false;
+		testingModels = false;
+		testing = false;
+	}
 }

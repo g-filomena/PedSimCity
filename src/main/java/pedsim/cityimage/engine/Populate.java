@@ -1,123 +1,221 @@
 package pedsim.cityimage.engine;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
+
 import org.javatuples.Pair;
+
 import pedsim.cityimage.agents.Agent;
 import pedsim.cityimage.parameters.TestPars;
 import pedsim.cityimage.utilities.StringEnum.RouteChoice;
 import pedsim.core.engine.PedSimCity;
+import pedsim.core.parameters.Pars;
 import pedsim.core.parameters.RouteChoicePars;
 import sim.graph.Graph;
 import sim.graph.NodeGraph;
 import sim.graph.NodesLookup;
 
 /**
- * The Populate class is responsible for generating test agents, building the OD matrix, and
- * populating empirical groups for pedestrian simulation.
+ * Populates the city-image testing module.
+ *
+ * The conceptual model is:
+ *
+ * - generate one shared OD matrix; - instantiate one agent per route-choice
+ * model; - each agent runs the same OD matrix using its assigned route-choice
+ * strategy.
+ *
+ * This reproduces the historical testing logic while using the current core
+ * engine and core agent lifecycle.
  */
 public class Populate extends pedsim.core.engine.Populate {
 
-  private Graph network = new Graph();
-  private final ArrayList<Pair<NodeGraph, NodeGraph>> OD = new ArrayList<>();
-  private PedSimCityImage state;
+	private static final int LANDMARK_TEST_DESTINATIONS = 255;
+	private static final double SUBDIVISION_MIN_DISTANCE = 1000.0;
+	private static final double SUBDIVISION_MAX_DISTANCE = 3000.0;
 
-  public static HashMap<String, Double> destinationsDMA = new HashMap<>();
-  List<Integer> testOrigins = new ArrayList<>();
-  List<Integer> testDestinations = new ArrayList<>();
+	private final ArrayList<Pair<NodeGraph, NodeGraph>> odMatrix = new ArrayList<>();
 
-  /**
-   * Populates test agents, OD matrix, and empirical groups for pedestrian simulation.
-   *
-   * @param state The PedSimCity simulation state.
-   */
-  public void populateTests(PedSimCityImage state) {
+	private PedSimCityImage state;
+	private Graph network;
 
-    this.state = state;
-    this.network = PedSimCity.network;
+	public void populateTests(PedSimCityImage state) {
+		this.state = state;
+		this.network = PedSimCity.network;
+		this.odMatrix.clear();
 
-    if (TestPars.testingSpecificOD)
-      prepareManualODmatrix();
-    generateTestODmatrix();
-    generateTestAgents();
-  }
+		if (TestPars.testingSpecificOD) {
+			prepareManualODmatrix();
+		} else {
+			generateTestODmatrix();
+		}
 
-  /**
-   * Prepares a manual OD matrix based on specified test origins and destinations.
-   */
-  public void prepareManualODmatrix() {
+		generateTestAgents();
+	}
 
-    testOrigins.clear();
-    testDestinations.clear();
-    for (Integer nodeID : TestPars.originsTmp)
-      testOrigins.add(nodeID);
-    for (Integer nodeID : TestPars.destinationsTmp)
-      testDestinations.add(nodeID);
-  }
+	private void prepareManualODmatrix() {
+		if (TestPars.originsTmp == null || TestPars.destinationsTmp == null) {
+			throw new IllegalStateException("Specific OD mode requires originsTmp and destinationsTmp.");
+		}
 
-  /**
-   * Generates the OD matrix for the test-based simulations.
-   */
-  private void generateTestODmatrix() {
+		if (TestPars.originsTmp.length != TestPars.destinationsTmp.length) {
+			throw new IllegalStateException("originsTmp and destinationsTmp must have the same length.");
+		}
 
-    // a trip per agent
-    for (int i = 0; i < TestPars.numberTripsPerAgent; i++) {
-      NodeGraph originNode = null;
-      NodeGraph destinationNode = null;
+		TestPars.numberTripsPerAgent = TestPars.originsTmp.length;
 
-      if (TestPars.testingSpecificOD) {
-        originNode = PedSimCity.nodesMap.get(testOrigins.get(i));
-        destinationNode = PedSimCity.nodesMap.get(testDestinations.get(i));
-      } else if (TestPars.testingLandmarks) {
-        originNode = NodesLookup.randomNode(network);
-        destinationNode = NodesLookup.randomNodeFromDistancesSet(network, PedSimCity.junctions,
-            originNode, PedSimCityImage.distances);
-      } else if (TestPars.testingSubdivisions) {
-        originNode = NodesLookup.randomNodeFromGeometriest(network, PedSimCity.startingNodes);
-        destinationNode =
-            NodesLookup.randomNodeBetweenDistanceInterval(network, originNode, 1000, 3000);
-      } else if (TestPars.testingModels) {
-        originNode = NodesLookup.randomNodeFromGeometriest(network, PedSimCity.startingNodes);
-        destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, originNode,
-            RouteChoicePars.minTripDistance, RouteChoicePars.maxTripDistance);
-      }
+		for (int i = 0; i < TestPars.originsTmp.length; i++) {
+			NodeGraph originNode = PedSimCity.nodesMap.get(TestPars.originsTmp[i]);
+			NodeGraph destinationNode = PedSimCity.nodesMap.get(TestPars.destinationsTmp[i]);
 
-      Pair<NodeGraph, NodeGraph> pair = new Pair<>(originNode, destinationNode);
-      this.OD.add(pair);
-    }
-  }
+			if (originNode == null || destinationNode == null) {
+				throw new IllegalStateException(
+						"Invalid specific OD pair: " + TestPars.originsTmp[i] + " -> " + TestPars.destinationsTmp[i]);
+			}
 
-  /**
-   * Generates test agents for the simulation.
-   */
-  private void generateTestAgents() {
+			odMatrix.add(new Pair<>(originNode, destinationNode));
+		}
+	}
 
-    // One Model, One Agent
-    TestPars.numAgents = TestPars.routeChoiceModels.length;
-    final RouteChoice[] routeChoiceModels = TestPars.routeChoiceModels;
-    for (int agentID = 0; agentID < TestPars.numAgents; agentID++) {
-      Agent agent = new Agent(this.state);
-      agent.initialiseAgentProperties();
-      agent.getProperties().setRouteChoice(routeChoiceModels[agentID]);
-      addAgent(agent, agentID, OD);
-    }
-  }
+	private void generateTestODmatrix() {
+		int numberTrips = Math.max(1, TestPars.numberTripsPerAgent);
 
-  /**
-   * Adds an agent to the simulation.
-   *
-   * @param agent The agent to be added.
-   * @param agentID The identifier of the agent.
-   * @param thisAgentODs The OD matrix for this agent.
-   */
-  private void addAgent(Agent agent, int agentID,
-      ArrayList<Pair<NodeGraph, NodeGraph>> thisAgentODs) {
+		if (TestPars.testingLandmarks) {
+			numberTrips = LANDMARK_TEST_DESTINATIONS;
+			TestPars.numberTripsPerAgent = numberTrips;
+			generateLandmarkODmatrix(numberTrips);
+			return;
+		}
 
-    agent.OD = new LinkedList<>(thisAgentODs);
-    agent.agentID = agentID;
-    state.agents.addGeometry(agent.getGeometry());
-    state.agentsList.add(agent);
-  }
+		if (TestPars.testingSubdivisions) {
+			generateSubdivisionODmatrix(numberTrips);
+			return;
+		}
+
+		generateGenericODmatrix(numberTrips);
+	}
+
+	private void generateLandmarkODmatrix(int numberTrips) {
+		NodeGraph originNode = getLandmarkTestingOrigin();
+
+		for (int i = 0; i < numberTrips; i++) {
+			NodeGraph destinationNode = NodesLookup.randomNodeFromDistancesSet(network, PedSimCity.junctions,
+					originNode, PedSimCityImage.distances);
+
+			if (destinationNode == null || destinationNode.gateway) {
+				destinationNode = randomDestination(originNode);
+			}
+
+			odMatrix.add(new Pair<>(originNode, destinationNode));
+		}
+	}
+
+	private NodeGraph getLandmarkTestingOrigin() {
+		if (TestPars.originsTmp != null && TestPars.originsTmp.length > 0) {
+			NodeGraph originNode = PedSimCity.nodesMap.get(TestPars.originsTmp[0]);
+
+			if (originNode != null) {
+				return originNode;
+			}
+		}
+
+		if (!PedSimCity.startingNodes.isEmpty()) {
+			return PedSimCity.startingNodes.get(0);
+		}
+
+		return NodesLookup.randomNode(network);
+	}
+
+	private void generateSubdivisionODmatrix(int numberTrips) {
+		for (int i = 0; i < numberTrips; i++) {
+			NodeGraph originNode = randomSubdivisionOrigin();
+			NodeGraph destinationNode = randomDestination(originNode, SUBDIVISION_MIN_DISTANCE,
+					SUBDIVISION_MAX_DISTANCE);
+
+			odMatrix.add(new Pair<>(originNode, destinationNode));
+		}
+	}
+
+	private NodeGraph randomSubdivisionOrigin() {
+		if (!PedSimCity.startingNodes.isEmpty()) {
+			return PedSimCity.startingNodes.get(iRandom(PedSimCity.startingNodes.size()));
+		}
+
+		return NodesLookup.randomNode(network);
+	}
+
+	private void generateGenericODmatrix(int numberTrips) {
+		for (int i = 0; i < numberTrips; i++) {
+			NodeGraph originNode = randomGenericOrigin();
+			NodeGraph destinationNode = randomDestination(originNode, RouteChoicePars.minTripDistance,
+					RouteChoicePars.maxTripDistance);
+
+			odMatrix.add(new Pair<>(originNode, destinationNode));
+		}
+	}
+
+	private NodeGraph randomGenericOrigin() {
+		if (!PedSimCity.startingNodes.isEmpty()) {
+			return PedSimCity.startingNodes.get(iRandom(PedSimCity.startingNodes.size()));
+		}
+
+		return NodesLookup.randomNode(network);
+	}
+
+	private NodeGraph randomDestination(NodeGraph originNode) {
+		return randomDestination(originNode, RouteChoicePars.minTripDistance, RouteChoicePars.maxTripDistance);
+	}
+
+	private NodeGraph randomDestination(NodeGraph originNode, double minimumDistance, double maximumDistance) {
+
+		NodeGraph destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, originNode, minimumDistance,
+				maximumDistance);
+
+		int attempts = 0;
+
+		while ((destinationNode == null || destinationNode.gateway) && attempts < 100) {
+			destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, originNode, minimumDistance,
+					maximumDistance);
+			attempts++;
+		}
+
+		if (destinationNode == null) {
+			destinationNode = NodesLookup.randomNode(network);
+		}
+
+		return destinationNode;
+	}
+
+	private void generateTestAgents() {
+		RouteChoice[] routeChoiceModels = routeChoiceModels();
+
+		Pars.numAgents = routeChoiceModels.length;
+
+		for (int agentID = 0; agentID < routeChoiceModels.length; agentID++) {
+			Agent agent = new Agent(state, routeChoiceModels[agentID], odMatrix);
+			addAgent(agent, agentID);
+		}
+	}
+
+	private RouteChoice[] routeChoiceModels() {
+		if (TestPars.routeChoiceModels != null && TestPars.routeChoiceModels.length > 0) {
+			return TestPars.routeChoiceModels;
+		}
+
+		return new RouteChoice[] { RouteChoice.ROAD_DISTANCE, RouteChoice.ANGULAR_CHANGE };
+	}
+
+	private void addAgent(Agent agent, int agentID) {
+		agent.agentID = agentID;
+
+		state.agents.addGeometry(agent.getLocation());
+		state.agentsList.add(agent);
+	}
+
+	private static int iRandom(int upperBound) {
+		return (int) Math.floor(Math.random() * upperBound);
+	}
+
+	public List<Pair<NodeGraph, NodeGraph>> getOdMatrix() {
+		return odMatrix;
+	}
 }
