@@ -1,407 +1,262 @@
 package pedsim.empirical.agent;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import org.javatuples.Pair;
-import pedsim.cityimage.utilities.StringEnum.Groups;
-import pedsim.core.utilities.StringEnum.BarrierType;
-import pedsim.core.utilities.StringEnum.RouteChoiceProperty;
-import pedsim.core.utilities.StringEnum.LandmarkType;
-import pedsim.core.agents.AgentProperties;
+
 import pedsim.core.agents.Agent;
-import sim.util.geo.Utilities;
+import pedsim.core.agents.AgentProperties;
+import pedsim.core.utilities.StringEnum.AgentBarrierType;
+import pedsim.core.utilities.StringEnum.LandmarkType;
+import pedsim.core.utilities.StringEnum.LocalHeuristicMode;
+import pedsim.core.utilities.StringEnum.MinimisationMode;
+import pedsim.core.utilities.StringEnum.RouteChoiceProperty;
 
 /**
- * `EmpiricalAgentProperties` is a subclass of `AgentProperties` that represents the properties of
- * an agent in a pedestrian simulation with empirical-based parameters. It extends the base
- * `AgentProperties` class to incorporate additional parameters.
+ * Agent properties sampled from empirical group-level parameters.
+ *
+ * This class adapts the legacy empirical-group logic to the current
+ * core.AgentProperties API, which is setter/enum based rather than public-field
+ * based.
  */
 public class EmpiricalAgentProperties extends AgentProperties {
 
-  public Groups groupName;
-  EmpiricalAgentsGroup group;
-  boolean usingElements = false;
-  boolean elementsActivated = false;
+	private static final double MIN_NATURAL_BARRIERS = 1.00;
+	private static final double MAX_NATURAL_BARRIERS = 0.00;
+	private static final double MIN_SEVERING_BARRIERS = 1.00;
+	private static final double MAX_SEVERING_BARRIERS = 2.00;
 
-  List<Double> elementsProbability = new ArrayList<>(Arrays.asList(0.0, 0.0));
-  List<Double> minimisationProbability = new ArrayList<>(Arrays.asList(0.0, 0.0));
-  List<Double> localHeuristicsProbability = new ArrayList<>(Arrays.asList(0.0, 0.0));
-  List<Double> regionBasedProbability = new ArrayList<>(Arrays.asList(0.0));
-  List<Double> subGoalsProbability = new ArrayList<>(Arrays.asList(0.0, 0.0));
-  List<Double> distantLandmarksProbability = new ArrayList<>(Arrays.asList(0.0));
+	private final Random random = new Random();
 
-  Map<RouteChoiceProperty, Double> elementsMap = new HashMap<>();
-  Map<RouteChoiceProperty, Double> minimisationMap = new HashMap<>();
-  Map<RouteChoiceProperty, Double> localHeuristicsMap = new HashMap<>();
-  Map<RouteChoiceProperty, Double> regionBasedMap = new HashMap<>();
-  Map<RouteChoiceProperty, Double> subGoalsMap = new HashMap<>();
-  Map<RouteChoiceProperty, Double> distantLandmarksMap = new HashMap<>();
-  Map<RouteChoiceProperty, Double> randomElementsMap = new HashMap<>();
+	public final EmpiricalGroup groupName;
+	private final EmpiricalAgentsGroup group;
 
-  List<RouteChoiceProperty> elements = new ArrayList<>(
-      Arrays.asList(RouteChoiceProperty.USING_ELEMENTS, RouteChoiceProperty.NOT_USING_ELEMENTS));
-  List<RouteChoiceProperty> minimisation = new ArrayList<>(
-      Arrays.asList(RouteChoiceProperty.ROAD_DISTANCE, RouteChoiceProperty.ANGULAR_CHANGE));
-  List<RouteChoiceProperty> localHeuristics = new ArrayList<>(Arrays
-      .asList(RouteChoiceProperty.ROAD_DISTANCE_LOCAL, RouteChoiceProperty.ANGULAR_CHANGE_LOCAL));
-  List<RouteChoiceProperty> subGoals =
-      new ArrayList<>(Arrays.asList(RouteChoiceProperty.LOCAL_LANDMARKS,
-          RouteChoiceProperty.BARRIER_SUBGOALS, RouteChoiceProperty.NO_SUBGOALS));
-  List<RouteChoiceProperty> regionBased = new ArrayList<>(
-      Arrays.asList(RouteChoiceProperty.REGION_BASED, RouteChoiceProperty.NOT_REGION_BASED));
-  List<RouteChoiceProperty> distantLandmarks = new ArrayList<>(
-      Arrays.asList(RouteChoiceProperty.USING_DISTANT, RouteChoiceProperty.NOT_USING_DISTANT));
-  List<RouteChoiceProperty> randomElements = new ArrayList<>(
-      Arrays.asList(RouteChoiceProperty.REGION_BASED, RouteChoiceProperty.LOCAL_LANDMARKS,
-          RouteChoiceProperty.BARRIER_SUBGOALS, RouteChoiceProperty.USING_DISTANT));
+	private final List<RouteChoiceProperty> elements = Arrays.asList(RouteChoiceProperty.USING_ELEMENTS,
+			RouteChoiceProperty.NOT_USING_ELEMENTS);
 
-  // Constants for magic numbers and strings
-  private static final double MIN_NATURAL_BARRIERS = 1.00;
-  private static final double MAX_NATURAL_BARRIERS = 0.00;
-  private static final double MIN_SEVERING_BARRIERS = 1.00;
-  private static final double MAX_SEVERING_BARRIERS = 2.00;
+	private final List<RouteChoiceProperty> minimisation = Arrays.asList(RouteChoiceProperty.ROAD_DISTANCE,
+			RouteChoiceProperty.ANGULAR_CHANGE);
 
-  /**
-   * Constructs an instance of EmpiricalAgentProperties for an agent, initializing it with
-   * properties from the specified EmpiricalAgentsGroup.
-   *
-   * @param agent The agent for which properties are being set.
-   * @param group The EmpiricalAgentsGroup containing the properties to initialize this agent's
-   *        properties.
-   */
-  public EmpiricalAgentProperties(Agent agent, EmpiricalAgentsGroup group) {
-    super();
-    this.group = group;
-    this.groupName = this.group.groupName;
-  }
+	private final List<RouteChoiceProperty> localHeuristics = Arrays.asList(RouteChoiceProperty.ROAD_DISTANCE_LOCAL,
+			RouteChoiceProperty.ANGULAR_CHANGE_LOCAL);
 
-  /**
-   * Sets route choice parameters for the agent based on a group's properties. This method updates
-   * the agent's route choice probabilities and properties according to the properties defined for
-   * the agent's group.
-   */
-  public void setParametersFromGroup() {
-    if (groupName.equals(Groups.NULLGROUP))
-      return;
+	private final List<RouteChoiceProperty> regionBased = Arrays.asList(RouteChoiceProperty.REGION_BASED,
+			RouteChoiceProperty.NOT_REGION_BASED);
 
-    // minimisation
-    Pair<Double, Double> probabilityUsingElements =
-        new Pair<>(group.probabilityUsingElements, group.probabilityUsingElementsSD);
-    Pair<Double, Double> probabilityNotUsingElements =
-        new Pair<>(group.probabilityNotUsingElements, group.probabilityNotUsingElementsSD);
-    ArrayList<Pair<Double, Double>> elementsDis =
-        new ArrayList<>(Arrays.asList(probabilityUsingElements, probabilityNotUsingElements));
-    updateProbabilities(elementsProbability, elementsDis);
-    mapProbabilities(elements, elementsProbability, elementsMap);
+	private final List<RouteChoiceProperty> subGoals = Arrays.asList(RouteChoiceProperty.LOCAL_LANDMARKS,
+			RouteChoiceProperty.BARRIER_SUBGOALS, RouteChoiceProperty.NO_SUBGOALS);
 
-    // only minimisation
-    Pair<Double, Double> probabilityOnlyRoadDistance =
-        new Pair<>(group.probabilityRoadDistance, group.probabilityRoadDistanceSD);
-    Pair<Double, Double> probabilityOnlyAngularChange =
-        new Pair<>(group.probabilityAngularChange, group.probabilityAngularChangeSD);
-    ArrayList<Pair<Double, Double>> onlyMinimisationDis =
-        new ArrayList<>(Arrays.asList(probabilityOnlyRoadDistance, probabilityOnlyAngularChange));
-    updateProbabilities(minimisationProbability, onlyMinimisationDis);
-    mapProbabilities(minimisation, minimisationProbability, minimisationMap);
+	private final List<RouteChoiceProperty> distantLandmarks = Arrays.asList(RouteChoiceProperty.USING_DISTANT,
+			RouteChoiceProperty.NOT_USING_DISTANT);
 
-    // heuristics
-    Pair<Double, Double> probabilityRoadDistance =
-        new Pair<>(group.probabilityLocalRoadDistance, group.probabilityLocalRoadDistanceSD);
-    Pair<Double, Double> probabilityAngularChange =
-        new Pair<>(group.probabilityLocalAngularChange, group.probabilityLocalAngularChangeSD);
-    ArrayList<Pair<Double, Double>> localHeuristicsDis =
-        new ArrayList<>(Arrays.asList(probabilityRoadDistance, probabilityAngularChange));
-    updateProbabilities(localHeuristicsProbability, localHeuristicsDis);
-    mapProbabilities(localHeuristics, localHeuristicsProbability, localHeuristicsMap);
+	private final Map<RouteChoiceProperty, Double> elementsMap = new EnumMap<>(RouteChoiceProperty.class);
 
-    // Coarse plan
-    Pair<Double, Double> probabilityRegionBased = new Pair<>(group.probabilityRegionBasedNavigation,
-        group.probabilityRegionBasedNavigationSD);
-    final ArrayList<Pair<Double, Double>> pRegionsDis =
-        new ArrayList<>(Arrays.asList(probabilityRegionBased));
-    updateProbabilities(regionBasedProbability, pRegionsDis);
-    for (RouteChoiceProperty region : regionBased) {
-      double p =
-          region.equals(RouteChoiceProperty.NOT_REGION_BASED) ? 1.0 - regionBasedProbability.get(0)
-              : regionBasedProbability.get(0);
-      regionBasedMap.put(region, p);
-    }
+	private final Map<RouteChoiceProperty, Double> minimisationMap = new EnumMap<>(RouteChoiceProperty.class);
 
-    // subgoals
-    Pair<Double, Double> probabilityLocalLandmarks =
-        new Pair<>(group.probabilityLocalLandmarks, group.probabilityLocalLandmarksSD);
-    Pair<Double, Double> probabilityBarrierSubGoals =
-        new Pair<>(group.probabilityBarrierSubGoals, group.probabilityBarrierSubGoalsSD);
-    ArrayList<Pair<Double, Double>> pSubGoalsDis =
-        new ArrayList<>(Arrays.asList(probabilityLocalLandmarks, probabilityBarrierSubGoals));
+	private final Map<RouteChoiceProperty, Double> localHeuristicsMap = new EnumMap<>(RouteChoiceProperty.class);
 
-    updateProbabilities(subGoalsProbability, pSubGoalsDis);
-    for (RouteChoiceProperty subGoal : subGoals) {
-      double p = subGoal.equals(RouteChoiceProperty.LOCAL_LANDMARKS)
-          ? subGoalsProbability.get(subGoals.indexOf(subGoal))
-          : 1.00 - subGoalsProbability.stream().mapToDouble(d -> d).sum();
-      subGoalsMap.put(subGoal, p);
-    }
+	private final Map<RouteChoiceProperty, Double> regionBasedMap = new EnumMap<>(RouteChoiceProperty.class);
 
-    // distant landmarks
-    Pair<Double, Double> pDistantLandmarksTmp =
-        new Pair<>(group.probabilityDistantLandmarks, group.probabilityDistantLandmarksSD);
-    ArrayList<Pair<Double, Double>> distantLandmarksDis =
-        new ArrayList<>(Arrays.asList(pDistantLandmarksTmp));
-    updateProbabilities(distantLandmarksProbability, distantLandmarksDis);
+	private final Map<RouteChoiceProperty, Double> subGoalsMap = new EnumMap<>(RouteChoiceProperty.class);
 
-    for (RouteChoiceProperty landmark : distantLandmarks) {
-      double p = landmark.equals(RouteChoiceProperty.NOT_USING_DISTANT)
-          ? 1.00 - distantLandmarksProbability.get(0)
-          : distantLandmarksProbability.get(0);
-      distantLandmarksMap.put(landmark, p);
-    }
+	private final Map<RouteChoiceProperty, Double> distantLandmarksMap = new EnumMap<>(RouteChoiceProperty.class);
 
-    // other elements
-    randomElementsMap.put(randomElements.get(0), regionBasedProbability.get(0));
-    randomElementsMap.put(randomElements.get(1), subGoalsProbability.get(0));
-    randomElementsMap.put(randomElements.get(2), subGoalsProbability.get(1));
-    randomElementsMap.put(randomElements.get(3), distantLandmarksProbability.get(0));
+	public EmpiricalAgentProperties(Agent agent, EmpiricalAgentsGroup group) {
+		super();
+		this.group = group;
+		this.groupName = group.groupName;
+	}
 
-    // other route properties
-    naturalBarriers =
-        rescale(0.0, 1.0, MAX_NATURAL_BARRIERS, MIN_NATURAL_BARRIERS, group.naturalBarriers);
-    this.naturalBarriersSD = group.naturalBarriersSD;
-    severingBarriers =
-        rescale(0.0, 1.0, MIN_SEVERING_BARRIERS, MAX_SEVERING_BARRIERS, group.severingBarriers);
-    this.severingBarriersSD = group.severingBarriersSD;
-  }
+	public void randomizeRouteChoiceParameters() {
+		reset();
 
-  /**
-   * Updates the probabilities of a list of values based on a probability distribution.
-   *
-   * @param probabilities The list of probabilities to update.
-   * @param pDistribution The probability distribution as a list of pairs representing mean and
-   *        standard deviation.
-   */
-  public void updateProbabilities(List<Double> probabilities,
-      List<Pair<Double, Double>> pDistribution) {
-    for (final Double d : probabilities) {
-      final int index = probabilities.indexOf(d);
-      final double p = Utilities.fromDistribution(pDistribution.get(index).getValue0(),
-          pDistribution.get(index).getValue1(), null);
-      probabilities.set(index, p);
-    }
-  }
+		if (groupName == EmpiricalGroup.NULLGROUP) {
+			initialiseUniformProbabilities();
+		} else {
+			setParametersFromGroup();
+		}
 
-  /**
-   * Maps a list of properties to their corresponding probabilities and stores them in a map.
-   *
-   * @param properties The list of properties to map.
-   * @param propertiesProbability The list of probabilities associated with each property.
-   * @param propertiesMap The map to store the properties and their probabilities.
-   */
-  private void mapProbabilities(List<RouteChoiceProperty> properties,
-      List<Double> propertiesProbability, Map<RouteChoiceProperty, Double> propertiesMap) {
+		boolean usingElements = weightedChoice(elementsMap,
+				RouteChoiceProperty.NOT_USING_ELEMENTS) == RouteChoiceProperty.USING_ELEMENTS;
 
-    for (final RouteChoiceProperty property : properties) {
-      final int index = properties.indexOf(property);
-      final double probability = propertiesProbability.get(index);
-      propertiesMap.put(property, probability);
-    }
-  }
+		if (!usingElements) {
+			applyPureMinimisation();
+			return;
+		}
 
-  /**
-   * Randomly assigns route choice parameters to the agent based on its route choice group and other
-   * settings. This method initialises various route choice properties such as minimisation
-   * approaches, use of elements, and local minimisation heuristics based on probability
-   * distributions specified in the group and settings.
-   */
-  public void randomizeRouteChoiceParameters() {
-    reset();
+		applyBarrierPreferences();
+		applyLocalHeuristic();
+		activateElements();
+	}
 
-    if (this.groupName.equals(Groups.NULLGROUP))
-      fromUniform();
-    else
-      setParametersFromGroup();
+	private void setParametersFromGroup() {
+		elementsMap.put(RouteChoiceProperty.USING_ELEMENTS,
+				sampleProbability(group.probabilityUsingElements, group.probabilityUsingElementsSD));
+		elementsMap.put(RouteChoiceProperty.NOT_USING_ELEMENTS,
+				sampleProbability(group.probabilityNotUsingElements, group.probabilityNotUsingElementsSD));
 
-    final Random random = new Random();
+		minimisationMap.put(RouteChoiceProperty.ROAD_DISTANCE,
+				sampleProbability(group.probabilityRoadDistance, group.probabilityRoadDistanceSD));
+		minimisationMap.put(RouteChoiceProperty.ANGULAR_CHANGE,
+				sampleProbability(group.probabilityAngularChange, group.probabilityAngularChangeSD));
 
-    // using elements or not
-    List<RouteChoiceProperty> keys = new ArrayList<>(elementsMap.keySet());
-    double pRandom = random.nextDouble() * elementsMap.values().stream().mapToDouble(d -> d).sum();
-    double limit = 0.0;
-    for (final RouteChoiceProperty key : keys) {
-      double p = elementsMap.get(key);
-      if (pRandom <= p + limit) {
-        usingElements = key.equals(RouteChoiceProperty.USING_ELEMENTS);
-        break;
-      }
-      limit += p;
-    }
+		localHeuristicsMap.put(RouteChoiceProperty.ROAD_DISTANCE_LOCAL,
+				sampleProbability(group.probabilityLocalRoadDistance, group.probabilityLocalRoadDistanceSD));
+		localHeuristicsMap.put(RouteChoiceProperty.ANGULAR_CHANGE_LOCAL,
+				sampleProbability(group.probabilityLocalAngularChange, group.probabilityLocalAngularChangeSD));
 
-    // minimisation approaches
-    if (!usingElements) {
-      keys.clear();
-      keys = new ArrayList<>(minimisationMap.keySet());
-      pRandom = random.nextDouble() * minimisationMap.values().stream().mapToDouble(d -> d).sum();
-      limit = 0.0;
+		double pRegion = sampleProbability(group.probabilityRegionBasedNavigation,
+				group.probabilityRegionBasedNavigationSD);
+		regionBasedMap.put(RouteChoiceProperty.REGION_BASED, pRegion);
+		regionBasedMap.put(RouteChoiceProperty.NOT_REGION_BASED, 1.0 - pRegion);
 
-      for (RouteChoiceProperty key : keys) {
-        double p = minimisationMap.get(key);
-        if (pRandom <= p + limit) {
-          minimisingDistance = key.equals(RouteChoiceProperty.ROAD_DISTANCE);
-          minimisingAngular = !minimisingDistance;
-          break;
-        }
-        limit += p;
-      }
-      return;
-    }
+		double pLocalLandmarks = sampleProbability(group.probabilityLocalLandmarks, group.probabilityLocalLandmarksSD);
+		double pBarrierSubGoals = sampleProbability(group.probabilityBarrierSubGoals,
+				group.probabilityBarrierSubGoalsSD);
+		double pNoSubGoals = Math.max(0.0, 1.0 - pLocalLandmarks - pBarrierSubGoals);
 
-    if (naturalBarriers < 0.95)
-      preferenceNaturalBarriers = true;
-    if (severingBarriers > 1.05)
-      aversionSeveringBarriers = true;
+		subGoalsMap.put(RouteChoiceProperty.LOCAL_LANDMARKS, pLocalLandmarks);
+		subGoalsMap.put(RouteChoiceProperty.BARRIER_SUBGOALS, pBarrierSubGoals);
+		subGoalsMap.put(RouteChoiceProperty.NO_SUBGOALS, pNoSubGoals);
 
-    // local minimisation heuristic
-    keys.clear();
-    keys = new ArrayList<>(localHeuristicsMap.keySet());
-    pRandom = random.nextDouble() * localHeuristicsMap.values().stream().mapToDouble(d -> d).sum();
-    limit = 0.0;
-    for (final RouteChoiceProperty key : keys) {
-      final double p = localHeuristicsMap.get(key);
-      if (pRandom <= p + limit) {
-        localHeuristicDistance = key.equals(RouteChoiceProperty.ROAD_DISTANCE_LOCAL);
-        localHeuristicAngular = !localHeuristicDistance;
-        break;
-      }
-      limit += p;
-    }
+		double pDistant = sampleProbability(group.probabilityDistantLandmarks, group.probabilityDistantLandmarksSD);
+		distantLandmarksMap.put(RouteChoiceProperty.USING_DISTANT, pDistant);
+		distantLandmarksMap.put(RouteChoiceProperty.NOT_USING_DISTANT, 1.0 - pDistant);
 
-    while (usingElements && !elementsActivated)
-      activateElements();
-  }
+		double naturalBarrierScore = rescale(0.0, 1.0, MAX_NATURAL_BARRIERS, MIN_NATURAL_BARRIERS,
+				sampleProbability(group.naturalBarriers, group.naturalBarriersSD));
+		double severingBarrierScore = rescale(0.0, 1.0, MIN_SEVERING_BARRIERS, MAX_SEVERING_BARRIERS,
+				sampleProbability(group.severingBarriers, group.severingBarriersSD));
 
-  /**
-   * Resets all route choice properties and related flags to their default states. This method is
-   * used to clear any previously assigned route choice parameters.
-   */
-  public void reset() {
-    usingElements = false;
-    elementsActivated = false;
-    minimisingDistance = false;
-    minimisingAngular = false;
-    localHeuristicDistance = false;
-    localHeuristicAngular = false;
-    barrierType = null;
-    usingLocalLandmarks = false;
-    barrierBasedNavigation = false;
-    regionBasedNavigation = false;
-    usingDistantLandmarks = false;
-    preferenceNaturalBarriers = false;
-    aversionSeveringBarriers = false;
-  }
+		setNaturalBarriersMean(naturalBarrierScore);
+		setNaturalBarriersSD(group.naturalBarriersSD);
+		setSeveringBarriersMean(severingBarrierScore);
+		setSeveringBarriersSD(group.severingBarriersSD);
+	}
 
-  /**
-   * Initialises route choice probabilities uniformly for various route choice properties. This
-   * method assigns equal probabilities to all available choices for each route choice property. It
-   * is used when the agent belongs to the "nullGroup" or when route choice settings are uniform.
-   */
-  private void fromUniform() {
-    initializeUniformProbabilities(elements, elementsMap);
-    initializeUniformProbabilities(minimisation, minimisationMap);
-    initializeUniformProbabilities(localHeuristics, localHeuristicsMap);
-    initializeUniformProbabilities(regionBased, regionBasedMap);
-    initializeUniformProbabilities(subGoals, subGoalsMap);
-    initializeUniformProbabilities(distantLandmarks, distantLandmarksMap);
+	private void initialiseUniformProbabilities() {
+		initialiseUniform(elements, elementsMap);
+		initialiseUniform(minimisation, minimisationMap);
+		initialiseUniform(localHeuristics, localHeuristicsMap);
+		initialiseUniform(regionBased, regionBasedMap);
+		initialiseUniform(subGoals, subGoalsMap);
+		initialiseUniform(distantLandmarks, distantLandmarksMap);
 
-    naturalBarriers = 0.00 + Math.random() * (1.00 - 0.00);
-    severingBarriers = 1.00 + Math.random() * (2.00 - 1.00);
-  }
+		setNaturalBarriersMean(random.nextDouble());
+		setSeveringBarriersMean(1.0 + random.nextDouble());
+	}
 
-  /**
-   * Rescales a given value from an old range to a new range.
-   *
-   * @param oldMin The minimum value of the old range.
-   * @param oldMax The maximum value of the old range.
-   * @param newMin The minimum value of the new range.
-   * @param newMax The maximum value of the new range.
-   * @param value The value to be rescaled.
-   * @return The rescaled value within the new range.
-   */
-  private double rescale(double oldMin, double oldMax, double newMin, double newMax, double value) {
-    double oldRange = oldMax - oldMin;
-    double newRange = newMax - newMin;
-    return (value - oldMin) * newRange / oldRange + newMin;
-  }
+	private void applyPureMinimisation() {
+		RouteChoiceProperty choice = weightedChoice(minimisationMap, RouteChoiceProperty.ROAD_DISTANCE);
 
-  /**
-   * Initialises route choice probabilities uniformly for a list of route choice properties. This
-   * method assigns equal probabilities to all available choices for each route choice property.
-   *
-   * @param properties The list of route choice properties to initialise probabilities for.
-   * @param propertyMap The map to store the initialised probabilities for each property.
-   */
-  private void initializeUniformProbabilities(List<RouteChoiceProperty> properties,
-      Map<RouteChoiceProperty, Double> propertyMap) {
-    final double probability = 1.0 / Double.valueOf(properties.size());
-    for (final RouteChoiceProperty property : properties)
-      propertyMap.put(property, probability);
-  }
+		if (choice == RouteChoiceProperty.ROAD_DISTANCE) {
+			setMinimisationMode(MinimisationMode.DISTANCE);
+		} else {
+			setMinimisationMode(MinimisationMode.ANGULAR);
+		}
+	}
 
-  /**
-   * Activates route choice elements based on randomised probabilities. This method randomly
-   * activates route choice elements (e.g., region-based, subgoals, global landmarks) based on the
-   * specified probabilities, thereby affecting the agent's route choice behaviour.
-   */
-  private void activateElements() {
-    final Random random = new Random();
-    List<RouteChoiceProperty> keys = new ArrayList<>(regionBasedMap.keySet());
+	private void applyBarrierPreferences() {
+		if (getNaturalBarriersMean() < 0.95) {
+			setPreferenceNaturalBarriers(true);
+		}
 
-    double pRandom =
-        random.nextDouble() * regionBasedMap.values().stream().mapToDouble(d -> d).sum();
-    double limit = 0.0;
-    for (final RouteChoiceProperty key : keys) {
-      final double p = regionBasedMap.get(key);
-      if (pRandom <= p + limit) {
-        regionBasedNavigation = key.equals(RouteChoiceProperty.REGION_BASED);
-        elementsActivated = true;
-        break;
-      }
-      limit += p;
-    }
+		if (getSeveringBarriersMean() > 1.05) {
+			setAversionSeveringBarriers(true);
+		}
+	}
 
-    // subgoals
-    keys.clear();
-    keys = new ArrayList<>(subGoalsMap.keySet());
-    pRandom = random.nextDouble() * subGoalsMap.values().stream().mapToDouble(d -> d).sum();
-    limit = 0.0;
-    for (final RouteChoiceProperty key : keys) {
-      final double p = subGoalsMap.get(key);
-      if (pRandom <= p + limit) {
-        usingLocalLandmarks = key.equals(RouteChoiceProperty.LOCAL_LANDMARKS);
-        barrierBasedNavigation = key.equals(RouteChoiceProperty.BARRIER_SUBGOALS);
-        elementsActivated = true;
-        barrierType = BarrierType.SEPARATING;
-        landmarkType = LandmarkType.LOCAL;
-        break;
-      }
-      limit += p;
-    }
+	private void applyLocalHeuristic() {
+		RouteChoiceProperty choice = weightedChoice(localHeuristicsMap, RouteChoiceProperty.ROAD_DISTANCE_LOCAL);
 
-    // global landmarks
-    keys.clear();
-    keys = new ArrayList<>(distantLandmarksMap.keySet());
-    pRandom = random.nextDouble() * distantLandmarksMap.values().stream().mapToDouble(d -> d).sum();
-    limit = 0.0;
-    for (final RouteChoiceProperty key : keys) {
-      final double p = distantLandmarksMap.get(key);
-      if (pRandom <= p + limit) {
-        elementsActivated = true;
-        usingDistantLandmarks = key.equals(RouteChoiceProperty.USING_DISTANT);
-        break;
-      }
-      limit += p;
-    }
-  }
+		if (choice == RouteChoiceProperty.ROAD_DISTANCE_LOCAL) {
+			setLocalHeuristicMode(LocalHeuristicMode.DISTANCE);
+		} else {
+			setLocalHeuristicMode(LocalHeuristicMode.ANGULAR);
+		}
+	}
+
+	private void activateElements() {
+		RouteChoiceProperty regionChoice = weightedChoice(regionBasedMap, RouteChoiceProperty.NOT_REGION_BASED);
+		setRegionBasedNavigation(regionChoice == RouteChoiceProperty.REGION_BASED);
+
+		RouteChoiceProperty subGoalChoice = weightedChoice(subGoalsMap, RouteChoiceProperty.NO_SUBGOALS);
+
+		if (subGoalChoice == RouteChoiceProperty.LOCAL_LANDMARKS) {
+			setUsingLocalLandmarks(true);
+			setLandmarkType(LandmarkType.LOCAL);
+		} else if (subGoalChoice == RouteChoiceProperty.BARRIER_SUBGOALS) {
+			setBarrierBasedNavigation(true);
+			setBarrierType(AgentBarrierType.SEPARATING);
+			setLandmarkType(LandmarkType.LOCAL);
+		}
+
+		RouteChoiceProperty distantChoice = weightedChoice(distantLandmarksMap, RouteChoiceProperty.NOT_USING_DISTANT);
+		setUsingDistantLandmarks(distantChoice == RouteChoiceProperty.USING_DISTANT);
+
+		// Defensive fallback: if the sampled "using elements" branch activated nothing,
+		// force a
+		// simple local-landmark behaviour rather than leaving an empty element set.
+		if (!isRegionBasedNavigation() && !isUsingLocalLandmarks() && !isBarrierBasedNavigation()
+				&& !isUsingDistantLandmarks()) {
+			setUsingLocalLandmarks(true);
+			setLandmarkType(LandmarkType.LOCAL);
+		}
+	}
+
+	private double sampleProbability(double mean, double standardDeviation) {
+		if (standardDeviation <= 0.0) {
+			return clamp01(mean);
+		}
+
+		double sampled = mean + random.nextGaussian() * standardDeviation;
+		return clamp01(sampled);
+	}
+
+	private static double clamp01(double value) {
+		return Math.max(0.0, Math.min(1.0, value));
+	}
+
+	private static void initialiseUniform(List<RouteChoiceProperty> properties,
+			Map<RouteChoiceProperty, Double> target) {
+		double probability = 1.0 / properties.size();
+		for (RouteChoiceProperty property : properties) {
+			target.put(property, probability);
+		}
+	}
+
+	private RouteChoiceProperty weightedChoice(Map<RouteChoiceProperty, Double> weights, RouteChoiceProperty fallback) {
+		if (weights == null || weights.isEmpty()) {
+			return fallback;
+		}
+
+		double total = 0.0;
+		for (double value : weights.values()) {
+			total += Math.max(0.0, value);
+		}
+
+		if (total <= 0.0) {
+			return fallback;
+		}
+
+		double threshold = random.nextDouble() * total;
+		double cumulative = 0.0;
+
+		for (Map.Entry<RouteChoiceProperty, Double> entry : weights.entrySet()) {
+			cumulative += Math.max(0.0, entry.getValue());
+			if (threshold <= cumulative) {
+				return entry.getKey();
+			}
+		}
+
+		return fallback;
+	}
+
+	private static double rescale(double oldMin, double oldMax, double newMin, double newMax, double value) {
+		double oldRange = oldMax - oldMin;
+		double newRange = newMax - newMin;
+		return (value - oldMin) * newRange / oldRange + newMin;
+	}
 }

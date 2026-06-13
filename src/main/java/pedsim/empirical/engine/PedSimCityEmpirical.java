@@ -2,67 +2,71 @@ package pedsim.empirical.engine;
 
 import java.util.ArrayList;
 import java.util.List;
-import pedsim.cityimage.parameters.TestPars;
+
+import pedsim.core.engine.Environment;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
+import pedsim.core.parameters.Pars;
 import pedsim.empirical.agent.EmpiricalAgentsGroup;
+import pedsim.empirical.agent.EmpiricalGroup;
+import pedsim.empirical.parameters.EmpiricalPars;
 import sim.engine.SimState;
-import sim.engine.Stoppable;
-import pedsim.core.agents.Agent;
-import pedsim.core.engine.Import;
-import pedsim.core.engine.Environment;
 
-/**
- * The PedSimCity class represents the main simulation environment.
- */
+/** Empirical ABM simulation state. */
 public class PedSimCityEmpirical extends PedSimCity {
 
-  private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 1L;
 
-  public PedSimCityEmpirical(long seed, int job, ScenarioConfig scenarioConfig) {
-    super(seed, job, scenarioConfig);
-  }
+	public static final List<EmpiricalAgentsGroup> empiricalGroups = new ArrayList<>();
 
-  public static List<EmpiricalAgentsGroup> empiricalGroups = new ArrayList<>();
+	public PedSimCityEmpirical(long seed, int job, ScenarioConfig scenarioConfig) {
+		super(seed, job, defaultScenarioConfig(scenarioConfig));
+	}
 
-  /**
-   * Populates the simulation environment with agents and other entities based on the selected
-   * simulation parameters. This method uses the Populate class to generate the agent population.
-   */
-  @Override
-  protected void populateEnvironment() {
-    Populate populate = new Populate();
-    populate.populateEmpiricalGroups(this);
-  }
+	private static ScenarioConfig defaultScenarioConfig(ScenarioConfig scenarioConfig) {
+		if (scenarioConfig != null) {
+			return scenarioConfig;
+		}
 
-  /**
-   * Starts moving agents in the simulation. This method schedules agents for repeated movement
-   * updates and sets up the spatial index for agents.
-   */
-  public void startMovingAgents() {
-    super.startMovingAgents();
-  }
+		return new ScenarioConfig(EmpiricalGroup.values(), null);
+	}
 
-  /**
-   * The main function that allows the simulation to be run in stand-alone, non-GUI mode.
-   *
-   * @param args Command-line arguments.
-   * @throws Exception If an error occurs during simulation execution.
-   */
-  public static void main(String[] args) throws Exception {
+	@Override
+	protected void populateEnvironment() {
+		Populate populate = new Populate();
+		populate.populateEmpiricalGroups(this);
+	}
 
-    TestPars.defineMode();
-    Import importer = new Import();
-    importer.importFiles();
-    Environment.prepare();
+	public static void main(String[] args) throws Exception {
+		EmpiricalPars.applyDefaults();
 
-    for (int job = 0; job < TestPars.jobs; job++) {
-      System.out.println("Run nr.. " + job);
-      final SimState state = new PedSimCity(System.currentTimeMillis(), job, null);
-      state.start();
-      while (state.schedule.step(state)) {
-      }
-    }
-    System.exit(0);
-  }
+		if (args.length > 0 && args[0] != null && !args[0].isBlank()) {
+			Pars.cityName = args[0].trim();
+		}
+
+		PedSimCity.clearStaticData();
+
+		EmpiricalImport importer = new EmpiricalImport();
+		importer.importFiles();
+
+		Environment.prepare();
+
+		ScenarioConfig scenarioConfig = new ScenarioConfig(EmpiricalGroup.values(), null);
+
+		for (int job = 0; job < Pars.jobs; job++) {
+			System.out.println("Run nr.. " + job);
+
+			final SimState state = new PedSimCityEmpirical(System.currentTimeMillis(), job, scenarioConfig);
+
+			state.start();
+
+			while (state.schedule.step(state)) {
+				// Simulation loop.
+			}
+
+			state.finish();
+		}
+
+		System.exit(0);
+	}
 }

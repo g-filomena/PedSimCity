@@ -1,119 +1,85 @@
 package pedsim.empirical.applet;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.IntStream;
-
 import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 
-import pedsim.core.agents.Agent;
-import pedsim.core.engine.FlowHandler;
+import pedsim.core.engine.Environment;
 import pedsim.core.engine.PedSimCity;
+import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.parameters.Pars;
-import pedsim.cityimage.parameters.TestPars;
-import pedsim.cityimage.applet.Display;
-import pedsim.cityimage.applet.PedSimCityImageApplet;
-import pedsim.core.applet.PedSimCityApplet;
+import pedsim.empirical.agent.EmpiricalGroup;
+import pedsim.empirical.engine.EmpiricalImport;
+import pedsim.empirical.engine.PedSimCityEmpirical;
+import pedsim.empirical.parameters.EmpiricalPars;
 import sim.engine.SimState;
 
-public class Run {
+/** Runner used by the empirical applet. */
+public final class Run {
 
-//	static ArrayList<FlowHandler> flowHandlers = new ArrayList<>();
-
-	public static void ParallelRun() {
-
-		IntStream.range(0, TestPars.jobs).parallel().forEach(job -> {
-			final SimState state = new PedSimCity(System.currentTimeMillis(), job);
-			state.start();
-			List<Agent> agentList = ((PedSimCity) state).getAgentsList();
-			while (state.schedule.step(state)) {
-				PedSimCityImageApplet.remainingTripsCount = agentList.parallelStream()
-						.mapToInt(agent -> agent.OD.size() - agent.tripsDone).sum() * TestPars.jobs;
-				PedSimCityImageApplet.updateRemainingTripsLabel(true);
-			}
-			flowHandlers.add(((PedSimCity) state).flowHandler);
-		});
+	private Run() {
 	}
 
-	public static void VisRun() {
-		for (int job = 0; job < TestPars.jobs; job++) {
-			PedSimCityApplet.jobLabel.setText("Executing Job Nr: " + job);
-			final SimState state = new PedSimCity(System.currentTimeMillis(), job);
-			state.start();
-			List<Agent> agentList = ((PedSimCity) state).getAgentsList();
-			setGeoVis(agentList);
+	public static void visualRun(PedSimCityEmpiricalApplet applet) {
+		try {
+			configureFromApplet(applet);
 
-			((PedSimCity) state).startSchedule();
+			PedSimCity.clearStaticData();
 
-			// Create and start a rendering timer for smooth visual updates
-//			Timer renderTimer = new Timer(16, e -> {
-//				PedSimCityApplet.panel.repaint();
-//			});
-//			renderTimer.start();
+			EmpiricalImport importer = new EmpiricalImport();
+			importer.importFiles();
 
-			while (state.schedule.step(state)) {
-				PedSimCityApplet.panel.repaint();
-				PedSimCityApplet.remainingTripsCount = agentList.parallelStream()
-						.mapToInt(agent -> agent.OD.size() - agent.tripsDone).sum();
-				PedSimCityApplet.updateRemainingTripsLabel(false);
+			Environment.prepare();
+
+			ScenarioConfig scenarioConfig = new ScenarioConfig(EmpiricalGroup.values(), null);
+
+			for (int job = 0; job < Pars.jobs; job++) {
+				applet.setJobLabel("Executing Job Nr: " + job);
+
+				SimState state = new PedSimCityEmpirical(System.currentTimeMillis(), job, scenarioConfig);
+				state.start();
+
+				PedSimCityEmpirical empiricalState = (PedSimCityEmpirical) state;
+
+				EmpiricalDisplay display = new EmpiricalDisplay(empiricalState.getAgentsList());
+				showDisplay(display);
+
+				while (state.schedule.step(state)) {
+					display.setAgents(empiricalState.getAgentsList());
+					display.repaint();
+
+					int remainingTrips = empiricalState.getAgentsList().parallelStream()
+							.mapToInt(agent -> agent.OD.size() - agent.getTripsDone()).sum();
+
+					applet.setRemainingTripsLabel("Trips left: " + remainingTrips);
+				}
+
+				state.finish();
 			}
-//			renderTimer.stop();
-			flowHandlers.add(((PedSimCity) state).flowHandler);
+
+			applet.markSimulationEnded();
+
+		} catch (Exception exception) {
+			exception.printStackTrace();
+			applet.markSimulationFailed(exception.getMessage());
 		}
 	}
 
-//	public void RunVis() {
-//
-//		for (int job = 0; job < Parameters.jobs; job++) {
-//			PedSimCityApplet.jobLabel.setText("Executing Job Nr: " + job);
-//			final SimState state = new PedSimCity(System.currentTimeMillis(), job);
-//			state.start();
-//			List<Agent> agentList = ((PedSimCity) state).getAgentsList();
-//			setGeoVis(agentList);
-//
-//			((PedSimCity) state).startSchedule();
-//
-//			int substeps = 10; // Number of substeps per step
-//
-//			while (state.schedule.step(state)) {
-//				System.out.println("steps: " + state.schedule.getSteps());
-//
-//				// Perform substeps
-//				for (int substep = 0; substep < substeps; substep++) {
-//					// Update agents and simulation for the current substep
-//					agentList.forEach(agent -> agent.updateForSubstep(substep, substeps));
-//
-//					// Repaint the panel to reflect the current substep
-//					panel.repaint();
-//
-//					// Optional: Add a small delay for smoother visualization (e.g., 50ms)
-//					try {
-//						Thread.sleep(50);
-//					} catch (InterruptedException e) {
-//						Thread.currentThread().interrupt();
-//						break;
-//					}
-//				}
-//
-//				// Compute the remaining trips count after the main step
-//				remainingTripsCount = agentList.parallelStream().mapToInt(agent -> agent.OD.size() - agent.tripsDone)
-//						.sum();
-//				updateRemainingTripsLabel(false);
-//			}
-//			flowHandlers.add(((PedSimCity) state).flowHandler);
-//		}
-//	}
+	private static void configureFromApplet(PedSimCityEmpiricalApplet applet) {
+		EmpiricalPars.applyDefaults();
 
-	static void setGeoVis(List<Agent> agentList) {
+		Pars.cityName = applet.getSelectedCityName();
+		Pars.numAgents = applet.getNumAgents();
+		Pars.jobs = applet.getJobs();
 
-		PedSimCityApplet.panel = new Display(agentList);
-		PedSimCityApplet.frame.add(PedSimCityApplet.panel);
-		PedSimCityApplet.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		PedSimCityApplet.frame.setVisible(true);
-		JScrollPane scrollPane = new JScrollPane(PedSimCityApplet.panel);
-		PedSimCityApplet.frame.add(scrollPane);
-
+		EmpiricalPars.numberTripsPerAgent = applet.getTripsPerAgent();
+		EmpiricalPars.usingDMA = applet.isUsingDMA();
 	}
 
+	private static void showDisplay(EmpiricalDisplay display) {
+		JFrame frame = new JFrame("PedSimCity Empirical Agents");
+		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		frame.add(new JScrollPane(display));
+		frame.pack();
+		frame.setVisible(true);
+	}
 }

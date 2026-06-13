@@ -2,221 +2,246 @@ package pedsim.empirical.engine;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
+
 import org.javatuples.Pair;
-import pedsim.cityimage.agents.Agent;
-import pedsim.cityimage.engine.PedSimCityImage;
-import pedsim.cityimage.parameters.TestPars;
-import pedsim.cityimage.utilities.StringEnum.Groups;
+
 import pedsim.core.engine.PedSimCity;
+import pedsim.core.parameters.Pars;
 import pedsim.core.parameters.RouteChoicePars;
+import pedsim.empirical.agent.EmpiricalAgent;
 import pedsim.empirical.agent.EmpiricalAgentsGroup;
+import pedsim.empirical.agent.EmpiricalGroup;
+import pedsim.empirical.parameters.EmpiricalPars;
 import sim.graph.Graph;
 import sim.graph.NodeGraph;
 import sim.graph.NodesLookup;
 
 /**
- * The Populate class is responsible for generating test agents, building the OD matrix, and
- * populating empirical groups for pedestrian simulation.
+ * Populates the empirical ABM with OD-based agents sampled from empirical
+ * groups.
+ *
+ * This class intentionally depends on core.PedSimCity and empirical.Agent
+ * classes, not on cityimage.PedSimCityImage or cityimage.Agent.
  */
 public class Populate extends pedsim.core.engine.Populate {
 
-  private Graph network = new Graph();
-  private final ArrayList<Pair<NodeGraph, NodeGraph>> OD = new ArrayList<>();
-  private PedSimCityImage state;
+	private static final double WORK_SHARE = 0.30;
+	private static final double VISIT_SHARE = 0.46;
+	private static final double RANDOM_SHARE = 0.24;
+	private static final String TYPE_LIVE = "live";
 
-  public static boolean usingDMA = true;
-  public static HashMap<String, Double> destinationsDMA = new HashMap<>();
-  List<Integer> testOrigins = new ArrayList<>();
-  List<Integer> testDestinations = new ArrayList<>();
-  final static double WORK_SHARE = 0.30;
-  final static double VISIT_SHARE = 0.46;
-  final static double RANDOM_SHARE = 0.24;
-  final static String TYPE_LIVE = "live";
+	private final ArrayList<Pair<NodeGraph, NodeGraph>> odMatrix = new ArrayList<>();
 
-  /**
-   * Populates test agents, OD matrix, and empirical groups for pedestrian simulation.
-   *
-   * @param state The PedSimCity simulation state.
-   */
-  public void populateTests(PedSimCityImage state) {
+	private PedSimCity state;
+	private Graph network;
 
-    this.state = state;
-    this.network = PedSimCity.network;
+	public static HashMap<String, Double> destinationsDMA = new HashMap<>();
 
-    if (TestPars.testingSpecificOD)
-      prepareManualODmatrix();
-    generateTestODmatrix();
-    generateTestAgents();
-  }
+	public void populateEmpiricalGroups(PedSimCityEmpirical state) {
+		this.state = state;
+		this.network = PedSimCity.network;
+		this.odMatrix.clear();
 
-  /**
-   * Prepares a manual OD matrix based on specified test origins and destinations.
-   */
-  public void prepareManualODmatrix() {
+		int numberTrips = Pars.numAgents * EmpiricalPars.numberTripsPerAgent;
 
-    testOrigins.clear();
-    testDestinations.clear();
-    for (Integer nodeID : TestPars.originsTmp)
-      testOrigins.add(nodeID);
-    for (Integer nodeID : TestPars.destinationsTmp)
-      testDestinations.add(nodeID);
-  }
+		if (EmpiricalPars.usingDMA) {
+			generateODMatrixUsingDMA(numberTrips);
+		} else {
+			generateRandomODMatrix(numberTrips);
+		}
 
-  /**
-   * Adds an agent to the simulation.
-   *
-   * @param agent The agent to be added.
-   * @param agentID The identifier of the agent.
-   * @param thisAgentODs The OD matrix for this agent.
-   */
-  private void addAgent(Agent agent, int agentID,
-      ArrayList<Pair<NodeGraph, NodeGraph>> thisAgentODs) {
+		assignODMatrixToEmpiricalGroups();
+	}
 
-    agent.OD = new LinkedList<>(thisAgentODs);
-    agent.agentID = agentID;
-    state.agents.addGeometry(agent.getGeometry());
-    state.agentsList.add(agent);
-  }
+	private void generateRandomODMatrix(int numberTrips) {
+		for (int i = 0; i < numberTrips; i++) {
+			NodeGraph originNode = NodesLookup.randomNode(network);
+			NodeGraph destinationNode = randomDestination(originNode);
 
-  /**
-   * Populates empirical groups for pedestrian simulation.
-   *
-   * @param state The PedSimCity simulation state.
-   */
-  public void populateEmpiricalGroups(PedSimCityImage state) {
+			odMatrix.add(new Pair<>(originNode, destinationNode));
+		}
+	}
 
-    this.state = state;
-    this.network = PedSimCity.network;
-    final int numODs = TestPars.numAgents * TestPars.numberTripsPerAgent;
+	private void generateODMatrixUsingDMA(int numberTrips) {
+		setDMAMap();
 
-    if (TestPars.usingDMA)
-      usingDMA(numODs);
-    else
-      for (int i = 0; i < numODs; i++) {
-        NodeGraph originNode = NodesLookup.randomNode(network);
-        NodeGraph destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network,
-            originNode, RouteChoicePars.minTripDistance, RouteChoicePars.maxTripDistance);
-        while (destinationNode.gateway)
-          destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, originNode,
-              RouteChoicePars.minTripDistance, RouteChoicePars.maxTripDistance);
-        Pair<NodeGraph, NodeGraph> pair = new Pair<>(originNode, destinationNode);
-        OD.add(pair);
-        originNode = destinationNode = null;
-      }
-    assignODmatrixToEmpiricalGroups();
-  }
+		HashMap<String, Integer> numberDestinationsDMA = new HashMap<>();
+		int tripsToAllocate = numberTrips;
 
-  /**
-   * Generates an OD matrix on the basis of the Urban DMA categorisation.
-   *
-   * @param numODs The number of OD pairs to generate.
-   */
-  private void usingDMA(int numODs) {
+		for (String typeDMA : destinationsDMA.keySet()) {
+			int number = (int) Math.round(destinationsDMA.get(typeDMA) * numberTrips);
+			number = Math.min(number, tripsToAllocate);
+			numberDestinationsDMA.put(typeDMA, number);
+			tripsToAllocate -= number;
+		}
 
-    setDMAmap();
-    final HashMap<String, Integer> nrDestinationsDMA = new HashMap<>();
-    int agentsToAllocate = numODs;
-    String DMA = "";
-    NodeGraph originNode = null;
-    NodeGraph destinationNode = null;
+		// Put any rounding residue into random destinations.
+		numberDestinationsDMA.merge("random", tripsToAllocate, Integer::sum);
 
-    for (String typeDMA : destinationsDMA.keySet()) {
-      int nr = (int) (destinationsDMA.get(typeDMA) * numODs);
-      if (nr > agentsToAllocate)
-        nr = agentsToAllocate;
-      nrDestinationsDMA.put(typeDMA, nr);
-    }
+		for (int i = 0; i < numberTrips; i++) {
+			NodeGraph originNode = safeRandomNodeDMA(TYPE_LIVE);
+			String destinationDMA = nextAvailableDMA(numberDestinationsDMA);
+			NodeGraph destinationNode = safeRandomDestinationDMA(originNode, destinationDMA);
 
-    for (int i = 0; i < numODs; i++) {
-      originNode = NodesLookup.randomNodeDMA(network, TYPE_LIVE);
-      for (String typeDMA : nrDestinationsDMA.keySet()) {
-        int nr = nrDestinationsDMA.get(typeDMA);
-        if (nr < 1)
-          continue;
-        DMA = typeDMA;
-        nrDestinationsDMA.put(typeDMA, nr - 1);
-        break;
-      }
+			if (originNode == null || destinationNode == null) {
+				originNode = NodesLookup.randomNode(network);
+				destinationNode = randomDestination(originNode);
+			}
 
-      while (destinationNode == null | destinationNode.gateway)
-        destinationNode = NodesLookup.randomNodeBetweenDistanceIntervalDMA(network, originNode,
-            RouteChoicePars.minDistance, RouteChoicePars.maxDistance, DMA);
+			odMatrix.add(new Pair<>(originNode, destinationNode));
+		}
+	}
 
-      Pair<NodeGraph, NodeGraph> pair = new Pair<>(originNode, destinationNode);
-      OD.add(pair);
-      originNode = destinationNode = null;
-    }
-  }
+	private NodeGraph safeRandomNodeDMA(String dmaType) {
+		try {
+			return NodesLookup.randomNodeDMA(network, dmaType);
+		} catch (Exception e) {
+			return null;
+		}
+	}
 
-  /**
-   * Sets up the DMA map with destination types and shares.
-   */
-  private void setDMAmap() {
+	private NodeGraph safeRandomDestinationDMA(NodeGraph originNode, String dmaType) {
+		if (originNode == null) {
+			return null;
+		}
 
-    // Specify the initial capacity based on the number of elements to be added
-    destinationsDMA = new HashMap<>(3);
-    destinationsDMA.put("work", WORK_SHARE);
-    destinationsDMA.put("visit", VISIT_SHARE);
-    destinationsDMA.put("random", RANDOM_SHARE);
-  }
+		try {
+			NodeGraph destinationNode = null;
+			int attempts = 0;
 
-  /**
-   * Assigns the OD matrix to empirical groups for pedestrian simulation.
-   */
-  private void assignODmatrixToEmpiricalGroups() {
+			while ((destinationNode == null || destinationNode.gateway) && attempts < 50) {
+				destinationNode = NodesLookup.randomNodeBetweenDistanceIntervalDMA(network, originNode,
+						RouteChoicePars.minTripDistance, RouteChoicePars.maxTripDistance, dmaType);
+				attempts++;
+			}
 
-    int agentID = 0;
-    final ArrayList<EmpiricalAgentsGroup> actualEmpiricalGroups = new ArrayList<>();
-    ArrayList<Pair<NodeGraph, NodeGraph>> configurationOD = new ArrayList<>(OD);
-    int numAgentsEmpiricalGroup;
-    int agentsToAllocate = TestPars.numAgents;
+			return destinationNode;
+		} catch (Exception e) {
+			return null;
+		}
+	}
 
-    for (EmpiricalAgentsGroup empiricalGroup : PedSimCityImage.empiricalGroups) {
-      if (!empiricalGroup.groupName.equals(Groups.POPULATION)
-          && !empiricalGroup.groupName.equals(Groups.NULLGROUP))
-        actualEmpiricalGroups.add(empiricalGroup);
+	private NodeGraph randomDestination(NodeGraph originNode) {
+		NodeGraph destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, originNode,
+				RouteChoicePars.minTripDistance, RouteChoicePars.maxTripDistance);
 
-      if (empiricalGroup.groupName.equals(Groups.POPULATION)
-          || empiricalGroup.groupName.equals(Groups.NULLGROUP)) {
-        numAgentsEmpiricalGroup = TestPars.numAgents;
-        configurationOD = new ArrayList<>(OD);
-      }
-      // last group
-      else if (actualEmpiricalGroups.size() == PedSimCityImage.empiricalGroups.size() - 2)
-        numAgentsEmpiricalGroup = agentsToAllocate;
-      // any other group
-      else {
-        numAgentsEmpiricalGroup = (int) (TestPars.numAgents * empiricalGroup.share);
-        agentsToAllocate -= numAgentsEmpiricalGroup;
-      }
+		int attempts = 0;
+		while (destinationNode != null && destinationNode.gateway && attempts < 50) {
+			destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, originNode,
+					RouteChoicePars.minTripDistance, RouteChoicePars.maxTripDistance);
+			attempts++;
+		}
 
-      int groupTripsToComplete = numAgentsEmpiricalGroup * TestPars.numberTripsPerAgent;
-      ArrayList<Pair<NodeGraph, NodeGraph>> groupOD =
-          new ArrayList<>(configurationOD.subList(0, groupTripsToComplete));
+		return destinationNode;
+	}
 
-      int lowLimit = 0;
-      int upLimit = TestPars.numberTripsPerAgent;
+	private String nextAvailableDMA(HashMap<String, Integer> numberDestinationsDMA) {
+		for (String typeDMA : numberDestinationsDMA.keySet()) {
+			int remaining = numberDestinationsDMA.get(typeDMA);
+			if (remaining > 0) {
+				numberDestinationsDMA.put(typeDMA, remaining - 1);
+				return typeDMA;
+			}
+		}
 
-      for (int i = 0; i < numAgentsEmpiricalGroup; i++) {
-        ArrayList<Pair<NodeGraph, NodeGraph>> thisAgentODs = new ArrayList<>();
+		return "random";
+	}
 
-        if (TestPars.numberTripsPerAgent == 1)
-          thisAgentODs.add(groupOD.get(i));
-        else
-          thisAgentODs = new ArrayList<>(groupOD.subList(lowLimit, upLimit));
+	private void setDMAMap() {
+		destinationsDMA = new HashMap<>(3);
+		destinationsDMA.put("work", WORK_SHARE);
+		destinationsDMA.put("visit", VISIT_SHARE);
+		destinationsDMA.put("random", RANDOM_SHARE);
+	}
 
-        Agent agent = new Agent(this.state);
-        agent.initialiseAgentProperties(empiricalGroup);
-        addAgent(agent, agentID, thisAgentODs);
+	private void assignODMatrixToEmpiricalGroups() {
+		ensureGroupsLoaded();
 
-        agentID++;
-        lowLimit = upLimit;
-        upLimit = lowLimit + TestPars.numberTripsPerAgent;
-      }
-      configurationOD =
-          new ArrayList<>(configurationOD.subList(groupTripsToComplete, configurationOD.size()));
-    }
-  }
+		int agentID = 0;
+
+		// Full-population benchmark configurations.
+		for (EmpiricalAgentsGroup group : PedSimCityEmpirical.empiricalGroups) {
+			if (group.groupName == EmpiricalGroup.POPULATION || group.groupName == EmpiricalGroup.NULLGROUP) {
+				agentID = createAgentsForGroup(agentID, group, Pars.numAgents, odMatrix);
+			}
+		}
+
+		// Heterogeneous empirical configuration: split the same population across
+		// empirical clusters.
+		List<EmpiricalAgentsGroup> empiricalClusters = new ArrayList<>();
+
+		for (EmpiricalAgentsGroup group : PedSimCityEmpirical.empiricalGroups) {
+			if (group.groupName != EmpiricalGroup.POPULATION && group.groupName != EmpiricalGroup.NULLGROUP) {
+				empiricalClusters.add(group);
+			}
+		}
+
+		if (empiricalClusters.isEmpty()) {
+			return;
+		}
+
+		int agentsToAllocate = Pars.numAgents;
+		int odCursor = 0;
+
+		for (int groupIndex = 0; groupIndex < empiricalClusters.size(); groupIndex++) {
+			EmpiricalAgentsGroup group = empiricalClusters.get(groupIndex);
+
+			int numberAgentsForGroup;
+			if (groupIndex == empiricalClusters.size() - 1) {
+				numberAgentsForGroup = agentsToAllocate;
+			} else {
+				numberAgentsForGroup = (int) Math.round(Pars.numAgents * group.share);
+				numberAgentsForGroup = Math.min(numberAgentsForGroup, agentsToAllocate);
+				agentsToAllocate -= numberAgentsForGroup;
+			}
+
+			int tripsForGroup = numberAgentsForGroup * EmpiricalPars.numberTripsPerAgent;
+			int odEnd = Math.min(odCursor + tripsForGroup, odMatrix.size());
+
+			List<Pair<NodeGraph, NodeGraph>> groupOD = new ArrayList<>(odMatrix.subList(odCursor, odEnd));
+			agentID = createAgentsForGroup(agentID, group, numberAgentsForGroup, groupOD);
+
+			odCursor = odEnd;
+		}
+	}
+
+	private void ensureGroupsLoaded() {
+		if (!PedSimCityEmpirical.empiricalGroups.isEmpty()) {
+			return;
+		}
+
+		EmpiricalAgentsGroup nullGroup = new EmpiricalAgentsGroup();
+		nullGroup.setGroup(EmpiricalGroup.NULLGROUP, new String[] { "NULLGROUP" });
+		PedSimCityEmpirical.empiricalGroups.add(nullGroup);
+	}
+
+	private int createAgentsForGroup(int firstAgentID, EmpiricalAgentsGroup group, int numberAgents,
+			List<Pair<NodeGraph, NodeGraph>> groupODMatrix) {
+
+		int agentID = firstAgentID;
+		int lowerLimit = 0;
+
+		for (int i = 0; i < numberAgents; i++) {
+			int upperLimit = lowerLimit + EmpiricalPars.numberTripsPerAgent;
+
+			if (upperLimit > groupODMatrix.size()) {
+				break;
+			}
+
+			List<Pair<NodeGraph, NodeGraph>> agentODs = new ArrayList<>(groupODMatrix.subList(lowerLimit, upperLimit));
+
+			EmpiricalAgent agent = new EmpiricalAgent(state, group);
+			agent.agentID = agentID;
+			agent.setOD(agentODs);
+
+			state.agents.addGeometry(agent.getLocation());
+			state.agentsList.add(agent);
+
+			agentID++;
+			lowerLimit = upperLimit;
+		}
+
+		return agentID;
+	}
 }
