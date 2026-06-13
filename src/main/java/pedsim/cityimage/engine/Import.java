@@ -62,7 +62,7 @@ public class Import extends pedsim.core.engine.Import {
 			row += 1;
 			if (row == 1)
 				continue; // Skip header
-			PedSimCityImage.distances.add(Double.parseDouble(nextLineDistances[2]));
+			PedSimCityImage.distances.add(Float.parseFloat(nextLineDistances[2]));
 		}
 		readerDistances.close();
 	}

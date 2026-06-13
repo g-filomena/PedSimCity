@@ -119,7 +119,7 @@ public class Populate extends pedsim.core.engine.Populate {
 		}
 
 		if (!PedSimCity.startingNodes.isEmpty()) {
-			return PedSimCity.startingNodes.get(0);
+			return NodesLookup.randomNodeFromGeometries(network, PedSimCity.startingNodes);
 		}
 
 		return NodesLookup.randomNode(network);
@@ -137,7 +137,7 @@ public class Populate extends pedsim.core.engine.Populate {
 
 	private NodeGraph randomSubdivisionOrigin() {
 		if (!PedSimCity.startingNodes.isEmpty()) {
-			return PedSimCity.startingNodes.get(iRandom(PedSimCity.startingNodes.size()));
+			return NodesLookup.randomNodeFromGeometries(network, PedSimCity.startingNodes);
 		}
 
 		return NodesLookup.randomNode(network);
@@ -155,7 +155,7 @@ public class Populate extends pedsim.core.engine.Populate {
 
 	private NodeGraph randomGenericOrigin() {
 		if (!PedSimCity.startingNodes.isEmpty()) {
-			return PedSimCity.startingNodes.get(iRandom(PedSimCity.startingNodes.size()));
+			return NodesLookup.randomNodeFromGeometries(network, PedSimCity.startingNodes);
 		}
 
 		return NodesLookup.randomNode(network);

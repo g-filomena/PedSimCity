@@ -20,7 +20,7 @@ public class PedSimCityImage extends PedSimCity {
 	 * Distance bins used by the landmark testing mode. They are populated by the
 	 * import/preparation pipeline when the relevant city resources are loaded.
 	 */
-	public static final ArrayList<Double> distances = new ArrayList<>();
+	public static final ArrayList<Float> distances = new ArrayList<>();
 
 	/**
 	 * Kept for backward compatibility with city-image code paths that used their

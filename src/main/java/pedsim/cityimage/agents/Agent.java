@@ -1,114 +1,112 @@
 package pedsim.cityimage.agents;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.logging.Logger;
-import org.locationtech.jts.geom.Coordinate;
+
+import org.javatuples.Pair;
+import org.locationtech.jts.geom.GeometryFactory;
+
 import pedsim.cityimage.engine.PedSimCityImage;
 import pedsim.cityimage.parameters.TestPars;
+import pedsim.cityimage.utilities.StringEnum.RouteChoice;
 import pedsim.core.agents.AgentMovement;
 import pedsim.core.routing.RoutePlanner;
 import pedsim.core.utilities.LoggerUtil;
 import sim.engine.SimState;
 import sim.graph.NodeGraph;
 
-/**
- * This class represents an agent in the pedestrian simulation. Agents move along paths between
- * origin and destination nodes.
- */
 public final class Agent extends pedsim.core.agents.Agent {
 
-  private static final long serialVersionUID = 1L;
-  protected static final Logger logger = LoggerUtil.getLogger();
-  protected AgentProperties agentProperties;
+	private static final long serialVersionUID = 1L;
 
+	private static final Logger LOGGER = LoggerUtil.getLogger();
 
-  /**
-   * Constructor Function. Creates a new agent with the specified agent properties.
-   *
-   * @param state the PedSimCity simulation state.
-   */
-  public Agent(PedSimCityImage state) {
+	private final RouteChoice routeChoice;
 
-    this.state = state;
-    agentMovement = new AgentMovement(this);
-    placeAgent();
+	public Agent(PedSimCityImage state, RouteChoice routeChoice, List<Pair<NodeGraph, NodeGraph>> odPairs) {
 
-    if (!OD.isEmpty()) {
-      originNode = (NodeGraph) OD.get(getTripsDone()).getValue(0);
-      Coordinate startCoord = null;
-      startCoord = originNode.getCoordinate();
-      updateAgentPosition(startCoord);
-    }
+		super(state, false);
 
-  }
+		this.routeChoice = routeChoice;
+		this.agentProperties = new AgentProperties();
+		((AgentProperties) this.agentProperties).setRouteChoice(routeChoice);
 
-  /**
-   * Performs agent's stepping action in the simulation.
-   *
-   * @param state The simulation state.
-   */
-  @Override
-  public void step(SimState state) {
+		this.agentMovement = new AgentMovement(this);
+		setOD(odPairs);
+	}
 
-    if (reachedDestination.get() == true || destinationNode == null)
-      try {
-        handleReachedDestination();
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-    else
-      agentMovement.keepWalking();
-  }
+	public void setOD(List<Pair<NodeGraph, NodeGraph>> odPairs) {
+		this.OD = new LinkedList<>(odPairs);
 
-  /**
-   * Handles the agent's behaviour when reaching its destination.
-   */
-  @Override
-  protected void handleReachedDestination() {
+		if (!this.OD.isEmpty()) {
+			this.originNode = this.OD.get(0).getValue0();
+			placeAtOriginWithoutLayerUpdate();
+		}
+	}
 
-    reachedDestination.set(false);
-    if (getTripsDone() == OD.size()) {
-      removeAgent();
-      return;
-    }
-    selectNodesFromOD();
-    updateAgentPosition(originNode.getCoordinate());
-    planRoute();
-    agentMovement.initialisePath(route);
-    return;
-  }
+	private void placeAtOriginWithoutLayerUpdate() {
+		if (originNode == null) {
+			return;
+		}
 
-  /**
-   * Selects origin and destination nodes for the agent.
-   */
-  private void selectNodesFromOD() {
-    originNode = (NodeGraph) OD.get(getTripsDone()).getValue(0);
-    destinationNode = (NodeGraph) OD.get(getTripsDone()).getValue(1);
-  }
+		GeometryFactory geometryFactory = new GeometryFactory();
+		this.currentLocation.geometry = geometryFactory.createPoint(originNode.getCoordinate());
+	}
 
-  // /**
-  // * Updates data related to the volumes on the segments traversed.
-  // */
-  // public void updateData() {
-  // tripsDone += 1;
-  // state.flowHandler.updateFlowsData(this, route);
-  // }
+	@Override
+	public void step(SimState state) {
+		if (reachedDestination.get() || destinationNode == null) {
+			handleReachedDestination();
+		} else {
+			agentMovement.keepWalking();
+		}
+	}
 
-  /**
-   * Plans the route for the agent.
-   */
-  protected void planRoute() {
+	@Override
+	protected void handleReachedDestination() {
+		boolean completedTrip = reachedDestination.get();
+		reachedDestination.set(false);
 
-    if (TestPars.verboseMode) {
-      if (agentProperties.routeChoice != null) {
-        logger.info(String.format("Agent %s", agentProperties.routeChoice));
-      }
+		if (completedTrip) {
+			setTripsDone(getTripsDone() + 1);
+		}
 
-      logger.info(String.format(" - origin %s destination %s", originNode.getID(),
-          destinationNode.getID()));
-      RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
-      route = planner.definePath();
-    }
-  }
+		if (getTripsDone() >= OD.size()) {
+			removeAgent();
+			return;
+		}
 
+		selectNodesFromOD();
+		updateAgentPosition(originNode.getCoordinate());
+		planRoute();
+		agentMovement.initialisePath(route);
+	}
 
+	private void selectNodesFromOD() {
+		Pair<NodeGraph, NodeGraph> pair = OD.get(getTripsDone());
+
+		originNode = pair.getValue0();
+		destinationNode = pair.getValue1();
+	}
+
+	@Override
+	protected void planRoute() {
+		if (TestPars.verboseMode) {
+			LOGGER.info(String.format("CityImage agent %d | model=%s | trip=%d | origin=%s | destination=%s", agentID,
+					routeChoice, getTripsDone(), originNode, destinationNode));
+		}
+
+		RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
+		setRoute(planner.definePath());
+	}
+
+	@Override
+	public Enum<?> getAgentScenario() {
+		return routeChoice;
+	}
+
+	public RouteChoice getRouteChoice() {
+		return routeChoice;
+	}
 }
