@@ -72,6 +72,7 @@ Thumbs.db
 desktop.ini
 
 
+
 # -------------------------------------------------------------------
 # Project runtime/cache/output folders
 # -------------------------------------------------------------------
@@ -79,7 +80,11 @@ desktop.ini
 /cache/
 /Obsolete/
 /outputs/
+/src/main/java/pedsim/learning/
+/src/main/java/pedsim/social/
 
+/src/main/resources/Barcelona/
+/src/main/resources/Melbourne/
 
 # -------------------------------------------------------------------
 # Notebooks / analysis outputs
@@ -114,7 +119,6 @@ id_ed25519*
 # Local data / geospatial heavy files
 # -------------------------------------------------------------------
 
-*.gpkg
 *.shp
 *.shx
 *.dbf
