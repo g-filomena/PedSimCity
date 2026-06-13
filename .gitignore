@@ -90,7 +90,8 @@ desktop.ini
 # Notebooks / analysis outputs
 # -------------------------------------------------------------------
 
-/notebook/input/
+/notebook/inputData/Barcelona/
+/notebook/inputData/Melbourne/
 /notebook/figures/
 /notebook/outputs/
 /notebook/learning/
