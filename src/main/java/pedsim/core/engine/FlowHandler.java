@@ -72,25 +72,30 @@ public class FlowHandler {
    * empirical-based, it initialises volumes based on empirical agent groups.
    */
   protected void initializeEdgeVolumes() {
-    for (int edgeID : PedSimCity.edgesMap.keySet()) {
-      Map<String, Integer> edgeVolumes =
-          Arrays.stream(scenarios).collect(Collectors.toMap(s -> s, s -> 0));
-      volumesMap.put(edgeID, edgeVolumes);
+    if (volumesMap.isEmpty()) {
+      for (int edgeID : PedSimCity.edgesMap.keySet()) {
+        volumesMap.put(edgeID, Arrays.stream(scenarios).collect(Collectors.toMap(s -> s, s -> 0)));
+      }
+    } else {
+      volumesMap.values().forEach(m -> m.replaceAll((k, v) -> 0));
     }
   }
 
   private void initializeCognitiveMapCollector() {
-
-    for (Integer edgeID : PedSimCity.edgesMap.keySet()) {
-      Map<String, Integer> edgeMap =
-          Arrays.stream(scenarios).collect(Collectors.toMap(s -> s, s -> 0));
-      knownEdgesMap.put(edgeID, edgeMap);
+    if (knownEdgesMap.isEmpty()) {
+      for (Integer edgeID : PedSimCity.edgesMap.keySet()) {
+        knownEdgesMap.put(edgeID, Arrays.stream(scenarios).collect(Collectors.toMap(s -> s, s -> 0)));
+      }
+    } else {
+      knownEdgesMap.values().forEach(m -> m.replaceAll((k, v) -> 0));
     }
 
-    for (Integer buildingID : PedSimCity.buildingsMap.keySet()) {
-      Map<String, Integer> buildingMap =
-          Arrays.stream(scenarios).collect(Collectors.toMap(s -> s, s -> 0));
-      knownLandmarksMap.put(buildingID, buildingMap);
+    if (knownLandmarksMap.isEmpty()) {
+      for (Integer buildingID : PedSimCity.buildingsMap.keySet()) {
+        knownLandmarksMap.put(buildingID, Arrays.stream(scenarios).collect(Collectors.toMap(s -> s, s -> 0)));
+      }
+    } else {
+      knownLandmarksMap.values().forEach(m -> m.replaceAll((k, v) -> 0));
     }
   }
 
