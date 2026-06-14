@@ -90,17 +90,7 @@ public class Engine {
         return new Engine(stateFactory, baseSeed);
     }
 
-protected void prepareToRun() throws Exception {
-		Pars.setSimulationParameters();
-
-		Import importer = new Import();
-		importer.importFiles();
-
-		Environment.prepare();
-		logger.info("Environment prepared. About to start simulation");
-	}
-
-	public void executeJob(int job, ScenarioConfig scenarioConfig) throws Exception {
+public void executeJob(int job, ScenarioConfig scenarioConfig) throws Exception {
 		int currentDay = 0;
 
 		long seed = seedForJob(job);
@@ -160,11 +150,11 @@ protected void prepareToRun() throws Exception {
 
 				if (currentDay % 6 == 0) {
 					handleEndWeek(state, job, scenarioConfig);
-				} else {
-					kmCurrentDay = calculateMetersCurrentDay();
-					logger.info("---------- Beginning day Nr " + (currentDay + 1));
-					currentDayReleaseManager = new AgentReleaseManager(state, kmCurrentDay, currentDay + 1);
 				}
+				currentDayReleaseManager.close();
+				kmCurrentDay = calculateMetersCurrentDay();
+				logger.info("---------- Beginning day Nr " + (currentDay + 1));
+				currentDayReleaseManager = new AgentReleaseManager(state, kmCurrentDay, currentDay + 1);
 			}
 
 			if (steps >= nextAgentRelease) {
@@ -177,6 +167,7 @@ protected void prepareToRun() throws Exception {
 		state.flowHandler.updateCognitiveMapsData(null);
 		state.flowHandler.exportFlowsData(currentDay + 1);
 		state.flowHandler.exportCognitiveMapsData(currentDay + 1);
+		currentDayReleaseManager.close();
 
 		onJobFinished(job, state, scenarioConfig);
 		state.finish();
