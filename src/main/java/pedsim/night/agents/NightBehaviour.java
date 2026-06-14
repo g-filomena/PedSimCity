@@ -181,9 +181,10 @@ public class NightBehaviour {
       NodeGraph fromNode = (NodeGraph) nightMovement.currentDirectedEdge.getFromNode();
       NodeGraph toNode = (NodeGraph) nightMovement.currentDirectedEdge.getToNode();
       if (fromNode != null && toNode != null) {
-        String edgeKey = fromNode.getID() + "-" + toNode.getID();
-        if (pedsim.night.engine.PedSimCityNight.directionalLuxMap.containsKey(edgeKey)) {
-          entranceLux = pedsim.night.engine.PedSimCityNight.directionalLuxMap.get(edgeKey);
+        long edgeKey = pedsim.night.engine.PedSimCityNight.luxKey(fromNode.getID(), toNode.getID());
+        Double luxValue = pedsim.night.engine.PedSimCityNight.directionalLuxMap.get(edgeKey);
+        if (luxValue != null) {
+          entranceLux = luxValue;
         }
       }
     }
