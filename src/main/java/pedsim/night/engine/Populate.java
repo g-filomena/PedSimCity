@@ -59,13 +59,12 @@ public class Populate extends pedsim.core.engine.Populate {
   }
 
   private void registerAgent(pedsim.night.agents.Agent agent) {
-    agent.updateAgentLists(false, true);
-    this.state.agentsList.add(agent);
     if (agent.homeNode != null) {
       agent.currentLocation.geometry =
           new org.locationtech.jts.geom.GeometryFactory().createPoint(agent.homeNode.getCoordinate());
     }
     this.state.agents.addGeometry(agent.getLocation());
+    agent.updateAgentLists(false, true); // adds to agentsList + agentsAtHome
   }
 
   /**
@@ -87,7 +86,6 @@ public class Populate extends pedsim.core.engine.Populate {
         agent.isVulnerableBoolean() ? Vulnerable.VULNERABLE : Vulnerable.NON_VULNERABLE;
 
     agent.initSensitivity();
-    agent.updateAgentLists(false, true);
     return agent;
   }
 
