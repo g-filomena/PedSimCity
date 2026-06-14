@@ -108,24 +108,24 @@ public class BarrierIntegration {
 
 		List<Integer> positiveBarriers = new ArrayList<>();
 		List<Integer> negativeBarriers = new ArrayList<>();
+		List<Integer> waterBodies = new ArrayList<>();
+		List<Integer> parks = new ArrayList<>();
 		List<Integer> barriers = new ArrayList<>(); // all the barriers
 
-		Map<String, List<Integer>> attributesMap = Map.of("p_barr", new ArrayList<>(), "n_barr", new ArrayList<>(),
-				"a_rivers", new ArrayList<>(), "w_parks", new ArrayList<>());
+		Map<String, List<Integer>> attributesMap = Map.of("p_barr", positiveBarriers, "n_barr", negativeBarriers,
+				"a_rivers", waterBodies, "w_parks", parks);
 
 		attributesMap.forEach((key, list) -> {
 			String value = edge.attributes.get(key).getString();
+
 			if (!value.equals("[]")) {
-				Arrays.stream(value.replaceAll("[^-?0-9]+", " ").trim().split(" ")).map(Integer::valueOf)
-						.forEach(list::add);
+				Arrays.stream(value.replaceAll("[^-0-9]+", " ").trim().split(" ")).filter(s -> !s.isBlank())
+						.map(Integer::valueOf).forEach(list::add);
 			}
+
 			edge.attributes.put(key.replace("p_barr", "positiveBarriers").replace("n_barr", "negativeBarriers")
 					.replace("a_rivers", "waterBodies").replace("w_parks", "parks"), new AttributeValue(list));
 		});
-		//
-		//
-		// if (!parks.isEmpty())
-		// CommunityCognitiveMap.edgesWithinParks.add(edge);
 
 		barriers.addAll(positiveBarriers);
 		barriers.addAll(negativeBarriers);
