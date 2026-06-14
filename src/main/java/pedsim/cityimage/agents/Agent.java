@@ -3,6 +3,8 @@ package pedsim.cityimage.agents;
 import java.util.List;
 import java.util.logging.Logger;
 
+import org.javatuples.Pair;
+
 import pedsim.cityimage.engine.PedSimCityImage;
 import pedsim.cityimage.parameters.TestPars;
 import pedsim.cityimage.utilities.StringEnum.RouteChoice;
