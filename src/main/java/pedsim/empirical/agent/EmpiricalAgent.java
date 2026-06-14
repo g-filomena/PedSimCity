@@ -1,10 +1,6 @@
 package pedsim.empirical.agent;
 
-import java.util.LinkedList;
 import java.util.List;
-
-import org.javatuples.Pair;
-import org.locationtech.jts.geom.GeometryFactory;
 
 import pedsim.core.agents.AgentMovement;
 import pedsim.core.engine.PedSimCity;
@@ -30,27 +26,6 @@ public final class EmpiricalAgent extends pedsim.core.agents.Agent {
 		this.agentProperties = new EmpiricalAgentProperties(this, group);
 		((EmpiricalAgentProperties) this.agentProperties).randomizeRouteChoiceParameters();
 		this.agentMovement = new AgentMovement(this);
-	}
-
-	public void setOD(List<Pair<NodeGraph, NodeGraph>> odPairs) {
-		this.OD = new LinkedList<>(odPairs);
-
-		if (!this.OD.isEmpty()) {
-			this.originNode = this.OD.get(0).getValue0();
-			placeAtOriginWithoutLayerUpdate();
-		}
-	}
-
-	// TODO this seems hard-coded to the first trip, but it is needed to avoid a
-	// layer update before the first step.
-	// Consider refactoring if more flexibility is needed.
-	private void placeAtOriginWithoutLayerUpdate() {
-		if (originNode == null) {
-			return;
-		}
-
-		GeometryFactory geometryFactory = new GeometryFactory();
-		this.currentLocation.geometry = geometryFactory.createPoint(originNode.getCoordinate());
 	}
 
 	@Override
@@ -80,12 +55,6 @@ public final class EmpiricalAgent extends pedsim.core.agents.Agent {
 		updateAgentPosition(originNode.getCoordinate());
 		planRoute();
 		agentMovement.initialisePath(route);
-	}
-
-	private void selectNodesFromOD() {
-		Pair<NodeGraph, NodeGraph> pair = OD.get(getTripsDone());
-		originNode = pair.getValue0();
-		destinationNode = pair.getValue1();
 	}
 
 	@Override
