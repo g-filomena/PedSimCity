@@ -51,8 +51,12 @@ public class Populate {
 
     this.state = state;
 
+    // Build census-zone probability table once before any agent is created (BUG-02 fix).
+    if (!PedSimCity.censusZonesList.isEmpty()) {
+      buildResidenceProbabilities();
+    }
+
     // Step 1: Create agents in sequence (Fast with spatial index)
-    // Create agents with parameter true
     int totalAgents = Pars.numAgents;
     logger.info("Creating " + totalAgents + " Agents. Building Their Cognitive Maps");
     List<Agent> newAgents =
@@ -60,8 +64,6 @@ public class Populate {
 
     // Step 2: Register agents sequentially (Thread-safe state update)
     for (Agent agent : newAgents) {
-      state.agentsList.add(agent);
-
       // Update agent position to its homeNode before adding to the layer
       if (agent.homeNode != null) {
         agent.currentLocation.geometry =
@@ -69,7 +71,7 @@ public class Populate {
       }
 
       state.agents.addGeometry(agent.getLocation());
-      agent.updateAgentLists(false, true);
+      agent.updateAgentLists(false, true); // adds to agentsList + agentsAtHome
     }
 
     logger.info("Agent Routing Stats -> Spatial Jump Successes: " + spatialJumpSuccessCount.get()
@@ -88,7 +90,6 @@ public class Populate {
     Agent agent = new Agent(this.state, false);
     agent.agentID = agentID;
     defineHomeWorkLocations(agent);
-    agent.updateAgentLists(false, true);
     return agent;
   }
 
@@ -130,7 +131,6 @@ public class Populate {
   private void assignHomeNode(boolean useCensusZones) {
 
     if (useCensusZones) {
-      buildResidenceProbabilities();
       MasonGeometry selectedZone = selectHomeZoneByResidenceWeight();
       homeNode = selectRandomNodeFromCensusZone(selectedZone);
     }
@@ -145,14 +145,16 @@ public class Populate {
   // Load census zones and build cumulative residence probabilities
   private void buildResidenceProbabilities() {
 
-    cumulativeProbabilities = new double[PedSimCity.censusZonesList.size()];
+    List<MasonGeometry> zones = PedSimCity.censusZonesList;
+    cumulativeProbabilities = new double[zones.size()];
     double cumulative = 0.0;
+    totalProbability = 0.0;
 
-    for (MasonGeometry zone : PedSimCity.censusZonesList) {
-      double residencePct = zone.getDoubleAttribute("residence_pct");
+    for (int i = 0; i < zones.size(); i++) {
+      double residencePct = zones.get(i).getDoubleAttribute("residence_pct");
       totalProbability += residencePct;
       cumulative += residencePct;
-      cumulativeProbabilities[PedSimCity.censusZonesList.indexOf(zone)] = cumulative;
+      cumulativeProbabilities[i] = cumulative;
     }
   }
 
