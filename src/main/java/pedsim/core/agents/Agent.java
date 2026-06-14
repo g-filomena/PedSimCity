@@ -187,11 +187,14 @@ public class Agent implements Steppable {
 		}
 	}
 
-	private static final java.util.concurrent.ConcurrentHashMap<String, List<NodeGraph>> candidateCache = 
+	private static final java.util.concurrent.ConcurrentHashMap<String, List<NodeGraph>> candidateCache =
 			new java.util.concurrent.ConcurrentHashMap<>();
 
 	public static List<NodeGraph> getNodesBetweenDistanceIntervalOptimized(
 			Graph network, NodeGraph originNode, double lowerLimit, double upperLimit) {
+		if (candidateCache.size() > 50_000) {
+			candidateCache.clear();
+		}
 		String key = originNode.getID() + "_" + lowerLimit + "_" + upperLimit;
 		return candidateCache.computeIfAbsent(key, k -> {
 			double minEuc = lowerLimit / 2.5;
@@ -342,6 +345,33 @@ public class Agent implements Steppable {
 		}
 
 		timeAtDestination = (randomMinutes * TimePars.MINUTE_TO_STEPS) + steps;
+	}
+
+	/**
+	 * Sets the ordered OD list for agents that run a fixed sequence of trips.
+	 * Places the agent at the first origin without triggering a layer update.
+	 */
+	public void setOD(List<Pair<NodeGraph, NodeGraph>> odPairs) {
+		this.OD = new LinkedList<>(odPairs);
+		if (!this.OD.isEmpty()) {
+			this.originNode = this.OD.get(0).getValue0();
+			placeAtOriginWithoutLayerUpdate();
+		}
+	}
+
+	// Avoids a layer update before the first step (agent placed directly at origin geometry).
+	protected void placeAtOriginWithoutLayerUpdate() {
+		if (originNode == null) {
+			return;
+		}
+		GeometryFactory geometryFactory = new GeometryFactory();
+		this.currentLocation.geometry = geometryFactory.createPoint(originNode.getCoordinate());
+	}
+
+	protected void selectNodesFromOD() {
+		Pair<NodeGraph, NodeGraph> pair = OD.get(getTripsDone());
+		originNode = pair.getValue0();
+		destinationNode = pair.getValue1();
 	}
 
 	/**
