@@ -49,6 +49,7 @@ public class CityImageEngine extends Engine {
 			SimulationStateStore.getInstance().stopRequested = false;
 
 			clearStaticData();
+			clearCityImageStaticData();
 
 			Pars.setSimulationParameters();
 			TestPars.defineMode();
@@ -149,5 +150,10 @@ public class CityImageEngine extends Engine {
 			PedSimCityImageApplet.setRemainingTripsCount(total);
 			PedSimCityImageApplet.updateRemainingTripsLabel(true);
 		});
+	}
+
+	private static void clearCityImageStaticData() {
+		PedSimCityImage.distances.clear();
+		PedSimCityImage.indexedEdgeCache.clear();
 	}
 }

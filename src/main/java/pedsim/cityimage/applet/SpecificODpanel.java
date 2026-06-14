@@ -10,7 +10,6 @@ import java.awt.event.WindowEvent;
 
 import pedsim.cityimage.parameters.TestPars;
 
-/** Panel for manually entering specific origin-destination pairs. */
 public class SpecificODpanel extends Frame {
 
 	private static final long serialVersionUID = 1L;
@@ -24,7 +23,7 @@ public class SpecificODpanel extends Frame {
 		specificODFrame.setLayout(null);
 
 		Label originsLabel = new Label("Origins:");
-		originsLabel.setBounds(10, 40, 80, 20);
+		originsLabel.setBounds(10, 40, 100, 20);
 		specificODFrame.add(originsLabel);
 
 		originsField = new TextField();
@@ -40,18 +39,26 @@ public class SpecificODpanel extends Frame {
 		specificODFrame.add(destinationsField);
 
 		Button saveButton = new Button("Save");
-		saveButton.setBounds(10, 100, 80, 30);
+		saveButton.setBounds(10, 110, 80, 30);
 		saveButton.addActionListener(event -> inputODs());
 		specificODFrame.add(saveButton);
 
-		specificODFrame.setSize(600, 150);
+		Button cancelButton = new Button("Cancel");
+		cancelButton.setBounds(110, 110, 80, 30);
+		cancelButton.addActionListener(event -> {
+			specificODcheckbox.setState(false);
+			closeSpecificODCheckbox();
+		});
+		specificODFrame.add(cancelButton);
+
+		specificODFrame.setSize(600, 170);
 		specificODFrame.setVisible(true);
 
 		specificODFrame.addWindowListener(new WindowAdapter() {
 			@Override
 			public void windowClosing(WindowEvent event) {
 				specificODcheckbox.setState(false);
-				specificODFrame.dispose();
+				closeSpecificODCheckbox();
 			}
 		});
 	}
@@ -63,11 +70,21 @@ public class SpecificODpanel extends Frame {
 		}
 
 		TestPars.testingSpecificOD = false;
+		TestPars.originsTmp = new Integer[] {};
+		TestPars.destinationsTmp = new Integer[] {};
 	}
 
 	private static void inputODs() {
-		String[] originsArray = originsField.getText().split(",");
-		String[] destinationsArray = destinationsField.getText().split(",");
+		String originsText = originsField.getText().trim();
+		String destinationsText = destinationsField.getText().trim();
+
+		if (originsText.isEmpty() || destinationsText.isEmpty()) {
+			showErrorMessage("Origins and destinations cannot be empty.");
+			return;
+		}
+
+		String[] originsArray = originsText.split(",");
+		String[] destinationsArray = destinationsText.split(",");
 
 		if (originsArray.length != destinationsArray.length) {
 			showErrorMessage("The number of origins must match the number of destinations.");
@@ -84,16 +101,18 @@ public class SpecificODpanel extends Frame {
 			}
 
 		} catch (NumberFormatException exception) {
-			showErrorMessage("Invalid input. Please enter valid integer node IDs.");
+			showErrorMessage("Invalid input. Use comma-separated integer node IDs.");
 			return;
 		}
 
 		TestPars.originsTmp = origins;
 		TestPars.destinationsTmp = destinations;
 		TestPars.testingSpecificOD = true;
+		TestPars.numberTripsPerAgent = origins.length;
 
 		if (specificODFrame != null) {
 			specificODFrame.dispose();
+			specificODFrame = null;
 		}
 	}
 

@@ -12,7 +12,6 @@ import pedsim.cityimage.parameters.TestPars;
 import pedsim.cityimage.utilities.StringEnum.RouteChoice;
 import pedsim.core.parameters.Pars;
 
-/** GUI panel for selecting route-choice models to test. */
 public class TestPanel extends Frame {
 
 	private static final long serialVersionUID = 1L;
@@ -23,50 +22,55 @@ public class TestPanel extends Frame {
 	private TextField numTripsPerAgentField;
 
 	public TestPanel() {
-		setTitle("Testing panel");
+		setTitle("Testing Route Choice Models");
 		setLayout(null);
 
-		Button saveButton = new Button("Save");
-		saveButton.addActionListener(event -> getTestParameters());
-
-		int y = 30;
+		int y = 40;
 
 		for (RouteChoice choice : RouteChoice.values()) {
 			Checkbox checkbox = new Checkbox(choice.toString());
 			checkbox.setName(choice.name());
-			checkbox.setBounds(10, y, 400, 20);
-			y += 30;
+			checkbox.setBounds(10, y, 380, 20);
+
+			if (choice == RouteChoice.ROAD_DISTANCE || choice == RouteChoice.ANGULAR_CHANGE) {
+				checkbox.setState(true);
+			}
+
 			add(checkbox);
+			y += 28;
 		}
 
 		Label jobsLabel = new Label("Jobs:");
-		jobsLabel.setBounds(10, y, 80, 20);
+		jobsLabel.setBounds(10, y + 10, 150, 20);
 		add(jobsLabel);
 
 		jobsTextField = new TextField(Integer.toString(Pars.jobs));
-		jobsTextField.setBounds(170, y, 100, 20);
+		jobsTextField.setBounds(170, y + 10, 100, 20);
 		add(jobsTextField);
 
-		y += 30;
-
-		Label numTripsPerAgentLabel = new Label("Number of Trips per Agent:");
-		numTripsPerAgentLabel.setBounds(10, y, 155, 20);
-		add(numTripsPerAgentLabel);
+		Label tripsLabel = new Label("Trips per agent:");
+		tripsLabel.setBounds(10, y + 40, 150, 20);
+		add(tripsLabel);
 
 		numTripsPerAgentField = new TextField(Integer.toString(TestPars.numberTripsPerAgent));
-		numTripsPerAgentField.setBounds(170, y, 100, 20);
+		numTripsPerAgentField.setBounds(170, y + 40, 100, 20);
 		add(numTripsPerAgentField);
 
-		y += 30;
-
-		saveButton.setBounds(10, y, 80, 30);
+		Button saveButton = new Button("Save");
+		saveButton.setBounds(10, y + 80, 90, 30);
+		saveButton.addActionListener(event -> saveTestParameters());
 		add(saveButton);
 
-		setSize(430, 720);
+		Button closeButton = new Button("Close");
+		closeButton.setBounds(120, y + 80, 90, 30);
+		closeButton.addActionListener(event -> dispose());
+		add(closeButton);
+
+		setSize(430, y + 160);
 		setVisible(true);
 	}
 
-	public void getTestParameters() {
+	private void saveTestParameters() {
 		selectedChoices.clear();
 
 		for (int i = 0; i < getComponentCount(); i++) {
@@ -81,17 +85,20 @@ public class TestPanel extends Frame {
 		}
 
 		TestPars.routeChoiceUser = selectedChoices.toArray(new RouteChoice[0]);
+		TestPars.stringMode = "Testing Specific Route Choice Models";
 
 		try {
 			Pars.jobs = Integer.parseInt(jobsTextField.getText().trim());
-			TestPars.numberTripsPerAgent = Integer.parseInt(numTripsPerAgentField.getText().trim());
-
 		} catch (NumberFormatException exception) {
-			System.err.println("Invalid input for jobs or number of trips per agent.");
+			Pars.jobs = 1;
 		}
 
-		TestPars.stringMode = "Testing Specific Route Choice Models";
-		TestPars.testingModels = true;
+		try {
+			TestPars.numberTripsPerAgent = Integer.parseInt(numTripsPerAgentField.getText().trim());
+		} catch (NumberFormatException exception) {
+			TestPars.numberTripsPerAgent = 2;
+		}
+
 		TestPars.defineMode();
 
 		dispose();

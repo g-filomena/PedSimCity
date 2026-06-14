@@ -28,6 +28,7 @@ public class PedSimCityImageApplet extends pedsim.core.applet.PedSimCityApplet i
 
 	protected Choice simulationModeChoice;
 	protected Button startButtonParallel;
+	protected Button testModelsButton;
 	protected Checkbox specificODcheckBox;
 	protected Checkbox verboseCheckBox;
 
@@ -73,6 +74,11 @@ public class PedSimCityImageApplet extends pedsim.core.applet.PedSimCityApplet i
 		verboseCheckBox.setEnabled(true);
 		verboseCheckBox.addItemListener(this);
 		add(verboseCheckBox);
+
+		testModelsButton = new Button("Select Models");
+		testModelsButton.setBounds(320, 240, 130, 30);
+		testModelsButton.addActionListener(event -> new TestPanel());
+		add(testModelsButton);
 
 		startButtonParallel = new Button("Run in Parallel");
 		startButtonParallel.setBounds(290, 330, 140, 50);
@@ -168,8 +174,13 @@ public class PedSimCityImageApplet extends pedsim.core.applet.PedSimCityApplet i
 	protected void launchSimulation(boolean runInParallel) {
 		setRunningOnServer(false);
 
-		ParameterManager.collectParameters(this);
+		Thread existingThread = getSimulationThread();
+		if (existingThread != null && existingThread.isAlive()) {
+			LoggerUtil.getLogger().warning("CityImage simulation is already running.");
+			return;
+		}
 
+		ParameterManager.collectParameters(this);
 		applyCityImageSelections(runInParallel);
 
 		final ScenarioConfig scenarioConfig = buildScenarioConfig();
@@ -200,14 +211,18 @@ public class PedSimCityImageApplet extends pedsim.core.applet.PedSimCityApplet i
 	}
 
 	protected void initialiseProgressLabels(boolean runInParallel) {
+		setRemainingTripsCount(0);
+
 		if (runInParallel) {
 			jobsLabel.setText("Parallelising " + getJobs() + " Jobs");
 			jobsLabel.setVisible(true);
+
 			remainingTripsLabelParallel.setVisible(true);
 			updateRemainingTripsLabel(true);
 
 		} else {
 			jobLabel.setVisible(true);
+
 			remainingTripsLabel.setVisible(true);
 			updateRemainingTripsLabel(false);
 		}
@@ -224,8 +239,9 @@ public class PedSimCityImageApplet extends pedsim.core.applet.PedSimCityApplet i
 		routeParsButton.setEnabled(true);
 		specificODcheckBox.setEnabled(true);
 
-		if (routeChoiceMode) {
-			routeParsButton.setEnabled(true);
+		if (testModelsButton != null) {
+			testModelsButton.setEnabled(routeChoiceMode);
+			testModelsButton.setVisible(routeChoiceMode);
 		}
 	}
 
