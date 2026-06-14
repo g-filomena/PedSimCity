@@ -22,7 +22,5 @@ public class RouteData extends pedsim.core.utilities.RouteData {
   public double naturalBarriers;
   public double severingBarriers;
 
-  public List<Integer> edgeIDsSequence;
-  public String routeID;
   public String group;
 }
