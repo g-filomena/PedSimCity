@@ -23,8 +23,31 @@ import pedsim.core.utilities.StringEnum.RouteChoiceProperty;
  */
 public class EmpiricalAgentProperties extends AgentProperties {
 
-	private static final double MIN_NATURAL_BARRIERS = 1.00;
-	private static final double MAX_NATURAL_BARRIERS = 0.00;
+	/*
+	 * IMPORTANT: this range intentionally follows the empirical model released in
+	 * PedSimCity v1.11, where natural barriers are rescaled as 1.00 -> 0.00.
+	 *
+	 * Natural barriers are not treated like severing obstacles here. A higher
+	 * empirical tendency towards natural barriers must produce a lower routing-cost
+	 * factor, i.e. a preference / perceived-cost discount.
+	 *
+	 * The constant names are legacy semantic names, not numeric ordering: -
+	 * MIN_NATURAL_BARRIERS = 1.00 is passed as the output value for the low end of
+	 * the empirical probability range. - MAX_NATURAL_BARRIERS = 0.00 is passed as
+	 * the output value for the high end of the empirical probability range.
+	 *
+	 * Therefore the correct call is:
+	 *
+	 * rescale(0.0, 1.0, MIN_NATURAL_BARRIERS, MAX_NATURAL_BARRIERS, value)
+	 *
+	 * This intentionally maps: 0.0 -> 1.0 1.0 -> 0.0
+	 *
+	 * Do not reorder these arguments to MAX_NATURAL_BARRIERS, MIN_NATURAL_BARRIERS:
+	 * that would remove the inversion and change the empirical model semantics.
+	 *
+	 * Severing barriers are different: they follow the normal direction, where a
+	 * higher empirical tendency means a higher perceived-cost factor.
+	 */
 	private static final double MIN_SEVERING_BARRIERS = 1.00;
 	private static final double MAX_SEVERING_BARRIERS = 2.00;
 
@@ -125,7 +148,9 @@ public class EmpiricalAgentProperties extends AgentProperties {
 		distantLandmarksMap.put(RouteChoiceProperty.USING_DISTANT, pDistant);
 		distantLandmarksMap.put(RouteChoiceProperty.NOT_USING_DISTANT, 1.0 - pDistant);
 
-		double naturalBarrierScore = rescale(0.0, 1.0, MAX_NATURAL_BARRIERS, MIN_NATURAL_BARRIERS,
+		// TODO verify naturalBarrier is correctly inverted as a preference rather than
+		// a cost factor
+		double naturalBarrierScore = rescale(0.0, 1.0, MIN_NATURAL_BARRIERS, MAX_NATURAL_BARRIERS,
 				sampleProbability(group.naturalBarriers, group.naturalBarriersSD));
 		double severingBarrierScore = rescale(0.0, 1.0, MIN_SEVERING_BARRIERS, MAX_SEVERING_BARRIERS,
 				sampleProbability(group.severingBarriers, group.severingBarriersSD));
