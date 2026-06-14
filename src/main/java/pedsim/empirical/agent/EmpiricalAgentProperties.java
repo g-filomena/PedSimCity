@@ -48,6 +48,8 @@ public class EmpiricalAgentProperties extends AgentProperties {
 	 * Severing barriers are different: they follow the normal direction, where a
 	 * higher empirical tendency means a higher perceived-cost factor.
 	 */
+	private static final double MIN_NATURAL_BARRIERS = 1.00;
+	private static final double MAX_NATURAL_BARRIERS = 0.00;
 	private static final double MIN_SEVERING_BARRIERS = 1.00;
 	private static final double MAX_SEVERING_BARRIERS = 2.00;
 
