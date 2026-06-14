@@ -1,11 +1,7 @@
 package pedsim.cityimage.agents;
 
-import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Logger;
-
-import org.javatuples.Pair;
-import org.locationtech.jts.geom.GeometryFactory;
 
 import pedsim.cityimage.engine.PedSimCityImage;
 import pedsim.cityimage.parameters.TestPars;
@@ -36,24 +32,6 @@ public final class Agent extends pedsim.core.agents.Agent {
 		setOD(odPairs);
 	}
 
-	public void setOD(List<Pair<NodeGraph, NodeGraph>> odPairs) {
-		this.OD = new LinkedList<>(odPairs);
-
-		if (!this.OD.isEmpty()) {
-			this.originNode = this.OD.get(0).getValue0();
-			placeAtOriginWithoutLayerUpdate();
-		}
-	}
-
-	private void placeAtOriginWithoutLayerUpdate() {
-		if (originNode == null) {
-			return;
-		}
-
-		GeometryFactory geometryFactory = new GeometryFactory();
-		this.currentLocation.geometry = geometryFactory.createPoint(originNode.getCoordinate());
-	}
-
 	@Override
 	public void step(SimState state) {
 		if (reachedDestination.get() || destinationNode == null) {
@@ -81,13 +59,6 @@ public final class Agent extends pedsim.core.agents.Agent {
 		updateAgentPosition(originNode.getCoordinate());
 		planRoute();
 		agentMovement.initialisePath(route);
-	}
-
-	private void selectNodesFromOD() {
-		Pair<NodeGraph, NodeGraph> pair = OD.get(getTripsDone());
-
-		originNode = pair.getValue0();
-		destinationNode = pair.getValue1();
 	}
 
 	@Override
