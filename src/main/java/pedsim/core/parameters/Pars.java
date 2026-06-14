@@ -36,7 +36,7 @@ public class Pars {
   // for development/testing purposes only
   public static boolean javaProject = false;
   public static String localPath =
-      "C:/Users/gfilo/OneDrive - The University of Liverpool/Scripts/pedsimcityNight/src/main/resources/";
+      System.getProperty("pedsimcity.localPath", "");
   public static boolean parallel = false;
   
   public static boolean isNight = false;
