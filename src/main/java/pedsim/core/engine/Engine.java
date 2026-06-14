@@ -108,66 +108,69 @@ public void executeJob(int job, ScenarioConfig scenarioConfig) throws Exception 
 		logger.info("---------- Beginning day Nr " + (currentDay + 1));
 		AgentReleaseManager currentDayReleaseManager = new AgentReleaseManager(state, kmCurrentDay, currentDay + 1);
 
-		double nextAgentRelease = 1.0;
+		try {
+		    double nextAgentRelease = 1.0;
 
-		while (continueSimulation(state)) {
-			onJobStep(job, state, scenarioConfig);
+		    while (continueSimulation(state)) {
+		        onJobStep(job, state, scenarioConfig);
 
-			double steps = state.schedule.getSteps();
+		        double steps = state.schedule.getSteps();
 
-			if (state instanceof pedsim.night.engine.PedSimCityNight nightState) {
-				java.time.LocalTime time = TimePars.getTime(steps).toLocalTime();
-				nightState.isDark = time.isAfter(java.time.LocalTime.of(19, 59)) || time.isBefore(java.time.LocalTime.of(6, 0));
-			}
+		        if (state instanceof pedsim.night.engine.PedSimCityNight nightState) {
+		            java.time.LocalTime time = TimePars.getTime(steps).toLocalTime();
+		            nightState.isDark = time.isAfter(java.time.LocalTime.of(19, 59))
+		                    || time.isBefore(java.time.LocalTime.of(6, 0));
+		        }
 
-			if (SimulationStateStore.getInstance().running && Pars.stepDelayMs > 0) {
-				try {
-					Thread.sleep(Pars.stepDelayMs);
-				} catch (InterruptedException e) {
-					Thread.currentThread().interrupt();
-				}
-			}
+		        if (SimulationStateStore.getInstance().running && Pars.stepDelayMs > 0) {
+		            try {
+		                Thread.sleep(Pars.stepDelayMs);
+		            } catch (InterruptedException e) {
+		                Thread.currentThread().interrupt();
+		            }
+		        }
 
-			// Check whether the Javelit dashboard has requested a stop
-			if (SimulationStateStore.getInstance().stopRequested) {
-				logger.info("Stop requested by dashboard - ending simulation.");
-				break;
-			}
+		        if (SimulationStateStore.getInstance().stopRequested) {
+		            logger.info("Stop requested by dashboard - ending simulation.");
+		            break;
+		        }
 
-			// Push step-level statistics to the browser dashboard
-			String simTime = TimePars.getTime(steps).toLocalTime().toString();
-			SimulationStateStore.getInstance().updateStep((int) steps, simTime, state.agentsWalking.size(),
-					state.agentsAtHome.size(), 0);
+		        String simTime = TimePars.getTime(steps).toLocalTime().toString();
+		        SimulationStateStore.getInstance().updateStep((int) steps, simTime, state.agentsWalking.size(),
+		                state.agentsAtHome.size(), 0);
 
-			// Record agent positions for the HTML dashboard
-			trajectoryRecorder.record((long) steps);
+		        trajectoryRecorder.record((long) steps);
 
-			if (isNextDay(steps, currentDay)) {
-				state.flowHandler.updateCognitiveMapsData(null);
-				state.flowHandler.exportFlowsData(currentDay + 1);
-				state.flowHandler.exportCognitiveMapsData(currentDay + 1);
-				currentDay++;
+		        if (isNextDay(steps, currentDay)) {
+		            state.flowHandler.updateCognitiveMapsData(null);
+		            state.flowHandler.exportFlowsData(currentDay + 1);
+		            state.flowHandler.exportCognitiveMapsData(currentDay + 1);
+		            currentDay++;
 
-				if (currentDay % 6 == 0) {
-					handleEndWeek(state, job, scenarioConfig);
-				}
-				currentDayReleaseManager.close();
-				kmCurrentDay = calculateMetersCurrentDay();
-				logger.info("---------- Beginning day Nr " + (currentDay + 1));
-				currentDayReleaseManager = new AgentReleaseManager(state, kmCurrentDay, currentDay + 1);
-			}
+		            currentDayReleaseManager.close();
 
-			if (steps >= nextAgentRelease) {
-				currentDayReleaseManager.releaseAgents(steps);
-				nextAgentRelease += TimePars.releaseAgentsEverySteps;
-			}
+		            if (currentDay % 6 == 0) {
+		                handleEndWeek(state, job, scenarioConfig);
+		            }
 
+		            kmCurrentDay = calculateMetersCurrentDay();
+		            logger.info("---------- Beginning day Nr " + (currentDay + 1));
+		            currentDayReleaseManager = new AgentReleaseManager(state, kmCurrentDay, currentDay + 1);
+		        }
+
+		        if (steps >= nextAgentRelease) {
+		            currentDayReleaseManager.releaseAgents(steps);
+		            nextAgentRelease += TimePars.releaseAgentsEverySteps;
+		        }
+		    }
+
+		    state.flowHandler.updateCognitiveMapsData(null);
+		    state.flowHandler.exportFlowsData(currentDay + 1);
+		    state.flowHandler.exportCognitiveMapsData(currentDay + 1);
+
+		} finally {
+		    currentDayReleaseManager.close();
 		}
-
-		state.flowHandler.updateCognitiveMapsData(null);
-		state.flowHandler.exportFlowsData(currentDay + 1);
-		state.flowHandler.exportCognitiveMapsData(currentDay + 1);
-		currentDayReleaseManager.close();
 
 		onJobFinished(job, state, scenarioConfig);
 		state.finish();
