@@ -10,10 +10,6 @@ public class StringEnum extends pedsim.core.utilities.StringEnum {
     NULLGROUP, POPULATION, GROUP1, GROUP2, GROUP3, GROUP4, GROUP5, GROUP6,
   }
 
-  public enum LandmarkType {
-    LOCAL, GLOBAL
-  }
-
   public static String getAbbreviation(RouteChoice choice) {
     String[] parts = choice.toString().split("_");
     StringBuilder abbreviation = new StringBuilder();
