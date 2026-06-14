@@ -68,7 +68,8 @@ public class RoutePlanner {
 		}
 
 		// === Region-based navigation
-		if (isRegionBasedNavigation()) {
+		boolean regionBased = isRegionBasedNavigation();
+		if (regionBased) {
 			RegionBasedNavigation regionsPath = new RegionBasedNavigation(originNode, destinationNode, agent);
 			nodesSequence = regionsPath.sequenceRegions();
 		} else {
@@ -76,7 +77,7 @@ public class RoutePlanner {
 		}
 
 		// Barrier-based navigation (only barriers, no regions)
-		if (properties.isBarrierBasedNavigation() && !isRegionBasedNavigation()) {
+		if (properties.isBarrierBasedNavigation() && !regionBased) {
 			BarrierBasedNavigation barriersPath = new BarrierBasedNavigation(originNode, destinationNode, agent, false);
 			nodesSequence = barriersPath.sequenceBarriers();
 		}
@@ -86,13 +87,13 @@ public class RoutePlanner {
 			GlobalLandmarkNavigation globalNav = new GlobalLandmarkNavigation(originNode, destinationNode, agent);
 			RegionLandmarkNavigation regionNav = new RegionLandmarkNavigation(originNode, destinationNode, agent);
 
-			nodesSequence = isRegionBasedNavigation() && !nodesSequence.isEmpty()
+			nodesSequence = regionBased && !nodesSequence.isEmpty()
 					? regionNav.regionOnRouteMarks(nodesSequence)
 					: globalNav.onRouteMarks();
 
 			// depending on which was used, pull visited locations from the right one
 			route.setVisitedLocations(
-					new HashSet<>(isRegionBasedNavigation() && !nodesSequence.isEmpty() ? regionNav.getOnRouteMarks()
+					new HashSet<>(regionBased && !nodesSequence.isEmpty() ? regionNav.getOnRouteMarks()
 							: globalNav.getOnRouteMarks()));
 		}
 
