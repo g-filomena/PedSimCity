@@ -123,14 +123,30 @@ public class Populate extends pedsim.core.engine.Populate {
 	}
 
 	private NodeGraph randomDestination(NodeGraph originNode) {
-		NodeGraph destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, originNode,
-				RouteChoicePars.minTripDistance, RouteChoicePars.maxTripDistance);
+		if (originNode == null) {
+			return NodesLookup.randomNode(network);
+		}
 
-		int attempts = 0;
-		while (destinationNode != null && destinationNode.gateway && attempts < 50) {
+		NodeGraph destinationNode = null;
+
+		try {
 			destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, originNode,
 					RouteChoicePars.minTripDistance, RouteChoicePars.maxTripDistance);
-			attempts++;
+
+			int attempts = 0;
+
+			while ((destinationNode == null || destinationNode.gateway) && attempts < 50) {
+				destinationNode = NodesLookup.randomNodeBetweenDistanceInterval(network, originNode,
+						RouteChoicePars.minTripDistance, RouteChoicePars.maxTripDistance);
+				attempts++;
+			}
+
+		} catch (Exception exception) {
+			destinationNode = null;
+		}
+
+		if (destinationNode == null) {
+			destinationNode = NodesLookup.randomNode(network);
 		}
 
 		return destinationNode;
@@ -160,9 +176,12 @@ public class Populate extends pedsim.core.engine.Populate {
 
 		int agentID = 0;
 
-		// Full-population benchmark configurations.
 		for (EmpiricalAgentsGroup group : PedSimCityEmpirical.empiricalGroups) {
-			if (group.groupName == EmpiricalGroup.POPULATION || group.groupName == EmpiricalGroup.NULLGROUP) {
+			if (group.groupName == EmpiricalGroup.POPULATION && EmpiricalPars.includePopulationBenchmark) {
+				agentID = createAgentsForGroup(agentID, group, Pars.numAgents, odMatrix);
+			}
+
+			if (group.groupName == EmpiricalGroup.NULLGROUP && EmpiricalPars.includeNullBenchmark) {
 				agentID = createAgentsForGroup(agentID, group, Pars.numAgents, odMatrix);
 			}
 		}
