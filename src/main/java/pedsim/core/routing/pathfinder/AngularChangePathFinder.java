@@ -36,8 +36,13 @@ public class AngularChangePathFinder extends PathFinder {
 
 		NodeGraph dualOrigin = originNode.getDualNode(originNode, destinationNode, false, previousJunction);
 		NodeGraph dualDestination = null;
-		while (dualDestination == null || dualDestination.equals(dualOrigin)) {
+		int dualLookupAttempts = 0;
+		while ((dualDestination == null || dualDestination.equals(dualOrigin)) && dualLookupAttempts < 100) {
 			dualDestination = destinationNode.getDualNode(originNode, destinationNode, false, previousJunction);
+			dualLookupAttempts++;
+		}
+		if (dualDestination == null || dualDestination.equals(dualOrigin)) {
+			return route; // no valid dual node found; return empty route
 		}
 
 		NodeGraph commonJunction = RoutingUtils.getPrimalJunction(dualOrigin, dualDestination);
