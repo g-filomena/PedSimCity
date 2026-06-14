@@ -212,7 +212,7 @@ public class Dijkstra {
 	protected double costPerceptionError(NodeGraph targetNode, EdgeGraph commonEdge, boolean dual) {
 
 		double error = Utilities.fromDistribution(1.0, 0.10, null);
-		List<Integer> knownBarriers = agent.getCognitiveMap().getAgentKnownBarriers();
+		Set<Integer> knownBarriers = agent.getCognitiveMap().getAgentKnownBarriers();
 
 		if (positiveBarrierEffect()) {
 			// Defensive copy: getArray() returns the stored list by reference, so retainAll must
