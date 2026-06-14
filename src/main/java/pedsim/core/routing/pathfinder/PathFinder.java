@@ -188,6 +188,9 @@ public class PathFinder {
    * @param tmpDestination The examined primal destination node.
    */
   protected void cleanDualPath(NodeGraph tmpOrigin, NodeGraph tmpDestination) {
+    if (partialSequence.size() < 2) {
+      return;
+    }
     // check if the path is one edge ahead
     final NodeGraph firstDualNode = ((EdgeGraph) partialSequence.get(0).getEdge()).getDualNode();
     final NodeGraph secondDualNode = ((EdgeGraph) partialSequence.get(1).getEdge()).getDualNode();
