@@ -94,6 +94,10 @@ public class Display extends JPanel {
 	}
 
 	private void renderRoads(Graphics graphic) {
+		if (PedSimCity.roads == null) {
+			return;
+		}
+
 		graphic.setColor(new Color(64, 64, 64));
 
 		for (MasonGeometry road : PedSimCity.roads.getGeometries()) {
@@ -117,6 +121,10 @@ public class Display extends JPanel {
 	}
 
 	private void renderLandmarks(Graphics graphic) {
+		if (PedSimCity.buildings == null) {
+			return;
+		}
+
 		graphic.setColor(new Color(128, 128, 0));
 
 		for (MasonGeometry landmark : PedSimCity.buildings.getGeometries()) {
