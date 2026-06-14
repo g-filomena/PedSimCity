@@ -350,32 +350,30 @@ public class Environment {
    */
   private static void generateBarriersMap() {
 
+    // Build reverse index: barrierID → edges that reference it (O(edges) total).
+    Map<Integer, List<EdgeGraph>> barrierToEdges = new HashMap<>();
+    for (EdgeGraph edge : PedSimCity.network.getEdges()) {
+      List<Integer> edgeBarriers = edge.attributes.get("barriers").getArray();
+      for (Integer bid : edgeBarriers) {
+        barrierToEdges.computeIfAbsent(bid, k -> new ArrayList<>()).add(edge);
+      }
+    }
+
     // Element 5 - Barriers: create barriers map
     List<MasonGeometry> geometries = PedSimCity.barriers.getGeometries();
+    Map<String, StringEnum.BarrierType> barrierTypeMap =
+        Map.of("park", BarrierType.PARK, "water", BarrierType.WATER, "road", BarrierType.ROAD,
+            "railway", BarrierType.RAILWAY, "secondary_road", BarrierType.SECONDARY_ROAD);
+
     for (MasonGeometry barrierGeometry : geometries) {
       int barrierID = barrierGeometry.getIntegerAttribute("barrierID");
       Barrier barrier = new Barrier();
       barrier.masonGeometry = barrierGeometry;
 
-      // Define a mapping from string attributes to BARRIER enums
-      Map<String, StringEnum.BarrierType> barrierTypeMap =
-          Map.of("park", BarrierType.PARK, "water", BarrierType.WATER, "road", BarrierType.ROAD,
-              "railway", BarrierType.RAILWAY, "secondary_road", BarrierType.SECONDARY_ROAD);
-
-      // Assign the correct BARRIERTYPE based on the string attribute
       String typeAttr = barrierGeometry.getStringAttribute("type");
       barrier.type = typeAttr == null ? null : barrierTypeMap.get(typeAttr);
 
-      List<EdgeGraph> edgesAlong = new ArrayList<>();
-
-      for (EdgeGraph edge : PedSimCity.network.getEdges()) {
-        List<Integer> edgeBarriers = edge.attributes.get("barriers").getArray();
-        if (!edgeBarriers.isEmpty() && edgeBarriers.contains(barrierID)) {
-          edgesAlong.add(edge);
-        }
-      }
-
-      barrier.edgesAlong = edgesAlong;
+      barrier.edgesAlong = barrierToEdges.getOrDefault(barrierID, new ArrayList<>());
       PedSimCity.barriersMap.put(barrierID, barrier);
     }
 
