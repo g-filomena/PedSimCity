@@ -218,12 +218,11 @@ public class AgentMovement {
 
     indexOnSequence = 0;
     this.directedEdgesSequence = directedEdgesSequence;
-    currentDirectedEdge = directedEdgesSequence.get(0);
 
     // set up how to traverse this first link
     currentDirectedEdge = directedEdgesSequence.get(indexOnSequence);
     currentEdge = (EdgeGraph) currentDirectedEdge.getEdge();
-    currentNode = (NodeGraph) firstDirectedEdge.getFromNode();
+    currentNode = (NodeGraph) currentDirectedEdge.getFromNode();
     edgesToAvoid.clear();
     agent.updateAgentPosition(currentNode.getCoordinate());
   }
