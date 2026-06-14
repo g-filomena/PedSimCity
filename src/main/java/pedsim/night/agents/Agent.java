@@ -103,7 +103,7 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 			defineRandomDestination();
 		}
 		// safety check
-		if (destinationNode.getID() == originNode.getID()) {
+		if (destinationNode.getID().equals(originNode.getID())) {
 			reachedDestination.set(true);
 			return;
 		}
@@ -141,7 +141,7 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 			}
 		}
 		// safety check
-		if (destinationNode.getID() == originNode.getID()) {
+		if (destinationNode.getID().equals(originNode.getID())) {
 			reachedDestination.set(true);
 			return;
 		}
