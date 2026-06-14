@@ -211,10 +211,6 @@ public class Populate extends pedsim.core.engine.Populate {
 		state.agentsList.add(agent);
 	}
 
-	private static int iRandom(int upperBound) {
-		return (int) Math.floor(Math.random() * upperBound);
-	}
-
 	public List<Pair<NodeGraph, NodeGraph>> getOdMatrix() {
 		return odMatrix;
 	}
