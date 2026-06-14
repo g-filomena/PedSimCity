@@ -158,7 +158,7 @@ public class Agent implements Steppable {
 			}
 		}
 		// safety check
-		if (destinationNode.getID() == originNode.getID()) {
+		if (destinationNode.getID().equals(originNode.getID())) {
 			reachedDestination.set(true);
 			return;
 		}
@@ -222,12 +222,19 @@ public class Agent implements Steppable {
 		double upperLimit = distanceNextDestination;
 		Graph network = SharedCognitiveMap.getCommunityPrimalNetwork();
 		List<NodeGraph> candidates = new ArrayList<>();
-		while (candidates.isEmpty()) {
+		int maxIterations = 100;
+		int iterations = 0;
+		while (candidates.isEmpty() && iterations < maxIterations) {
 			candidates = getNodesBetweenDistanceIntervalOptimized(network, originNode, lowerLimit, upperLimit);
 			candidates.retainAll(
 					GraphUtils.getNodesFromNodeIDs(getCognitiveMap().getAgentKnownNodes(), PedSimCity.nodesMap));
 			lowerLimit = lowerLimit * 0.90;
 			upperLimit = upperLimit * 1.10;
+			iterations++;
+		}
+		if (candidates.isEmpty()) {
+			List<NodeGraph> allNodes = network.getNodes();
+			candidates = new ArrayList<>(allNodes);
 		}
 
 		destinationNode = selectWeightedDestination(candidates, false);
