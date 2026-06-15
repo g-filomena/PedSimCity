@@ -32,7 +32,8 @@ public class GlobalLandmarkNavigation extends LandmarkNavigation {
    *
    * @return An ArrayList of on-route marks, including the origin and destination nodes.
    */
-  public List<NodeGraph> onRouteMarks() {
+  @Override
+  public List<NodeGraph> computeSequence() {
 
     sequence = new ArrayList<>();
     findSalientJunctions(originNode);

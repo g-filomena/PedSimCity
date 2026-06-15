@@ -1,6 +1,7 @@
 package pedsim.core.routing.elements;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -21,33 +22,26 @@ import sim.graph.NodeGraph;
 public class RegionLandmarkNavigation extends LandmarkNavigation {
 
   private Complexity complexity = new Complexity();
+  private List<NodeGraph> sequenceGateways = Collections.emptyList();
 
-  /**
-   * Initialises a new instance of the LandmarkNavigation class with the specified origin node,
-   * destination node, and agent.
-   *
-   * @param originNode The starting node for navigation.
-   * @param destinationNode The target destination node.
-   * @param agent The agent associated with the navigation.
-   */
   public RegionLandmarkNavigation(NodeGraph originNode, NodeGraph destinationNode, Agent agent) {
-
     this.originNode = originNode;
     this.destinationNode = destinationNode;
     this.agent = agent;
     idntifyAgentLocalLandmarks();
   }
 
-  /**
-   * Generates a sequence of intermediate nodes (on-route marks) between the origin and destination
-   * nodes on the basis of local landmarkness while passing through region gateways
-   * (sequenceGateways).
-   *
-   * @param sequenceGateways An ArrayList of gateways (nodes at the boundary between regions) that
-   *        need to be traversed on the route.
-   * @return An ArrayList of region-based on-route marks, including the origin and destination
-   *         nodes.
-   */
+  public RegionLandmarkNavigation(NodeGraph originNode, NodeGraph destinationNode, Agent agent,
+      List<NodeGraph> sequenceGateways) {
+    this(originNode, destinationNode, agent);
+    this.sequenceGateways = sequenceGateways;
+  }
+
+  @Override
+  public List<NodeGraph> computeSequence() {
+    return regionOnRouteMarks(sequenceGateways);
+  }
+
   public List<NodeGraph> regionOnRouteMarks(List<NodeGraph> sequenceGateways) {
 
     sequence = new ArrayList<>();

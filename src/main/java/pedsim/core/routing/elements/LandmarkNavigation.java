@@ -18,7 +18,7 @@ import sim.graph.NodeGraph;
  * computation, identification of on-route marks and wayfinding easiness of a
  * certain space.
  */
-public class LandmarkNavigation {
+public abstract class LandmarkNavigation implements NavigationElement {
 
 	protected Agent agent;
 	protected NodeGraph originNode;
