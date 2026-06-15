@@ -25,8 +25,13 @@ public class PedSimCityNight extends PedSimCity {
   // Parameters are now stored statically in NightPars
 
 
-  // Directional entrance light mapping (Node_A -> Node_B : min_lux)
-  public static final Map<String, Double> directionalLuxMap = new ConcurrentHashMap<>();
+  // Directional entrance light mapping (Node_A -> Node_B : min_lux), keyed by packed long.
+  public static final Map<Long, Double> directionalLuxMap = new ConcurrentHashMap<>();
+
+  /** Packs two node IDs into a single long to avoid String allocation per lookup. */
+  public static long luxKey(int fromId, int toId) {
+    return ((long) fromId << 32) | (toId & 0xFFFFFFFFL);
+  }
 
   public static final Map<DirectedEdge, LengthIndexedLine> indexedEdgeCache = new HashMap<>();
 
@@ -83,7 +88,7 @@ public class PedSimCityNight extends PedSimCity {
           while ((line = br.readLine()) != null) {
             String[] parts = line.split(",");
             if (parts.length >= 5) {
-              String key = parts[0] + "-" + parts[1]; // current_node_id - target_node_id
+              long key = luxKey(Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim()));
               double minLux = Double.parseDouble(parts[4]); // visibility_min_lux
               directionalLuxMap.put(key, minLux);
             }
