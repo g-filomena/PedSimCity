@@ -27,7 +27,7 @@ public class PedSimCityEmpirical extends PedSimCity {
 
 	@Override
 	protected void populateEnvironment() {
-		Populate populate = new Populate();
+		EmpiricalPopulate populate = new EmpiricalPopulate();
 		populate.populateEmpiricalGroups(this);
 	}
 
