@@ -1,4 +1,4 @@
-package pedsim.core.engine;
+﻿package pedsim.core.engine;
 
 import java.awt.Desktop;
 import java.io.File;
@@ -48,9 +48,9 @@ public class Engine {
 
 			clearStaticData();
 			Pars.setSimulationParameters();
+			afterSetParameters();
 
-			Import importer = new Import();
-			importer.importFiles();
+			createImporter().importFiles();
 
 			// Export road network as GeoJSON once so the browser map can draw it
 			SimulationStateStore.getInstance().setRoadsGeoJson(GeoJsonExporter.exportRoads(PedSimCity.roads));
@@ -86,6 +86,10 @@ public class Engine {
         PedSimCity.clearStaticData();
     }
 
+    protected Import createImporter() {
+        return new Import();
+    }
+
     protected Engine createWorkerEngine() {
         return new Engine(stateFactory, baseSeed);
     }
@@ -116,11 +120,7 @@ public void executeJob(int job, ScenarioConfig scenarioConfig) throws Exception 
 
 		        double steps = state.schedule.getSteps();
 
-		        if (state instanceof pedsim.night.engine.PedSimCityNight nightState) {
-		            java.time.LocalTime time = TimePars.getTime(steps).toLocalTime();
-		            nightState.isDark = time.isAfter(java.time.LocalTime.of(19, 59))
-		                    || time.isBefore(java.time.LocalTime.of(6, 0));
-		        }
+		        onStepUpdate(state, steps);
 
 		        if (SimulationStateStore.getInstance().running && Pars.stepDelayMs > 0) {
 		            try {
@@ -177,9 +177,6 @@ public void executeJob(int job, ScenarioConfig scenarioConfig) throws Exception 
 
 		TripRouteRecorder.saveToFile("test_trips.csv");
 		TripDiagnostic.save("trip_diagnostic.csv");
-		if (pedsim.night.parameters.NightPars.enableLightABTesting) {
-			TripDiagnostic.saveABTestComparison("ab_test_comparison.csv");
-		}
 
 
 		// Generate the self-contained HTML dashboard and open it in the browser
@@ -220,6 +217,14 @@ public void executeJob(int job, ScenarioConfig scenarioConfig) throws Exception 
 	}
 
 	protected void onJobStep(int job, PedSimCity state, ScenarioConfig scenarioConfig) {
+		// no-op
+	}
+
+	protected void afterSetParameters() {
+		// no-op
+	}
+
+	protected void onStepUpdate(PedSimCity state, double steps) {
 		// no-op
 	}
 
