@@ -1,12 +1,10 @@
 package pedsim.empirical.engine;
 
-import pedsim.core.engine.Environment;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.parameters.Pars;
 import pedsim.empirical.agent.EmpiricalGroup;
 import pedsim.empirical.parameters.EmpiricalPars;
-import sim.engine.SimState;
 
 /** Empirical ABM simulation state. */
 public class PedSimCityEmpirical extends PedSimCity {
@@ -38,28 +36,8 @@ public class PedSimCityEmpirical extends PedSimCity {
 			Pars.cityName = args[0].trim();
 		}
 
-		PedSimCity.clearStaticData();
-
-		EmpiricalImport importer = new EmpiricalImport();
-		importer.importFiles();
-
-		Environment.prepare();
-
 		ScenarioConfig scenarioConfig = new ScenarioConfig(EmpiricalGroup.values(), null);
-
-		for (int job = 0; job < Pars.jobs; job++) {
-			System.out.println("Run nr.. " + job);
-
-			final SimState state = new PedSimCityEmpirical(System.currentTimeMillis(), job, scenarioConfig);
-
-			state.start();
-
-			while (state.schedule.step(state)) {
-				// Simulation loop.
-			}
-
-			state.finish();
-		}
+		new EmpiricalEngine(PedSimCityEmpirical::new).runJobs(scenarioConfig, Pars.parallel);
 
 		System.exit(0);
 	}

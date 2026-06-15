@@ -27,6 +27,7 @@ public final class EmpiricalPars {
 	public static boolean includeNullBenchmark = true;
 
 	public static int defaultNumAgents = 301;
+	public static int numAgents = defaultNumAgents;
 
 	public static int defaultJobs = 10;
 
@@ -35,11 +36,7 @@ public final class EmpiricalPars {
 	public static void applyDefaults() {
 		Pars.cityName = defaultCityName;
 		Pars.setSimulationParameters();
-
-		// Empirical paper/sample default. Pars.setSimulationParameters() derives
-		// numAgents from
-		// population, so set this after calling it.
-		Pars.numAgents = defaultNumAgents;
+		Pars.numAgents = numAgents;
 		Pars.jobs = defaultJobs;
 	}
 }
