@@ -36,7 +36,7 @@ public class PedSimCityImage extends PedSimCity {
 
 	@Override
 	protected void populateEnvironment() {
-		Populate populate = new Populate();
+		CityImagePopulate populate = new CityImagePopulate();
 		populate.populateTests(this);
 	}
 }

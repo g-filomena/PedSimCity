@@ -15,7 +15,7 @@ import pedsim.core.parameters.Pars;
  * for importing distances, barriers, landmarks and sight lines, road network
  * graphs, and empirical agent groups data.
  */
-public class Import extends pedsim.core.engine.Import {
+public class CityImageImport extends pedsim.core.engine.Import {
 
 	/**
 	 * Imports various data files required for the simulation based on the selected

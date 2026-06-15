@@ -5,7 +5,7 @@ import java.util.List;
 
 import org.javatuples.Pair;
 
-import pedsim.cityimage.agents.Agent;
+import pedsim.cityimage.agents.CityImageAgent;
 import pedsim.cityimage.parameters.TestPars;
 import pedsim.cityimage.utilities.StringEnum.RouteChoice;
 import pedsim.core.engine.PedSimCity;
@@ -27,7 +27,7 @@ import sim.graph.NodesLookup;
  * This reproduces the historical testing logic while using the current core
  * engine and core agent lifecycle.
  */
-public class Populate extends pedsim.core.engine.Populate {
+public class CityImagePopulate extends pedsim.core.engine.Populate {
 
 	private static final int LANDMARK_TEST_DESTINATIONS = 255;
 	private static final double SUBDIVISION_MIN_DISTANCE = 1000.0;
@@ -191,7 +191,7 @@ public class Populate extends pedsim.core.engine.Populate {
 		Pars.numAgents = routeChoiceModels.length;
 
 		for (int agentID = 0; agentID < routeChoiceModels.length; agentID++) {
-			Agent agent = new Agent(state, routeChoiceModels[agentID], odMatrix);
+			CityImageAgent agent = new CityImageAgent(state, routeChoiceModels[agentID], odMatrix);
 			addAgent(agent, agentID);
 		}
 	}
@@ -204,7 +204,7 @@ public class Populate extends pedsim.core.engine.Populate {
 		return new RouteChoice[] { RouteChoice.ROAD_DISTANCE, RouteChoice.ANGULAR_CHANGE };
 	}
 
-	private void addAgent(Agent agent, int agentID) {
+	private void addAgent(CityImageAgent agent, int agentID) {
 		agent.agentID = agentID;
 
 		state.agents.addGeometry(agent.getLocation());

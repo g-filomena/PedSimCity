@@ -54,7 +54,7 @@ public class CityImageEngine extends Engine {
 			Pars.setSimulationParameters();
 			TestPars.defineMode();
 
-			Import importer = new Import();
+			CityImageImport importer = new CityImageImport();
 			importer.importFiles();
 
 			SimulationStateStore.getInstance().setRoadsGeoJson(GeoJsonExporter.exportRoads(PedSimCity.roads));
