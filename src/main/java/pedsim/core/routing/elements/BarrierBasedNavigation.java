@@ -189,27 +189,31 @@ public class BarrierBasedNavigation {
   private void assessCandidateBarriers(Set<Integer> intersectingBarriers, Geometry viewField,
       Coordinate currentCoordinate, Coordinate destinationCoordinate) {
 
-    //// System.out.println("currentCorrdinate " + currentCoordinate + "viewField -- " + viewField);
-    // intersectingBarriers.parallelStream().filter(barrierID ->
-    //// !visitedBarriers.contains(barrierID))
-    // .forEach(barrierID -> {
-    // MasonGeometry barrierGeometry = PedSimCity.barriersMap.get(barrierID).masonGeometry;
-    //
-    //// System.out.println("barrierID " + barrierID + " barrierGeo " + barrierGeometry);
-    // Coordinate[] intersections =
-    //// viewField.intersection(barrierGeometry.geometry).getCoordinates();
-    //
-    // double minDistance = Arrays.stream(intersections).parallel()
-    // .mapToDouble(intersection -> GraphUtils.euclideanDistance(currentCoordinate, intersection))
-    // .min().orElse(Double.MAX_VALUE);
-    //
-    //// System.out.println("barrierID " + barrierID + " minDistance min " + minDistance);
-    //
-    // if (minDistance <= GraphUtils.euclideanDistance(currentCoordinate, destinationCoordinate)) {
-    // validBarriers.put(barrierID, minDistance);
-    // }
-    // });
-
+	  
+	  //TODO WORKOUT
+	////System.out.println("currentCorrdinate " + currentCoordinate + "viewField -- " + viewField);
+	  // intersectingBarriers.parallelStream().filter(barrierID ->
+	  //// !visitedBarriers.contains(barrierID))
+	  // .forEach(barrierID -> {
+	  // MasonGeometry barrierGeometry = PedSimCity.barriersMap.get(barrierID).masonGeometry;
+	  //
+	  //// System.out.println("barrierID " + barrierID + " barrierGeo " + barrierGeometry);
+	  // Coordinate[] intersections =
+	  //// viewField.intersection(barrierGeometry.geometry).getCoordinates();
+	  //
+	  // double minDistance = Arrays.stream(intersections).parallel()
+	  // .mapToDouble(intersection -> GraphUtils.euclideanDistance(currentCoordinate, intersection))
+	  // .min().orElse(Double.MAX_VALUE);
+	  //
+	  //// System.out.println("barrierID " + barrierID + " minDistance min " + minDistance);
+	  //
+	  // if (minDistance <= GraphUtils.euclideanDistance(currentCoordinate, destinationCoordinate)) {
+	  // validBarriers.put(barrierID, minDistance);
+	  // }
+	  // });
+	     
+	  
+	  
     // for each candidate barrier, check whether it complies with the criteria
     for (int barrierID : intersectingBarriers) {
       if (visitedBarriers.contains(barrierID)) {
@@ -219,7 +223,7 @@ public class BarrierBasedNavigation {
       Coordinate[] intersections =
           viewField.intersection(barrierGeometry.geometry).getCoordinates();
 
-      double minDistance = Arrays.stream(intersections).parallel()
+      double minDistance = Arrays.stream(intersections)
           .mapToDouble(
               intersection -> GeometryUtilities.euclideanDistance(currentCoordinate, intersection))
           .min().orElse(Double.MAX_VALUE);

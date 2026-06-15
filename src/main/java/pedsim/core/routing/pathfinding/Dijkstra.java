@@ -31,7 +31,7 @@ import sim.util.geo.Utilities;
  * The Dijkstra class provides functionality for performing Dijkstra's algorithm
  * and related calculations for route planning in the pedestrian simulation.
  */
-public class Dijkstra {
+public abstract class Dijkstra {
 
 	protected NodeGraph originNode;
 	protected NodeGraph destinationNode;
