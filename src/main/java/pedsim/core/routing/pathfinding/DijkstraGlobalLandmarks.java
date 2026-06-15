@@ -4,7 +4,9 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
 import org.locationtech.jts.planargraph.DirectedEdge;
+
 import pedsim.core.agents.Agent;
 import pedsim.core.cognition.metrics.Landmarkness;
 import sim.graph.EdgeGraph;
@@ -82,7 +84,7 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
         continue;
       }
 
-      DirectedEdge outEdge = commonEdge.getDirEdge(0);
+      DirectedEdge outEdge = agentNetwork.getDirectedEdgeBetween(currentNode, targetNode);
       if (edgesToAvoid.contains(outEdge.getEdge())) {
         continue;
       }
@@ -110,12 +112,13 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
 
     // check that the route has been formulated properly
     if (nodeWrappersMap.get(destinationNode) == null || nodeWrappersMap.size() <= 1) {
-      directedEdgesSequence.clear();
+    	directedEdgesSequence.clear();
+		return directedEdgesSequence;
     }
     while (nodeWrappersMap.get(step).nodeFrom != null) {
-      DirectedEdge directedEdge = nodeWrappersMap.get(step).directedEdgeFrom;
-      step = nodeWrappersMap.get(step).nodeFrom;
-      directedEdgesSequence.add(0, directedEdge);
+    	DirectedEdge directedEdge = nodeWrappersMap.get(step).directedEdgeFrom;
+    	step = nodeWrappersMap.get(step).nodeFrom;
+    	directedEdgesSequence.add(0, directedEdge);
     }
 
     return directedEdgesSequence;
