@@ -40,13 +40,12 @@ public class RouteChoicePars {
 
   // Wayfinding Easiness threshold
   public static double wayfindingEasinessThresholdCommunity = 0.95; // global navigation for local
-                                                                    // landmark identification
+  // landmark identification
   // within regions for local landmark identification
   public static double wayfindingEasinessThresholdRegionsCommunity = 0.85;
 
   // Region-based navigation Threshold - meters
   public static double regionNavActivationThreshold = 500;
-
 
   public static void setMinMaxTripDistance() {
     minTripDistance = avgTripDistance * 0.50;

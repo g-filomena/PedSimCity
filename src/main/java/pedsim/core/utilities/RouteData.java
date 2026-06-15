@@ -8,7 +8,6 @@ import org.locationtech.jts.geom.LineString;
  * To store information about the walked routes.
  *
  */
-
 public class RouteData {
 
   public Integer origin;

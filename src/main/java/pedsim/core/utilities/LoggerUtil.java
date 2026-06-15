@@ -45,20 +45,21 @@ public class LoggerUtil {
    * Redirect logger output also to a TextArea in the GUI.
    */
   public static void redirectToTextArea(TextArea textArea) {
-    Handler guiHandler = new Handler() {
-      @Override
-      public void publish(LogRecord record) {
-        if (textArea != null && isLoggable(record)) {
-          textArea.append(record.getLevel() + ": " + record.getMessage() + "\n");
-        }
-      }
+    Handler guiHandler =
+        new Handler() {
+          @Override
+          public void publish(LogRecord record) {
+            if (textArea != null && isLoggable(record)) {
+              textArea.append(record.getLevel() + ": " + record.getMessage() + "\n");
+            }
+          }
 
-      @Override
-      public void flush() {}
+          @Override
+          public void flush() {}
 
-      @Override
-      public void close() throws SecurityException {}
-    };
+          @Override
+          public void close() throws SecurityException {}
+        };
     guiHandler.setLevel(Level.ALL);
 
     logger.addHandler(guiHandler);

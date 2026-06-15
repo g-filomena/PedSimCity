@@ -22,7 +22,6 @@ public class PedSimCityNight extends PedSimCity {
 
   // Parameters are now stored statically in NightPars
 
-
   // Directional entrance light mapping (Node_A -> Node_B : min_lux), keyed by packed long.
   public static final Map<Long, Double> directionalLuxMap = new ConcurrentHashMap<>();
 
@@ -31,7 +30,8 @@ public class PedSimCityNight extends PedSimCity {
     return ((long) fromId << 32) | (toId & 0xFFFFFFFFL);
   }
 
-  public static final Map<DirectedEdge, LengthIndexedLine> indexedEdgeCache = new ConcurrentHashMap<>();
+  public static final Map<DirectedEdge, LengthIndexedLine> indexedEdgeCache =
+      new ConcurrentHashMap<>();
 
   public static final Set<EdgeGraph> edges = ConcurrentHashMap.newKeySet();
 
@@ -78,15 +78,21 @@ public class PedSimCityNight extends PedSimCity {
   private void loadDirectionalLighting() {
     directionalLuxMap.clear();
     try {
-      String resourceName = pedsim.core.parameters.Pars.cityName + "/" + pedsim.core.parameters.Pars.cityName + "_directional_lighting_lookup.csv";
+      String resourceName =
+          pedsim.core.parameters.Pars.cityName
+              + "/"
+              + pedsim.core.parameters.Pars.cityName
+              + "_directional_lighting_lookup.csv";
       java.net.URL fileUrl = getClass().getClassLoader().getResource(resourceName);
       if (fileUrl != null) {
-        try (java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(fileUrl.openStream()))) {
+        try (java.io.BufferedReader br =
+            new java.io.BufferedReader(new java.io.InputStreamReader(fileUrl.openStream()))) {
           String line = br.readLine(); // skip header
           while ((line = br.readLine()) != null) {
             String[] parts = line.split(",");
             if (parts.length >= 5) {
-              long key = luxKey(Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim()));
+              long key =
+                  luxKey(Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim()));
               double minLux = Double.parseDouble(parts[4]); // visibility_min_lux
               directionalLuxMap.put(key, minLux);
             }
@@ -134,11 +140,11 @@ public class PedSimCityNight extends PedSimCity {
   public void setEnableLightABTesting(boolean enableLightABTesting) {
     pedsim.night.parameters.NightPars.enableLightABTesting = enableLightABTesting;
   }
-  
+
   public double getCrowdednessPercentile() {
     return pedsim.night.parameters.NightPars.crowdednessPercentile;
   }
-  
+
   public void setCrowdednessPercentile(double crowdednessPercentile) {
     pedsim.night.parameters.NightPars.crowdednessPercentile = crowdednessPercentile;
   }

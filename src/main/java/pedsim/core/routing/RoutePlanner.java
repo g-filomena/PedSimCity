@@ -3,7 +3,6 @@ package pedsim.core.routing;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-
 import pedsim.core.agents.Agent;
 import pedsim.core.agents.AgentProperties;
 import pedsim.core.parameters.RouteChoicePars;
@@ -27,98 +26,105 @@ import sim.routing.Route;
  */
 public class RoutePlanner {
 
-	protected NodeGraph originNode;
-	protected NodeGraph destinationNode;
-	protected AgentProperties properties;
-	protected List<NodeGraph> nodesSequence;
-	protected Agent agent;
-	protected Route route = new Route();
+  protected NodeGraph originNode;
+  protected NodeGraph destinationNode;
+  protected AgentProperties properties;
+  protected List<NodeGraph> nodesSequence;
+  protected Agent agent;
+  protected Route route = new Route();
 
-	public RoutePlanner() {
-	}
+  public RoutePlanner() {}
 
-	/**
-	 * Constructs a `RoutePlanner` instance for calculating a route.
-	 *
-	 * @param originNode      The starting node of the route.
-	 * @param destinationNode The destination node of the route.
-	 * @param agent           The agent for which the route is being planned.
-	 */
-	public RoutePlanner(NodeGraph originNode, NodeGraph destinationNode, Agent agent) {
-		this.originNode = originNode;
-		this.destinationNode = destinationNode;
-		this.agent = agent;
-		this.properties = agent.getProperties();
-		this.nodesSequence = new ArrayList<>();
-	}
+  /**
+   * Constructs a `RoutePlanner` instance for calculating a route.
+   *
+   * @param originNode      The starting node of the route.
+   * @param destinationNode The destination node of the route.
+   * @param agent           The agent for which the route is being planned.
+   */
+  public RoutePlanner(NodeGraph originNode, NodeGraph destinationNode, Agent agent) {
+    this.originNode = originNode;
+    this.destinationNode = destinationNode;
+    this.agent = agent;
+    this.properties = agent.getProperties();
+    this.nodesSequence = new ArrayList<>();
+  }
 
-	/**
-	 * Defines the path for the agent based on route choice properties and
-	 * strategies.
-	 *
-	 * @return A `Route` object representing the calculated route.
-	 */
-	public Route definePath() {
+  /**
+   * Defines the path for the agent based on route choice properties and
+   * strategies.
+   *
+   * @return A `Route` object representing the calculated route.
+   */
+  public Route definePath() {
 
-		// === Use only minimisation-based navigation
-		if (properties.shouldOnlyUseMinimization()) {
-			if (properties.isMinimisingDistance()) {
-				return new RoadDistancePathFinder().roadDistance(originNode, destinationNode, agent);
-			}
-			return new AngularChangePathFinder().angularChangeBased(originNode, destinationNode, agent);
-		}
+    // === Use only minimisation-based navigation
+    if (properties.shouldOnlyUseMinimization()) {
+      if (properties.isMinimisingDistance()) {
+        return new RoadDistancePathFinder().roadDistance(originNode, destinationNode, agent);
+      }
+      return new AngularChangePathFinder().angularChangeBased(originNode, destinationNode, agent);
+    }
 
-		// === Region-based navigation
-		boolean regionBased = isRegionBasedNavigation();
-		if (regionBased) {
-			RegionBasedNavigation regionsPath = new RegionBasedNavigation(originNode, destinationNode, agent);
-			nodesSequence = regionsPath.computeSequence();
-		} else {
-			agent.getProperties().setRegionBasedNavigation(false);
-		}
+    // === Region-based navigation
+    boolean regionBased = isRegionBasedNavigation();
+    if (regionBased) {
+      RegionBasedNavigation regionsPath =
+          new RegionBasedNavigation(originNode, destinationNode, agent);
+      nodesSequence = regionsPath.computeSequence();
+    } else {
+      agent.getProperties().setRegionBasedNavigation(false);
+    }
 
-		// Barrier-based navigation (only barriers, no regions)
-		if (properties.isBarrierBasedNavigation() && !regionBased) {
-			BarrierBasedNavigation barriersPath = new BarrierBasedNavigation(originNode, destinationNode, agent, false);
-			nodesSequence = barriersPath.computeSequence();
-		}
+    // Barrier-based navigation (only barriers, no regions)
+    if (properties.isBarrierBasedNavigation() && !regionBased) {
+      BarrierBasedNavigation barriersPath =
+          new BarrierBasedNavigation(originNode, destinationNode, agent, false);
+      nodesSequence = barriersPath.computeSequence();
+    }
 
-		// Local landmarks navigation
-		else if (properties.isUsingLocalLandmarks()) {
-			LandmarkNavigation landmarkNav = regionBased && !nodesSequence.isEmpty()
-					? new RegionLandmarkNavigation(originNode, destinationNode, agent, nodesSequence)
-					: new GlobalLandmarkNavigation(originNode, destinationNode, agent);
-			nodesSequence = landmarkNav.computeSequence();
-			route.setVisitedLocations(new HashSet<>(landmarkNav.getOnRouteMarks()));
-		}
+    // Local landmarks navigation
+    else if (properties.isUsingLocalLandmarks()) {
+      LandmarkNavigation landmarkNav =
+          regionBased && !nodesSequence.isEmpty()
+              ? new RegionLandmarkNavigation(originNode, destinationNode, agent, nodesSequence)
+              : new GlobalLandmarkNavigation(originNode, destinationNode, agent);
+      nodesSequence = landmarkNav.computeSequence();
+      route.setVisitedLocations(new HashSet<>(landmarkNav.getOnRouteMarks()));
+    }
 
-		// Only Distant landmarks navigation (not active in empirical-based simulation)
-		else if (properties.isUsingDistantLandmarks() && !properties.shouldUseLocalHeuristic()) {
-			GlobalLandmarksPathFinder finder = new GlobalLandmarksPathFinder();
-			route = !nodesSequence.isEmpty() ? finder.globalLandmarksPathSequence(nodesSequence, agent)
-					: finder.globalLandmarksPath(originNode, destinationNode, agent);
-			return route;
-		}
+    // Only Distant landmarks navigation (not active in empirical-based simulation)
+    else if (properties.isUsingDistantLandmarks() && !properties.shouldUseLocalHeuristic()) {
+      GlobalLandmarksPathFinder finder = new GlobalLandmarksPathFinder();
+      route =
+          !nodesSequence.isEmpty()
+              ? finder.globalLandmarksPathSequence(nodesSequence, agent)
+              : finder.globalLandmarksPath(originNode, destinationNode, agent);
+      return route;
+    }
 
-		// Fallback or finalize the route based on the local heuristic
-		route = nodesSequence.isEmpty()
-				? (properties.isLocalHeuristicDistance()
-						? new RoadDistancePathFinder().roadDistance(originNode, destinationNode, agent)
-						: new AngularChangePathFinder().angularChangeBased(originNode, destinationNode, agent))
-				: (properties.isLocalHeuristicDistance()
-						? new RoadDistancePathFinder().roadDistanceSequence(nodesSequence, agent)
-						: new AngularChangePathFinder().angularChangeBasedSequence(nodesSequence, agent));
-		return route;
-	}
+    // Fallback or finalize the route based on the local heuristic
+    route =
+        nodesSequence.isEmpty()
+            ? (properties.isLocalHeuristicDistance()
+                ? new RoadDistancePathFinder().roadDistance(originNode, destinationNode, agent)
+                : new AngularChangePathFinder()
+                    .angularChangeBased(originNode, destinationNode, agent))
+            : (properties.isLocalHeuristicDistance()
+                ? new RoadDistancePathFinder().roadDistanceSequence(nodesSequence, agent)
+                : new AngularChangePathFinder().angularChangeBasedSequence(nodesSequence, agent));
+    return route;
+  }
 
-	/**
-	 * Verifies if region-based navigation should be enabled for route planning
-	 * based on distance thresholds. If not, it disables region-based navigation in
-	 * agent properties.
-	 */
-	private boolean isRegionBasedNavigation() {
-		return properties.isRegionBasedNavigation()
-				&& GraphUtils.nodesDistance(originNode, destinationNode) >= RouteChoicePars.regionNavActivationThreshold
-				&& originNode.getRegionID() != destinationNode.getRegionID();
-	}
+  /**
+   * Verifies if region-based navigation should be enabled for route planning
+   * based on distance thresholds. If not, it disables region-based navigation in
+   * agent properties.
+   */
+  private boolean isRegionBasedNavigation() {
+    return properties.isRegionBasedNavigation()
+        && GraphUtils.nodesDistance(originNode, destinationNode)
+            >= RouteChoicePars.regionNavActivationThreshold
+        && originNode.getRegionID() != destinationNode.getRegionID();
+  }
 }

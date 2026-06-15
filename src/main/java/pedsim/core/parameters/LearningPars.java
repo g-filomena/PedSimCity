@@ -11,5 +11,4 @@ public class LearningPars {
 
   public static final int MIN_WALKED_ROUTES_SIZE = 5;
   public static final double MEAN_MEMORY_ROUTES = 0.75;
-
 }

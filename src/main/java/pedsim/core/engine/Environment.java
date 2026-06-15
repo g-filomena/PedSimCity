@@ -36,7 +36,8 @@ import sim.util.geo.MasonGeometry;
  * junctions, buildings, barriers, and regions.
  */
 public class Environment {
-  private static final java.util.logging.Logger logger = pedsim.core.utilities.LoggerUtil.getLogger();
+  private static final java.util.logging.Logger logger =
+      pedsim.core.utilities.LoggerUtil.getLogger();
 
   /**
    * Prepares the simulation environment by initializing junctions, buildings, barriers, attributes,
@@ -93,7 +94,7 @@ public class Environment {
   /**
    * Nodes: Assigns scores and attributes to nodes.
    */
-  static private void prepareGraph() {
+  private static void prepareGraph() {
 
     List<MasonGeometry> geometries = PedSimCity.junctions.getGeometries();
 
@@ -111,7 +112,7 @@ public class Environment {
     createEdgesMap();
   }
 
-  static private void setCentralityNode(MasonGeometry nodeGeometry, NodeGraph node) {
+  private static void setCentralityNode(MasonGeometry nodeGeometry, NodeGraph node) {
 
     double centrality = Double.MAX_VALUE;
     try {
@@ -125,7 +126,7 @@ public class Environment {
   /**
    * Landmarks: Assign landmark scores to buildings.
    */
-  static private void prepareBuildings() {
+  private static void prepareBuildings() {
 
     List<MasonGeometry> geometries = PedSimCity.buildings.getGeometries();
     for (final MasonGeometry buildingGeometry : geometries) {
@@ -168,30 +169,35 @@ public class Environment {
         }
       }
       building.node =
-          closest != null ? PedSimCity.network.findNode(closest.getGeometry().getCoordinate())
+          closest != null
+              ? PedSimCity.network.findNode(closest.getGeometry().getCoordinate())
               : null;
       PedSimCity.buildingsMap.put(building.buildingID, building);
     }
 
     PedSimCity.network.getNodes().forEach(node -> node.dma = "");
-    PedSimCity.network.getNodes().forEach((node) -> {
-      List<MasonGeometry> nearestBuildings =
-          PedSimCity.buildings.featuresWithinDistance(node.getMasonGeometry().geometry, 100);
-      for (MasonGeometry building : nearestBuildings) {
-        final int buildingID = building.getIntegerAttribute("buildingID");
-        String dmaValue = PedSimCity.buildingsMap.get(buildingID).dma;
-        if (dmaValue != null) {
-          node.attributes.put("DMA", new AttributeValue(dmaValue));
-          node.dma = dmaValue;
-        }
-      }
-    });
+    PedSimCity.network
+        .getNodes()
+        .forEach(
+            (node) -> {
+              List<MasonGeometry> nearestBuildings =
+                  PedSimCity.buildings.featuresWithinDistance(
+                      node.getMasonGeometry().geometry, 100);
+              for (MasonGeometry building : nearestBuildings) {
+                final int buildingID = building.getIntegerAttribute("buildingID");
+                String dmaValue = PedSimCity.buildingsMap.get(buildingID).dma;
+                if (dmaValue != null) {
+                  node.attributes.put("DMA", new AttributeValue(dmaValue));
+                  node.dma = dmaValue;
+                }
+              }
+            });
   }
 
   /**
    * Gateways: Configures gateways between nodes.
    */
-  static private void identifyGateways() {
+  private static void identifyGateways() {
 
     // creating regions
     for (NodeGraph node : PedSimCity.nodesMap.values()) {
@@ -237,7 +243,7 @@ public class Environment {
   /**
    * Creates the edgesMap (edgeID, edgeGraph mapping) .
    */
-  static private void createEdgesMap() {
+  private static void createEdgesMap() {
 
     List<EdgeGraph> edges = PedSimCity.network.getEdges();
     for (EdgeGraph edge : edges) {
@@ -257,7 +263,7 @@ public class Environment {
         }
       }
 
-    edge.attributes.put("roadType", edge.attributes.get("highway"));
+      edge.attributes.put("roadType", edge.attributes.get("highway"));
       edge.setID(edgeID);
       PedSimCity.edgesMap.put(edgeID, edge);
     }
@@ -268,7 +274,7 @@ public class Environment {
    * Only edges present in both datasets receive a mean_lux attribute.
    * Edges not present in the illuminated dataset are left without the attribute (default 0.0 in AgentMovement).
    */
-  static private void joinIlluminatedEdges() {
+  private static void joinIlluminatedEdges() {
     List<MasonGeometry> illuminatedGeoms = PedSimCity.illuminatedEdges.getGeometries();
     int joined = 0;
     int missing = 0;
@@ -295,23 +301,28 @@ public class Environment {
       edge.attributes.put("mean_lux", new AttributeValue(meanLux));
       joined++;
     }
-    logger.info("Illuminated edges join: " + joined + " edges received mean_lux, " + missing + " skipped (no match or null).");
+    logger.info(
+        "Illuminated edges join: "
+            + joined
+            + " edges received mean_lux, "
+            + missing
+            + " skipped (no match or null).");
   }
 
   /**
    * Centroids (Dual Graph): Assigns edgeID to centroids in the dual graph.
    */
-  static private void prepareDualGraph() {
+  private static void prepareDualGraph() {
 
     List<MasonGeometry> centroids = PedSimCity.centroids.getGeometries();
     int missingPrimalEdgeCount = 0;
-    
+
     for (final MasonGeometry centroidGeometry : centroids) {
       int edgeID = centroidGeometry.getIntegerAttribute("edgeID");
       NodeGraph centroid =
           PedSimCity.dualNetwork.findNode(centroidGeometry.geometry.getCoordinate());
       centroid.setID(edgeID);
-      
+
       EdgeGraph primalEdge = PedSimCity.edgesMap.get(edgeID);
       if (primalEdge != null) {
         centroid.setPrimalEdge(primalEdge);
@@ -319,12 +330,15 @@ public class Environment {
       } else {
         missingPrimalEdgeCount++;
       }
-      
+
       PedSimCity.centroidsMap.put(edgeID, centroid);
     }
 
     if (missingPrimalEdgeCount > 0) {
-      logger.warning("Found " + missingPrimalEdgeCount + " centroids with no corresponding primal edge in edgesMap.");
+      logger.warning(
+          "Found "
+              + missingPrimalEdgeCount
+              + " centroids with no corresponding primal edge in edgesMap.");
     }
 
     List<EdgeGraph> dualEdges = PedSimCity.dualNetwork.getEdges();
@@ -336,7 +350,7 @@ public class Environment {
   /**
    * Regions: Creates regions' subgraphs and store information.
    */
-  static private void integrateBarriers() {
+  private static void integrateBarriers() {
 
     List<EdgeGraph> edges = PedSimCity.network.getEdges();
     for (EdgeGraph edge : edges) {
@@ -362,8 +376,17 @@ public class Environment {
     // Element 5 - Barriers: create barriers map
     List<MasonGeometry> geometries = PedSimCity.barriers.getGeometries();
     Map<String, StringEnum.BarrierType> barrierTypeMap =
-        Map.of("park", BarrierType.PARK, "water", BarrierType.WATER, "road", BarrierType.ROAD,
-            "railway", BarrierType.RAILWAY, "secondary_road", BarrierType.SECONDARY_ROAD);
+        Map.of(
+            "park",
+            BarrierType.PARK,
+            "water",
+            BarrierType.WATER,
+            "road",
+            BarrierType.ROAD,
+            "railway",
+            BarrierType.RAILWAY,
+            "secondary_road",
+            BarrierType.SECONDARY_ROAD);
 
     for (MasonGeometry barrierGeometry : geometries) {
       int barrierID = barrierGeometry.getIntegerAttribute("barrierID");
@@ -376,7 +399,6 @@ public class Environment {
       barrier.edgesAlong = barrierToEdges.getOrDefault(barrierID, new ArrayList<>());
       PedSimCity.barriersMap.put(barrierID, barrier);
     }
-
   }
 
   private static void prepareRegions() {
@@ -389,11 +411,12 @@ public class Environment {
         edge.setRegionID(regionID);
         Region region = PedSimCity.regionsMap.get(regionID);
         if (region != null) {
-            region.edges.add(edge);
-            region.nodes.add(edge.getFromNode());
-            region.nodes.add(edge.getToNode());
+          region.edges.add(edge);
+          region.nodes.add(edge.getFromNode());
+          region.nodes.add(edge.getToNode());
         } else {
-            logger.warning("RegionID " + regionID + " not found in regionsMap for edge " + edge.getID());
+          logger.warning(
+              "RegionID " + regionID + " not found in regionsMap for edge " + edge.getID());
         }
       } else {
         // gateway edge
@@ -414,14 +437,15 @@ public class Environment {
         regionNetwork.addGeometry(edge.getMasonGeometry());
         NodeGraph centroid = edge.getDualNode();
         if (centroid != null) {
-            centroid.setRegionID(regionID);
-            DirectedEdgeStar directedEdges = centroid.getOutEdges();
-            for (final DirectedEdge directedEdge : directedEdges.getEdges()) {
-              dualEdgesRegion.add((EdgeGraph) directedEdge.getEdge());
-            }
+          centroid.setRegionID(regionID);
+          DirectedEdgeStar directedEdges = centroid.getOutEdges();
+          for (final DirectedEdge directedEdge : directedEdges.getEdges()) {
+            dualEdgesRegion.add((EdgeGraph) directedEdge.getEdge());
+          }
         } else {
-            // Log warning but don't crash
-            // logger.warning("Edge " + edge.getID() + " has no dual node (centroid) in region " + regionID);
+          // Log warning but don't crash
+          // logger.warning("Edge " + edge.getID() + " has no dual node (centroid) in region " +
+          // regionID);
         }
       }
 
@@ -451,12 +475,9 @@ public class Environment {
         type = z.getIntegerAttribute("censusZoneTypeID");
       } catch (Exception e) {
       }
-      if (type == 1)
-        type1Zones.add(z);
-      else if (type == 36)
-        type36Zones.add(z);
-      else
-        otherZones.add(z);
+      if (type == 1) type1Zones.add(z);
+      else if (type == 36) type36Zones.add(z);
+      else otherZones.add(z);
     }
 
     Map<MasonGeometry, MasonGeometry> fusionMap = new HashMap<>();
@@ -508,12 +529,11 @@ public class Environment {
       List<MasonGeometry> candidates = index.query(nodeGeom.getEnvelopeInternal());
 
       for (MasonGeometry zone : candidates) {
-        if (zone.getGeometry().contains(nodeGeom)
-            || zone.getGeometry().distance(nodeGeom) < 1e-6) {
-          
+        if (zone.getGeometry().contains(nodeGeom) || zone.getGeometry().distance(nodeGeom) < 1e-6) {
+
           // Fusion Logic: if node is in Type 36, redirect to Type 1 parent
           MasonGeometry targetZone = fusionMap.getOrDefault(zone, zone);
-          
+
           if (PedSimCity.censusZonesNodesMap.containsKey(targetZone)) {
             PedSimCity.censusZonesNodesMap.get(targetZone).add(node);
             PedSimCity.nodesCensusZonesMap.put(node, targetZone);
@@ -544,10 +564,15 @@ public class Environment {
 
     int matched = PedSimCity.nodesCensusZonesMap.size();
     java.util.logging.Logger.getLogger("pedsim.core.engine.Environment")
-        .info("censusData: spatial join done. Nodes matched to a zone: " + matched
-            + " / " + allNodes.size()
-            + " | Fallback zones: " + fallbackZones
-            + " | Out-of-bounds zones: " + outOfBoundsZones);
+        .info(
+            "censusData: spatial join done. Nodes matched to a zone: "
+                + matched
+                + " / "
+                + allNodes.size()
+                + " | Fallback zones: "
+                + fallbackZones
+                + " | Out-of-bounds zones: "
+                + outOfBoundsZones);
   }
 
   /**
@@ -594,12 +619,9 @@ public class Environment {
         type = z.getIntegerAttribute("censusZoneTypeID");
       } catch (Exception e) {
       }
-      if (type == 1)
-        type1Zones.add(z);
-      else if (type == 36)
-        type36Zones.add(z);
-      else
-        otherZones.add(z);
+      if (type == 1) type1Zones.add(z);
+      else if (type == 36) type36Zones.add(z);
+      else otherZones.add(z);
     }
 
     Map<MasonGeometry, MasonGeometry> fusionMap = new HashMap<>();
@@ -636,8 +658,7 @@ public class Environment {
 
     // --- Pass 1: spatial overlap ---
     Map<MasonGeometry, List<NodeGraph>> zoneNodesMap = new HashMap<>();
-    for (MasonGeometry z : processedZones)
-      zoneNodesMap.put(z, new ArrayList<>());
+    for (MasonGeometry z : processedZones) zoneNodesMap.put(z, new ArrayList<>());
 
     Set<NodeGraph> assignedNodes = new HashSet<>();
     for (NodeGraph node : allNodes) {
@@ -647,9 +668,8 @@ public class Environment {
       List<MasonGeometry> candidates = index.query(nodeGeom.getEnvelopeInternal());
 
       for (MasonGeometry zone : candidates) {
-        if (zone.getGeometry().contains(nodeGeom)
-            || zone.getGeometry().distance(nodeGeom) < 1e-6) {
-          
+        if (zone.getGeometry().contains(nodeGeom) || zone.getGeometry().distance(nodeGeom) < 1e-6) {
+
           MasonGeometry targetZone = fusionMap.getOrDefault(zone, zone);
           if (zoneNodesMap.containsKey(targetZone)) {
             zoneNodesMap.get(targetZone).add(node);
@@ -705,10 +725,16 @@ public class Environment {
     }
 
     java.util.logging.Logger.getLogger("pedsim.core.engine.Environment")
-        .info(datasetName + ": spatial join done. Nodes matched to a zone: " + matched
-            + " / " + allNodes.size()
-            + " | Fallback zones: " + fallbackZones
-            + " | Out-of-bounds zones: " + outOfBoundsZones);
+        .info(
+            datasetName
+                + ": spatial join done. Nodes matched to a zone: "
+                + matched
+                + " / "
+                + allNodes.size()
+                + " | Fallback zones: "
+                + fallbackZones
+                + " | Out-of-bounds zones: "
+                + outOfBoundsZones);
   }
 
   /**
@@ -739,9 +765,9 @@ public class Environment {
     return (nearestDist <= maxDistanceMetres) ? nearest : null;
   }
 
-  private static MasonGeometry findClosestZone(MasonGeometry target, List<MasonGeometry> candidates) {
-    if (candidates.isEmpty())
-      return null;
+  private static MasonGeometry findClosestZone(
+      MasonGeometry target, List<MasonGeometry> candidates) {
+    if (candidates.isEmpty()) return null;
     Geometry targetGeom = target.getGeometry();
     MasonGeometry closest = null;
     double minDist = Double.MAX_VALUE;
@@ -763,8 +789,9 @@ public class Environment {
    * @return A list of buildings.
    */
   public List<MasonGeometry> getBuildings(NodeGraph originNode, NodeGraph destinationNode) {
-    Geometry smallestCircle = GraphUtils.smallestEnclosingGeometryBetweenNodes(
-        new ArrayList<>(Arrays.asList(originNode, destinationNode)));
+    Geometry smallestCircle =
+        GraphUtils.smallestEnclosingGeometryBetweenNodes(
+            new ArrayList<>(Arrays.asList(originNode, destinationNode)));
     return PedSimCity.buildings.containedFeatures(smallestCircle);
   }
 

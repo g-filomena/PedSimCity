@@ -26,22 +26,20 @@ public class NightParametersPanel extends Frame {
   public Map<String, TextField> booleanFields = new LinkedHashMap<>();
 
   String[][] doubleParamDefs = {
-      {"minVulnerableLightSensitivity", "Min light sensitivity for vulnerable agents (Lux)"},
-      {"maxVulnerableLightSensitivity", "Max light sensitivity for vulnerable agents (Lux)"},
-      {"nonVulnerableLightSensitivity", "Light sensitivity for non-vulnerable agents (Lux)"},
-      {"crowdednessPercentile", "Crowdedness Threshold Percentile (e.g. 80.0)"}
+    {"minVulnerableLightSensitivity", "Min light sensitivity for vulnerable agents (Lux)"},
+    {"maxVulnerableLightSensitivity", "Max light sensitivity for vulnerable agents (Lux)"},
+    {"nonVulnerableLightSensitivity", "Light sensitivity for non-vulnerable agents (Lux)"},
+    {"crowdednessPercentile", "Crowdedness Threshold Percentile (e.g. 80.0)"}
   };
 
   Double[] defaults = {
-      NightPars.minVulnerableLightSensitivity,
-      NightPars.maxVulnerableLightSensitivity,
-      NightPars.nonVulnerableLightSensitivity,
-      NightPars.crowdednessPercentile
+    NightPars.minVulnerableLightSensitivity,
+    NightPars.maxVulnerableLightSensitivity,
+    NightPars.nonVulnerableLightSensitivity,
+    NightPars.crowdednessPercentile
   };
 
-  String[][] booleanParamDefs = {
-      {"enableLightABTesting", "Enable Light A/B Testing Logs"}
-  };
+  String[][] booleanParamDefs = {{"enableLightABTesting", "Enable Light A/B Testing Logs"}};
 
   public NightParametersPanel() {
     super("Night Parameters Panel");
@@ -74,24 +72,26 @@ public class NightParametersPanel extends Frame {
     // Apply Button
     Button applyButton = new Button("Apply");
     applyButton.setBounds(X, y, 80, 30);
-    applyButton.addActionListener(new ActionListener() {
-      @Override
-      public void actionPerformed(ActionEvent e) {
-        ParameterManager.applyAll(NightPars.class, doubleFields, booleanFields);
-        closePanel();
-      }
-    });
+    applyButton.addActionListener(
+        new ActionListener() {
+          @Override
+          public void actionPerformed(ActionEvent e) {
+            ParameterManager.applyAll(NightPars.class, doubleFields, booleanFields);
+            closePanel();
+          }
+        });
     add(applyButton);
 
     setSize(750, 300);
     setVisible(true);
 
-    addWindowListener(new WindowAdapter() {
-      @Override
-      public void windowClosing(WindowEvent e) {
-        closePanel();
-      }
-    });
+    addWindowListener(
+        new WindowAdapter() {
+          @Override
+          public void windowClosing(WindowEvent e) {
+            closePanel();
+          }
+        });
   }
 
   private TextField addDoubleField(String fieldName, double defaultValue, int x, int y) {

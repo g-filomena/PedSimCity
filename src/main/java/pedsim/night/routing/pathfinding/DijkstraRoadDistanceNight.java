@@ -5,9 +5,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import org.locationtech.jts.planargraph.DirectedEdge;
-
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.routing.pathfinding.DijkstraRoadDistance;
 import sim.graph.EdgeGraph;

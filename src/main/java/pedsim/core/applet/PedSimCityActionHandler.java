@@ -23,7 +23,6 @@ public class PedSimCityActionHandler {
     this.serverLauncher = serverLauncher;
   }
 
-
   // -----------------------
   // Run locally
   // -----------------------
@@ -32,23 +31,25 @@ public class PedSimCityActionHandler {
       applet.setRunningOnServer(false);
       prepareEndButton();
 
-      Thread simThread = new Thread(() -> {
-        try {
-          ParameterManager.collectParameters(applet);
+      Thread simThread =
+          new Thread(
+              () -> {
+                try {
+                  ParameterManager.collectParameters(applet);
 
-          ScenarioConfig scenarioConfig = buildScenarioConfig();
-          StateFactory stateFactory = buildStateFactory();
+                  ScenarioConfig scenarioConfig = buildScenarioConfig();
+                  StateFactory stateFactory = buildStateFactory();
 
-          Engine engine = new Engine(stateFactory);
-          engine.runJobs(scenarioConfig, Pars.parallel);
+                  Engine engine = new Engine(stateFactory);
+                  engine.runJobs(scenarioConfig, Pars.parallel);
 
-        } catch (Exception ex) {
-          String msg = "Error running local simulation: " + ex.getMessage();
-          applet.appendLog(msg);
-          ex.printStackTrace();
-          LoggerUtil.getLogger().severe(msg);
-        }
-      });
+                } catch (Exception ex) {
+                  String msg = "Error running local simulation: " + ex.getMessage();
+                  applet.appendLog(msg);
+                  ex.printStackTrace();
+                  LoggerUtil.getLogger().severe(msg);
+                }
+              });
 
       applet.setSimulationThread(simThread);
       simThread.start();

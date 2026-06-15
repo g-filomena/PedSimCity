@@ -9,36 +9,36 @@ import pedsim.empirical.parameters.EmpiricalPars;
 /** Empirical ABM simulation state. */
 public class PedSimCityEmpirical extends PedSimCity {
 
-	private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
 
-	public PedSimCityEmpirical(long seed, int job, ScenarioConfig scenarioConfig) {
-		super(seed, job, defaultScenarioConfig(scenarioConfig));
-	}
+  public PedSimCityEmpirical(long seed, int job, ScenarioConfig scenarioConfig) {
+    super(seed, job, defaultScenarioConfig(scenarioConfig));
+  }
 
-	private static ScenarioConfig defaultScenarioConfig(ScenarioConfig scenarioConfig) {
-		if (scenarioConfig != null) {
-			return scenarioConfig;
-		}
+  private static ScenarioConfig defaultScenarioConfig(ScenarioConfig scenarioConfig) {
+    if (scenarioConfig != null) {
+      return scenarioConfig;
+    }
 
-		return new ScenarioConfig(EmpiricalGroup.values(), null);
-	}
+    return new ScenarioConfig(EmpiricalGroup.values(), null);
+  }
 
-	@Override
-	protected void populateEnvironment() {
-		EmpiricalPopulate populate = new EmpiricalPopulate();
-		populate.populateEmpiricalGroups(this);
-	}
+  @Override
+  protected void populateEnvironment() {
+    EmpiricalPopulate populate = new EmpiricalPopulate();
+    populate.populateEmpiricalGroups(this);
+  }
 
-	public static void main(String[] args) throws Exception {
-		EmpiricalPars.applyDefaults();
+  public static void main(String[] args) throws Exception {
+    EmpiricalPars.applyDefaults();
 
-		if (args.length > 0 && args[0] != null && !args[0].isBlank()) {
-			Pars.cityName = args[0].trim();
-		}
+    if (args.length > 0 && args[0] != null && !args[0].isBlank()) {
+      Pars.cityName = args[0].trim();
+    }
 
-		ScenarioConfig scenarioConfig = new ScenarioConfig(EmpiricalGroup.values(), null);
-		new EmpiricalEngine(PedSimCityEmpirical::new).runJobs(scenarioConfig, Pars.parallel);
+    ScenarioConfig scenarioConfig = new ScenarioConfig(EmpiricalGroup.values(), null);
+    new EmpiricalEngine(PedSimCityEmpirical::new).runJobs(scenarioConfig, Pars.parallel);
 
-		System.exit(0);
-	}
+    System.exit(0);
+  }
 }

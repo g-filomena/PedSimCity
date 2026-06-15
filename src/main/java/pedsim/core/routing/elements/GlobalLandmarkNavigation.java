@@ -38,8 +38,7 @@ public class GlobalLandmarkNavigation extends LandmarkNavigation {
     sequence = new ArrayList<>();
     findSalientJunctions(originNode);
 
-    if (salientNodes.isEmpty())
-      return sequence;
+    if (salientNodes.isEmpty()) return sequence;
 
     // compute wayfinding easiness and the resulting research space
     double wayfindingEasiness = complexity.wayfindingEasiness(originNode, destinationNode, agent);
@@ -85,8 +84,11 @@ public class GlobalLandmarkNavigation extends LandmarkNavigation {
     salientNodes =
         new HashMap<>(network.getSalientNodesWithinSpace(node, destinationNode, percentile));
 
-    salientNodes.keySet().retainAll(GraphUtils
-        .getNodesFromNodeIDs(agent.getCognitiveMap().getAgentKnownNodes(), PedSimCity.nodesMap));
+    salientNodes
+        .keySet()
+        .retainAll(
+            GraphUtils.getNodesFromNodeIDs(
+                agent.getCognitiveMap().getAgentKnownNodes(), PedSimCity.nodesMap));
 
     // If no salient junctions are found, the tolerance increases till the 0.50
     // percentile;
@@ -118,9 +120,11 @@ public class GlobalLandmarkNavigation extends LandmarkNavigation {
 
     List<NodeGraph> junctions = new ArrayList<>(salientNodes.keySet());
     List<NodeGraph> sortedJunctions =
-        junctions.stream().filter(candidateNode -> checkCriteria(candidateNode, searchDistance))
-            .sorted(Comparator.comparingDouble(
-                candidateNode -> calculateScore(candidateNode, destinationNode, false)))
+        junctions.stream()
+            .filter(candidateNode -> checkCriteria(candidateNode, searchDistance))
+            .sorted(
+                Comparator.comparingDouble(
+                    candidateNode -> calculateScore(candidateNode, destinationNode, false)))
             .collect(Collectors.toList());
 
     return sortedJunctions.isEmpty() ? null : sortedJunctions.get(sortedJunctions.size() - 1);

@@ -9,36 +9,36 @@ import sim.engine.SimState;
  */
 public abstract class OdAgent extends Agent {
 
-	protected OdAgent(PedSimCity state) {
-		super(state, false);
-	}
+  protected OdAgent(PedSimCity state) {
+    super(state, false);
+  }
 
-	@Override
-	public void step(SimState state) {
-		if (reachedDestination.get() || destinationNode == null) {
-			handleReachedDestination();
-		} else {
-			agentMovement.keepWalking();
-		}
-	}
+  @Override
+  public void step(SimState state) {
+    if (reachedDestination.get() || destinationNode == null) {
+      handleReachedDestination();
+    } else {
+      agentMovement.keepWalking();
+    }
+  }
 
-	@Override
-	protected void handleReachedDestination() {
-		boolean completedTrip = reachedDestination.get();
-		reachedDestination.set(false);
+  @Override
+  protected void handleReachedDestination() {
+    boolean completedTrip = reachedDestination.get();
+    reachedDestination.set(false);
 
-		if (completedTrip) {
-			setTripsDone(getTripsDone() + 1);
-		}
+    if (completedTrip) {
+      setTripsDone(getTripsDone() + 1);
+    }
 
-		if (getTripsDone() >= OD.size()) {
-			removeAgent();
-			return;
-		}
+    if (getTripsDone() >= OD.size()) {
+      removeAgent();
+      return;
+    }
 
-		selectNodesFromOD();
-		updateAgentPosition(originNode.getCoordinate());
-		planRoute();
-		agentMovement.initialisePath(route);
-	}
+    selectNodesFromOD();
+    updateAgentPosition(originNode.getCoordinate());
+    planRoute();
+    agentMovement.initialisePath(route);
+  }
 }

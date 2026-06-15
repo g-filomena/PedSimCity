@@ -27,15 +27,12 @@ public final class GeoJsonExporter {
 
     boolean first = true;
     for (Object obj : roads.getGeometries()) {
-      if (!(obj instanceof MasonGeometry mg))
-        continue;
+      if (!(obj instanceof MasonGeometry mg)) continue;
 
       Geometry geom = mg.getGeometry();
-      if (geom == null)
-        continue;
+      if (geom == null) continue;
 
-      if (!first)
-        sb.append(',');
+      if (!first) sb.append(',');
       first = false;
 
       sb.append("{\"type\":\"Feature\",\"geometry\":");
@@ -56,8 +53,8 @@ public final class GeoJsonExporter {
    * @param volumesMap Map of edgeID → (scenario → count). All scenarios are summed per edge.
    * @return A GeoJSON FeatureCollection string with {@code edgeID} and {@code volume} properties.
    */
-  public static String exportRoadsWithVolumes(VectorLayer roads,
-      Map<Integer, Map<String, Integer>> volumesMap) {
+  public static String exportRoadsWithVolumes(
+      VectorLayer roads, Map<Integer, Map<String, Integer>> volumesMap) {
 
     if (roads == null || roads.getGeometries().isEmpty()) {
       return "{\"type\":\"FeatureCollection\",\"features\":[]}";
@@ -70,12 +67,10 @@ public final class GeoJsonExporter {
     int autoId = 0;
 
     for (Object obj : roads.getGeometries()) {
-      if (!(obj instanceof MasonGeometry mg))
-        continue;
+      if (!(obj instanceof MasonGeometry mg)) continue;
 
       Geometry geom = mg.getGeometry();
-      if (geom == null)
-        continue;
+      if (geom == null) continue;
 
       // Retrieve the edgeID attribute; fall back to a sequential counter if absent
       int edgeId;
@@ -100,15 +95,18 @@ public final class GeoJsonExporter {
         meanLux = mg.getDoubleAttribute("mean_lux");
       }
 
-      if (!first)
-        sb.append(',');
+      if (!first) sb.append(',');
       first = false;
 
       sb.append("{\"type\":\"Feature\",\"geometry\":");
       sb.append(geomToGeoJson(geom));
-      sb.append(",\"properties\":{\"edgeID\":").append(edgeId)
-        .append(",\"volume\":").append(totalVolume)
-        .append(",\"mean_lux\":").append(meanLux).append("}}");
+      sb.append(",\"properties\":{\"edgeID\":")
+          .append(edgeId)
+          .append(",\"volume\":")
+          .append(totalVolume)
+          .append(",\"mean_lux\":")
+          .append(meanLux)
+          .append("}}");
     }
 
     sb.append("]}");

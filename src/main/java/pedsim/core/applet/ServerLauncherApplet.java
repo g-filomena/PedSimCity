@@ -111,22 +111,24 @@ public class ServerLauncherApplet {
       pb.redirectErrorStream(true);
       Process proc = pb.start();
 
-      new Thread(() -> {
-        try (BufferedReader reader =
-            new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
-          String line;
-          while ((line = reader.readLine()) != null) {
-            if (line.matches("\\d+")) {
-              lastPid = line.trim();
-              applet.appendLog("[SERVER] PID: " + lastPid);
-            } else {
-              applet.appendLog("[SERVER] " + line);
-            }
-          }
-        } catch (Exception ex) {
-          LoggerUtil.getLogger().warning("Error reading server output: " + ex.getMessage());
-        }
-      }).start();
+      new Thread(
+              () -> {
+                try (BufferedReader reader =
+                    new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
+                  String line;
+                  while ((line = reader.readLine()) != null) {
+                    if (line.matches("\\d+")) {
+                      lastPid = line.trim();
+                      applet.appendLog("[SERVER] PID: " + lastPid);
+                    } else {
+                      applet.appendLog("[SERVER] " + line);
+                    }
+                  }
+                } catch (Exception ex) {
+                  LoggerUtil.getLogger().warning("Error reading server output: " + ex.getMessage());
+                }
+              })
+          .start();
 
     } catch (IOException e) {
       LoggerUtil.getLogger().severe("SSH Error: " + e.getMessage());
@@ -162,12 +164,27 @@ public class ServerLauncherApplet {
     String java = javaBinDir + "/java";
     String javac = javaBinDir + "/javac";
 
-    return "echo '>> Checking Java version' && " + java + " -version && " + javac + " -version && "
-        + "cd " + projectDir + " && " + "echo '>> pulling repo' && git pull && "
+    return "echo '>> Checking Java version' && "
+        + java
+        + " -version && "
+        + javac
+        + " -version && "
+        + "cd "
+        + projectDir
+        + " && "
+        + "echo '>> pulling repo' && git pull && "
         + "echo '>> compiling sources' && mkdir -p bin && "
-        + "find src/main/java -name '*.java' > sources.txt && " + javac
-        + " -d bin -cp 'bin:lib/*' @sources.txt && " + "echo '>> running simulation' && " + java
-        + " -XX:+UseNUMA -XX:+UseParallelGC -Xmx256G " + "-cp '" + classpath + "' " + mainClass
-        + " " + fullArgs;
+        + "find src/main/java -name '*.java' > sources.txt && "
+        + javac
+        + " -d bin -cp 'bin:lib/*' @sources.txt && "
+        + "echo '>> running simulation' && "
+        + java
+        + " -XX:+UseNUMA -XX:+UseParallelGC -Xmx256G "
+        + "-cp '"
+        + classpath
+        + "' "
+        + mainClass
+        + " "
+        + fullArgs;
   }
 }

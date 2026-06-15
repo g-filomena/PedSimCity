@@ -42,8 +42,12 @@ public class FlowHandler {
 
     if (enumAgentScenarios != null && enumScenarios != null) {
       scenarios =
-          Arrays.stream(enumAgentScenarios).flatMap(agentScenario -> Arrays.stream(enumScenarios)
-              .map(simScenario -> agentScenario + "_" + simScenario)).toArray(String[]::new);
+          Arrays.stream(enumAgentScenarios)
+              .flatMap(
+                  agentScenario ->
+                      Arrays.stream(enumScenarios)
+                          .map(simScenario -> agentScenario + "_" + simScenario))
+              .toArray(String[]::new);
     } else if (enumAgentScenarios != null) {
       scenarios = Arrays.stream(enumAgentScenarios).map(Enum::toString).toArray(String[]::new);
     } else if (enumScenarios != null) {
@@ -84,7 +88,8 @@ public class FlowHandler {
   private void initializeCognitiveMapCollector() {
     if (knownEdgesMap.isEmpty()) {
       for (Integer edgeID : PedSimCity.edgesMap.keySet()) {
-        knownEdgesMap.put(edgeID, Arrays.stream(scenarios).collect(Collectors.toMap(s -> s, s -> 0)));
+        knownEdgesMap.put(
+            edgeID, Arrays.stream(scenarios).collect(Collectors.toMap(s -> s, s -> 0)));
       }
     } else {
       knownEdgesMap.values().forEach(m -> m.replaceAll((k, v) -> 0));
@@ -92,7 +97,8 @@ public class FlowHandler {
 
     if (knownLandmarksMap.isEmpty()) {
       for (Integer buildingID : PedSimCity.buildingsMap.keySet()) {
-        knownLandmarksMap.put(buildingID, Arrays.stream(scenarios).collect(Collectors.toMap(s -> s, s -> 0)));
+        knownLandmarksMap.put(
+            buildingID, Arrays.stream(scenarios).collect(Collectors.toMap(s -> s, s -> 0)));
       }
     } else {
       knownLandmarksMap.values().forEach(m -> m.replaceAll((k, v) -> 0));
@@ -105,16 +111,18 @@ public class FlowHandler {
    * @param agent The agent for which edge data is updated.
    * @param route The route taken by the agent.
    */
-  public synchronized void updateFlowsData(Agent agent, Route route, Enum<?> agentScenarioValue,
-      Enum<?> scenarioValue) {
+  public synchronized void updateFlowsData(
+      Agent agent, Route route, Enum<?> agentScenarioValue, Enum<?> scenarioValue) {
 
-    String attribute = (agentScenarioValue != null && scenarioValue != null)
-        ? agentScenarioValue.toString() + "_" + scenarioValue.toString()
-        : (agentScenarioValue != null ? agentScenarioValue.toString() : "DEFAULT");
+    String attribute =
+        (agentScenarioValue != null && scenarioValue != null)
+            ? agentScenarioValue.toString() + "_" + scenarioValue.toString()
+            : (agentScenarioValue != null ? agentScenarioValue.toString() : "DEFAULT");
 
     RouteData routeData = createRouteData(agent, route, attribute);
     for (EdgeGraph edgeGraph : route.edgesSequence) {
-      Map<String, Integer> edgeVolume = volumesMap.computeIfAbsent(edgeGraph.getID(), k -> new HashMap<>());
+      Map<String, Integer> edgeVolume =
+          volumesMap.computeIfAbsent(edgeGraph.getID(), k -> new HashMap<>());
       edgeVolume.put(attribute, edgeVolume.getOrDefault(attribute, 0) + 1);
     }
     routeData.edgeIDsSequence = GraphUtils.getEdgeIDs(route.edgesSequence);
@@ -147,9 +155,10 @@ public class FlowHandler {
     for (Agent agent : state.agentsList) {
       String agentScenarioValueStr =
           (agent.getAgentScenario() != null) ? agent.getAgentScenario().toString() : null;
-      String attribute = (scenarioValue != null && agentScenarioValueStr != null)
-          ? agentScenarioValueStr + "_" + scenarioValue.toString()
-          : (agentScenarioValueStr != null ? agentScenarioValueStr : "DEFAULT");
+      String attribute =
+          (scenarioValue != null && agentScenarioValueStr != null)
+              ? agentScenarioValueStr + "_" + scenarioValue.toString()
+              : (agentScenarioValueStr != null ? agentScenarioValueStr : "DEFAULT");
 
       CognitiveMap cognitiveMap = agent.getCognitiveMap();
       if (!cognitiveMap.formed) {
@@ -157,7 +166,8 @@ public class FlowHandler {
       }
 
       for (EdgeGraph edgeGraph : cognitiveMap.getEdgesInKnownNetwork()) {
-        Map<String, Integer> edgeMap = knownEdgesMap.computeIfAbsent(edgeGraph.getID(), k -> new HashMap<>());
+        Map<String, Integer> edgeMap =
+            knownEdgesMap.computeIfAbsent(edgeGraph.getID(), k -> new HashMap<>());
         edgeMap.put(attribute, edgeMap.getOrDefault(attribute, 0) + 1);
       }
 
@@ -167,7 +177,8 @@ public class FlowHandler {
 
       for (MasonGeometry buildingGeometry : buildingGeoemetries) {
         int buildingID = buildingGeometry.getIntegerAttribute("buildingID");
-        Map<String, Integer> buildingMap = knownLandmarksMap.computeIfAbsent(buildingID, k -> new HashMap<>());
+        Map<String, Integer> buildingMap =
+            knownLandmarksMap.computeIfAbsent(buildingID, k -> new HashMap<>());
         buildingMap.put(attribute, buildingMap.getOrDefault(attribute, 0) + 1);
       }
     }

@@ -18,6 +18,7 @@ import pedsim.core.agents.Agent;
 import pedsim.core.cognition.cityimage.Barrier;
 import pedsim.core.cognition.cityimage.Gateway;
 import pedsim.core.cognition.cityimage.Region;
+import pedsim.core.utilities.RobustVectorLayer;
 import sim.engine.SimState;
 import sim.engine.Stoppable;
 import sim.field.geo.VectorLayer;
@@ -26,7 +27,6 @@ import sim.graph.EdgeGraph;
 import sim.graph.Graph;
 import sim.graph.NodeGraph;
 import sim.util.geo.MasonGeometry;
-import pedsim.core.utilities.RobustVectorLayer;
 
 /**
  * The PedSimCity class represents the main simulation environment.
@@ -138,7 +138,7 @@ public class PedSimCity extends SimState {
     this.appName = this.getClass().getSimpleName();
     this.flowHandler = new FlowHandler(job, this, appName);
     THREAD_STATE.set(this);
-    currentInstance = this;  // for SimulationViewer (EDT only)
+    currentInstance = this; // for SimulationViewer (EDT only)
   }
 
   /**
@@ -230,10 +230,10 @@ public class PedSimCity extends SimState {
     nodesVulnerabilityWeight.clear();
     nodesNightPoiWeight.clear();
     nodesWorkplacePoiWeight.clear();
-    
+
     network = new Graph();
     dualNetwork = new Graph();
-    
+
     buildingsMap.clear();
     regionsMap.clear();
     barriersMap.clear();
@@ -243,11 +243,11 @@ public class PedSimCity extends SimState {
     centroidsMap.clear();
     edges.clear();
     startingNodes.clear();
-    
+
     indexedEdgeCache.clear();
     censusZonesCache.clear();
     alternativeRoutes.clear();
-    
+
     censusZonesSpatialIndex = new STRtree();
     MBR = null;
   }

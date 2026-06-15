@@ -48,8 +48,8 @@ public class BarrierBasedNavigation implements NavigationElement {
    * @param agent the agent for navigation.
    * @param regionBasedNavigation
    */
-  public BarrierBasedNavigation(NodeGraph originNode, NodeGraph destinationNode, Agent agent,
-      boolean regionBasedNavigation) {
+  public BarrierBasedNavigation(
+      NodeGraph originNode, NodeGraph destinationNode, Agent agent, boolean regionBasedNavigation) {
     this.originNode = originNode;
     this.destinationNode = destinationNode;
     this.agent = agent;
@@ -58,7 +58,7 @@ public class BarrierBasedNavigation implements NavigationElement {
     validBarriers = new HashMap<>();
   }
 
-     /**
+  /**
    * Computes a sequence of nodes, including origin, destination, and barrier sub-goals, and
    * identifies traversed regions.
    *
@@ -87,9 +87,10 @@ public class BarrierBasedNavigation implements NavigationElement {
       EdgeGraph edgeGoal = barrierGoal.getValue0();
       int barrier = barrierGoal.getValue1();
       NodeGraph subGoal =
-          GraphUtils.nodesDistance(currentLocation, edgeGoal.getFromNode()) < GraphUtils
-              .nodesDistance(currentLocation, edgeGoal.getToNode()) ? edgeGoal.getFromNode()
-                  : edgeGoal.getToNode();
+          GraphUtils.nodesDistance(currentLocation, edgeGoal.getFromNode())
+                  < GraphUtils.nodesDistance(currentLocation, edgeGoal.getToNode())
+              ? edgeGoal.getFromNode()
+              : edgeGoal.getToNode();
 
       sequence.add(subGoal);
       currentLocation = subGoal;
@@ -147,8 +148,8 @@ public class BarrierBasedNavigation implements NavigationElement {
     Coordinate destinationCoordinate = destinationNode.getCoordinate();
 
     // Check each candidate barrier and add it to validBarriers if it meets criteria
-    assessCandidateBarriers(intersectingBarriers, viewField, currentCoordinate,
-        destinationCoordinate);
+    assessCandidateBarriers(
+        intersectingBarriers, viewField, currentCoordinate, destinationCoordinate);
     return validBarriers;
   }
 
@@ -187,34 +188,34 @@ public class BarrierBasedNavigation implements NavigationElement {
    * @param currentCoordinate The current location coordinate.
    * @param destinationCoordinate The destination node coordinate.
    */
-  private void assessCandidateBarriers(Set<Integer> intersectingBarriers, Geometry viewField,
-      Coordinate currentCoordinate, Coordinate destinationCoordinate) {
+  private void assessCandidateBarriers(
+      Set<Integer> intersectingBarriers,
+      Geometry viewField,
+      Coordinate currentCoordinate,
+      Coordinate destinationCoordinate) {
 
-	  
-	  //TODO WORKOUT
-	////System.out.println("currentCorrdinate " + currentCoordinate + "viewField -- " + viewField);
-	  // intersectingBarriers.parallelStream().filter(barrierID ->
-	  //// !visitedBarriers.contains(barrierID))
-	  // .forEach(barrierID -> {
-	  // MasonGeometry barrierGeometry = PedSimCity.barriersMap.get(barrierID).masonGeometry;
-	  //
-	  //// System.out.println("barrierID " + barrierID + " barrierGeo " + barrierGeometry);
-	  // Coordinate[] intersections =
-	  //// viewField.intersection(barrierGeometry.geometry).getCoordinates();
-	  //
-	  // double minDistance = Arrays.stream(intersections).parallel()
-	  // .mapToDouble(intersection -> GraphUtils.euclideanDistance(currentCoordinate, intersection))
-	  // .min().orElse(Double.MAX_VALUE);
-	  //
-	  //// System.out.println("barrierID " + barrierID + " minDistance min " + minDistance);
-	  //
-	  // if (minDistance <= GraphUtils.euclideanDistance(currentCoordinate, destinationCoordinate)) {
-	  // validBarriers.put(barrierID, minDistance);
-	  // }
-	  // });
-	     
-	  
-	  
+    // TODO WORKOUT
+    //// System.out.println("currentCorrdinate " + currentCoordinate + "viewField -- " + viewField);
+    // intersectingBarriers.parallelStream().filter(barrierID ->
+    //// !visitedBarriers.contains(barrierID))
+    // .forEach(barrierID -> {
+    // MasonGeometry barrierGeometry = PedSimCity.barriersMap.get(barrierID).masonGeometry;
+    //
+    //// System.out.println("barrierID " + barrierID + " barrierGeo " + barrierGeometry);
+    // Coordinate[] intersections =
+    //// viewField.intersection(barrierGeometry.geometry).getCoordinates();
+    //
+    // double minDistance = Arrays.stream(intersections).parallel()
+    // .mapToDouble(intersection -> GraphUtils.euclideanDistance(currentCoordinate, intersection))
+    // .min().orElse(Double.MAX_VALUE);
+    //
+    //// System.out.println("barrierID " + barrierID + " minDistance min " + minDistance);
+    //
+    // if (minDistance <= GraphUtils.euclideanDistance(currentCoordinate, destinationCoordinate)) {
+    // validBarriers.put(barrierID, minDistance);
+    // }
+    // });
+
     // for each candidate barrier, check whether it complies with the criteria
     for (int barrierID : intersectingBarriers) {
       if (visitedBarriers.contains(barrierID)) {
@@ -224,20 +225,22 @@ public class BarrierBasedNavigation implements NavigationElement {
       Coordinate[] intersections =
           viewField.intersection(barrierGeometry.geometry).getCoordinates();
 
-      double minDistance = Arrays.stream(intersections)
-          .mapToDouble(
-              intersection -> GeometryUtilities.euclideanDistance(currentCoordinate, intersection))
-          .min().orElse(Double.MAX_VALUE);
+      double minDistance =
+          Arrays.stream(intersections)
+              .mapToDouble(
+                  intersection ->
+                      GeometryUtilities.euclideanDistance(currentCoordinate, intersection))
+              .min()
+              .orElse(Double.MAX_VALUE);
 
       // barriers that are more distant than the destinationNode are disregarded
-      if (minDistance > GeometryUtilities.euclideanDistance(currentCoordinate,
-          destinationCoordinate)) {
+      if (minDistance
+          > GeometryUtilities.euclideanDistance(currentCoordinate, destinationCoordinate)) {
         continue;
       }
 
       validBarriers.put(barrierID, minDistance);
     }
-
   }
 
   /**
@@ -249,8 +252,8 @@ public class BarrierBasedNavigation implements NavigationElement {
    * @return a Pair of EdgeGraph and Integer representing the closest edge to the barrier and the
    *         barrierID.
    */
-  protected Pair<EdgeGraph, Integer> identifyBarrierSubGoal(Map<Integer, Double> validBarriers,
-      Region region) {
+  protected Pair<EdgeGraph, Integer> identifyBarrierSubGoal(
+      Map<Integer, Double> validBarriers, Region region) {
 
     List<EdgeGraph> regionEdges = new ArrayList<>();
     if (regionBasedNavigation && agent.getCognitiveMap().isRegionKnown(region.regionID)) {
@@ -285,9 +288,10 @@ public class BarrierBasedNavigation implements NavigationElement {
       }
 
       // only known edges
-      edgesAlong = edgesAlong.stream()
-          .filter(edge -> agent.getCognitiveMap().getEdgesInKnownNetwork().contains(edge))
-          .collect(Collectors.toList());
+      edgesAlong =
+          edgesAlong.stream()
+              .filter(edge -> agent.getCognitiveMap().getEdgesInKnownNetwork().contains(edge))
+              .collect(Collectors.toList());
 
       // only edges with certain requirements
       Map<EdgeGraph, Double> thisBarrierEdgeGoals = keepValidSubGoals(edgesAlong);
@@ -335,14 +339,23 @@ public class BarrierBasedNavigation implements NavigationElement {
    *         distances.
    */
   private Map<EdgeGraph, Double> keepValidSubGoals(List<EdgeGraph> edgesAlong) {
-    return edgesAlong.stream().filter(edge -> {
-      double distanceToEdge = GeometryUtilities.euclideanDistance(currentLocation.getCoordinate(),
-          edge.getCoordsCentroid());
-      double distanceToDestination = GraphUtils.nodesDistance(currentLocation, destinationNode);
-      return distanceToEdge <= distanceToDestination;
-    }).filter(edge -> sequence.stream().noneMatch(node -> node.getEdges().contains(edge)))
+    return edgesAlong.stream()
+        .filter(
+            edge -> {
+              double distanceToEdge =
+                  GeometryUtilities.euclideanDistance(
+                      currentLocation.getCoordinate(), edge.getCoordsCentroid());
+              double distanceToDestination =
+                  GraphUtils.nodesDistance(currentLocation, destinationNode);
+              return distanceToEdge <= distanceToDestination;
+            })
+        .filter(edge -> sequence.stream().noneMatch(node -> node.getEdges().contains(edge)))
         .filter(edge -> !currentLocation.getEdges().contains(edge))
-        .collect(Collectors.toMap(edge -> edge, edge -> GeometryUtilities
-            .euclideanDistance(currentLocation.getCoordinate(), edge.getCoordsCentroid())));
+        .collect(
+            Collectors.toMap(
+                edge -> edge,
+                edge ->
+                    GeometryUtilities.euclideanDistance(
+                        currentLocation.getCoordinate(), edge.getCoordsCentroid())));
   }
 }

@@ -31,7 +31,10 @@ public class RegionLandmarkNavigation extends LandmarkNavigation {
     idntifyAgentLocalLandmarks();
   }
 
-  public RegionLandmarkNavigation(NodeGraph originNode, NodeGraph destinationNode, Agent agent,
+  public RegionLandmarkNavigation(
+      NodeGraph originNode,
+      NodeGraph destinationNode,
+      Agent agent,
       List<NodeGraph> sequenceGateways) {
     this(originNode, destinationNode, agent);
     this.sequenceGateways = sequenceGateways;
@@ -48,8 +51,7 @@ public class RegionLandmarkNavigation extends LandmarkNavigation {
     currentNode = originNode;
 
     for (NodeGraph exitGateway : sequenceGateways) {
-      if (exitGateway.equals(originNode) || currentNode.equals(destinationNode))
-        continue;
+      if (exitGateway.equals(originNode) || currentNode.equals(destinationNode)) continue;
 
       sequence.add(currentNode);
       if (currentNode.getRegionID() != exitGateway.getRegionID()) {
@@ -78,12 +80,12 @@ public class RegionLandmarkNavigation extends LandmarkNavigation {
 
     Region region = PedSimCity.regionsMap.get(currentNode.getRegionID());
     findRegionSalientJunctions(region);
-    if (salientNodes.isEmpty())
-      return inRegionSequence;
+    if (salientNodes.isEmpty()) return inRegionSequence;
 
     // compute wayfinding complexity and the resulting easinesss
-    double wayfindingEasiness = complexity.wayfindingEasinessRegion(currentNode, exitGateway,
-        originNode, destinationNode, agent);
+    double wayfindingEasiness =
+        complexity.wayfindingEasinessRegion(
+            currentNode, exitGateway, originNode, destinationNode, agent);
     double searchDistance = GraphUtils.nodesDistance(currentNode, exitGateway) * wayfindingEasiness;
 
     // while the wayfindingEasiness is lower than the threshold the agent looks for
@@ -95,11 +97,11 @@ public class RegionLandmarkNavigation extends LandmarkNavigation {
 
       inRegionSequence.add(bestNode);
       findRegionSalientJunctions(region);
-      if (salientNodes.isEmpty())
-        return inRegionSequence;
+      if (salientNodes.isEmpty()) return inRegionSequence;
 
-      wayfindingEasiness = complexity.wayfindingEasinessRegion(bestNode, originNode,
-          destinationNode, exitGateway, agent);
+      wayfindingEasiness =
+          complexity.wayfindingEasinessRegion(
+              bestNode, originNode, destinationNode, exitGateway, agent);
       searchDistance = GraphUtils.nodesDistance(bestNode, exitGateway) * wayfindingEasiness;
       currentNode = bestNode;
       bestNode = null;
@@ -124,8 +126,7 @@ public class RegionLandmarkNavigation extends LandmarkNavigation {
 
     while (salientNodes.isEmpty()) {
       percentile -= 0.05;
-      if (percentile < 0.50)
-        break;
+      if (percentile < 0.50) break;
 
       salientNodes = new HashMap<>(region.primalGraph.getSubGraphSalientNodes(percentile));
     }
@@ -141,18 +142,22 @@ public class RegionLandmarkNavigation extends LandmarkNavigation {
    * @param searchDistance The search distance limit for evaluating potential nodes.
    * @return The selected node that serves as an on-route mark, or null if none is found.
    */
-  private NodeGraph findOnRouteMarkRegion(NodeGraph exitGateway,
-      Map<NodeGraph, Double> salientNodes, Double searchDistance) {
+  private NodeGraph findOnRouteMarkRegion(
+      NodeGraph exitGateway, Map<NodeGraph, Double> salientNodes, Double searchDistance) {
 
     List<NodeGraph> junctions = new ArrayList<>(salientNodes.keySet());
     double currentDistance = GraphUtils.nodesDistance(currentNode, exitGateway);
 
     // Optimised sorting using Comparator and Collections.sort
-    List<NodeGraph> sortedJunctions = junctions.stream().filter(
-        candidateNode -> checkCriteria(candidateNode, exitGateway, searchDistance, currentDistance))
-        .sorted(Comparator
-            .comparingDouble(candidateNode -> calculateScore(candidateNode, exitGateway, true)))
-        .collect(Collectors.toList());
+    List<NodeGraph> sortedJunctions =
+        junctions.stream()
+            .filter(
+                candidateNode ->
+                    checkCriteria(candidateNode, exitGateway, searchDistance, currentDistance))
+            .sorted(
+                Comparator.comparingDouble(
+                    candidateNode -> calculateScore(candidateNode, exitGateway, true)))
+            .collect(Collectors.toList());
     return sortedJunctions.isEmpty() ? null : sortedJunctions.get(sortedJunctions.size() - 1);
   }
 }

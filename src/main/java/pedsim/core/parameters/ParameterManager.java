@@ -26,16 +26,14 @@ public class ParameterManager {
   /** Apply multiple maps (e.g. doubles, booleans) to a class. */
   @SafeVarargs
   public static void applyAll(Class<?> targetClass, Map<String, TextField>... fieldMaps) {
-    for (Map<String, TextField> map : fieldMaps)
-      apply(map, targetClass);
+    for (Map<String, TextField> map : fieldMaps) apply(map, targetClass);
   }
 
   /** Apply a parameter map (CLI style) to multiple target classes. */
   @SafeVarargs
   public static void applyParams(Map<String, String> params, Class<?>... targetClasses) {
     for (Map.Entry<String, String> e : params.entrySet())
-      for (Class<?> cls : targetClasses)
-        setFieldValue(cls, e.getKey(), e.getValue());
+      for (Class<?> cls : targetClasses) setFieldValue(cls, e.getKey(), e.getValue());
   }
 
   // ------------------------------------------------------------
@@ -60,42 +58,35 @@ public class ParameterManager {
 
   /** Directly set a parameter field by name. */
   public static void setFieldValue(Class<?> targetClass, String key, String raw) {
-    if (raw == null || raw.isBlank())
-      return;
+    if (raw == null || raw.isBlank()) return;
 
     try {
       Field f = targetClass.getDeclaredField(key);
       f.setAccessible(true);
       Class<?> type = f.getType();
 
-      if (type == int.class || type == Integer.class)
-        f.set(null, (int) Double.parseDouble(raw));
-      else if (type == double.class || type == Double.class)
-        f.set(null, Double.parseDouble(raw));
+      if (type == int.class || type == Integer.class) f.set(null, (int) Double.parseDouble(raw));
+      else if (type == double.class || type == Double.class) f.set(null, Double.parseDouble(raw));
       else if (type == boolean.class || type == Boolean.class)
         f.set(null, Boolean.parseBoolean(raw));
-      else if (type == String.class)
-        f.set(null, raw);
+      else if (type == String.class) f.set(null, raw);
       else if (type == Integer[].class) {
         String[] parts = raw.split(",");
         Integer[] arr = new Integer[parts.length];
-        for (int i = 0; i < parts.length; i++)
-          arr[i] = Integer.parseInt(parts[i].trim());
+        for (int i = 0; i < parts.length; i++) arr[i] = Integer.parseInt(parts[i].trim());
         f.set(null, arr);
       } else if (type == Double[].class) {
         String[] parts = raw.split(",");
         Double[] arr = new Double[parts.length];
-        for (int i = 0; i < parts.length; i++)
-          arr[i] = Double.parseDouble(parts[i].trim());
+        for (int i = 0; i < parts.length; i++) arr[i] = Double.parseDouble(parts[i].trim());
         f.set(null, arr);
       } else if (type == String[].class) {
         String[] arr = raw.split(",");
-        for (int i = 0; i < arr.length; i++)
-          arr[i] = arr[i].trim();
+        for (int i = 0; i < arr.length; i++) arr[i] = arr[i].trim();
         f.set(null, arr);
       } else {
-        System.err
-            .println("Unsupported type for field " + key + " in " + targetClass.getSimpleName());
+        System.err.println(
+            "Unsupported type for field " + key + " in " + targetClass.getSimpleName());
       }
     } catch (NoSuchFieldException e) {
       System.err.println("No field named " + key + " in " + targetClass.getSimpleName());
@@ -115,8 +106,7 @@ public class ParameterManager {
       try {
         f.setAccessible(true);
         Object val = f.get(null);
-        if (val == null)
-          continue;
+        if (val == null) continue;
 
         String str;
         if (val.getClass().isArray()) {
@@ -124,8 +114,7 @@ public class ParameterManager {
           StringBuilder sb = new StringBuilder();
           for (int i = 0; i < arr.length; i++) {
             sb.append(arr[i]);
-            if (i < arr.length - 1)
-              sb.append(",");
+            if (i < arr.length - 1) sb.append(",");
           }
           str = sb.toString();
         } else {
@@ -143,8 +132,7 @@ public class ParameterManager {
   @SafeVarargs
   public static Map<String, String> exportParams(Class<?>... classes) {
     Map<String, String> all = new LinkedHashMap<>();
-    for (Class<?> cls : classes)
-      all.putAll(exportParams(cls));
+    for (Class<?> cls : classes) all.putAll(exportParams(cls));
     return all;
   }
 
@@ -153,8 +141,7 @@ public class ParameterManager {
     StringBuilder sb = new StringBuilder();
     for (Map.Entry<String, String> e : params.entrySet()) {
       sb.append("--").append(e.getKey());
-      if (!"true".equals(e.getValue()))
-        sb.append("=").append(e.getValue());
+      if (!"true".equals(e.getValue())) sb.append("=").append(e.getValue());
       sb.append(" ");
     }
     return sb.toString().trim();
@@ -166,32 +153,32 @@ public class ParameterManager {
 
   /**
    * Collect parameters from an Applet into CLI string.
-   * 
+   *
    * @param headless if true, forces "--headless"
    */
   public static String collectParameters(PedSimCityApplet applet, boolean headless) {
-    if (applet.getCityName() != null)
-      setFieldValue(Pars.class, "cityName", applet.getCityName());
-    if (applet.getDays() != null)
-      setFieldValue(TimePars.class, "numberOfDays", applet.getDays());
+    if (applet.getCityName() != null) setFieldValue(Pars.class, "cityName", applet.getCityName());
+    if (applet.getDays() != null) setFieldValue(TimePars.class, "numberOfDays", applet.getDays());
     if (applet.getPopulation() != null)
       setFieldValue(Pars.class, "population", applet.getPopulation());
     if (applet.getPercentage() != null)
       setFieldValue(Pars.class, "percentagePopulationAgent", applet.getPercentage());
-    if (applet.getJobs() != null)
-      setFieldValue(Pars.class, "jobs", applet.getJobs());
+    if (applet.getJobs() != null) setFieldValue(Pars.class, "jobs", applet.getJobs());
 
     if (applet.getOtherParsPanel() != null)
-      applyAll(Pars.class, applet.getOtherParsPanel().doubleFields,
+      applyAll(
+          Pars.class,
+          applet.getOtherParsPanel().doubleFields,
           applet.getOtherParsPanel().booleanFields);
 
     if (applet.getRoutePanel() != null)
-      applyAll(RouteChoicePars.class, applet.getRoutePanel().doubleFields,
+      applyAll(
+          RouteChoicePars.class,
+          applet.getRoutePanel().doubleFields,
           applet.getRoutePanel().booleanFields);
 
     Map<String, String> params = exportParams(Pars.class, TimePars.class, RouteChoicePars.class);
-    if (headless)
-      params.put("headless", "true");
+    if (headless) params.put("headless", "true");
 
     return toArgString(params);
   }
@@ -218,10 +205,8 @@ public class ParameterManager {
     for (String arg : args) {
       if (arg.startsWith("--")) {
         String[] parts = arg.substring(2).split("=", 2);
-        if (parts.length == 2)
-          params.put(parts[0], parts[1]);
-        else
-          params.put(parts[0], "true");
+        if (parts.length == 2) params.put(parts[0], parts[1]);
+        else params.put(parts[0], "true");
       }
     }
     return params;

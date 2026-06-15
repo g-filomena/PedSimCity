@@ -5,8 +5,8 @@ public class NightPars {
   public static double minVulnerableLightSensitivity = 5.0;
   public static double maxVulnerableLightSensitivity = 15.0;
   public static double nonVulnerableLightSensitivity = 0.0;
-  
+
   public static double crowdednessPercentile = 80.0;
-  
+
   public static boolean enableLightABTesting = false;
 }

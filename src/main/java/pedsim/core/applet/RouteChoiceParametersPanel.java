@@ -29,34 +29,52 @@ public class RouteChoiceParametersPanel extends Frame {
   public TextField localPathField = new TextField(null);
 
   String[][] doubleParamDefs = {
-      {"distanceNodeLandmark", "Max distance of a candidate Local Landmark from a Node (m)"},
-      {"distanceAnchors", "Max distance of a Global Landmark (as anchor) from a Node"},
-      {"nrAnchors", "Max Number of Anchors to be identified for each Destination"},
-      {"threshold3dVisibility",
-          "Min distance Between a node and the agent destination for considering 3D Visibility"},
-      {"globalLandmarkThresholdCommunity",
-          "Min score for a building to be considered a Global Landmark [0.0 - 0.95]"},
-      {"localLandmarkThresholdCommunity",
-          "Min score for a building to be considered a Local Landmark [0.0 - 0.95]"},
-      {"salientNodesPercentile", "Percentile for choosing Salient Nodes [0.0 - 1.0]"},
-      {"wayfindingEasinessThresholdCommunity", "Wayfinding Easiness Threshold [0.0 - 1.0]"},
-      {"globalLandmarknessWeightDistanceCommunity",
-          "Weight Global Landmarkness with Distance Cost [0.0 - 1.0]"},
-      {"globalLandmarknessWeightAngularCommunity",
-          "Weight Global Landmarkness with Angular Cost [0.0 - 1.0]"},
-      {"regionNavActivationThreshold",
-          "Minimum distance necessary to activate Region-based navigation (m)"},
-      {"wayfindingEasinessThresholdRegionsCommunity", "Wayfinding Easiness Threshold in regions"}};
+    {"distanceNodeLandmark", "Max distance of a candidate Local Landmark from a Node (m)"},
+    {"distanceAnchors", "Max distance of a Global Landmark (as anchor) from a Node"},
+    {"nrAnchors", "Max Number of Anchors to be identified for each Destination"},
+    {
+      "threshold3dVisibility",
+      "Min distance Between a node and the agent destination for considering 3D Visibility"
+    },
+    {
+      "globalLandmarkThresholdCommunity",
+      "Min score for a building to be considered a Global Landmark [0.0 - 0.95]"
+    },
+    {
+      "localLandmarkThresholdCommunity",
+      "Min score for a building to be considered a Local Landmark [0.0 - 0.95]"
+    },
+    {"salientNodesPercentile", "Percentile for choosing Salient Nodes [0.0 - 1.0]"},
+    {"wayfindingEasinessThresholdCommunity", "Wayfinding Easiness Threshold [0.0 - 1.0]"},
+    {
+      "globalLandmarknessWeightDistanceCommunity",
+      "Weight Global Landmarkness with Distance Cost [0.0 - 1.0]"
+    },
+    {
+      "globalLandmarknessWeightAngularCommunity",
+      "Weight Global Landmarkness with Angular Cost [0.0 - 1.0]"
+    },
+    {
+      "regionNavActivationThreshold",
+      "Minimum distance necessary to activate Region-based navigation (m)"
+    },
+    {"wayfindingEasinessThresholdRegionsCommunity", "Wayfinding Easiness Threshold in regions"}
+  };
 
-  Double[] defaults = {RouteChoicePars.distanceNodeLandmark, RouteChoicePars.distanceAnchors,
-      (double) RouteChoicePars.nrAnchors, RouteChoicePars.threshold3dVisibility,
-      RouteChoicePars.globalLandmarkThresholdCommunity,
-      RouteChoicePars.localLandmarkThresholdCommunity, RouteChoicePars.salientNodesPercentile,
-      RouteChoicePars.wayfindingEasinessThresholdCommunity,
-      RouteChoicePars.globalLandmarknessWeightDistanceCommunity,
-      RouteChoicePars.globalLandmarknessWeightAngularCommunity,
-      RouteChoicePars.regionNavActivationThreshold,
-      RouteChoicePars.wayfindingEasinessThresholdRegionsCommunity};
+  Double[] defaults = {
+    RouteChoicePars.distanceNodeLandmark,
+    RouteChoicePars.distanceAnchors,
+    (double) RouteChoicePars.nrAnchors,
+    RouteChoicePars.threshold3dVisibility,
+    RouteChoicePars.globalLandmarkThresholdCommunity,
+    RouteChoicePars.localLandmarkThresholdCommunity,
+    RouteChoicePars.salientNodesPercentile,
+    RouteChoicePars.wayfindingEasinessThresholdCommunity,
+    RouteChoicePars.globalLandmarknessWeightDistanceCommunity,
+    RouteChoicePars.globalLandmarknessWeightAngularCommunity,
+    RouteChoicePars.regionNavActivationThreshold,
+    RouteChoicePars.wayfindingEasinessThresholdRegionsCommunity
+  };
 
   public RouteChoiceParametersPanel() {
     super("RouteChoice Parameters Panel");
@@ -72,8 +90,10 @@ public class RouteChoiceParametersPanel extends Frame {
       Y += Y_SPACE_BETWEEN;
     }
 
-    Label localPathLabel = new Label(
-        "Fill only if running as Java Project, not from JAR (e.g.: C:/Users/you/.../resources/)");
+    Label localPathLabel =
+        new Label(
+            "Fill only if running as Java Project, not from JAR (e.g.:"
+                + " C:/Users/you/.../resources/)");
     localPathLabel.setBounds(10, 480, 700, 20);
     localPathLabel.setFont(new Font("Arial", Font.ITALIC, 12));
     add(localPathLabel);
@@ -83,24 +103,26 @@ public class RouteChoiceParametersPanel extends Frame {
 
     Button applyButton = new Button("Apply");
     applyButton.setBounds(10, 550, 80, 30);
-    applyButton.addActionListener(new ActionListener() {
-      @Override
-      public void actionPerformed(ActionEvent e) {
-        ParameterManager.applyAll(RouteChoicePars.class, doubleFields, booleanFields);
-        closePanel();
-      }
-    });
+    applyButton.addActionListener(
+        new ActionListener() {
+          @Override
+          public void actionPerformed(ActionEvent e) {
+            ParameterManager.applyAll(RouteChoicePars.class, doubleFields, booleanFields);
+            closePanel();
+          }
+        });
     add(applyButton);
 
     setSize(800, 600);
     setVisible(true);
 
-    addWindowListener(new WindowAdapter() {
-      @Override
-      public void windowClosing(WindowEvent e) {
-        closePanel();
-      }
-    });
+    addWindowListener(
+        new WindowAdapter() {
+          @Override
+          public void windowClosing(WindowEvent e) {
+            closePanel();
+          }
+        });
   }
 
   private TextField addDoubleField(String fieldName, double defaultValue, int x, int y) {
@@ -115,12 +137,13 @@ public class RouteChoiceParametersPanel extends Frame {
 
   public static void main(String[] args) {
     RouteChoiceParametersPanel frame = new RouteChoiceParametersPanel();
-    frame.addWindowListener(new WindowAdapter() {
-      @Override
-      public void windowClosing(WindowEvent e) {
-        System.exit(0);
-      }
-    });
+    frame.addWindowListener(
+        new WindowAdapter() {
+          @Override
+          public void windowClosing(WindowEvent e) {
+            System.exit(0);
+          }
+        });
   }
 
   private void closePanel() {

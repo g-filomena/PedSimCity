@@ -1,7 +1,6 @@
 package pedsim.night.agents;
 
 import java.util.Random;
-
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.Crowdness;
 import sim.graph.EdgeGraph;
@@ -169,13 +168,13 @@ public class NightBehaviour {
   /** Checks the light level of the current edge. */
   protected void checkLightLevel() {
     double meanLux = 0.0;
-    
+
     if (nightMovement.currentEdge.attributes.get("mean_lux") != null) {
       meanLux = nightMovement.currentEdge.attributes.get("mean_lux").getDouble();
     } else if (SharedCognitiveMap.getLitEdges().contains(nightMovement.currentEdge)) {
       meanLux = Double.MAX_VALUE; // Fallback to fully lit if old binary data is used
     }
-    
+
     double entranceLux = Double.MAX_VALUE;
     if (nightMovement.currentDirectedEdge != null) {
       NodeGraph fromNode = (NodeGraph) nightMovement.currentDirectedEdge.getFromNode();
@@ -188,9 +187,10 @@ public class NightBehaviour {
         }
       }
     }
-    
+
     // If either the average street light or the immediate entrance is too dark, reroute
-    if (meanLux >= agent.lightSensitivityThreshold && entranceLux >= agent.lightSensitivityThreshold) {
+    if (meanLux >= agent.lightSensitivityThreshold
+        && entranceLux >= agent.lightSensitivityThreshold) {
       whenLit(nightMovement.currentEdge);
     } else {
       whenNonLit(nightMovement.currentEdge);

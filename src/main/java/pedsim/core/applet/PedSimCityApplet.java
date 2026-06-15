@@ -18,7 +18,6 @@ import pedsim.core.parameters.ParameterManager;
 import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
 import pedsim.core.utilities.StringEnum;
-import pedsim.core.website.SimulationRestApi;
 
 public class PedSimCityApplet extends Frame {
 
@@ -165,14 +164,17 @@ public class PedSimCityApplet extends Frame {
     final ScenarioConfig scenarioConfig = buildScenarioConfig();
     final Engine engine = buildEngine();
 
-    Thread thread = new Thread(() -> {
-      try {
-        engine.runJobs(scenarioConfig, runInParallel);
-      } catch (Exception ex) {
-        LoggerUtil.getLogger().severe("Simulation failed: " + ex.getMessage());
-        ex.printStackTrace();
-      }
-    }, runInParallel ? "pedsim-parallel-simulation" : "pedsim-local-simulation");
+    Thread thread =
+        new Thread(
+            () -> {
+              try {
+                engine.runJobs(scenarioConfig, runInParallel);
+              } catch (Exception ex) {
+                LoggerUtil.getLogger().severe("Simulation failed: " + ex.getMessage());
+                ex.printStackTrace();
+              }
+            },
+            runInParallel ? "pedsim-parallel-simulation" : "pedsim-local-simulation");
 
     setSimulationThread(thread);
     thread.start();
@@ -230,7 +232,7 @@ public class PedSimCityApplet extends Frame {
       System.out.println(" 1. Run Standard GUI (AWT)");
       System.out.println(" 2. Start REST API + Open Browser/HTML Dashboard");
       System.out.print("\nSelect an option [1-2]: ");
-      
+
       java.util.Scanner scanner = new java.util.Scanner(System.in);
       try {
         choice = Integer.parseInt(scanner.nextLine().trim());
@@ -244,34 +246,39 @@ public class PedSimCityApplet extends Frame {
       SimulationLauncher launcher = new PedSimCityApplet().coreLauncher();
       launcher.preloadForDashboard();
       launcher.wireAndStartRestServer(8081);
-      
+
       // Launch dashboard.html in the default browser
       try {
-          java.io.File htmlFile = new java.io.File("dashboard.html");
-          if (htmlFile.exists() && java.awt.Desktop.isDesktopSupported()) {
-              java.awt.Desktop.getDesktop().browse(htmlFile.toURI());
-          } else {
-              LoggerUtil.getLogger().warning("Could not launch browser automatically. Please open dashboard.html manually.");
-          }
+        java.io.File htmlFile = new java.io.File("dashboard.html");
+        if (htmlFile.exists() && java.awt.Desktop.isDesktopSupported()) {
+          java.awt.Desktop.getDesktop().browse(htmlFile.toURI());
+        } else {
+          LoggerUtil.getLogger()
+              .warning(
+                  "Could not launch browser automatically. Please open dashboard.html manually.");
+        }
       } catch (Exception e) {
-          LoggerUtil.getLogger().warning("Failed to open browser: " + e.getMessage());
+        LoggerUtil.getLogger().warning("Failed to open browser: " + e.getMessage());
       }
     } else {
       // Option 1: Standard GUI only — no REST API server is started.
       LoggerUtil.getLogger().info("[STARTUP] Launching Standard GUI...");
       PedSimCityApplet applet = new PedSimCityApplet();
-      applet.addWindowListener(new WindowAdapter() {
-        @Override
-        public void windowClosing(WindowEvent e) {
-          applet.dispose();
-        }
-      });
+      applet.addWindowListener(
+          new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+              applet.dispose();
+            }
+          });
     }
   }
 
   protected ServerProjectConfig buildServerProjectConfig() {
-    return new ServerProjectConfig("/mnt/home/gabriele/PedSimCity",
-        "pedsim.core.applet.PedSimCityApplet", "bin:lib/*:src/main/resources");
+    return new ServerProjectConfig(
+        "/mnt/home/gabriele/PedSimCity",
+        "pedsim.core.applet.PedSimCityApplet",
+        "bin:lib/*:src/main/resources");
   }
 
   // =====================================================

@@ -35,18 +35,18 @@ public class Pars {
 
   // for development/testing purposes only
   public static boolean javaProject = false;
-  public static String localPath =
-      System.getProperty("pedsimcity.localPath", "");
+  public static String localPath = System.getProperty("pedsimcity.localPath", "");
   public static boolean parallel = false;
-  
+
   public static boolean isNight = false;
 
   static String[] primary = {"primary", "primary_link"};
   static String[] secondary = {"secondary", "secondary_link"};
   static String[] tertiary = {"tertiary", "tertiary_link", "unclassified"};
   static String[] neighborhood = {"residential", "pedestrian", "living_street"};
-  static String[] unknown =
-      {"footway", "bridleway", "steps", "corridor", "path", "track", "service"};
+  static String[] unknown = {
+    "footway", "bridleway", "steps", "corridor", "path", "track", "service"
+  };
 
   public static HashMap<RoadType, String[]> roadTypes = new HashMap<>();
 

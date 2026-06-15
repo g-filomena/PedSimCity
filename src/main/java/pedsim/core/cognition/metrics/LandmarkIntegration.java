@@ -24,14 +24,17 @@ public class LandmarkIntegration {
   public static void setLocalLandmarksAtJunctions() {
 
     List<NodeGraph> nodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
-    nodes.forEach((node) -> {
-      List<MasonGeometry> containedLandmarks =
-          SharedCognitiveMap.getLocalLandmarks().featuresWithinDistance(
-              node.getMasonGeometry().geometry, RouteChoicePars.distanceNodeLandmark);
-      for (MasonGeometry masonGeometry : containedLandmarks) {
-        node.adjacentBuildings.add(PedSimCity.buildingsMap.get((int) masonGeometry.getUserData()));
-      }
-    });
+    nodes.forEach(
+        (node) -> {
+          List<MasonGeometry> containedLandmarks =
+              SharedCognitiveMap.getLocalLandmarks()
+                  .featuresWithinDistance(
+                      node.getMasonGeometry().geometry, RouteChoicePars.distanceNodeLandmark);
+          for (MasonGeometry masonGeometry : containedLandmarks) {
+            node.adjacentBuildings.add(
+                PedSimCity.buildingsMap.get((int) masonGeometry.getUserData()));
+          }
+        });
   }
 
   /**
@@ -42,44 +45,45 @@ public class LandmarkIntegration {
   public static void assignAnchoringLandmarksToNodes() {
 
     List<NodeGraph> nodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
-    nodes.forEach((node) -> {
-      List<Building> anchors = new ArrayList<>(); //
-      List<Double> distances = new ArrayList<>();
+    nodes.forEach(
+        (node) -> {
+          List<Building> anchors = new ArrayList<>(); //
+          List<Double> distances = new ArrayList<>();
 
-      List<MasonGeometry> potentialAnchors =
-          SharedCognitiveMap.getGlobalLandmarks().featuresWithinDistance(
-              node.getMasonGeometry().geometry, RouteChoicePars.distanceAnchors);
+          List<MasonGeometry> potentialAnchors =
+              SharedCognitiveMap.getGlobalLandmarks()
+                  .featuresWithinDistance(
+                      node.getMasonGeometry().geometry, RouteChoicePars.distanceAnchors);
 
-      if (!potentialAnchors.isEmpty()) {
-        PriorityQueue<Double> topScores = new PriorityQueue<>(); // Min-heap for top scores
+          if (!potentialAnchors.isEmpty()) {
+            PriorityQueue<Double> topScores = new PriorityQueue<>(); // Min-heap for top scores
 
-        // Find the top nrAnchors gScores efficiently
-        for (MasonGeometry masonGeometry : potentialAnchors) {
-          double gScore = masonGeometry.getDoubleAttribute("gScore_sc");
-          if (topScores.size() < RouteChoicePars.nrAnchors) {
-            topScores.add(gScore); // Fill up the heap first
-          } else if (gScore > topScores.peek()) {
-            topScores.poll(); // Remove smallest
-            topScores.add(gScore);
+            // Find the top nrAnchors gScores efficiently
+            for (MasonGeometry masonGeometry : potentialAnchors) {
+              double gScore = masonGeometry.getDoubleAttribute("gScore_sc");
+              if (topScores.size() < RouteChoicePars.nrAnchors) {
+                topScores.add(gScore); // Fill up the heap first
+              } else if (gScore > topScores.peek()) {
+                topScores.poll(); // Remove smallest
+                topScores.add(gScore);
+              }
+            }
+
+            double minimum_gScore = topScores.poll();
+
+            for (MasonGeometry anchor : potentialAnchors) {
+              if (anchor.getDoubleAttribute("gScore_sc") < minimum_gScore) {
+                continue;
+              }
+              int buildingID = (int) anchor.getUserData();
+              anchors.add(PedSimCity.buildingsMap.get(buildingID));
+              distances.add(anchor.geometry.distance(node.getMasonGeometry().geometry));
+            }
+
+            node.attributes.put("anchors", new AttributeValue(anchors));
+            node.attributes.put("distances", new AttributeValue(distances));
           }
-        }
-
-        double minimum_gScore = topScores.poll();
-
-        for (MasonGeometry anchor : potentialAnchors) {
-          if (anchor.getDoubleAttribute("gScore_sc") < minimum_gScore) {
-            continue;
-          }
-          int buildingID = (int) anchor.getUserData();
-          anchors.add(PedSimCity.buildingsMap.get(buildingID));
-          distances.add(anchor.geometry.distance(node.getMasonGeometry().geometry));
-        }
-
-        node.attributes.put("anchors", new AttributeValue(anchors));
-        node.attributes.put("distances", new AttributeValue(distances));
-      }
-    });
-
+        });
   }
 
   public static void assignVisibileGlobalLandmakrsToNodes(VectorLayer sightLines) {

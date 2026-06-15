@@ -59,8 +59,7 @@ public final class NightSimulationModule implements SimulationModule {
   @Override
   public void applyParameters(Map<String, Object> params) {
     if (params.containsKey("enableAB"))
-      NightPars.enableLightABTesting =
-          Boolean.parseBoolean(params.get("enableAB").toString());
+      NightPars.enableLightABTesting = Boolean.parseBoolean(params.get("enableAB").toString());
     if (params.containsKey("crowdednessPercentile"))
       NightPars.crowdednessPercentile =
           Double.parseDouble(params.get("crowdednessPercentile").toString());

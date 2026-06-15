@@ -242,7 +242,8 @@ public final class SimulationStateStore {
         try {
           extra = active.extraState();
         } catch (Exception e) {
-          logger.warning("extraState() threw for module " + active.moduleId() + ": " + e.getMessage());
+          logger.warning(
+              "extraState() threw for module " + active.moduleId() + ": " + e.getMessage());
         }
       }
       this.moduleState = extra;

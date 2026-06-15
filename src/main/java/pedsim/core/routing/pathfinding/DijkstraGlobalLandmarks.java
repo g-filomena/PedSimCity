@@ -4,9 +4,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import org.locationtech.jts.planargraph.DirectedEdge;
-
 import pedsim.core.agents.Agent;
 import pedsim.core.cognition.metrics.Landmarkness;
 import sim.graph.EdgeGraph;
@@ -17,7 +15,6 @@ import sim.routing.NodeWrapper;
  * The class allows computing the route that maximises global landmarkness between an origin and a
  * destination on a primal graph representation of the street network.
  */
-
 public class DijkstraGlobalLandmarks extends Dijkstra {
 
   /**
@@ -32,8 +29,12 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
    *
    * @return An ArrayList of DirectedEdges representing the path.
    */
-  public List<DirectedEdge> dijkstraAlgorithm(NodeGraph originNode, NodeGraph destinationNode,
-      NodeGraph finalDestinationNode, Set<DirectedEdge> directedEdgesToAvoid, Agent agent) {
+  public List<DirectedEdge> dijkstraAlgorithm(
+      NodeGraph originNode,
+      NodeGraph destinationNode,
+      NodeGraph finalDestinationNode,
+      Set<DirectedEdge> directedEdgesToAvoid,
+      Agent agent) {
 
     initialise(originNode, destinationNode, finalDestinationNode, agent);
     initialisePrimal(directedEdgesToAvoid);
@@ -112,13 +113,13 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
 
     // check that the route has been formulated properly
     if (nodeWrappersMap.get(destinationNode) == null || nodeWrappersMap.size() <= 1) {
-    	directedEdgesSequence.clear();
-		return directedEdgesSequence;
+      directedEdgesSequence.clear();
+      return directedEdgesSequence;
     }
     while (nodeWrappersMap.get(step).nodeFrom != null) {
-    	DirectedEdge directedEdge = nodeWrappersMap.get(step).directedEdgeFrom;
-    	step = nodeWrappersMap.get(step).nodeFrom;
-    	directedEdgesSequence.add(0, directedEdge);
+      DirectedEdge directedEdge = nodeWrappersMap.get(step).directedEdgeFrom;
+      step = nodeWrappersMap.get(step).nodeFrom;
+      directedEdgesSequence.add(0, directedEdge);
     }
 
     return directedEdgesSequence;

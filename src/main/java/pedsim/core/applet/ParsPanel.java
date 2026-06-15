@@ -29,9 +29,10 @@ public class ParsPanel extends Frame {
   public Map<String, TextField> booleanFields = new LinkedHashMap<>();
   public TextField cityCentreField = new TextField();
 
-  String[][] doubleParamDefs =
-      {{"metersPerDayPerPerson", "Average distance in meters walked a day, per person"},
-          {"avgTripDistance", "Average Trip Distance between OD"}};
+  String[][] doubleParamDefs = {
+    {"metersPerDayPerPerson", "Average distance in meters walked a day, per person"},
+    {"avgTripDistance", "Average Trip Distance between OD"}
+  };
 
   Double[] defaults = {Pars.metersPerDayPerPerson, RouteChoicePars.avgTripDistance};
 
@@ -69,8 +70,10 @@ public class ParsPanel extends Frame {
     cityCentreLabel.setBounds(X, y, 350, 20);
     add(cityCentreLabel);
 
-    String defaultCityCentreRegions = java.util.Arrays.stream(RouteChoicePars.cityCentreRegionsID)
-        .map(String::valueOf).collect(Collectors.joining(","));
+    String defaultCityCentreRegions =
+        java.util.Arrays.stream(RouteChoicePars.cityCentreRegionsID)
+            .map(String::valueOf)
+            .collect(Collectors.joining(","));
     cityCentreField = new TextField(defaultCityCentreRegions);
     cityCentreField.setBounds(X + 500, y, 200, 20);
     add(cityCentreField);
@@ -80,32 +83,34 @@ public class ParsPanel extends Frame {
     // Apply Button
     Button applyButton = new Button("Apply");
     applyButton.setBounds(X, y, 80, 30);
-    applyButton.addActionListener(new ActionListener() {
-      @Override
-      public void actionPerformed(ActionEvent e) {
-        // Update pars with values from fields
-        ParameterManager.applyAll(Pars.class, doubleFields, booleanFields);
+    applyButton.addActionListener(
+        new ActionListener() {
+          @Override
+          public void actionPerformed(ActionEvent e) {
+            // Update pars with values from fields
+            ParameterManager.applyAll(Pars.class, doubleFields, booleanFields);
 
-        // cityCentreRegions
-        String text = cityCentreField.getText().trim();
-        if (!text.isEmpty()) {
-          ParameterManager.setFieldValue(RouteChoicePars.class, "cityCentreRegionsID", text);
-        }
+            // cityCentreRegions
+            String text = cityCentreField.getText().trim();
+            if (!text.isEmpty()) {
+              ParameterManager.setFieldValue(RouteChoicePars.class, "cityCentreRegionsID", text);
+            }
 
-        closePanel();
-      }
-    });
+            closePanel();
+          }
+        });
     add(applyButton);
 
     setSize(800, 350);
     setVisible(true);
 
-    addWindowListener(new WindowAdapter() {
-      @Override
-      public void windowClosing(WindowEvent e) {
-        closePanel();
-      }
-    });
+    addWindowListener(
+        new WindowAdapter() {
+          @Override
+          public void windowClosing(WindowEvent e) {
+            closePanel();
+          }
+        });
   }
 
   /**
@@ -146,12 +151,13 @@ public class ParsPanel extends Frame {
 
   public static void main(String[] args) {
     ParsPanel frame = new ParsPanel();
-    frame.addWindowListener(new WindowAdapter() {
-      @Override
-      public void windowClosing(WindowEvent e) {
-        System.exit(0);
-      }
-    });
+    frame.addWindowListener(
+        new WindowAdapter() {
+          @Override
+          public void windowClosing(WindowEvent e) {
+            System.exit(0);
+          }
+        });
   }
 
   private void closePanel() {

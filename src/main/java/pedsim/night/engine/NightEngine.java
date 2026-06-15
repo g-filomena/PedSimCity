@@ -28,8 +28,9 @@ public class NightEngine extends Engine {
   protected void onStepUpdate(PedSimCity state, double steps) {
     if (state instanceof PedSimCityNight nightState) {
       java.time.LocalTime time = TimePars.getTime(steps).toLocalTime();
-      nightState.isDark = time.isAfter(java.time.LocalTime.of(19, 59))
-          || time.isBefore(java.time.LocalTime.of(6, 0));
+      nightState.isDark =
+          time.isAfter(java.time.LocalTime.of(19, 59))
+              || time.isBefore(java.time.LocalTime.of(6, 0));
     }
   }
 
