@@ -21,7 +21,7 @@ import pedsim.core.utilities.StringEnum.RouteChoiceProperty;
  * core.AgentProperties API, which is setter/enum based rather than public-field
  * based.
  */
-public class EmpiricalAgentProperties extends AgentProperties {
+public final class EmpiricalAgentProperties extends AgentProperties {
 
 	/*
 	 * IMPORTANT: this range intentionally follows the empirical model released in
