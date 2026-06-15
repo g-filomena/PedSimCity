@@ -197,6 +197,8 @@
 				</configuration>
 			</plugin>
 			
+
+			
 			<!-- Javadoc -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -229,6 +231,7 @@
                     </execution>
                 </executions>
             </plugin>
+			
 			<!-- Assembly -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -286,18 +289,37 @@
                         </goals>
                         <configuration>
                             <mainClass>pedsim.core.applet.PedSimCityApplet</mainClass>
+							
+							<classpathScope>compile</classpathScope>
+							<includeProjectDependencies>true</includeProjectDependencies>
+							<includePluginDependencies>false</includePluginDependencies>
+							<additionalClasspathElements>
+								<additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
+							</additionalClasspathElements>
                             <arguments>
                                 <argument>--website</argument>
                             </arguments>
                         </configuration>
                     </execution>
-                    <execution>
+                    
+					<execution>
                         <id>night-website</id>
                         <goals>
                             <goal>java</goal>
                         </goals>
                         <configuration>
                             <mainClass>pedsim.night.applet.PedSimCityNightApplet</mainClass>
+							
+							<classpathScope>compile</classpathScope>
+							<includeProjectDependencies>true</includeProjectDependencies>
+							<includePluginDependencies>false</includePluginDependencies>
+							<additionalClasspathElements>
+								<additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
+							</additionalClasspathElements>
+                            <arguments>
+                                <argument>--website</argument>
+                            </arguments>
+							
                             <arguments>
                                 <argument>--website</argument>
                             </arguments>
