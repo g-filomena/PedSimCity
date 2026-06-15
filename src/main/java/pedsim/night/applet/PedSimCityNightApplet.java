@@ -107,6 +107,8 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
 			// Pre-load default GIS data so the dashboard can show the map immediately
 			try {
 				pedsim.core.engine.PedSimCity.clearStaticData();
+				pedsim.night.engine.PedSimCityNight.clearNightStaticData();
+				Pars.isNight = true;
 				pedsim.core.parameters.Pars.setSimulationParameters();
 				new pedsim.core.engine.Import().importFiles();
 				pedsim.core.engine.SimulationStateStore.getInstance().setRoadsGeoJson(
@@ -131,7 +133,8 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
 						Pars.parallel = (Pars.jobs > 1);
 					}
 
-					Pars.setSimulationParameters(); // Recalculate derived parameters
+					Pars.isNight = true;
+					Pars.setSimulationParameters();
 
 					ScenarioConfig config = new ScenarioConfig(StringEnum.Vulnerable.values(),
 							StringEnum.TimeOfDay.values());
