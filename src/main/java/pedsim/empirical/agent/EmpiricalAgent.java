@@ -13,26 +13,26 @@ import pedsim.core.routing.RoutePlanner;
  */
 public final class EmpiricalAgent extends OdAgent {
 
-	private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
 
-	private final EmpiricalGroup groupName;
+  private final EmpiricalGroup groupName;
 
-	public EmpiricalAgent(PedSimCity state, EmpiricalAgentsGroup group) {
-		super(state);
-		this.groupName = group.groupName;
-		this.agentProperties = new EmpiricalAgentProperties(this, group);
-		((EmpiricalAgentProperties) this.agentProperties).randomizeRouteChoiceParameters();
-		this.agentMovement = new AgentMovement(this);
-	}
+  public EmpiricalAgent(PedSimCity state, EmpiricalAgentsGroup group) {
+    super(state);
+    this.groupName = group.groupName;
+    this.agentProperties = new EmpiricalAgentProperties(this, group);
+    ((EmpiricalAgentProperties) this.agentProperties).randomizeRouteChoiceParameters();
+    this.agentMovement = new AgentMovement(this);
+  }
 
-	@Override
-	protected void planRoute() {
-		RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
-		route = planner.definePath();
-	}
+  @Override
+  protected void planRoute() {
+    RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
+    route = planner.definePath();
+  }
 
-	@Override
-	public Enum<?> getAgentScenario() {
-		return groupName;
-	}
+  @Override
+  public Enum<?> getAgentScenario() {
+    return groupName;
+  }
 }

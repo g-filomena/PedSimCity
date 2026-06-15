@@ -29,5 +29,4 @@ public class PopulationPars {
   public static double naturalBarriersSD = 0.21;
   public static double severingBarriers = 0.53;
   public static double severingBarriersSD = 0.29;
-
 }

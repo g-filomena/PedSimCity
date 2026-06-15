@@ -1,6 +1,5 @@
 package pedsim.core.engine;
 
-
 public final class ScenarioConfig {
   private final Enum<?>[] agentScenarioValues;
   private final Enum<?>[] simulationScenarioValues;
@@ -18,5 +17,3 @@ public final class ScenarioConfig {
     return simulationScenarioValues;
   }
 }
-
-

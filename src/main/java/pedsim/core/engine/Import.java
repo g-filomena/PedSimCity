@@ -41,9 +41,10 @@ public class Import {
    */
   protected void readGraphs() throws Exception {
     try {
-      String[] layerSuffixes = { "_edges", "_nodes", "_edgesDual", "_nodesDual" };
-      VectorLayer[] vectorLayers = { PedSimCity.roads, PedSimCity.junctions,
-          PedSimCity.intersectionsDual, PedSimCity.centroids };
+      String[] layerSuffixes = {"_edges", "_nodes", "_edgesDual", "_nodesDual"};
+      VectorLayer[] vectorLayers = {
+        PedSimCity.roads, PedSimCity.junctions, PedSimCity.intersectionsDual, PedSimCity.centroids
+      };
 
       for (int i = 0; i < layerSuffixes.length; i++) {
         String resourceName = Pars.cityName + "/" + Pars.cityName + layerSuffixes[i] + ".gpkg";
@@ -57,8 +58,8 @@ public class Import {
       }
 
       PedSimCity.network.fromStreetJunctionsSegments(PedSimCity.junctions, PedSimCity.roads);
-      PedSimCity.dualNetwork.fromStreetJunctionsSegments(PedSimCity.centroids,
-          PedSimCity.intersectionsDual);
+      PedSimCity.dualNetwork.fromStreetJunctionsSegments(
+          PedSimCity.centroids, PedSimCity.intersectionsDual);
 
       logger.info("Graphs successfully imported.");
     } catch (Exception e) {
@@ -71,8 +72,8 @@ public class Import {
    */
   protected void readLandmarksAndSightLines() throws Exception {
     try {
-      String[] layerSuffixes = { "_landmarks", "_sight_lines2D" };
-      VectorLayer[] vectorLayers = { PedSimCity.buildings, PedSimCity.sightLines };
+      String[] layerSuffixes = {"_landmarks", "_sight_lines2D"};
+      VectorLayer[] vectorLayers = {PedSimCity.buildings, PedSimCity.sightLines};
 
       for (int i = 0; i < layerSuffixes.length; i++) {
         String resourceName = Pars.cityName + "/" + Pars.cityName + layerSuffixes[i] + ".gpkg";
@@ -134,15 +135,22 @@ public class Import {
    */
   protected void readIlluminatedEdges() {
     try {
-      String resourceName = Pars.cityName + "/" + Pars.cityName + "_edges_illuminated_continuous.gpkg";
+      String resourceName =
+          Pars.cityName + "/" + Pars.cityName + "_edges_illuminated_continuous.gpkg";
       URL fileUrl = CLASSLOADER.getResource(resourceName);
       if (fileUrl == null) {
-        logger.warning("Illuminated edges dataset not found at: " + resourceName + " — mean_lux will default to 0.");
+        logger.warning(
+            "Illuminated edges dataset not found at: "
+                + resourceName
+                + " — mean_lux will default to 0.");
         return;
       }
       PedSimCity.illuminatedEdges.getGeometries().clear();
       VectorLayer.readGPKG(fileUrl, PedSimCity.illuminatedEdges);
-      logger.info("Illuminated edges loaded: " + PedSimCity.illuminatedEdges.getGeometries().size() + " features.");
+      logger.info(
+          "Illuminated edges loaded: "
+              + PedSimCity.illuminatedEdges.getGeometries().size()
+              + " features.");
     } catch (Exception e) {
       logger.warning("Failed to load illuminated edges: " + e.getMessage());
     }
@@ -159,30 +167,35 @@ public class Import {
       if (fileUrl == null) {
         throw new IllegalStateException("Resource not found: " + resourceName);
       }
-      
+
       targetLayer.getGeometries().clear();
-      
+
       // Use the standard reader but catch specific data-integrity crashes
       try {
-          VectorLayer.readGPKG(fileUrl, targetLayer);
+        VectorLayer.readGPKG(fileUrl, targetLayer);
       } catch (Exception e) {
-          if (e.getMessage() != null && e.getMessage().contains("getEnvelopeInternal")) {
-              logger.warning("Census dataset contains records with null geometries. Skipping corrupt records and continuing...");
-          } else {
-              throw e;
-          }
+        if (e.getMessage() != null && e.getMessage().contains("getEnvelopeInternal")) {
+          logger.warning(
+              "Census dataset contains records with null geometries. Skipping corrupt records and"
+                  + " continuing...");
+        } else {
+          throw e;
+        }
       }
 
       if (targetLayer.getGeometries().isEmpty()) {
         logger.warning("Layer " + layerName + " was loaded but is empty.");
       } else {
-        targetLayer.getGeometries().removeIf(obj -> {
-          boolean isNull = obj.getGeometry() == null;
-          if (isNull) {
-            logger.warning("Skipped null geometry in " + layerName);
-          }
-          return isNull;
-        });
+        targetLayer
+            .getGeometries()
+            .removeIf(
+                obj -> {
+                  boolean isNull = obj.getGeometry() == null;
+                  if (isNull) {
+                    logger.warning("Skipped null geometry in " + layerName);
+                  }
+                  return isNull;
+                });
       }
       logger.info(layerName + " successfully imported.");
     } catch (Exception e) {

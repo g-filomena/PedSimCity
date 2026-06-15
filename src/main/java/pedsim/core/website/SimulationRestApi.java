@@ -149,9 +149,7 @@ public final class SimulationRestApi {
                   return;
                 }
                 byte[] body =
-                    SimulationStateStore.getInstance()
-                        .toJson()
-                        .getBytes(StandardCharsets.UTF_8);
+                    SimulationStateStore.getInstance().toJson().getBytes(StandardCharsets.UTF_8);
                 exchange.getResponseHeaders().add("Content-Type", "application/json");
                 exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
                 exchange.sendResponseHeaders(200, body.length);
@@ -213,8 +211,9 @@ public final class SimulationRestApi {
             exchange -> {
               try {
                 exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-                exchange.getResponseHeaders().add(
-                    "Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+                exchange
+                    .getResponseHeaders()
+                    .add("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
                 exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
 
                 if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
@@ -231,8 +230,7 @@ public final class SimulationRestApi {
                   if (exchange.getRequestBody().available() > 0) {
                     params =
                         MAPPER.readValue(
-                            exchange.getRequestBody(),
-                            new TypeReference<Map<String, Object>>() {});
+                            exchange.getRequestBody(), new TypeReference<Map<String, Object>>() {});
                   }
                 } catch (Exception e) {
                   logger.warning("Failed to parse /api/start body: " + e.getMessage());
@@ -272,9 +270,7 @@ public final class SimulationRestApi {
                 if (selectedModule != null) {
                   final SimulationModule mod = selectedModule;
                   final Map<String, Object> finalParams = params;
-                  new Thread(
-                          () -> runModuleSimulation(mod, finalParams),
-                          "pedsim-rest-simulation")
+                  new Thread(() -> runModuleSimulation(mod, finalParams), "pedsim-rest-simulation")
                       .start();
                   logger.info(
                       "[REST API] Simulation start triggered — module="
@@ -311,7 +307,10 @@ public final class SimulationRestApi {
         logger.warning("[REST API] Port " + port + " in use, trying " + (port + 1) + "…");
       } catch (IOException e) {
         logger.warning(
-            "[REST API] Could not start on port " + port + ": " + e.getMessage()
+            "[REST API] Could not start on port "
+                + port
+                + ": "
+                + e.getMessage()
                 + " — dashboard unavailable.");
         return;
       }

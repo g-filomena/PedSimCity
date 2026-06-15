@@ -62,25 +62,27 @@ public class ServerConfigPanel extends Frame {
 
     Button saveButton = new Button("Save");
     saveButton.setBounds(10, 260, 80, 30);
-    saveButton.addActionListener(e -> {
-      serverLauncher.setSshPath(sshPathField.getText().trim());
-      serverLauncher.setKeyPath(keyPathField.getText().trim());
-      serverLauncher.setServer(serverField.getText().trim());
-      serverLauncher.setProjectDir(projectDirField.getText().trim());
-      serverLauncher.setMainClass(mainClassField.getText().trim());
-      closePanel();
-    });
+    saveButton.addActionListener(
+        e -> {
+          serverLauncher.setSshPath(sshPathField.getText().trim());
+          serverLauncher.setKeyPath(keyPathField.getText().trim());
+          serverLauncher.setServer(serverField.getText().trim());
+          serverLauncher.setProjectDir(projectDirField.getText().trim());
+          serverLauncher.setMainClass(mainClassField.getText().trim());
+          closePanel();
+        });
     add(saveButton);
 
     setSize(550, 350);
     setVisible(true);
 
-    addWindowListener(new WindowAdapter() {
-      @Override
-      public void windowClosing(WindowEvent e) {
-        closePanel();
-      }
-    });
+    addWindowListener(
+        new WindowAdapter() {
+          @Override
+          public void windowClosing(WindowEvent e) {
+            closePanel();
+          }
+        });
   }
 
   private void closePanel() {
@@ -88,4 +90,3 @@ public class ServerConfigPanel extends Frame {
     dispose();
   }
 }
-

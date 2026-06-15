@@ -34,8 +34,12 @@ public class DijkstraAngularChange extends Dijkstra {
    *
    * @return An ArrayList of DirectedEdges representing the path.
    */
-  public ArrayList<DirectedEdge> dijkstraAlgorithm(NodeGraph originNode, NodeGraph destinationNode,
-      NodeGraph finalDestinationNode, Set<NodeGraph> centroidsToAvoid, NodeGraph previousJunction,
+  public ArrayList<DirectedEdge> dijkstraAlgorithm(
+      NodeGraph originNode,
+      NodeGraph destinationNode,
+      NodeGraph finalDestinationNode,
+      Set<NodeGraph> centroidsToAvoid,
+      NodeGraph previousJunction,
       Agent agent) {
 
     initialise(originNode, destinationNode, finalDestinationNode, agent);
@@ -134,8 +138,8 @@ public class DijkstraAngularChange extends Dijkstra {
     try {
       while (nodeWrappersMap.get(step).nodeFrom != null) {
         DirectedEdge directedEdge = step.getPrimalEdge().getDirEdge(0); // this refer in any case to
-                                                                        // the Parent
-                                                                        // primal graph
+        // the Parent
+        // primal graph
 
         step = nodeWrappersMap.get(step).nodeFrom;
         directedEdgesSequence.add(0, directedEdge);

@@ -12,7 +12,6 @@ import pedsim.core.utilities.StringEnum.MinimisationMode;
  */
 public class AgentProperties extends pedsim.core.agents.AgentProperties {
 
-
   // for general routing
   public RouteChoice routeChoice;
 
@@ -22,7 +21,7 @@ public class AgentProperties extends pedsim.core.agents.AgentProperties {
 
   /**
    * Sets the route choice for the agent and updates related properties accordingly.
-   * 
+   *
    * @param routeChoice The selected route choice for the agent.
    */
   public void setRouteChoice(RouteChoice routeChoice) {
@@ -82,8 +81,7 @@ public class AgentProperties extends pedsim.core.agents.AgentProperties {
 
     setUsingLocalLandmarks(usingLocal);
     setUsingDistantLandmarks(usingDistant);
-    if (usingLocal)
-      setLandmarkType(LandmarkType.LOCAL);
+    if (usingLocal) setLandmarkType(LandmarkType.LOCAL);
   }
 
   /**

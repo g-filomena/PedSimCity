@@ -205,8 +205,7 @@ public class AgentMovement {
         agent.tripStartStep,
         state.schedule.getSteps(),
         edgesWalkedSoFar,
-        agent.isVulnerableBoolean()
-    );
+        agent.isVulnerableBoolean());
   }
 
   /**

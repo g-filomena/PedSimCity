@@ -74,8 +74,11 @@ public class Populate {
       agent.updateAgentLists(false, true); // adds to agentsList + agentsAtHome
     }
 
-    logger.info("Agent Routing Stats -> Spatial Jump Successes: " + spatialJumpSuccessCount.get()
-        + " | Instant Random Fallbacks: " + randomFallbackCount.get());
+    logger.info(
+        "Agent Routing Stats -> Spatial Jump Successes: "
+            + spatialJumpSuccessCount.get()
+            + " | Instant Random Fallbacks: "
+            + randomFallbackCount.get());
     logger.info(state.agentsList.size() + " agents created");
   }
 
@@ -99,15 +102,14 @@ public class Populate {
    * `pedsim.night.agents.Agent.java` to stay consistent with core changes. - [x] Reset
    * `hasWorkedToday` in `handleReachedHome()`. - [x] Verify the simulation boot and check the logs
    * for agent walking patterns.
-   * 
+   *
    * @param node The candidate destination node.
    * @param isDark Whether the simulation currently considers it "Night".
    * @return The weight (number of POIs) for that node's zone.
    */
   public static double getPOIWeight(NodeGraph node, boolean isDark) {
-    Map<NodeGraph, Double> weightMap = isDark
-        ? PedSimCity.nodesNightPoiWeight
-        : PedSimCity.nodesWorkplacePoiWeight;
+    Map<NodeGraph, Double> weightMap =
+        isDark ? PedSimCity.nodesNightPoiWeight : PedSimCity.nodesWorkplacePoiWeight;
 
     // If the map is empty the dataset was not loaded; fall back to 0.0 (uniform selection)
     if (weightMap.isEmpty()) {
@@ -135,11 +137,9 @@ public class Populate {
       homeNode = selectRandomNodeFromCensusZone(selectedZone);
     }
 
-    if (homeNode == null)
-      homeNode = selectHomeNodeWithDMA();
+    if (homeNode == null) homeNode = selectHomeNodeWithDMA();
 
-    if (homeNode == null)
-      homeNode = selectRandomNode();
+    if (homeNode == null) homeNode = selectRandomNode();
   }
 
   // Load census zones and build cumulative residence probabilities
@@ -160,7 +160,8 @@ public class Populate {
   }
 
   private boolean hasUsableCensusZones() {
-    return !PedSimCity.censusZonesList.isEmpty() && cumulativeProbabilities != null
+    return !PedSimCity.censusZonesList.isEmpty()
+        && cumulativeProbabilities != null
         && cumulativeProbabilities.length == PedSimCity.censusZonesList.size()
         && totalProbability > 0;
   }
@@ -183,8 +184,7 @@ public class Populate {
   private NodeGraph selectRandomNodeFromCensusZone(MasonGeometry zone) {
 
     List<NodeGraph> availableNodes = PedSimCity.censusZonesNodesMap.get(zone);
-    if (availableNodes == null || availableNodes.isEmpty())
-      return null;
+    if (availableNodes == null || availableNodes.isEmpty()) return null;
     return availableNodes.get(random.nextInt(availableNodes.size()));
   }
 
@@ -202,18 +202,13 @@ public class Populate {
   }
 
   private void assignWorkNode(boolean useCensusZones) {
-    if (homeNode == null)
-      return;
+    if (homeNode == null) return;
 
-    if (useCensusZones)
-      workNode = selectWorkNodeFromZones(homeNode);
+    if (useCensusZones) workNode = selectWorkNodeFromZones(homeNode);
 
-    if (workNode == null)
-      workNode = selectWorkNodeWithDMA(useCensusZones);
+    if (workNode == null) workNode = selectWorkNodeWithDMA(useCensusZones);
 
-    if (workNode == null)
-      workNode = selectWorkNodeWithDistanceFallback(homeNode);
-
+    if (workNode == null) workNode = selectWorkNodeWithDistanceFallback(homeNode);
 
     if (workNode == null) {
       workNode = selectRandomNode();
@@ -254,8 +249,7 @@ public class Populate {
       }
     }
 
-    if (validCensusZones.isEmpty() || totalWeight <= 0.0)
-      return null;
+    if (validCensusZones.isEmpty() || totalWeight <= 0.0) return null;
 
     double r = random.nextDouble() * totalWeight;
     double cumulative = 0.0;
@@ -289,7 +283,8 @@ public class Populate {
   // TODO, include the vulnerability in a overriding function in night.Populate
   private NodeGraph selectWorkNodeWithDMA(boolean useVulnerability) {
     // DMA attributes are only assigned when the landmarks/buildings layer is loaded.
-    // If it's empty, every node has dma="" and randomNodeBetweenDistanceIntervalDMA would spin forever.
+    // If it's empty, every node has dma="" and randomNodeBetweenDistanceIntervalDMA would spin
+    // forever.
     if (PedSimCity.buildings.getGeometries().isEmpty()) {
       return null;
     }
@@ -298,9 +293,13 @@ public class Populate {
 
     while (attempts < 20) {
       try {
-        NodeGraph node = NodesLookup.randomNodeBetweenDistanceIntervalDMA(
-            SharedCognitiveMap.getCommunityPrimalNetwork(), homeNode,
-            RouteChoicePars.minTripDistance, RouteChoicePars.maxTripDistance, "work");
+        NodeGraph node =
+            NodesLookup.randomNodeBetweenDistanceIntervalDMA(
+                SharedCognitiveMap.getCommunityPrimalNetwork(),
+                homeNode,
+                RouteChoicePars.minTripDistance,
+                RouteChoicePars.maxTripDistance,
+                "work");
 
         if (node != null) {
           return node;
@@ -325,7 +324,9 @@ public class Populate {
   private NodeGraph selectWorkNodeWithDistanceFallback(NodeGraph homeNode) {
     try {
       return NodesLookup.randomNodeBetweenDistanceInterval(
-          SharedCognitiveMap.getCommunityPrimalNetwork(), homeNode, RouteChoicePars.minTripDistance,
+          SharedCognitiveMap.getCommunityPrimalNetwork(),
+          homeNode,
+          RouteChoicePars.minTripDistance,
           RouteChoicePars.maxTripDistance);
     } catch (Exception e) {
       return null;

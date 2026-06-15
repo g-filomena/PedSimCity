@@ -5,9 +5,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import org.locationtech.jts.planargraph.DirectedEdge;
-
 import pedsim.core.agents.Agent;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
@@ -38,8 +36,12 @@ public class DijkstraRoadDistance extends Dijkstra {
    * @return An ArrayList of DirectedEdges representing the shortest path from the origin to the
    *         destination.
    */
-  public List<DirectedEdge> dijkstraAlgorithm(NodeGraph originNode, NodeGraph destinationNode,
-      NodeGraph finalDestinationNode, Set<DirectedEdge> directedEdgesToAvoid, Agent agent) {
+  public List<DirectedEdge> dijkstraAlgorithm(
+      NodeGraph originNode,
+      NodeGraph destinationNode,
+      NodeGraph finalDestinationNode,
+      Set<DirectedEdge> directedEdgesToAvoid,
+      Agent agent) {
 
     initialise(originNode, destinationNode, finalDestinationNode, agent);
     initialisePrimal(directedEdgesToAvoid);
@@ -48,8 +50,8 @@ public class DijkstraRoadDistance extends Dijkstra {
     return reconstructSequence();
   }
 
-  public List<DirectedEdge> dijkstraAlgorithm(NodeGraph originNode, NodeGraph destinationNode,
-      Agent agent) {
+  public List<DirectedEdge> dijkstraAlgorithm(
+      NodeGraph originNode, NodeGraph destinationNode, Agent agent) {
 
     initialise(originNode, destinationNode, destinationNode, agent);
     runDijkstra();

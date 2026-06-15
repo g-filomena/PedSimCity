@@ -25,7 +25,6 @@ public class PathFinder {
   protected Agent agent;
   protected Route route = new Route();
 
-
   protected Graph network = SharedCognitiveMap.getCommunityPrimalNetwork();
   protected NodeGraph originNode, destinationNode;
   protected NodeGraph tmpOrigin, tmpDestination;
@@ -75,8 +74,9 @@ public class PathFinder {
     // If not, try to compute the path from the new tmpOrigin
     final DijkstraRoadDistance pathFinder = new DijkstraRoadDistance();
     directedEdgesToAvoid = new HashSet<>(completeSequence);
-    partialSequence = pathFinder.dijkstraAlgorithm(tmpOrigin, tmpDestination, destinationNode,
-        directedEdgesToAvoid, agent);
+    partialSequence =
+        pathFinder.dijkstraAlgorithm(
+            tmpOrigin, tmpDestination, destinationNode, directedEdgesToAvoid, agent);
   }
 
   /**
@@ -132,8 +132,14 @@ public class PathFinder {
       for (final NodeGraph tmpDualDestination : dualNodesDestination) {
         final DijkstraAngularChange pathfinder = new DijkstraAngularChange();
         Set<NodeGraph> centroidsToAvoidSet = new HashSet<>(centroidsToAvoid);
-        partialSequence = pathfinder.dijkstraAlgorithm(tmpDualOrigin, tmpDualDestination,
-            destinationNode, centroidsToAvoidSet, tmpOrigin, agent);
+        partialSequence =
+            pathfinder.dijkstraAlgorithm(
+                tmpDualOrigin,
+                tmpDualDestination,
+                destinationNode,
+                centroidsToAvoidSet,
+                tmpOrigin,
+                agent);
         if (!partialSequence.isEmpty()) {
           break;
         }
@@ -273,9 +279,10 @@ public class PathFinder {
       return nodes;
     }
 
-    nodes = directedEdgesSequence.stream()
-        .map(directedEdge -> ((EdgeGraph) directedEdge.getEdge()).getFromNode())
-        .collect(Collectors.toList());
+    nodes =
+        directedEdgesSequence.stream()
+            .map(directedEdge -> ((EdgeGraph) directedEdge.getEdge()).getFromNode())
+            .collect(Collectors.toList());
 
     EdgeGraph lastEdge =
         (EdgeGraph) directedEdgesSequence.get(directedEdgesSequence.size() - 1).getEdge();
@@ -283,5 +290,4 @@ public class PathFinder {
 
     return nodes;
   }
-
 }

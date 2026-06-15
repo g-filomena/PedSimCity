@@ -17,9 +17,7 @@ import sim.util.geo.MasonGeometry;
  */
 public class Region {
 
-  public Region() {
-
-  }
+  public Region() {}
 
   /** The unique identifier of the region. */
   public int regionID;

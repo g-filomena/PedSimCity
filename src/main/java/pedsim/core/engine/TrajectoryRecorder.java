@@ -71,13 +71,14 @@ public class TrajectoryRecorder {
         continue;
       }
 
-      snapshots.add(new double[]{
-          currentStep,
-          agent.agentID,
-          coord.x,          // longitude (or projected X)
-          coord.y,          // latitude  (or projected Y)
-          agent.isVulnerableBoolean() ? 1.0 : 0.0
-      });
+      snapshots.add(
+          new double[] {
+            currentStep,
+            agent.agentID,
+            coord.x, // longitude (or projected X)
+            coord.y, // latitude  (or projected Y)
+            agent.isVulnerableBoolean() ? 1.0 : 0.0
+          });
     }
   }
 

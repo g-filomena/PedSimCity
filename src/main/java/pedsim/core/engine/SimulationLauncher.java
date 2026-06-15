@@ -78,8 +78,8 @@ public final class SimulationLauncher {
    */
   public void preloadForDashboard() {
     try {
-      clearAll();       // 1. clear first
-      applyMode();      // 2. mode flags before any parameter/import call
+      clearAll(); // 1. clear first
+      applyMode(); // 2. mode flags before any parameter/import call
       Pars.setSimulationParameters();
       new Import().importFiles();
       SimulationStateStore.getInstance()

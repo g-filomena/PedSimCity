@@ -27,7 +27,8 @@ public class RouteChoicePars {
   // Landmark Integration
   public static double distanceNodeBuilding = 40.0;
   public static double salientNodesPercentile = 0.90; // Threshold Percentile to identify salient
-                                                      // nodes
+
+  // nodes
 
   public static void setMinMaxTripDistance() {
     minTripDistance = avgTripDistance * 0.50;

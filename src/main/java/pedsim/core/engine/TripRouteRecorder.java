@@ -35,7 +35,12 @@ public class TripRouteRecorder {
 
   private static final ConcurrentLinkedQueue<TripRecord> records = new ConcurrentLinkedQueue<>();
 
-  public static void recordTrip(pedsim.core.agents.Agent agent, double startStep, double endStep, List<DirectedEdge> edges, boolean vulnerable) {
+  public static void recordTrip(
+      pedsim.core.agents.Agent agent,
+      double startStep,
+      double endStep,
+      List<DirectedEdge> edges,
+      boolean vulnerable) {
     if (edges == null || edges.isEmpty()) {
       return;
     }
@@ -45,7 +50,7 @@ public class TripRouteRecorder {
     record.endStep = endStep;
     record.vulnerable = vulnerable;
     record.spookLocations = new ArrayList<>(agent.spookLocations);
-    
+
     // First node of the first edge is the origin node
     DirectedEdge firstEdge = edges.get(0);
     NodeGraph startNode = (NodeGraph) firstEdge.getFromNode();
@@ -62,7 +67,7 @@ public class TripRouteRecorder {
       LineString line = edge.getLine();
       Coordinate[] cArr = line.getCoordinates();
       Coordinate fromCoord = ((NodeGraph) de.getFromNode()).getCoordinate();
-      
+
       boolean reverse = fromCoord.distance(cArr[0]) > fromCoord.distance(cArr[cArr.length - 1]);
       if (reverse) {
         for (int j = cArr.length - 1; j >= 0; j--) {
@@ -76,7 +81,7 @@ public class TripRouteRecorder {
         }
       }
     }
-    
+
     record.pathCoords = coords;
     record.destNodeId = record.nodeIds.get(record.nodeIds.size() - 1);
     records.add(record);
@@ -116,7 +121,8 @@ public class TripRouteRecorder {
   public static void saveToFile(String filename) {
     logger.info("[TripRouteRecorder] Saving " + records.size() + " trips to " + filename);
     try (FileWriter writer = new FileWriter(filename)) {
-      writer.write("agent_id,start_step,end_step,origin_node_id,destination_node_id,edge_ids,node_ids\n");
+      writer.write(
+          "agent_id,start_step,end_step,origin_node_id,destination_node_id,edge_ids,node_ids\n");
       for (TripRecord record : records) {
         StringBuilder edgeStr = new StringBuilder();
         for (int i = 0; i < record.edgeIds.size(); i++) {
@@ -128,15 +134,16 @@ public class TripRouteRecorder {
           if (i > 0) nodeStr.append(";");
           nodeStr.append(record.nodeIds.get(i));
         }
-        writer.write(String.format("%d,%.2f,%.2f,%d,%d,%s,%s\n",
-            record.agentId,
-            record.startStep,
-            record.endStep,
-            record.originNodeId,
-            record.destNodeId,
-            edgeStr.toString(),
-            nodeStr.toString()
-        ));
+        writer.write(
+            String.format(
+                "%d,%.2f,%.2f,%d,%d,%s,%s\n",
+                record.agentId,
+                record.startStep,
+                record.endStep,
+                record.originNodeId,
+                record.destNodeId,
+                edgeStr.toString(),
+                nodeStr.toString()));
       }
       logger.info("[TripRouteRecorder] Successfully saved test_trips file.");
     } catch (IOException e) {

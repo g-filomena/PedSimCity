@@ -2,7 +2,6 @@ package pedsim.empirical.parameters;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import pedsim.core.parameters.Pars;
 import pedsim.empirical.agent.EmpiricalAgentsGroup;
 
@@ -14,29 +13,28 @@ import pedsim.empirical.agent.EmpiricalAgentsGroup;
  */
 public final class EmpiricalPars {
 
-	private EmpiricalPars() {
-	}
+  private EmpiricalPars() {}
 
-	public static final List<EmpiricalAgentsGroup> empiricalGroups = new ArrayList<>();
+  public static final List<EmpiricalAgentsGroup> empiricalGroups = new ArrayList<>();
 
-	public static int numberTripsPerAgent = 3;
+  public static int numberTripsPerAgent = 3;
 
-	public static boolean usingDMA = true;
+  public static boolean usingDMA = true;
 
-	public static boolean includePopulationBenchmark = true;
-	public static boolean includeNullBenchmark = true;
+  public static boolean includePopulationBenchmark = true;
+  public static boolean includeNullBenchmark = true;
 
-	public static int defaultNumAgents = 301;
-	public static int numAgents = defaultNumAgents;
+  public static int defaultNumAgents = 301;
+  public static int numAgents = defaultNumAgents;
 
-	public static int defaultJobs = 10;
+  public static int defaultJobs = 10;
 
-	public static String defaultCityName = "Muenster";
+  public static String defaultCityName = "Muenster";
 
-	public static void applyDefaults() {
-		Pars.cityName = defaultCityName;
-		Pars.setSimulationParameters();
-		Pars.numAgents = numAgents;
-		Pars.jobs = defaultJobs;
-	}
+  public static void applyDefaults() {
+    Pars.cityName = defaultCityName;
+    Pars.setSimulationParameters();
+    Pars.numAgents = numAgents;
+    Pars.jobs = defaultJobs;
+  }
 }

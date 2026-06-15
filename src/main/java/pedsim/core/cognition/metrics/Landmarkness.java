@@ -25,8 +25,7 @@ public class Landmarkness {
     Set<Integer> landmarksIDs = agent.getCognitiveMap().getLocalLandmarksIDs();
 
     nodeLocalLandmarks.removeIf(lm -> !landmarksIDs.contains(lm.buildingID));
-    if (nodeLocalLandmarks.isEmpty())
-      return 0.0;
+    if (nodeLocalLandmarks.isEmpty()) return 0.0;
 
     List<Double> scores = new ArrayList<>();
     for (Building lm : nodeLocalLandmarks)
@@ -40,8 +39,7 @@ public class Landmarkness {
    */
   public static double globalLandmarknessNode(NodeGraph targetNode, NodeGraph destinationNode) {
     List<Building> distantLandmarks = new ArrayList<>(targetNode.visibleBuildings3d);
-    if (distantLandmarks.isEmpty())
-      return 0.0;
+    if (distantLandmarks.isEmpty()) return 0.0;
 
     ArrayList<Building> anchors =
         new ArrayList<>(LandmarkIntegration.getAnchors(destinationNode).getArray());
@@ -49,8 +47,7 @@ public class Landmarkness {
     double targetDistance = GraphUtils.nodesDistance(targetNode, destinationNode);
 
     for (Building lm : distantLandmarks) {
-      if (!anchors.isEmpty() && !anchors.contains(lm))
-        continue;
+      if (!anchors.isEmpty() && !anchors.contains(lm)) continue;
 
       double score = lm.attributes.get("globalLandmarkness").getDouble();
       List<Double> distances =
@@ -59,8 +56,7 @@ public class Landmarkness {
       double distanceFactor = Math.min(targetDistance / distanceLandmark, 1.0);
       score *= distanceFactor;
 
-      if (anchors.isEmpty())
-        score *= 0.90;
+      if (anchors.isEmpty()) score *= 0.90;
       nodeGlobalScore = Math.max(nodeGlobalScore, score);
     }
     return nodeGlobalScore;
@@ -69,8 +65,8 @@ public class Landmarkness {
   /**
    * Global landmarkness for dual-node centroids.
    */
-  public static double globalLandmarknessDualNode(NodeGraph centroid, NodeGraph targetCentroid,
-      NodeGraph destinationNode) {
+  public static double globalLandmarknessDualNode(
+      NodeGraph centroid, NodeGraph targetCentroid, NodeGraph destinationNode) {
     DirectedEdge streetSegment = targetCentroid.getPrimalEdge().getDirEdge(0);
     NodeGraph targetNode = (NodeGraph) streetSegment.getToNode();
     NodeGraph primalJunction = RoutingUtils.getPrimalJunction(centroid, targetCentroid);

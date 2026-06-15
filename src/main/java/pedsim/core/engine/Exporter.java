@@ -46,8 +46,16 @@ public class Exporter {
   public Exporter(FlowHandler flowHandler, String appName) {
     this.flowHandler = flowHandler;
     this.job = flowHandler.job;
-    outputDirectory = "C:" + File.separator + "Users" + File.separator + userName + File.separator
-        + appName + File.separator + "Output";
+    outputDirectory =
+        "C:"
+            + File.separator
+            + "Users"
+            + File.separator
+            + userName
+            + File.separator
+            + appName
+            + File.separator
+            + "Output";
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
     currentDate = LocalDate.now().format(formatter);
   }
