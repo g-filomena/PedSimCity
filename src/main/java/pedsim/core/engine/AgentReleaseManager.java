@@ -71,12 +71,12 @@ public class AgentReleaseManager implements AutoCloseable {
 		if (pedsim.night.parameters.NightPars.enableLightABTesting && dayNumber == 1) {
 			int pairIndex = (int) steps - 1;
 			if (pairIndex >= 0 && pairIndex < 72) {
-				pedsim.night.agents.Agent vulnAgent = null;
-				pedsim.night.agents.Agent normalAgent = null;
+				pedsim.night.agents.NightAgent vulnAgent = null;
+				pedsim.night.agents.NightAgent normalAgent = null;
 
 				for (Agent a : state.agentsList) {
-					if (a instanceof pedsim.night.agents.Agent) {
-						pedsim.night.agents.Agent na = (pedsim.night.agents.Agent) a;
+					if (a instanceof pedsim.night.agents.NightAgent) {
+						pedsim.night.agents.NightAgent na = (pedsim.night.agents.NightAgent) a;
 						if (na.agentID == pairIndex * 2) {
 							vulnAgent = na;
 						} else if (na.agentID == pairIndex * 2 + 1) {
