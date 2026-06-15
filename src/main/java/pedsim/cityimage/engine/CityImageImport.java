@@ -25,6 +25,7 @@ public class CityImageImport extends pedsim.core.engine.Import {
 	 */
 	@Override
 	public void importFiles() throws Exception {
+		TestPars.defineMode();
 
 		if (TestPars.testingLandmarks) {
 			importDistances();

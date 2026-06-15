@@ -216,15 +216,26 @@ public class PedSimCityImageApplet extends pedsim.core.applet.PedSimCityApplet i
 		if (runInParallel) {
 			jobsLabel.setText("Parallelising " + getJobs() + " Jobs");
 			jobsLabel.setVisible(true);
-
 			remainingTripsLabelParallel.setVisible(true);
 			updateRemainingTripsLabel(true);
-
 		} else {
 			jobLabel.setVisible(true);
-
 			remainingTripsLabel.setVisible(true);
 			updateRemainingTripsLabel(false);
+		}
+	}
+
+	public static void setRemainingTripsCount(int count) {
+		remainingTripsCount = count;
+	}
+
+	public static void updateRemainingTripsLabel(boolean runInParallel) {
+		if (runInParallel) {
+			if (remainingTripsLabelParallel != null) {
+				remainingTripsLabelParallel.setText("Trips left: " + remainingTripsCount);
+			}
+		} else if (remainingTripsLabel != null) {
+			remainingTripsLabel.setText("Trips left: " + remainingTripsCount);
 		}
 	}
 
@@ -268,20 +279,6 @@ public class PedSimCityImageApplet extends pedsim.core.applet.PedSimCityApplet i
 
 		} else if (source == verboseCheckBox) {
 			TestPars.verboseMode = verboseCheckBox.getState();
-		}
-	}
-
-	public static void setRemainingTripsCount(int count) {
-		remainingTripsCount = count;
-	}
-
-	public static void updateRemainingTripsLabel(boolean runInParallel) {
-		if (runInParallel) {
-			if (remainingTripsLabelParallel != null) {
-				remainingTripsLabelParallel.setText("Trips left: " + remainingTripsCount);
-			}
-		} else if (remainingTripsLabel != null) {
-			remainingTripsLabel.setText("Trips left: " + remainingTripsCount);
 		}
 	}
 

@@ -6,19 +6,16 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
-import java.util.stream.IntStream;
 
 import pedsim.cityimage.applet.PedSimCityImageApplet;
 import pedsim.cityimage.parameters.TestPars;
 import pedsim.core.agents.Agent;
 import pedsim.core.engine.Engine;
-import pedsim.core.engine.Environment;
+import pedsim.core.engine.Import;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.engine.SimulationStateStore;
-import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
-import pedsim.core.website.GeoJsonExporter;
 
 /** Engine specialised for the city-image testing module. */
 public class CityImageEngine extends Engine {
@@ -37,53 +34,15 @@ public class CityImageEngine extends Engine {
 	}
 
 	@Override
-	public synchronized void runJobs(ScenarioConfig scenarioConfig, boolean parallel) throws Exception {
-		if (SimulationStateStore.getInstance().running) {
-			LOGGER.warning("Simulation is already running. Ignoring new run request.");
-			return;
-		}
+	protected Import createImporter() {
+		return new CityImageImport();
+	}
 
-		try {
-			SimulationStateStore.getInstance().running = true;
-			SimulationStateStore.getInstance().finished = false;
-			SimulationStateStore.getInstance().stopRequested = false;
-
-			clearStaticData();
-			clearCityImageStaticData();
-
-			Pars.setSimulationParameters();
-			TestPars.defineMode();
-
-			CityImageImport importer = new CityImageImport();
-			importer.importFiles();
-
-			SimulationStateStore.getInstance().setRoadsGeoJson(GeoJsonExporter.exportRoads(PedSimCity.roads));
-
-			Environment.prepare();
-
-			LOGGER.info("CityImage environment prepared. About to start simulation.");
-
-			if (parallel) {
-				IntStream.range(0, Pars.jobs).parallel().forEach(jobNr -> {
-					try {
-						CityImageEngine worker = new CityImageEngine(stateFactory, baseSeed);
-						LOGGER.info("Executing CityImage job nr.: " + jobNr);
-						worker.executeJob(jobNr, scenarioConfig);
-					} catch (Exception exception) {
-						throw new RuntimeException("Error executing CityImage parallel job " + jobNr, exception);
-					}
-				});
-			} else {
-				for (int jobNr = 0; jobNr < Pars.jobs; jobNr++) {
-					LOGGER.info("Executing CityImage job nr.: " + jobNr);
-					executeJob(jobNr, scenarioConfig);
-				}
-			}
-
-		} finally {
-			SimulationStateStore.getInstance().running = false;
-			SimulationStateStore.getInstance().finished = true;
-		}
+	@Override
+	protected void clearStaticData() {
+		super.clearStaticData();
+		TestPars.distances.clear();
+		PedSimCityImage.indexedEdgeCache.clear();
 	}
 
 	@Override
@@ -150,10 +109,5 @@ public class CityImageEngine extends Engine {
 			PedSimCityImageApplet.setRemainingTripsCount(total);
 			PedSimCityImageApplet.updateRemainingTripsLabel(true);
 		});
-	}
-
-	private static void clearCityImageStaticData() {
-		TestPars.distances.clear();
-		PedSimCityImage.indexedEdgeCache.clear();
 	}
 }
