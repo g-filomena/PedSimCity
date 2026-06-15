@@ -158,7 +158,7 @@ public class Agent implements Steppable {
 			}
 		}
 		// safety check
-		if (destinationNode.getID().equals(originNode.getID())) {
+		if (destinationNode.getID() == (originNode.getID())) {
 			reachedDestination.set(true);
 			return;
 		}
@@ -187,11 +187,10 @@ public class Agent implements Steppable {
 		}
 	}
 
-	private static final java.util.concurrent.ConcurrentHashMap<String, List<NodeGraph>> candidateCache =
-			new java.util.concurrent.ConcurrentHashMap<>();
+	private static final java.util.concurrent.ConcurrentHashMap<String, List<NodeGraph>> candidateCache = new java.util.concurrent.ConcurrentHashMap<>();
 
-	public static List<NodeGraph> getNodesBetweenDistanceIntervalOptimized(
-			Graph network, NodeGraph originNode, double lowerLimit, double upperLimit) {
+	public static List<NodeGraph> getNodesBetweenDistanceIntervalOptimized(Graph network, NodeGraph originNode,
+			double lowerLimit, double upperLimit) {
 		if (candidateCache.size() > 50_000) {
 			candidateCache.clear();
 		}
@@ -359,7 +358,8 @@ public class Agent implements Steppable {
 		}
 	}
 
-	// Avoids a layer update before the first step (agent placed directly at origin geometry).
+	// Avoids a layer update before the first step (agent placed directly at origin
+	// geometry).
 	protected void placeAtOriginWithoutLayerUpdate() {
 		if (originNode == null) {
 			return;
