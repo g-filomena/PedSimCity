@@ -1,7 +1,7 @@
 package pedsim.cityimage.engine;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.locationtech.jts.linearref.LengthIndexedLine;
 import org.locationtech.jts.planargraph.DirectedEdge;
@@ -20,7 +20,7 @@ public class PedSimCityImage extends PedSimCity {
 	 * own edge cache. Core also has an indexed-edge cache; new code should prefer
 	 * the core cache when possible.
 	 */
-	public static final Map<DirectedEdge, LengthIndexedLine> indexedEdgeCache = new HashMap<>();
+	public static final Map<DirectedEdge, LengthIndexedLine> indexedEdgeCache = new ConcurrentHashMap<>();
 
 	public PedSimCityImage(long seed, int job, ScenarioConfig scenarioConfig) {
 		super(seed, job, defaultScenarioConfig(scenarioConfig));

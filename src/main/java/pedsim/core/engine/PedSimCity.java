@@ -105,7 +105,23 @@ public class PedSimCity extends SimState {
 
   public ScenarioConfig scenarioConfig;
 
+  /**
+   * Per-thread state reference, set in the constructor.
+   * Simulation threads each get their own job's state via {@link #currentForThread()}.
+   */
+  private static final ThreadLocal<PedSimCity> THREAD_STATE = new ThreadLocal<>();
+
+  /**
+   * Last-constructed instance. Kept only for {@link pedsim.core.applet.SimulationViewer},
+   * which runs on the Swing EDT and cannot use the ThreadLocal. Do not read this from
+   * simulation threads — use {@link #currentForThread()} instead.
+   */
   public static volatile PedSimCity currentInstance;
+
+  /** Returns the {@link PedSimCity} instance belonging to the calling simulation thread. */
+  public static PedSimCity currentForThread() {
+    return THREAD_STATE.get();
+  }
 
   /**
    * Constructs a new instance of the PedSimCity simulation environment.
@@ -121,7 +137,8 @@ public class PedSimCity extends SimState {
     this.agents = new VectorLayer();
     this.appName = this.getClass().getSimpleName();
     this.flowHandler = new FlowHandler(job, this, appName);
-    PedSimCity.currentInstance = this;
+    THREAD_STATE.set(this);
+    currentInstance = this;  // for SimulationViewer (EDT only)
   }
 
   /**

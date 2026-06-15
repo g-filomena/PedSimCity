@@ -42,9 +42,8 @@ public class Engine {
 		}
 
 		try {
+			SimulationStateStore.getInstance().reset();
 			SimulationStateStore.getInstance().running = true;
-			SimulationStateStore.getInstance().finished = false;
-			SimulationStateStore.getInstance().stopRequested = false;
 
 			clearStaticData();
 			Pars.setSimulationParameters();

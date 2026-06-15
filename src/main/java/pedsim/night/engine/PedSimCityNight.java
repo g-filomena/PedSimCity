@@ -1,7 +1,5 @@
 package pedsim.night.engine;
 
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,9 +31,9 @@ public class PedSimCityNight extends PedSimCity {
     return ((long) fromId << 32) | (toId & 0xFFFFFFFFL);
   }
 
-  public static final Map<DirectedEdge, LengthIndexedLine> indexedEdgeCache = new HashMap<>();
+  public static final Map<DirectedEdge, LengthIndexedLine> indexedEdgeCache = new ConcurrentHashMap<>();
 
-  public static Set<EdgeGraph> edges = new HashSet<>();
+  public static final Set<EdgeGraph> edges = ConcurrentHashMap.newKeySet();
 
   // cached route
   public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> routesDay =

@@ -28,7 +28,7 @@ public class Crowdness {
 			return false;
 		}
 
-		PedSimCity state = PedSimCity.currentInstance;
+		PedSimCity state = PedSimCity.currentForThread();
 
 		long currentStep = 0;
 		if (state != null && state.schedule != null) {

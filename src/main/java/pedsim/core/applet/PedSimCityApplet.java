@@ -7,13 +7,12 @@ import java.awt.Frame;
 import java.awt.Label;
 import java.awt.TextArea;
 import java.awt.TextField;
-import java.awt.Desktop;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.net.URI;
 import pedsim.core.engine.Engine;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
+import pedsim.core.engine.SimulationLauncher;
 import pedsim.core.parameters.ParameterManager;
 import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
@@ -215,11 +214,7 @@ public class PedSimCityApplet extends Frame {
 
     if (headless) {
       LoggerUtil.getLogger().info("[SERVER] Running headless simulation...");
-      ParameterManager.initFromArgsForServer(args);
-
-      ScenarioConfig scenarioConfig = new ScenarioConfig(null, null);
-      Engine engine = new Engine(PedSimCity::new);
-      engine.runJobs(scenarioConfig, Pars.parallel);
+      coreLauncher().headlessRun(args);
       return;
     }
 
@@ -245,39 +240,9 @@ public class PedSimCityApplet extends Frame {
 
     if (choice == 2) {
       LoggerUtil.getLogger().info("[STARTUP] Starting REST API for External Dashboard...");
-      // Pre-load default GIS data so the dashboard can show the map immediately
-      try {
-          pedsim.core.engine.PedSimCity.clearStaticData();
-          pedsim.core.parameters.Pars.setSimulationParameters();
-          new pedsim.core.engine.Import().importFiles();
-          pedsim.core.engine.SimulationStateStore.getInstance().setRoadsGeoJson(
-              pedsim.core.website.GeoJsonExporter.exportRoads(pedsim.core.engine.PedSimCity.roads));
-      } catch (Exception e) {
-          LoggerUtil.getLogger().warning("Could not pre-load default roads: " + e.getMessage());
-      }
-
-      SimulationRestApi.setOnStart((params) -> {
-        try {
-          // Apply parameters if provided
-          if (params.containsKey("cityName")) Pars.cityName = (String) params.get("cityName");
-          if (params.containsKey("days")) Pars.durationDays = Integer.parseInt(params.get("days").toString());
-          if (params.containsKey("actualPopulation")) Pars.population = Integer.parseInt(params.get("actualPopulation").toString());
-          if (params.containsKey("percentage")) Pars.percentagePopulationAgent = Double.parseDouble(params.get("percentage").toString());
-          if (params.containsKey("jobs")) {
-              Pars.jobs = Integer.parseInt(params.get("jobs").toString());
-              Pars.parallel = (Pars.jobs > 1);
-          }
-
-          Pars.setSimulationParameters(); // Recalculate derived parameters
-
-          ScenarioConfig config = new ScenarioConfig(StringEnum.Learner.values(), null);
-          new Engine(PedSimCity::new).runJobs(config, Pars.jobs > 1); // Use boolean for parallel
-        } catch (Exception e) {
-          LoggerUtil.getLogger().severe("Simulation failed: " + e.getMessage());
-        }
-      });
-      
-      SimulationRestApi.start(8081);
+      SimulationLauncher launcher = coreLauncher();
+      launcher.preloadForDashboard();
+      launcher.wireAndStartRestServer(8081);
     } else {
       // Option 1: Standard GUI only — no REST API server is started.
       LoggerUtil.getLogger().info("[STARTUP] Launching Standard GUI...");
@@ -313,6 +278,15 @@ public class PedSimCityApplet extends Frame {
 
   protected Engine buildEngine() {
     return new Engine(buildStateFactory());
+  }
+
+  /** Returns a {@link SimulationLauncher} configured for core (non-night) mode. */
+  protected SimulationLauncher coreLauncher() {
+    return new SimulationLauncher(
+        false,
+        () -> new Engine(PedSimCity::new),
+        new ScenarioConfig(StringEnum.Learner.values(), null),
+        null);
   }
 
   public String getCityName() {
