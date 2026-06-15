@@ -1,11 +1,13 @@
 package pedsim.core.website;
 
-import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.logging.Logger;
+
+import com.sun.net.httpserver.HttpServer;
+
 import pedsim.core.engine.SimulationStateStore;
 import pedsim.core.utilities.LoggerUtil;
 
@@ -107,15 +109,19 @@ public final class SimulationRestApi {
             }
 
             if (startListener != null) {
-              java.util.Map<String, Object> params = new java.util.HashMap<>();
-              try {
-                if (exchange.getRequestBody().available() > 0) {
-                  params = new com.fasterxml.jackson.databind.ObjectMapper()
-                      .readValue(exchange.getRequestBody(), java.util.Map.class);
-                }
-              } catch (Exception e) {
-                logger.warning("Failed to parse start parameters: " + e.getMessage());
-              }
+            	java.util.Map<String, Object> params = new java.util.HashMap<>();
+
+            	try {
+            	  if (exchange.getRequestBody().available() > 0) {
+            	    params =
+            	        new tools.jackson.databind.ObjectMapper()
+            	            .readValue(
+            	                exchange.getRequestBody(),
+            	                new tools.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {});
+            	  }
+            	} catch (Exception e) {
+            	  logger.warning("Failed to parse start request body: " + e.getMessage());
+            	}
 
               final java.util.Map<String, Object> finalParams = params;
               new Thread(() -> startListener.accept(finalParams)).start();
