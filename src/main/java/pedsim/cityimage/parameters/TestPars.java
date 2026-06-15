@@ -1,5 +1,7 @@
 package pedsim.cityimage.parameters;
 
+import java.util.ArrayList;
+
 import pedsim.cityimage.utilities.StringEnum.RouteChoice;
 import pedsim.core.parameters.Pars;
 import pedsim.core.parameters.TimePars;
@@ -19,6 +21,8 @@ public final class TestPars extends Pars {
 
 	private TestPars() {
 	}
+
+	public static final ArrayList<Float> distances = new ArrayList<>();
 
 	public static String stringMode = "Testing Landmarks";
 

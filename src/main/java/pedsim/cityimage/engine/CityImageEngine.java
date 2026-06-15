@@ -153,7 +153,7 @@ public class CityImageEngine extends Engine {
 	}
 
 	private static void clearCityImageStaticData() {
-		PedSimCityImage.distances.clear();
+		TestPars.distances.clear();
 		PedSimCityImage.indexedEdgeCache.clear();
 	}
 }

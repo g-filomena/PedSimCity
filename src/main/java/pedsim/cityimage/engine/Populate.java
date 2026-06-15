@@ -99,7 +99,7 @@ public class Populate extends pedsim.core.engine.Populate {
 
 		for (int i = 0; i < numberTrips; i++) {
 			NodeGraph destinationNode = NodesLookup.randomNodeFromDistancesSet(network, PedSimCity.junctions,
-					originNode, PedSimCityImage.distances);
+					originNode, TestPars.distances);
 
 			if (destinationNode == null || destinationNode.gateway) {
 				destinationNode = randomDestination(originNode);

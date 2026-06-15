@@ -14,7 +14,6 @@ import java.util.stream.Collectors;
 import org.javatuples.Pair;
 import org.locationtech.jts.geom.Geometry;
 
-import pedsim.core.cognition.cityimage.Gateway;
 import pedsim.core.cognition.cityimage.Region;
 import pedsim.core.cognition.metrics.BarrierIntegration;
 import pedsim.core.cognition.metrics.LandmarkIntegration;
@@ -24,7 +23,6 @@ import pedsim.core.parameters.RouteChoicePars;
 import pedsim.core.utilities.StringEnum.BarrierType;
 import pedsim.core.utilities.StringEnum.RoadType;
 import sim.field.geo.VectorLayer;
-import sim.graph.Building;
 import sim.graph.EdgeGraph;
 import sim.graph.Graph;
 import sim.graph.GraphUtils;
@@ -48,11 +46,6 @@ public class SharedCognitiveMap {
 	 * Stores global landmarks as a VectorLayer.
 	 */
 	private static VectorLayer globalLandmarks = new VectorLayer();
-
-	/**
-	 * Maps pairs of nodes to gateways.
-	 */
-	public Map<Pair<NodeGraph, NodeGraph>, Gateway> gatewaysMap = new HashMap<>();
 
 	/**
 	 * Stores barriers as a VectorLayer.
@@ -89,13 +82,6 @@ public class SharedCognitiveMap {
 	protected static Set<Integer> communityKnownBarriers = new HashSet<>();
 
 	/**
-	 * Singleton instance of the CognitiveMap.
-	 */
-	private static final SharedCognitiveMap instance = new SharedCognitiveMap();
-
-	Building buildingsHandler = new Building();
-
-	/**
 	 * Sets up the community cognitive map.
 	 */
 	public static void setCommunityCognitiveMap() {
@@ -109,15 +95,6 @@ public class SharedCognitiveMap {
 		identifyRegionElements();
 		barriers = PedSimCity.barriers;
 		setCommunityBarriers();
-	}
-
-	/**
-	 * Gets the singleton instance of CognitiveMap.
-	 *
-	 * @return The CognitiveMap instance.
-	 */
-	public static SharedCognitiveMap getInstance() {
-		return instance;
 	}
 
 	/**
@@ -410,7 +387,7 @@ public class SharedCognitiveMap {
 	 * @param region The region for which to get local landmarks.
 	 * @return A list of local landmarks.
 	 */
-	public List<MasonGeometry> getRegionLocalLandmarks(Region region) {
+	public static List<MasonGeometry> getRegionLocalLandmarks(Region region) {
 		return region.localLandmarks;
 	}
 
@@ -441,7 +418,7 @@ public class SharedCognitiveMap {
 	 * @param destinationNode The second node.
 	 * @return A list of buildings.
 	 */
-	public List<MasonGeometry> getBuildings(NodeGraph originNode, NodeGraph destinationNode) {
+	public static List<MasonGeometry> getBuildings(NodeGraph originNode, NodeGraph destinationNode) {
 		Geometry smallestCircle = GraphUtils
 				.smallestEnclosingGeometryBetweenNodes(new ArrayList<>(Arrays.asList(originNode, destinationNode)));
 		return PedSimCity.buildings.containedFeatures(smallestCircle);
@@ -471,7 +448,7 @@ public class SharedCognitiveMap {
 		});
 	}
 
-	public Set<Integer> getLocalLandmarksIDs() {
+	public static Set<Integer> getLocalLandmarksIDs() {
 		return new HashSet<Integer>(localLandmarks.getIDs());
 	}
 
