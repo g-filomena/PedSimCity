@@ -114,10 +114,10 @@ public final class SimulationRestApi {
             	try {
             	  if (exchange.getRequestBody().available() > 0) {
             	    params =
-            	        new tools.jackson.databind.ObjectMapper()
+            	        new com.fasterxml.jackson.databind.ObjectMapper()
             	            .readValue(
             	                exchange.getRequestBody(),
-            	                new tools.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {});
+            	                new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {});
             	  }
             	} catch (Exception e) {
             	  logger.warning("Failed to parse start request body: " + e.getMessage());

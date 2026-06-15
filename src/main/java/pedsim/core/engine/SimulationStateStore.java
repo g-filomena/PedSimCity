@@ -7,8 +7,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import pedsim.core.agents.Agent;
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JacksonException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Thread-safe singleton that holds the live simulation state for the browser

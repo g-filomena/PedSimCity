@@ -1,4 +1,4 @@
-﻿package pedsim.core.engine;
+package pedsim.core.engine;
 
 import java.awt.Desktop;
 import java.io.File;
