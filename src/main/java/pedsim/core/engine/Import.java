@@ -41,12 +41,12 @@ public class Import {
    */
   protected void readGraphs() throws Exception {
     try {
-      String[] layerSuffixes = { "_edges", "_nodes", "_edges_dual", "_nodes_dual" };
+      String[] layerSuffixes = { "_edges", "_nodes", "_edgesDual", "_nodesDual" };
       VectorLayer[] vectorLayers = { PedSimCity.roads, PedSimCity.junctions,
           PedSimCity.intersectionsDual, PedSimCity.centroids };
 
       for (int i = 0; i < layerSuffixes.length; i++) {
-        String resourceName = Pars.cityFolder + "/" + Pars.cityName + layerSuffixes[i] + ".gpkg";
+        String resourceName = Pars.cityName + "/" + Pars.cityName + layerSuffixes[i] + ".gpkg";
 
         URL fileUrl = CLASSLOADER.getResource(resourceName);
         if (fileUrl == null) {
@@ -71,11 +71,11 @@ public class Import {
    */
   protected void readLandmarksAndSightLines() throws Exception {
     try {
-      String[] layerSuffixes = { "Centre_buildings", "_sight_lines2D" };
+      String[] layerSuffixes = { "_landmarks", "_sight_lines2D" };
       VectorLayer[] vectorLayers = { PedSimCity.buildings, PedSimCity.sightLines };
 
       for (int i = 0; i < layerSuffixes.length; i++) {
-        String resourceName = Pars.cityFolder + "/" + Pars.cityName + layerSuffixes[i] + ".gpkg";
+        String resourceName = Pars.cityName + "/" + Pars.cityName + layerSuffixes[i] + ".gpkg";
 
         URL fileUrl = CLASSLOADER.getResource(resourceName);
         if (fileUrl == null) {
@@ -98,7 +98,7 @@ public class Import {
    */
   protected void readBarriers() throws Exception {
     try {
-      String resourceName = Pars.cityFolder + "/" + Pars.cityName + "_barriers.gpkg";
+      String resourceName = Pars.cityName + "/" + Pars.cityName + "_barriers.gpkg";
 
       URL fileUrl = CLASSLOADER.getResource(resourceName);
       if (fileUrl == null) {
@@ -134,7 +134,7 @@ public class Import {
    */
   protected void readIlluminatedEdges() {
     try {
-      String resourceName = Pars.cityFolder + "/edges_illuminated_continuous.gpkg";
+      String resourceName = Pars.cityName + "/" + Pars.cityName + "_edges_illuminated_continuous.gpkg";
       URL fileUrl = CLASSLOADER.getResource(resourceName);
       if (fileUrl == null) {
         logger.warning("Illuminated edges dataset not found at: " + resourceName + " — mean_lux will default to 0.");
@@ -153,7 +153,7 @@ public class Import {
    */
   protected void readOptionalLayer(String layerName, VectorLayer targetLayer) throws Exception {
     try {
-      String resourceName = Pars.cityFolder + "/" + Pars.cityName + "_" + layerName + ".gpkg";
+      String resourceName = Pars.cityName + "/" + Pars.cityName + "_" + layerName + ".gpkg";
       URL fileUrl = CLASSLOADER.getResource(resourceName);
 
       if (fileUrl == null) {

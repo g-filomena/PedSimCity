@@ -78,7 +78,7 @@ public class PedSimCityNight extends PedSimCity {
   private void loadDirectionalLighting() {
     directionalLuxMap.clear();
     try {
-      String resourceName = pedsim.core.parameters.Pars.cityFolder + "/directional_lighting_lookup.csv";
+      String resourceName = pedsim.core.parameters.Pars.cityName + "/" + pedsim.core.parameters.Pars.cityName + "_directional_lighting_lookup.csv";
       java.net.URL fileUrl = getClass().getClassLoader().getResource(resourceName);
       if (fileUrl != null) {
         try (java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(fileUrl.openStream()))) {
