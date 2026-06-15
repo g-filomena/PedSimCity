@@ -151,7 +151,8 @@ public class Populate {
     totalProbability = 0.0;
 
     for (int i = 0; i < zones.size(); i++) {
-      double residencePct = zones.get(i).getDoubleAttribute("residence_pct");
+      Double val = zones.get(i).getDoubleAttribute("residence_pct");
+      double residencePct = val != null ? val : 0.0;
       totalProbability += residencePct;
       cumulative += residencePct;
       cumulativeProbabilities[i] = cumulative;
