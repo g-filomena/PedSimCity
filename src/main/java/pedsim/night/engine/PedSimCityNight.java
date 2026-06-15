@@ -71,8 +71,8 @@ public class PedSimCityNight extends PedSimCity {
 
   @Override
   public void start() {
-    super.start();
     loadDirectionalLighting();
+    super.start();
   }
 
   private void loadDirectionalLighting() {

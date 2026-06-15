@@ -9,6 +9,7 @@ import java.awt.TextArea;
 import java.awt.TextField;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import pedsim.core.engine.CoreSimulationModule;
 import pedsim.core.engine.Engine;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
@@ -293,12 +294,8 @@ public class PedSimCityApplet extends Frame {
   }
 
   /** Returns a {@link SimulationLauncher} configured for core (non-night) mode. */
-  protected SimulationLauncher coreLauncher() {
-    return new SimulationLauncher(
-        false,
-        () -> new Engine(PedSimCity::new),
-        new ScenarioConfig(StringEnum.Learner.values(), null),
-        null);
+  protected static SimulationLauncher coreLauncher() {
+    return new SimulationLauncher(CoreSimulationModule.INSTANCE);
   }
 
   public String getCityName() {

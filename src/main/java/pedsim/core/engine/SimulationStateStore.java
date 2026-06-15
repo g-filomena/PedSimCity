@@ -1,22 +1,25 @@
 package pedsim.core.engine;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
-
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Logger;
 import pedsim.core.agents.Agent;
-import com.fasterxml.jackson.core.JacksonException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import pedsim.core.utilities.LoggerUtil;
 
 /**
- * Thread-safe singleton that holds the live simulation state for the browser
- * dashboard. The simulation engine writes to this store on every step;
- * the REST endpoint reads from it to serve agent positions and statistics
- * to the Leaflet map.
+ * Thread-safe singleton that holds the live simulation state for the browser dashboard. The
+ * simulation engine writes to this store on every step; the REST endpoint reads from it to serve
+ * agent positions and statistics to the map.
  */
 public final class SimulationStateStore {
+
+  private static final Logger logger = LoggerUtil.getLogger();
 
   // ----------------------------------------------------------------
   // Singleton
@@ -26,11 +29,6 @@ public final class SimulationStateStore {
 
   private SimulationStateStore() {}
 
-  /**
-   * Returns the single shared instance.
-   *
-   * @return the SimulationStateStore singleton.
-   */
   public static SimulationStateStore getInstance() {
     return INSTANCE;
   }
@@ -39,31 +37,36 @@ public final class SimulationStateStore {
   // State fields
   // ----------------------------------------------------------------
 
-  /** Current simulation step count. */
   public volatile int currentStep = 0;
-
-  /** Human-readable simulation time string. */
   public volatile String simulationTime = "—";
-
-  /** Number of agents currently walking. */
   public volatile int walkingCount = 0;
-
-  /** Number of agents currently at home. */
   public volatile int atHomeCount = 0;
-
-  /** Number of agents currently at their destination. */
   public volatile int atDestCount = 0;
-
-  /** Whether the simulation is currently running. */
   public volatile boolean running = false;
-
-  /** Whether the simulation has finished. */
   public volatile boolean finished = false;
+  public volatile boolean stopRequested = false;
+  public volatile String roadsGeoJson = null;
+
+  /**
+   * Active module reference. {@link AtomicReference} ensures the reference swap is visible across
+   * threads; individual module field reads (e.g. NightPars) are expected to be either volatile or
+   * written only during parameter setup before {@code runJobs()} begins.
+   */
+  private final AtomicReference<SimulationModule> activeModule = new AtomicReference<>(null);
 
   private double vulnTripDistanceSum = 0;
   private int vulnTripCount = 0;
   private double normalTripDistanceSum = 0;
   private int normalTripCount = 0;
+
+  /** Live snapshot of all agent positions, updated each simulation step. */
+  private final ConcurrentHashMap<Integer, AgentSnapshot> agents = new ConcurrentHashMap<>();
+
+  private static final ObjectMapper MAPPER = new ObjectMapper();
+
+  // ----------------------------------------------------------------
+  // Write methods (called from simulation threads)
+  // ----------------------------------------------------------------
 
   public synchronized void addCompletedTrip(boolean vulnerable, double distance) {
     if (vulnerable) {
@@ -90,92 +93,58 @@ public final class SimulationStateStore {
     normalTripCount = 0;
   }
 
-  /**
-   * Whether the Javelit dashboard has requested the simulation to stop.
-   * The engine's run loop polls this flag.
-   */
-  public volatile boolean stopRequested = false;
-
-  /**
-   * GeoJSON string for the road network.
-   */
-  public volatile String roadsGeoJson = null;
-
-  /** Live snapshot of all agent positions, updated each simulation step. */
-  private final ConcurrentHashMap<Integer, AgentSnapshot> agents = new ConcurrentHashMap<>();
-
-  private static final ObjectMapper MAPPER = new ObjectMapper();
-
-  // ----------------------------------------------------------------
-  // Write methods (called from simulation threads)
-  // ----------------------------------------------------------------
-
-  /**
-   * Updates the position and status of a single agent in the live snapshot.
-   */
   public void updateAgent(Agent agent) {
-    if (agent.getLocation() == null)
-      return;
+    if (agent.getLocation() == null) return;
     var coord = agent.getLocation().geometry.getCoordinate();
-    var snapshot = new AgentSnapshot(
+    agents.put(
         agent.agentID,
-        coord.x,
-        coord.y,
-        agent.getStatus().toString(),
-        agent.isVulnerableBoolean()
-    );
-    // replace existing entry or add new one
-    agents.put(agent.agentID, snapshot);
+        new AgentSnapshot(
+            agent.agentID,
+            coord.x,
+            coord.y,
+            agent.getStatus().toString(),
+            agent.isVulnerableBoolean()));
   }
 
-  /**
-   * Removes an agent from the live snapshot so the browser dashboard no longer
-   * shows it (called when an agent finishes its journey and reaches home).
-   *
-   * @param agentId the ID of the agent to remove.
-   */
   public void removeAgent(int agentId) {
     agents.remove(agentId);
   }
 
-  /**
-   * Updates aggregate step-level statistics.
-   */
-  public void updateStep(int step, String simTime,
-      int walkingCount, int atHomeCount, int atDestCount) {
-    this.currentStep  = step;
+  public void updateStep(
+      int step, String simTime, int walkingCount, int atHomeCount, int atDestCount) {
+    this.currentStep = step;
     this.simulationTime = simTime;
     this.walkingCount = walkingCount;
-    this.atHomeCount  = atHomeCount;
-    this.atDestCount  = atDestCount;
+    this.atHomeCount = atHomeCount;
+    this.atDestCount = atDestCount;
   }
 
-  /**
-   * Stores the GeoJSON representation of the road network.
-   */
   public void setRoadsGeoJson(String geoJson) {
     this.roadsGeoJson = geoJson;
   }
 
-  /**
-   * Signals the engine to stop at the end of the current step.
-   */
   public void requestStop() {
     this.stopRequested = true;
   }
 
   /**
-   * Resets all state ready for a new simulation run.
+   * Records which module is currently active. Called by {@link SimulationLauncher#applyMode()}
+   * before parameter application and before {@code runJobs()}.
    */
+  public void setActiveModule(SimulationModule module) {
+    activeModule.set(module);
+  }
+
+  /** Resets all transient state for a new run. Does not clear the active module. */
   public void reset() {
-    currentStep    = 0;
+    currentStep = 0;
     simulationTime = "—";
-    walkingCount   = 0;
-    atHomeCount    = 0;
-    atDestCount    = 0;
-    running        = false;
-    finished       = false;
-    stopRequested  = false;
+    walkingCount = 0;
+    atHomeCount = 0;
+    atDestCount = 0;
+    running = false;
+    finished = false;
+    stopRequested = false;
     agents.clear();
     resetTripStats();
   }
@@ -184,17 +153,11 @@ public final class SimulationStateStore {
   // Read methods (called from the REST endpoint thread)
   // ----------------------------------------------------------------
 
-  /**
-   * Returns a copy of the current agent snapshot list safe for JSON serialisation.
-   */
   public List<AgentSnapshot> getAgents() {
     return new ArrayList<>(agents.values());
   }
 
-  /**
-   * Serialises the current state to a JSON string for the /api/state endpoint.
-   */
-  public String toJson() throws JacksonException {
+  public String toJson() throws JsonProcessingException {
     return MAPPER.writeValueAsString(new StateSnapshot(this));
   }
 
@@ -202,51 +165,87 @@ public final class SimulationStateStore {
   // Inner record: per-agent snapshot
   // ----------------------------------------------------------------
 
-  /**
-   * Immutable snapshot of a single agent's position and status.
-   */
   public record AgentSnapshot(
-      @JsonProperty("id")         int id,
-      @JsonProperty("lon")        double lon,
-      @JsonProperty("lat")        double lat,
-      @JsonProperty("status")     String status,
-      @JsonProperty("vulnerable") boolean vulnerable
-  ) {}
+      @JsonProperty("id") int id,
+      @JsonProperty("lon") double lon,
+      @JsonProperty("lat") double lat,
+      @JsonProperty("status") String status,
+      @JsonProperty("vulnerable") boolean vulnerable) {}
 
   // ----------------------------------------------------------------
   // Inner class: full-state DTO for JSON serialisation
   // ----------------------------------------------------------------
 
-  /**
-   * Data-transfer object wrapping the full simulation state for one JSON snapshot.
-   */
   public static class StateSnapshot {
 
-    @JsonProperty("currentStep")       public final int currentStep;
-    @JsonProperty("simulationTime")    public final String simulationTime;
-    @JsonProperty("walkingCount")      public final int walkingCount;
-    @JsonProperty("atHomeCount")       public final int atHomeCount;
-    @JsonProperty("atDestCount")       public final int atDestCount;
-    @JsonProperty("running")           public final boolean running;
-    @JsonProperty("finished")          public final boolean finished;
-    @JsonProperty("enableAB")          public final boolean enableAB;
-    @JsonProperty("avgVulnTripM")      public final double avgVulnTripM;
-    @JsonProperty("avgNormalTripM")    public final double avgNormalTripM;
-    @JsonProperty("agents")            public final List<AgentSnapshot> agents;
+    @JsonProperty("currentStep")
+    public final int currentStep;
+
+    @JsonProperty("simulationTime")
+    public final String simulationTime;
+
+    @JsonProperty("walkingCount")
+    public final int walkingCount;
+
+    @JsonProperty("atHomeCount")
+    public final int atHomeCount;
+
+    @JsonProperty("atDestCount")
+    public final int atDestCount;
+
+    @JsonProperty("running")
+    public final boolean running;
+
+    @JsonProperty("finished")
+    public final boolean finished;
+
+    @JsonProperty("avgVulnTripM")
+    public final double avgVulnTripM;
+
+    @JsonProperty("avgNormalTripM")
+    public final double avgNormalTripM;
+
+    @JsonProperty("agents")
+    public final List<AgentSnapshot> agents;
+
+    /** Active module identifier (e.g. {@code "core"}, {@code "night"}). */
+    @JsonProperty("module")
+    public final String module;
+
+    /**
+     * Module-specific live state from {@link SimulationModule#extraState()}. For night: includes
+     * {@code enableAB} and {@code crowdednessPercentile}. Empty map for core.
+     *
+     * <p>If {@code extraState()} throws for any reason the field is an empty map so that {@code
+     * /api/state} never fails due to a module implementation bug.
+     */
+    @JsonProperty("moduleState")
+    public final Map<String, Object> moduleState;
 
     StateSnapshot(SimulationStateStore store) {
-      this.currentStep    = store.currentStep;
+      this.currentStep = store.currentStep;
       this.simulationTime = store.simulationTime;
-      this.walkingCount   = store.walkingCount;
-      this.atHomeCount    = store.atHomeCount;
-      this.atDestCount    = store.atDestCount;
-      this.running        = store.running;
-      this.finished       = store.finished;
-      this.enableAB       = pedsim.night.parameters.NightPars.enableLightABTesting;
-      this.agents         = store.getAgents();
-
-      this.avgVulnTripM   = store.getAvgVulnTripM();
+      this.walkingCount = store.walkingCount;
+      this.atHomeCount = store.atHomeCount;
+      this.atDestCount = store.atDestCount;
+      this.running = store.running;
+      this.finished = store.finished;
+      this.avgVulnTripM = store.getAvgVulnTripM();
       this.avgNormalTripM = store.getAvgNormalTripM();
+      this.agents = store.getAgents();
+
+      SimulationModule active = store.activeModule.get();
+      this.module = active != null ? active.moduleId() : "core";
+
+      Map<String, Object> extra = Map.of();
+      if (active != null) {
+        try {
+          extra = active.extraState();
+        } catch (Exception e) {
+          logger.warning("extraState() threw for module " + active.moduleId() + ": " + e.getMessage());
+        }
+      }
+      this.moduleState = extra;
     }
   }
 }

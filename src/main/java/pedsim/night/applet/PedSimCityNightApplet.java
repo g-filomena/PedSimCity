@@ -13,6 +13,7 @@ import pedsim.core.utilities.LoggerUtil;
 import pedsim.core.utilities.StringEnum;
 import pedsim.core.website.SimulationRestApi;
 import pedsim.night.engine.NightEngine;
+import pedsim.night.engine.NightSimulationModule;
 import pedsim.night.engine.PedSimCityNight;
 
 public class PedSimCityNightApplet extends PedSimCityApplet {
@@ -44,11 +45,7 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
 
 	/** Returns a {@link SimulationLauncher} configured for night mode. */
 	private static SimulationLauncher nightLauncher() {
-		return new SimulationLauncher(
-				true,
-				() -> new NightEngine(PedSimCityNight::new),
-				new ScenarioConfig(StringEnum.Vulnerable.values(), StringEnum.TimeOfDay.values()),
-				PedSimCityNight::clearNightStaticData);
+		return new SimulationLauncher(NightSimulationModule.INSTANCE);
 	}
 
 	public static void main(String[] args) throws Exception {
