@@ -23,7 +23,7 @@ public final class CoreSimulationModule implements SimulationModule {
 
   @Override
   public void clearStaticData() {
-    // Core static data is cleared by Engine.clearStaticData(); nothing extra needed here.
+    PedSimCity.clearStaticData();
   }
 
   @Override

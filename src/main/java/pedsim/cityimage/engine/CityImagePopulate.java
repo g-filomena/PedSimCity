@@ -61,8 +61,6 @@ public class CityImagePopulate extends pedsim.core.engine.Populate {
 			throw new IllegalStateException("originsTmp and destinationsTmp must have the same length.");
 		}
 
-		TestPars.numberTripsPerAgent = TestPars.originsTmp.length;
-
 		for (int i = 0; i < TestPars.originsTmp.length; i++) {
 			NodeGraph originNode = PedSimCity.nodesMap.get(TestPars.originsTmp[i]);
 			NodeGraph destinationNode = PedSimCity.nodesMap.get(TestPars.destinationsTmp[i]);
@@ -81,7 +79,6 @@ public class CityImagePopulate extends pedsim.core.engine.Populate {
 
 		if (TestPars.testingLandmarks) {
 			numberTrips = LANDMARK_TEST_DESTINATIONS;
-			TestPars.numberTripsPerAgent = numberTrips;
 			generateLandmarkODmatrix(numberTrips);
 			return;
 		}
@@ -187,8 +184,6 @@ public class CityImagePopulate extends pedsim.core.engine.Populate {
 
 	private void generateTestAgents() {
 		RouteChoice[] routeChoiceModels = routeChoiceModels();
-
-		Pars.numAgents = routeChoiceModels.length;
 
 		for (int agentID = 0; agentID < routeChoiceModels.length; agentID++) {
 			CityImageAgent agent = new CityImageAgent(state, routeChoiceModels[agentID], odMatrix);

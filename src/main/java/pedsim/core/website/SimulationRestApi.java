@@ -227,15 +227,20 @@ public final class SimulationRestApi {
                 }
 
                 Map<String, Object> params = new HashMap<>();
-                try {
-                  if (exchange.getRequestBody().available() > 0) {
-                    params =
-                        MAPPER.readValue(
-                            exchange.getRequestBody(),
-                            new TypeReference<Map<String, Object>>() {});
+                byte[] rawBody = exchange.getRequestBody().readAllBytes();
+                if (rawBody.length > 0) {
+                  try {
+                    params = MAPPER.readValue(rawBody, new TypeReference<Map<String, Object>>() {});
+                  } catch (Exception e) {
+                    logger.warning("POST /api/start: malformed JSON body: " + e.getMessage());
+                    byte[] err = "Invalid JSON body".getBytes(StandardCharsets.UTF_8);
+                    exchange.getResponseHeaders().add("Content-Type", "text/plain");
+                    exchange.sendResponseHeaders(400, err.length);
+                    try (var out = exchange.getResponseBody()) {
+                      out.write(err);
+                    }
+                    return;
                   }
-                } catch (Exception e) {
-                  logger.warning("Failed to parse /api/start body: " + e.getMessage());
                 }
 
                 // Resolve module under the class lock so the LinkedHashMap is not raced.
