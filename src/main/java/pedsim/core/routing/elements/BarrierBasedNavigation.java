@@ -28,7 +28,7 @@ import sim.util.geo.Utilities;
  * Series of functions for computing a sequence of barrier sub-goals in the space between an origin
  * and a destination.
  */
-public class BarrierBasedNavigation {
+public class BarrierBasedNavigation implements NavigationElement {
 
   List<NodeGraph> sequence = new ArrayList<>();
   private NodeGraph originNode;
@@ -64,7 +64,8 @@ public class BarrierBasedNavigation {
    *
    * @return an ArrayList of NodeGraph representing the sequence of sub-goals.
    */
-  public List<NodeGraph> sequenceBarriers() {
+  @Override
+  public List<NodeGraph> computeSequence() {
 
     currentLocation = originNode;
     // sub-goals
