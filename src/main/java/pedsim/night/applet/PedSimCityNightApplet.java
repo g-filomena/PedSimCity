@@ -75,7 +75,7 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
 					StringEnum.TimeOfDay.values());
 			Engine.StateFactory stateFactory = PedSimCityNight::new;
 
-			Engine engine = new Engine(stateFactory);
+			Engine engine = new pedsim.night.engine.NightEngine(stateFactory);
 			engine.runJobs(scenarioConfig, Pars.parallel);
 			return;
 		}
@@ -135,7 +135,7 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
 
 					ScenarioConfig config = new ScenarioConfig(StringEnum.Vulnerable.values(),
 							StringEnum.TimeOfDay.values());
-					new Engine(PedSimCityNight::new).runJobs(config, Pars.jobs > 1); // Use boolean for parallel
+					new pedsim.night.engine.NightEngine(PedSimCityNight::new).runJobs(config, Pars.jobs > 1);
 				} catch (Exception e) {
 					LoggerUtil.getLogger().severe("Simulation failed: " + e.getMessage());
 				}
@@ -184,5 +184,10 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
 	@Override
 	protected Engine.StateFactory buildStateFactory() {
 		return PedSimCityNight::new;
+	}
+
+	@Override
+	protected Engine buildEngine() {
+		return new pedsim.night.engine.NightEngine(buildStateFactory());
 	}
 }

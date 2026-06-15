@@ -11,7 +11,7 @@ import sim.util.geo.MasonGeometry;
  * The Populate class is responsible for generating agents, building the OD matrix, and populating
  * empirical groups for pedestrian the simulation.
  */
-public class Populate extends pedsim.core.engine.Populate {
+public class NightPopulate extends pedsim.core.engine.Populate {
 
   private PedSimCityNight state;
 
@@ -30,11 +30,11 @@ public class Populate extends pedsim.core.engine.Populate {
     int currentAgentID = 0;
     for (int i = 0; i < pairs; i++) {
       // Create a dummy agent just to get valid home/work locations from the core logic
-      pedsim.night.agents.Agent dummy = new pedsim.night.agents.Agent(this.state, false);
+      pedsim.night.agents.NightAgent dummy = new pedsim.night.agents.NightAgent(this.state, false);
       super.defineHomeWorkLocations(dummy);
       
       // Vulnerable twin
-      pedsim.night.agents.Agent vulnerableTwin = new pedsim.night.agents.Agent(this.state, false);
+      pedsim.night.agents.NightAgent vulnerableTwin = new pedsim.night.agents.NightAgent(this.state, false);
       vulnerableTwin.agentID = currentAgentID++;
       vulnerableTwin.setHomeWorkLoctations(dummy.homeNode, dummy.workNode);
       vulnerableTwin.setVulnerable(true);
@@ -42,7 +42,7 @@ public class Populate extends pedsim.core.engine.Populate {
       vulnerableTwin.initSensitivity();
       
       // Normal twin
-      pedsim.night.agents.Agent normalTwin = new pedsim.night.agents.Agent(this.state, false);
+      pedsim.night.agents.NightAgent normalTwin = new pedsim.night.agents.NightAgent(this.state, false);
       normalTwin.agentID = currentAgentID++;
       normalTwin.setHomeWorkLoctations(dummy.homeNode, dummy.workNode);
       normalTwin.setVulnerable(false);
@@ -58,7 +58,7 @@ public class Populate extends pedsim.core.engine.Populate {
     System.out.println("Spawned " + pairs + " A/B testing identical twin pairs (Vulnerable vs Normal).");
   }
 
-  private void registerAgent(pedsim.night.agents.Agent agent) {
+  private void registerAgent(pedsim.night.agents.NightAgent agent) {
     if (agent.homeNode != null) {
       agent.currentLocation.geometry =
           new org.locationtech.jts.geom.GeometryFactory().createPoint(agent.homeNode.getCoordinate());
@@ -77,7 +77,7 @@ public class Populate extends pedsim.core.engine.Populate {
   @Override
   protected pedsim.core.agents.Agent createAgent(int agentID) {
 
-    pedsim.night.agents.Agent agent = new pedsim.night.agents.Agent(this.state, false);
+    pedsim.night.agents.NightAgent agent = new pedsim.night.agents.NightAgent(this.state, false);
     agent.agentID = agentID;
 
     defineHomeWorkLocations(agent);
@@ -96,7 +96,7 @@ public class Populate extends pedsim.core.engine.Populate {
    *
    * @param agent The agent to assign vulnerability to.
    */
-  private void assignVulnerabilityStatus(pedsim.night.agents.Agent agent) {
+  private void assignVulnerabilityStatus(pedsim.night.agents.NightAgent agent) {
 
     Map<NodeGraph, Double> vulnMap = PedSimCity.nodesVulnerabilityWeight;
 

@@ -7,24 +7,23 @@ import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.utilities.StringEnum;
 import pedsim.core.utilities.StringEnum.Vulnerable;
 import pedsim.night.engine.PedSimCityNight;
-import pedsim.night.routing.RoutePlanner;
+import pedsim.night.routing.pathfinder.RoadDistancePathFinder;
 import sim.engine.SimState;
 import sim.engine.Steppable;
 import sim.graph.Graph;
 import sim.graph.NodeGraph;
-import sim.graph.NodesLookup;
 
 /**
  * This class represents an agent in the pedestrian simulation. Agents move
  * along paths between origin and destination nodes.
  */
-public class Agent extends pedsim.core.agents.Agent implements Steppable {
+public class NightAgent extends pedsim.core.agents.Agent implements Steppable {
 
 	private static final long serialVersionUID = 1L;
-	public Agent abTestTwin = null;
+	public NightAgent abTestTwin = null;
 	public StringEnum.Vulnerable vulnerable;
 	private Graph agentNetwork;
-	protected pedsim.night.agents.AgentMovement nightMovement;
+	protected pedsim.night.agents.NightAgentMovement nightMovement;
 	protected PedSimCityNight state;
 	private boolean nightRoute = false;
 
@@ -38,11 +37,11 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 	 *
 	 * @param state the PedSimCity simulation state.
 	 */
-	public Agent(PedSimCityNight state) {
+	public NightAgent(PedSimCityNight state) {
 		this(state, true);
 	}
 
-	public Agent(PedSimCityNight state, boolean registerSpatial) {
+	public NightAgent(PedSimCityNight state, boolean registerSpatial) {
 		super(state, registerSpatial);
 		this.state = state;
 		this.agentNetwork = SharedCognitiveMap.getCommunityPrimalNetwork();
@@ -102,14 +101,10 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 		} else {
 			defineRandomDestination();
 		}
-		// safety check
-		if (destinationNode.getID().equals(originNode.getID())) {
-			reachedDestination.set(true);
-			return;
-		}
+		if (sameOriginDestination()) return;
 		planNightRoute();
 		tripStartStep = state.schedule.getSteps();
-		nightMovement = new AgentMovement(this);
+		nightMovement = new NightAgentMovement(this);
 		nightMovement.initialisePath(getRoute());
 	}
 
@@ -117,11 +112,9 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 	 * Plans the route for the agent.
 	 */
 	protected void planNightRoute() {
-
 		Heuristics heuristics = new Heuristics(this);
 		heuristics.defineHeuristic(originNode, destinationNode, true);
-		RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
-		setRoute(planner.definePath());
+		setRoute(new RoadDistancePathFinder().roadDistanceNight(originNode, destinationNode, this));
 	}
 
 	/**
@@ -133,22 +126,25 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 		if (isGoingHome()) {
 			destinationNode = homeNode;
 		} else {
-			// If it's day (not dark) and they haven't worked today, go to work!
 			if (workNode != null && !hasWorkedToday && !state.isDark) {
 				destinationNode = workNode;
 			} else {
 				defineRandomDestination();
 			}
 		}
-		// safety check
-		if (destinationNode.getID().equals(originNode.getID())) {
-			reachedDestination.set(true);
-			return;
-		}
+		if (sameOriginDestination()) return;
 		planRoute();
 		tripStartStep = state.schedule.getSteps();
-		agentMovement = new AgentMovement(this);
+		agentMovement = new NightAgentMovement(this);
 		agentMovement.initialisePath(getRoute());
+	}
+
+	private boolean sameOriginDestination() {
+		if (destinationNode.getID() == originNode.getID()) {
+			reachedDestination.set(true);
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -158,8 +154,7 @@ public class Agent extends pedsim.core.agents.Agent implements Steppable {
 	protected void planRoute() {
 		Heuristics heuristics = new Heuristics(this);
 		heuristics.defineHeuristic(originNode, destinationNode, true);
-		pedsim.night.routing.RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
-		setRoute(planner.definePath());
+		setRoute(new RoadDistancePathFinder().roadDistanceNight(originNode, destinationNode, this));
 	}
 
 	/**

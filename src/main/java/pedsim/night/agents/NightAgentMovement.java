@@ -50,7 +50,7 @@ import sim.routing.Route;
  * was forced onto one unsafe segment becomes "demanding" again immediately
  * afterwards.
  */
-public class AgentMovement extends pedsim.core.agents.AgentMovement {
+public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
 
 	private final NightBehaviour nightBehaviour;
 	private final PedSimCityNight state;
@@ -74,7 +74,7 @@ public class AgentMovement extends pedsim.core.agents.AgentMovement {
 	 */
 	private int originalRouteIndex = 0;
 
-	public AgentMovement(Agent agent) {
+	public NightAgentMovement(NightAgent agent) {
 		super(agent);
 		this.network = SharedCognitiveMap.getCommunityPrimalNetwork();
 		this.nightBehaviour = new NightBehaviour(agent, this);
@@ -136,9 +136,9 @@ public class AgentMovement extends pedsim.core.agents.AgentMovement {
 		}
 
 		if (currentEdge.attributes.get("mean_lux") != null) {
-			((pedsim.night.agents.Agent) agent).accumulatedLux += currentEdge.attributes.get("mean_lux").getDouble();
+			((pedsim.night.agents.NightAgent) agent).accumulatedLux += currentEdge.attributes.get("mean_lux").getDouble();
 		}
-		((pedsim.night.agents.Agent) agent).edgesWalked++;
+		((pedsim.night.agents.NightAgent) agent).edgesWalked++;
 
 		updateCounts();
 

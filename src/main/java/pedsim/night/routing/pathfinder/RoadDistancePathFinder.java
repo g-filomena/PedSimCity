@@ -1,6 +1,6 @@
 package pedsim.night.routing.pathfinder;
 
-import pedsim.night.agents.Agent;
+import pedsim.night.agents.NightAgent;
 import pedsim.night.routing.pathfinding.DijkstraRoadDistanceNight;
 import sim.graph.NodeGraph;
 import sim.routing.Route;
@@ -18,7 +18,7 @@ public class RoadDistancePathFinder extends pedsim.core.routing.pathfinder.RoadD
    * @param agent the agent for which the route is computed
    * @return a route representing the calculated night-time path
    */
-  public Route roadDistanceNight(NodeGraph originNode, NodeGraph destinationNode, Agent agent) {
+  public Route roadDistanceNight(NodeGraph originNode, NodeGraph destinationNode, NightAgent agent) {
     this.agent = agent;
     partialSequence =
         new DijkstraRoadDistanceNight().dijkstraAlgorithm(originNode, destinationNode, this.agent);

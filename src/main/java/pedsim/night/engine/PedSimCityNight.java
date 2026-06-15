@@ -67,7 +67,7 @@ public class PedSimCityNight extends PedSimCity {
    */
   @Override
   protected void populateEnvironment() {
-    Populate populate = new Populate();
+    NightPopulate populate = new NightPopulate();
     populate.populate(this);
   }
 

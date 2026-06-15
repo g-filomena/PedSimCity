@@ -9,15 +9,15 @@ import sim.graph.NodeGraph;
 
 public class NightBehaviour {
 
-  Agent agent;
-  AgentMovement nightMovement;
+  NightAgent agent;
+  NightAgentMovement nightMovement;
 
   protected boolean increaseSpeedAtNight = false;
   protected boolean avoidParksWater;
 
   protected Random random = new Random();
 
-  NightBehaviour(Agent agent, AgentMovement nightMovement) {
+  NightBehaviour(NightAgent agent, NightAgentMovement nightMovement) {
     this.agent = agent;
     this.nightMovement = nightMovement;
   }
