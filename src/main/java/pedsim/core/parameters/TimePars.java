@@ -13,7 +13,6 @@ public class TimePars {
 	// public static static double hoursInSteps = 60 * minuteInSteps;
 
 	// Calculate the total simulation time in seconds for a certain number of days
-	public static int numberOfDays = 7;
 	public static double simulationDurationInSteps;
 
 	// Gaussian Distribution parameters for pedestrian activity
@@ -45,7 +44,7 @@ public class TimePars {
 	public static void setTemporalPars() {
 		MINUTE_TO_STEPS = 60 / STEP_DURATION;
 		releaseAgentsEverySteps = releaseAgentsEveryMinutes * MINUTE_TO_STEPS;
-		simulationDurationInSteps = numberOfDays * 24 * 60 * MINUTE_TO_STEPS; // Days to steps
+		simulationDurationInSteps = Pars.durationDays * 24 * 60 * MINUTE_TO_STEPS; // Days to steps
 	}
 
 	private static double splitGaussian(double x, double mean, double leftStdDev, double rightStdDev) {

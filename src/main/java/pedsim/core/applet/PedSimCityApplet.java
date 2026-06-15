@@ -214,7 +214,7 @@ public class PedSimCityApplet extends Frame {
 
     if (headless) {
       LoggerUtil.getLogger().info("[SERVER] Running headless simulation...");
-      coreLauncher().headlessRun(args);
+      new PedSimCityApplet().coreLauncher().headlessRun(args);
       return;
     }
 
@@ -240,7 +240,7 @@ public class PedSimCityApplet extends Frame {
 
     if (choice == 2) {
       LoggerUtil.getLogger().info("[STARTUP] Starting REST API for External Dashboard...");
-      SimulationLauncher launcher = coreLauncher();
+      SimulationLauncher launcher = new PedSimCityApplet().coreLauncher();
       launcher.preloadForDashboard();
       launcher.wireAndStartRestServer(8081);
       

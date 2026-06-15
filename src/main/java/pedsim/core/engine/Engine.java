@@ -236,7 +236,7 @@ public void executeJob(int job, ScenarioConfig scenarioConfig) throws Exception 
 	}
 
 	protected boolean isNextDay(double steps, int currentDay) {
-		return getDays(steps) > currentDay && (currentDay + 1 < TimePars.numberOfDays);
+		return getDays(steps) > currentDay && (currentDay + 1 < Pars.durationDays);
 	}
 
 	public static long getDays(double totalSteps) {
