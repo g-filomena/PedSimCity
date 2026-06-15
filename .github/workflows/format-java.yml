@@ -1,41 +1,22 @@
-name: Format Java code
+name: Format Java
 
 on:
   push:
-    branches:
-      - "**"
-
-permissions:
-  contents: write
+    branches: [ main ]
+  pull_request:
 
 jobs:
   format:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
 
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
-      - name: Run Spotless formatter
-        run: mvn -q spotless:apply
-
-      - name: Commit formatted code if needed
-        run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add .
-            git commit -m "Apply Java formatting"
-            git push
-          else
-            echo "No formatting changes needed."
-          fi
+      - name: Check Java formatting
+        run: mvn -q spotless:check
