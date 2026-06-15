@@ -230,7 +230,7 @@ public class PedSimCityApplet extends Frame {
       System.out.println("   PedSimCity Core - Startup Options    ");
       System.out.println("========================================");
       System.out.println(" 1. Run Standard GUI (AWT)");
-      System.out.println(" 2. Start REST API for External Dashboard (Streamlit)");
+      System.out.println(" 2. Start REST API + Open Browser/HTML Dashboard");
       System.out.print("\nSelect an option [1-2]: ");
 
       java.util.Scanner scanner = new java.util.Scanner(System.in);

@@ -2,6 +2,7 @@ package pedsim.night.engine;
 
 import java.util.Map;
 import pedsim.core.engine.Engine;
+import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.engine.SimulationModule;
 import pedsim.core.parameters.Pars;
@@ -26,21 +27,22 @@ public final class NightSimulationModule implements SimulationModule {
   }
 
   /**
-   * Clears night-specific static data.
+   * Clears core and night-specific static data.
    *
    * <p>Cleanup coverage by path:
    *
    * <ul>
    *   <li><b>Dashboard preload</b>: {@link pedsim.core.engine.SimulationLauncher#clearAll()}
-   *       calls {@code PedSimCity.clearStaticData()} then this method, covering both core and night
-   *       caches.
+   *       delegates entirely to this method, which clears both core and night caches.
    *   <li><b>Actual run</b>: {@link NightEngine#clearStaticData()} (called inside
    *       {@code Engine.runJobs()}) calls {@code super.clearStaticData()} (= core) then
-   *       {@code PedSimCityNight.clearNightStaticData()} (= night). Both covered, no double-call.
+   *       {@code PedSimCityNight.clearNightStaticData()} (= night). These are separate invocation
+   *       paths; no double-clearing occurs.
    * </ul>
    */
   @Override
   public void clearStaticData() {
+    PedSimCity.clearStaticData();
     PedSimCityNight.clearNightStaticData();
   }
 

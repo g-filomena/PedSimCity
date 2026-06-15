@@ -29,9 +29,8 @@ public final class SimulationLauncher {
     return module;
   }
 
-  /** Clears core static data and then module-specific data. */
+  /** Clears all static data for this module (core + module-specific). Delegates to the module. */
   public void clearAll() {
-    PedSimCity.clearStaticData();
     module.clearStaticData();
   }
 
