@@ -8,6 +8,7 @@ import pedsim.core.engine.Import;
 import pedsim.core.parameters.Pars;
 import pedsim.empirical.agent.EmpiricalAgentsGroup;
 import pedsim.empirical.agent.EmpiricalGroup;
+import pedsim.empirical.parameters.EmpiricalPars;
 
 /**
  * Importer for the empirical ABM.
@@ -36,7 +37,7 @@ public class EmpiricalImport extends Import {
 			content = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
 		}
 
-		PedSimCityEmpirical.empiricalGroups.clear();
+		EmpiricalPars.empiricalGroups.clear();
 
 		for (String line : normaliseClusterCsv(content).split("\\R")) {
 			String trimmed = line.trim();
@@ -68,10 +69,10 @@ public class EmpiricalImport extends Import {
 			EmpiricalAgentsGroup group = new EmpiricalAgentsGroup();
 			group.setGroup(groupName, attributes);
 
-			PedSimCityEmpirical.empiricalGroups.add(group);
+			EmpiricalPars.empiricalGroups.add(group);
 		}
 
-		if (PedSimCityEmpirical.empiricalGroups.isEmpty()) {
+		if (EmpiricalPars.empiricalGroups.isEmpty()) {
 			throw new IllegalStateException("No empirical groups loaded from " + resourceName);
 		}
 	}

@@ -176,7 +176,7 @@ public class Populate extends pedsim.core.engine.Populate {
 
 		int agentID = 0;
 
-		for (EmpiricalAgentsGroup group : PedSimCityEmpirical.empiricalGroups) {
+		for (EmpiricalAgentsGroup group : EmpiricalPars.empiricalGroups) {
 			if (group.groupName == EmpiricalGroup.POPULATION && EmpiricalPars.includePopulationBenchmark) {
 				agentID = createAgentsForGroup(agentID, group, Pars.numAgents, odMatrix);
 			}
@@ -190,7 +190,7 @@ public class Populate extends pedsim.core.engine.Populate {
 		// empirical clusters.
 		List<EmpiricalAgentsGroup> empiricalClusters = new ArrayList<>();
 
-		for (EmpiricalAgentsGroup group : PedSimCityEmpirical.empiricalGroups) {
+		for (EmpiricalAgentsGroup group : EmpiricalPars.empiricalGroups) {
 			if (group.groupName != EmpiricalGroup.POPULATION && group.groupName != EmpiricalGroup.NULLGROUP) {
 				empiricalClusters.add(group);
 			}
@@ -226,13 +226,13 @@ public class Populate extends pedsim.core.engine.Populate {
 	}
 
 	private void ensureGroupsLoaded() {
-		if (!PedSimCityEmpirical.empiricalGroups.isEmpty()) {
+		if (!EmpiricalPars.empiricalGroups.isEmpty()) {
 			return;
 		}
 
 		EmpiricalAgentsGroup nullGroup = new EmpiricalAgentsGroup();
 		nullGroup.setGroup(EmpiricalGroup.NULLGROUP, new String[] { "NULLGROUP" });
-		PedSimCityEmpirical.empiricalGroups.add(nullGroup);
+		EmpiricalPars.empiricalGroups.add(nullGroup);
 	}
 
 	private int createAgentsForGroup(int firstAgentID, EmpiricalAgentsGroup group, int numberAgents,

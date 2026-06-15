@@ -1,13 +1,9 @@
 package pedsim.empirical.engine;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import pedsim.core.engine.Environment;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.parameters.Pars;
-import pedsim.empirical.agent.EmpiricalAgentsGroup;
 import pedsim.empirical.agent.EmpiricalGroup;
 import pedsim.empirical.parameters.EmpiricalPars;
 import sim.engine.SimState;
@@ -16,8 +12,6 @@ import sim.engine.SimState;
 public class PedSimCityEmpirical extends PedSimCity {
 
 	private static final long serialVersionUID = 1L;
-
-	public static final List<EmpiricalAgentsGroup> empiricalGroups = new ArrayList<>();
 
 	public PedSimCityEmpirical(long seed, int job, ScenarioConfig scenarioConfig) {
 		super(seed, job, defaultScenarioConfig(scenarioConfig));

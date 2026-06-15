@@ -1,6 +1,10 @@
 package pedsim.empirical.parameters;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import pedsim.core.parameters.Pars;
+import pedsim.empirical.agent.EmpiricalAgentsGroup;
 
 /**
  * Parameters specific to the empirical ABM mode.
@@ -12,6 +16,8 @@ public final class EmpiricalPars {
 
 	private EmpiricalPars() {
 	}
+
+	public static final List<EmpiricalAgentsGroup> empiricalGroups = new ArrayList<>();
 
 	public static int numberTripsPerAgent = 3;
 
