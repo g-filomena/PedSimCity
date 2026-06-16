@@ -37,8 +37,12 @@ import pedsim.core.utilities.LoggerUtil;
  *
  * <h2>Module registration</h2>
  *
+ * <p>Only concrete runnable modules (night, cityImage, empirical) should be registered. The {@code
+ * core} infrastructure module must not be registered here. {@link SimulationLauncher} handles this
+ * automatically via {@link SimulationModule#isConcreteRunnable()}.
+ *
  * <pre>{@code
- * SimulationRestApi.registerModule(CoreSimulationModule.INSTANCE);
+ * SimulationRestApi.registerModule(NightSimulationModule.INSTANCE);
  * SimulationRestApi.start(8081);
  * }</pre>
  *
@@ -55,7 +59,8 @@ import pedsim.core.utilities.LoggerUtil;
  * }
  * }</pre>
  *
- * If {@code "module"} is absent the first registered module is used as the default.
+ * If {@code "module"} is absent the first registered concrete module is used. If no concrete
+ * modules are registered, {@code POST /api/start} returns {@code 400}.
  */
 public final class SimulationRestApi {
 
@@ -293,7 +298,15 @@ public final class SimulationRestApi {
                   exchange.sendResponseHeaders(200, 0);
 
                 } else {
-                  exchange.sendResponseHeaders(503, 0);
+                  byte[] err =
+                      "No runnable simulation modules registered. Start a module-specific server (e.g. exec:java@night-website)."
+                          .getBytes(StandardCharsets.UTF_8);
+                  exchange.getResponseHeaders().add("Content-Type", "text/plain");
+                  exchange.sendResponseHeaders(400, err.length);
+                  try (var out = exchange.getResponseBody()) {
+                    out.write(err);
+                  }
+                  return;
                 }
 
                 exchange.getResponseBody().close();

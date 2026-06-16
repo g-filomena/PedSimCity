@@ -4,11 +4,12 @@ import java.util.Map;
 
 /**
  * Encapsulates everything module-specific needed to launch, configure, and describe one simulation
- * mode (core, night, cityImage, empirical).
+ * mode (night, cityImage, empirical, …).
  *
- * <p>Implement this interface to add a new module. Register instances with {@link
- * pedsim.core.website.SimulationRestApi#registerModule(SimulationModule)} so the REST layer can
- * route {@code POST /api/start { "module": "…" }} requests to the right engine.
+ * <p>{@code core} is shared infrastructure; it does <em>not</em> implement this interface as a
+ * runnable module. Concrete domain modules (night, cityImage, empirical) implement this interface
+ * and are registered with {@link pedsim.core.website.SimulationRestApi#registerModule} so the REST
+ * layer can route {@code POST /api/start { "module": "night" }} requests to the right engine.
  *
  * <p>Extension points for future modules:
  *
@@ -19,8 +20,20 @@ import java.util.Map;
  */
 public interface SimulationModule {
 
-  /** Unique string key used in the REST API {@code "module"} field (e.g. {@code "core"}). */
+  /** Unique string key used in the REST API {@code "module"} field (e.g. {@code "night"}). */
   String moduleId();
+
+  /**
+   * Returns {@code true} if this module is a concrete runnable simulation that should be exposed
+   * via {@code GET /api/modules} and selectable via {@code POST /api/start}. Returns {@code false}
+   * for infrastructure-only or base modules that must not appear as selectable simulations.
+   *
+   * <p>The default is {@code true}; override to {@code false} only in non-runnable base
+   * implementations (e.g. {@code CoreSimulationModule}).
+   */
+  default boolean isConcreteRunnable() {
+    return true;
+  }
 
   /**
    * Sets all module-specific mode flags on shared parameter classes (e.g. {@code Pars.isNight}).

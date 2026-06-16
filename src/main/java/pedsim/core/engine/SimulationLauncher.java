@@ -89,12 +89,15 @@ public final class SimulationLauncher {
   }
 
   /**
-   * Registers this launcher's module with {@link SimulationRestApi} and starts the HTTP server on
-   * {@code port}. Use in website mode only; in GUI mode the server is started without a module
-   * registration so {@code /api/start} returns 503.
+   * Starts the REST API server on {@code port}. If the module is a concrete runnable simulation
+   * (i.e. {@link SimulationModule#isConcreteRunnable()} is {@code true}), it is also registered so
+   * that {@code POST /api/start} can select it. Infrastructure-only modules (e.g. {@link
+   * CoreSimulationModule}) are never registered and will not appear in {@code GET /api/modules}.
    */
   public void wireAndStartRestServer(int port) {
-    SimulationRestApi.registerModule(module);
+    if (module.isConcreteRunnable()) {
+      SimulationRestApi.registerModule(module);
+    }
     SimulationRestApi.start(port);
   }
 

@@ -4,7 +4,12 @@ import java.util.Map;
 import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.StringEnum;
 
-/** {@link SimulationModule} for the standard (non-night) core pedestrian simulation. */
+/**
+ * Infrastructure-only {@link SimulationModule} used by {@link SimulationLauncher} for pre-loading
+ * GIS data and setting mode flags in core (non-night) context. This is <em>not</em> a runnable
+ * simulation module and must not appear in {@code GET /api/modules} or be selectable via
+ * {@code POST /api/start}. See {@link #isConcreteRunnable()}.
+ */
 public final class CoreSimulationModule implements SimulationModule {
 
   public static final CoreSimulationModule INSTANCE = new CoreSimulationModule();
@@ -14,6 +19,12 @@ public final class CoreSimulationModule implements SimulationModule {
   @Override
   public String moduleId() {
     return "core";
+  }
+
+  /** Returns {@code false}: core is infrastructure, not a selectable runnable simulation. */
+  @Override
+  public boolean isConcreteRunnable() {
+    return false;
   }
 
   @Override

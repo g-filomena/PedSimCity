@@ -135,10 +135,11 @@ public class Populate {
     if (useCensusZones) {
       MasonGeometry selectedZone = selectHomeZoneByResidenceWeight();
       homeNode = selectRandomNodeFromCensusZone(selectedZone);
+      // DMA fallback only when census data was attempted but zone lookup returned no node.
+      if (homeNode == null) homeNode = selectHomeNodeWithDMA();
     }
 
-    if (homeNode == null) homeNode = selectHomeNodeWithDMA();
-
+    // When no census data is available, distribute uniformly across all network nodes.
     if (homeNode == null) homeNode = selectRandomNode();
   }
 

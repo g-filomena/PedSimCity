@@ -58,11 +58,11 @@ If the user desires to use the applet within Eclipse, for example, to explore th
 
 **How to run in an editor such as Cursor or VS Code:**
 
-1. Ensure **Maven** and **Java** (JDK 17) are installed on your computer.
+1. Ensure **Maven** and **Java** (JDK 21) are installed on your computer.
 2. Open the project folder in your editor (e.g. VS Code or Cursor).
 3. Open the terminal and ensure you are in the project folder with the `pom.xml` file.
 4. The fastest way to run the simulation after making changes is:
-   `mvn compile exec:java` (or `mvn compile exec:java@night` for the Night Applet).
+   `mvn compile exec:java` (core applet) or `mvn compile exec:java@night` (Night Applet).
    *Note: Only use `mvn clean compile exec:java` if you are experiencing caching issues or have changed your dependencies in `pom.xml`. Skipping `clean` makes incremental builds much faster.*
 5. Alternatively, you can use your IDE's built-in run button to launch `PedSimCityNightApplet.java` directly without using the terminal.
 
@@ -79,14 +79,46 @@ The user can also change other simulation-related parameters by clicking on the 
 When choosing option 3, the route choice models of interest need to be chosen by clicking the ```Choose Route Choices``` button. 
 The user can also define the number of ```jobs```, and ```numberTripsPerAgent``` (one route choice model = one agent).
 
+**Architecture note — core vs. runnable modules:**
+
+`core` is shared infrastructure (engine base, routing, REST server, dashboard state store). It does
+not itself run a simulation. Runnable simulations are concrete domain modules:
+
+- `night` — illumination-aware night-time pedestrian model (`PedSimCityNightApplet`)
+- `cityImage` — cognitive-map city-image model (future)
+- `empirical` — GPS-calibrated empirical model (future)
+
+The REST API and dashboard infrastructure live in `core`, but `/api/modules` lists only registered
+runnable modules, and `/api/start` routes to them.
+
 **How to use the Web Dashboard:**
 
-PedSimCity now features a high-performance web-based dashboard for real-time simulation monitoring.
+PedSimCity features a browser-based dashboard for real-time simulation monitoring via a REST API.
+The REST server runs on `http://localhost:8081`; the dashboard is opened automatically as a local
+HTML file (`dashboard.html`).
 
-1. Start the simulation via terminal (as described above).
-2. When the startup menu appears, select **Option 2 (Dashboard)**.
-3. Once the server starts, the dashboard will be available at `http://localhost:8080`.
-4. The dashboard features:
-   - **Real-time Map**: A Canvas-based renderer for city networks and agent movement.
-   - **Live Stats**: Monitoring of simulation time, steps, and agent states (Walking, Home, etc.).
-   - **Control Panel**: Configure city, population, and simulation duration directly from the browser.
+To start the night-module REST server and dashboard:
+
+```bash
+mvn compile exec:java@night-website
+```
+
+When the startup menu appears, select **Option 2 (Browser/HTML Dashboard)**. The REST API starts
+on port 8081 and `dashboard.html` opens in your browser automatically.
+
+Endpoints available once the server is running:
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/state` | Live simulation state (agents, stats, module info) |
+| `GET /api/roads` | GeoJSON road network |
+| `GET /api/modules` | Registered runnable modules with parameter schemas |
+| `POST /api/start` | Start a simulation run (body: `{"module":"night","cityName":"Torino",…}`) |
+
+To start a simulation from the command line once the server is running:
+
+```bash
+curl -X POST http://localhost:8081/api/start \
+  -H "Content-Type: application/json" \
+  -d '{"module":"night","cityName":"Torino","days":1}'
+```
