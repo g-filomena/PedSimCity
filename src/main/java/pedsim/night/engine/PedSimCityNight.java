@@ -35,19 +35,25 @@ public class PedSimCityNight extends PedSimCity {
 
   public static final Set<EdgeGraph> edges = ConcurrentHashMap.newKeySet();
 
+  private static final int MAX_ROUTE_CACHE_SIZE = 5000;
+
+  private static <K, V> Map<K, V> createBoundedCache() {
+      return java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<K, V>(MAX_ROUTE_CACHE_SIZE + 1, .75F, true) {
+          @Override
+          protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
+              return size() > MAX_ROUTE_CACHE_SIZE;
+          }
+      });
+  }
+
   // cached route
-  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> routesDay =
-      new ConcurrentHashMap<>();
-  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> routesNonVulnerableNight =
-      new ConcurrentHashMap<>();
-  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> routesVulnerableNight =
-      new ConcurrentHashMap<>();
+  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> routesDay = createBoundedCache();
+  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> routesNonVulnerableNight = createBoundedCache();
+  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> routesVulnerableNight = createBoundedCache();
 
   // cached alternative routes for night movement
-  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> altRoutesVulnerable =
-      new ConcurrentHashMap<>();
-  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> altRoutesNonVulnerable =
-      new ConcurrentHashMap<>();
+  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> altRoutesVulnerable = createBoundedCache();
+  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> altRoutesNonVulnerable = createBoundedCache();
 
   /**
    * Constructs a new instance of the PedSimCity simulation environment.
