@@ -35,7 +35,7 @@ import pedsim.core.utilities.LoggerUtil;
  * <p>The server is idempotent: calling {@link #start} when a server is already running stops the
  * old one first. Call {@link #stop} to tear down the server and clear all registrations.
  *
- * <h3>Module registration</h3>
+ * <h2>Module registration</h2>
  *
  * <pre>{@code
  * SimulationRestApi.registerModule(CoreSimulationModule.INSTANCE);

@@ -147,8 +147,6 @@
             <groupId>edu.gmu.eclab</groupId>
             <artifactId>mason</artifactId>
             <version>21</version>
-            <scope>system</scope>
-			<systemPath>${project.basedir}/lib/mason-21.jar</systemPath>
         </dependency>
 
         <!-- Javelit – browser dashboard framework -->
@@ -271,6 +269,10 @@
                         </goals>
                         <configuration>
                             <mainClass>pedsim.core.applet.PedSimCityApplet</mainClass>
+                            <additionalClasspathElements>
+                                <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
+                                <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
+                            </additionalClasspathElements>
                         </configuration>
                     </execution>
                     <execution>
@@ -280,6 +282,10 @@
                         </goals>
                         <configuration>
                             <mainClass>pedsim.night.applet.PedSimCityNightApplet</mainClass>
+                            <additionalClasspathElements>
+                                <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
+                                <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
+                            </additionalClasspathElements>
                         </configuration>
                     </execution>
                     <execution>
@@ -294,6 +300,7 @@
 							<includeProjectDependencies>true</includeProjectDependencies>
 							<includePluginDependencies>false</includePluginDependencies>
 							<additionalClasspathElements>
+								<additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
 								<additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
 							</additionalClasspathElements>
                             <arguments>
@@ -314,12 +321,9 @@
 							<includeProjectDependencies>true</includeProjectDependencies>
 							<includePluginDependencies>false</includePluginDependencies>
 							<additionalClasspathElements>
+								<additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
 								<additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
 							</additionalClasspathElements>
-                            <arguments>
-                                <argument>--website</argument>
-                            </arguments>
-							
                             <arguments>
                                 <argument>--website</argument>
                             </arguments>
