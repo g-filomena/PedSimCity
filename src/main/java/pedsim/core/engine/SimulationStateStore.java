@@ -1,16 +1,18 @@
 package pedsim.core.engine;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import pedsim.core.agents.Agent;
 import pedsim.core.utilities.LoggerUtil;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.exc.JsonNodeException;
 
 /**
  * Thread-safe singleton that holds the live simulation state for the browser dashboard. The
@@ -157,7 +159,7 @@ public final class SimulationStateStore {
     return new ArrayList<>(agents.values());
   }
 
-  public String toJson() throws JsonProcessingException {
+  public String toJson() throws JsonNodeException {
     return MAPPER.writeValueAsString(new StateSnapshot(this));
   }
 

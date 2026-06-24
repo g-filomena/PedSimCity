@@ -1,8 +1,5 @@
 package pedsim.core.website;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.InetSocketAddress;
@@ -14,10 +11,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
+
+import com.sun.net.httpserver.HttpServer;
+
 import pedsim.core.engine.SimulationModule;
 import pedsim.core.engine.SimulationStateStore;
 import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Lightweight HTTP server exposing simulation state and control to a browser dashboard.

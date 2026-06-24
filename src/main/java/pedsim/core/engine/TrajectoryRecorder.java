@@ -7,6 +7,7 @@ import org.locationtech.jts.geom.Coordinate;
 import pedsim.core.agents.Agent;
 import pedsim.core.parameters.TimePars;
 import pedsim.core.utilities.LoggerUtil;
+import pedsim.core.website.HtmlExporter;
 
 /**
  * Records a compact snapshot of all walking agents at configurable step intervals.

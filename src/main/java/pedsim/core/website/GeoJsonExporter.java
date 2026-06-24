@@ -46,7 +46,7 @@ public final class GeoJsonExporter {
 
   /**
    * Exports roads with their cumulative pedestrian {@code volume} and {@code edgeID} embedded
-   * in each feature's {@code properties} object. Used by {@link pedsim.core.engine.HtmlExporter}
+   * in each feature's {@code properties} object. Used by {@link pedsim.core.website.HtmlExporter}
    * to colour streets by traffic intensity in the self-contained HTML dashboard.
    *
    * @param roads      The road VectorLayer from {@code PedSimCity.roads}.

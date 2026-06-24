@@ -8,6 +8,7 @@ import pedsim.core.parameters.Pars;
 import pedsim.core.parameters.TimePars;
 import pedsim.core.utilities.LoggerUtil;
 import pedsim.core.website.GeoJsonExporter;
+import pedsim.core.website.HtmlExporter;
 import sim.util.geo.Utilities;
 
 public class Engine {
