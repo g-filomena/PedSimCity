@@ -259,13 +259,13 @@ public class AgentReleaseManager implements AutoCloseable {
 
   private void initLogFile() {
     try {
-      File dir = new File("output");
+      File dir = new File("outputs");
       if (!dir.exists() && !dir.mkdirs()) {
-        logger.warning("Could not create output directory for agent release log.");
+        logger.warning("Could not create outputs directory for agent release log.");
         return;
       }
 
-      logFilePath = "output/agent_release_day_" + dayNumber + ".csv";
+      logFilePath = "outputs/agent_release_day_" + dayNumber + ".csv";
 
       logWriter = new PrintWriter(new BufferedWriter(new FileWriter(logFilePath, false)));
       logWriter.println("step,datetime,meters_to_allocate,meters_adjusted,agents_released");
