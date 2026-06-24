@@ -1,14 +1,18 @@
 package pedsim.night.engine;
 
+import pedsim.activity.engine.ActivityEngine;
 import pedsim.core.engine.Engine;
+import pedsim.core.engine.Import;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.engine.TripDiagnostic;
-import pedsim.core.parameters.TimePars;
 import pedsim.night.parameters.NightPars;
 
-/** Night-simulation engine: extends core Engine with night-specific data clearing. */
-public class NightEngine extends Engine {
+/**
+ * Night-simulation engine: extends {@link ActivityEngine} with the night importer, night
+ * environment preparation, night-specific data clearing and the day/night step update.
+ */
+public class NightEngine extends ActivityEngine {
 
   public NightEngine(StateFactory stateFactory) {
     super(stateFactory);
@@ -19,19 +23,19 @@ public class NightEngine extends Engine {
   }
 
   @Override
-  protected void clearStaticData() {
-    super.clearStaticData();
-    PedSimCityNight.clearNightStaticData();
+  protected Import createImporter() {
+    return new NightImport();
   }
 
   @Override
-  protected void onStepUpdate(PedSimCity state, double steps) {
-    if (state instanceof PedSimCityNight nightState) {
-      java.time.LocalTime time = TimePars.getTime(steps).toLocalTime();
-      nightState.isDark =
-          time.isAfter(java.time.LocalTime.of(19, 59))
-              || time.isBefore(java.time.LocalTime.of(6, 0));
-    }
+  protected void prepareEnvironment() {
+    NightEnvironment.prepare();
+  }
+
+  @Override
+  protected void clearStaticData() {
+    super.clearStaticData();
+    PedSimCityNight.clearNightStaticData();
   }
 
   @Override

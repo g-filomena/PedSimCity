@@ -169,10 +169,12 @@ public class NightBehaviour {
   protected void checkLightLevel() {
     double meanLux = 0.0;
 
-    if (nightMovement.currentEdge.attributes.get("mean_lux") != null) {
-      meanLux = nightMovement.currentEdge.attributes.get("mean_lux").getDouble();
+    var meanLuxAttr = nightMovement.currentEdge.attributes.get("mean_lux");
+    if (meanLuxAttr != null) {
+      meanLux = meanLuxAttr.getDouble();
     } else if (SharedCognitiveMap.getLitEdges().contains(nightMovement.currentEdge)) {
-      meanLux = Double.MAX_VALUE; // Fallback to fully lit if old binary data is used
+      // No continuous lux for this city/edge: fall back to the binary lit-edge set.
+      meanLux = Double.MAX_VALUE;
     }
 
     double entranceLux = Double.MAX_VALUE;

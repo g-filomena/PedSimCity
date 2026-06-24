@@ -1,6 +1,7 @@
 package pedsim.night.engine;
 
 import java.util.Map;
+import pedsim.activity.engine.PedSimCityActivity;
 import pedsim.core.engine.Engine;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
@@ -43,6 +44,7 @@ public final class NightSimulationModule implements SimulationModule {
   @Override
   public void clearStaticData() {
     PedSimCity.clearStaticData();
+    PedSimCityActivity.clearStaticData();
     PedSimCityNight.clearNightStaticData();
   }
 

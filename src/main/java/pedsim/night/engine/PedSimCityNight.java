@@ -1,27 +1,44 @@
 package pedsim.night.engine;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
 import org.javatuples.Pair;
 import org.locationtech.jts.linearref.LengthIndexedLine;
 import org.locationtech.jts.planargraph.DirectedEdge;
-import pedsim.core.engine.PedSimCity;
+
+import pedsim.activity.engine.PedSimCityActivity;
 import pedsim.core.engine.ScenarioConfig;
+import sim.field.geo.VectorLayer;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
 
 /**
- * The PedSimCity class represents the main simulation environment.
+ * Simulation state for the night module. Extends the activity-based
+ * {@link PedSimCityActivity} (census + workplace + night POI) with the night perception/safety
+ * layer: vulnerability, illuminated edges and directional lighting.
+ *
+ * <p>The 24h clock ({@code isDark}) and the activity data (census, workplace, night POI) live in
+ * {@link PedSimCityActivity}. Vulnerability is carried as the {@code vulnerability_pct} column on the
+ * unified census layer and resolved per node by {@code NightEnvironment}.
  */
-public class PedSimCityNight extends PedSimCity {
+public class PedSimCityNight extends PedSimCityActivity {
 
   private static final long serialVersionUID = 1L;
-  public boolean isDark = false;
 
-  // Parameters are now stored statically in NightPars
+  // Illuminated edges dataset (contains mean_lux per edge for night simulation)
+  public static VectorLayer illuminatedEdges = new VectorLayer();
 
+  // cached alternative routes for night movement
+  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> alternativeRoutes =
+      new ConcurrentHashMap<>();
+  
+  // --- Vulnerability dataset (node -> vulnerability %) ---
+  public static Map<NodeGraph, Double> nodesVulnerabilityWeight = new HashMap<>();
+  
   // Directional entrance light mapping (Node_A -> Node_B : min_lux), keyed by packed long.
   public static final Map<Long, Double> directionalLuxMap = new ConcurrentHashMap<>();
 
@@ -166,5 +183,11 @@ public class PedSimCityNight extends PedSimCity {
     altRoutesVulnerable.clear();
     altRoutesNonVulnerable.clear();
     directionalLuxMap.clear();
+    illuminatedEdges.getGeometries().clear();
+    nodesVulnerabilityWeight.clear();
+
+    //TODO CHECK
+    alternativeRoutes.clear();
   }
+ 
 }

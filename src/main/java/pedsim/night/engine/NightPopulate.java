@@ -1,15 +1,17 @@
 package pedsim.night.engine;
 
 import java.util.Map;
+import pedsim.activity.engine.ActivityPopulate;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.utilities.StringEnum.Vulnerable;
 import sim.graph.NodeGraph;
 
 /**
- * The Populate class is responsible for generating agents, building the OD matrix, and populating
- * empirical groups for pedestrian the simulation.
+ * Populate strategy for the night module. Extends the activity-based {@link ActivityPopulate}
+ * (census residence + workplace home/work selection) and adds per-agent vulnerability assignment
+ * and A/B-test twin generation.
  */
-public class NightPopulate extends pedsim.core.engine.Populate {
+public class NightPopulate extends ActivityPopulate {
 
   private PedSimCityNight state;
 
@@ -100,7 +102,7 @@ public class NightPopulate extends pedsim.core.engine.Populate {
    */
   private void assignVulnerabilityStatus(pedsim.night.agents.NightAgent agent) {
 
-    Map<NodeGraph, Double> vulnMap = PedSimCity.nodesVulnerabilityWeight;
+    Map<NodeGraph, Double> vulnMap = PedSimCityNight.nodesVulnerabilityWeight;
 
     if (vulnMap.isEmpty() || agent.homeNode == null) {
       agent.setVulnerable(false);

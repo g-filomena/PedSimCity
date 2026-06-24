@@ -1,6 +1,7 @@
 package pedsim.night.agents;
 
 import java.util.List;
+import pedsim.activity.agents.ActivityAgent;
 import pedsim.core.agents.Heuristics;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.utilities.StringEnum;
@@ -8,15 +9,15 @@ import pedsim.core.utilities.StringEnum.Vulnerable;
 import pedsim.night.engine.PedSimCityNight;
 import pedsim.night.routing.pathfinder.RoadDistancePathFinder;
 import sim.engine.SimState;
-import sim.engine.Steppable;
 import sim.graph.Graph;
 import sim.graph.NodeGraph;
 
 /**
- * This class represents an agent in the pedestrian simulation. Agents move
- * along paths between origin and destination nodes.
+ * Pedestrian agent for the night module. Inherits the 24h activity pattern (time-of-day
+ * destination selection) from {@link ActivityAgent} and adds the night perception/safety layer:
+ * vulnerability-aware, lighting-aware routing and avoidance of parks/water after dark.
  */
-public class NightAgent extends pedsim.core.agents.Agent implements Steppable {
+public class NightAgent extends ActivityAgent {
 
   private static final long serialVersionUID = 1L;
   public NightAgent abTestTwin = null;

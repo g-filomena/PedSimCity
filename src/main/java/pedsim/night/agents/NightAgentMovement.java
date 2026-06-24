@@ -135,9 +135,9 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
       nightBehaviour.checkLightLevel();
     }
 
-    if (currentEdge.attributes.get("mean_lux") != null) {
-      ((pedsim.night.agents.NightAgent) agent).accumulatedLux +=
-          currentEdge.attributes.get("mean_lux").getDouble();
+    var meanLuxAttr = currentEdge.attributes.get("mean_lux");
+    if (meanLuxAttr != null) {
+      ((pedsim.night.agents.NightAgent) agent).accumulatedLux += meanLuxAttr.getDouble();
     }
     ((pedsim.night.agents.NightAgent) agent).edgesWalked++;
 
