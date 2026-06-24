@@ -46,16 +46,9 @@ public class Exporter {
   public Exporter(FlowHandler flowHandler, String appName) {
     this.flowHandler = flowHandler;
     this.job = flowHandler.job;
-    outputDirectory =
-        "C:"
-            + File.separator
-            + "Users"
-            + File.separator
-            + userName
-            + File.separator
-            + appName
-            + File.separator
-            + "Output";
+    // Results live with the project, under outputs/<appName>/ — portable (works on the Linux
+    // server too), co-located with the run, and gitignored. (Was a hardcoded C:\Users\... path.)
+    outputDirectory = "outputs" + File.separator + appName;
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
     currentDate = LocalDate.now().format(formatter);
   }
