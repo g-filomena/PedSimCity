@@ -157,11 +157,23 @@
         </dependency>
 
         <!-- Jackson – JSON serialisation for /api/state REST endpoint -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.17.1</version>
-        </dependency>
+		<dependency>
+			<groupId>tools.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>3.2.0</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>tools.jackson.core</groupId>
+			<artifactId>jackson-core</artifactId>
+			<version>3.2.0</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-annotations</artifactId>
+			<version>2.22</version>
+		</dependency>
     </dependencies>
 
     <build>
@@ -329,6 +341,41 @@
                             </arguments>
                         </configuration>
                     </execution>
+
+                    <execution>
+                        <id>learning</id>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>pedsim.learning.applet.PedSimCityLearningApplet</mainClass>
+                            <additionalClasspathElements>
+                                <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
+                                <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
+                            </additionalClasspathElements>
+                        </configuration>
+                    </execution>
+
+                    <execution>
+                        <id>learning-website</id>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>pedsim.learning.applet.PedSimCityLearningApplet</mainClass>
+
+                            <classpathScope>compile</classpathScope>
+                            <includeProjectDependencies>true</includeProjectDependencies>
+                            <includePluginDependencies>false</includePluginDependencies>
+                            <additionalClasspathElements>
+                                <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
+                                <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
+                            </additionalClasspathElements>
+                            <arguments>
+                                <argument>--website</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
 		
@@ -365,23 +412,23 @@
 	<!--
       Build profiles
       =============
-      core-night  (default)  mvn compile
-          Compiles core, night, and their REST/website layer only.
-          cityImage, empirical, social, and learning are excluded so that
-          ongoing restructuring can be verified without legacy noise.
+      Each profile compiles core (always) plus one module. Selecting any
+      explicit -P flag automatically deactivates the default 'night' profile.
 
-      all-modules             mvn -Pall-modules compile
-          Compiles everything. Use for full-codebase diagnostics and
-          module reintegration checks.
+      night  (default)      mvn compile                       | core + night
+      learning              mvn -Plearning compile            | core + learning
+      cityimage-empirical   mvn -Pcityimage-empirical compile | core + cityImage + empirical (legacy)
+      all-modules           mvn -Pall-modules compile         | everything (incl. social)
 
-      Activating any explicit -P flag automatically deactivates core-night
-      because activeByDefault is suppressed by Maven when any profile is
-      explicitly selected.
+      Run a module's website/server, e.g.:
+          mvn compile exec:java@night-website               (night = default profile)
+          mvn -Plearning compile exec:java@learning-website
     -->
     <profiles>
 
+        <!-- Default: core + night. -->
         <profile>
-            <id>core-night</id>
+            <id>night</id>
             <activation>
                 <activeByDefault>true</activeByDefault>
             </activation>
@@ -392,10 +439,51 @@
                         <artifactId>maven-compiler-plugin</artifactId>
                         <configuration>
                             <excludes>
+                                <exclude>pedsim/learning/**</exclude>
                                 <exclude>pedsim/cityimage/**</exclude>
                                 <exclude>pedsim/empirical/**</exclude>
                                 <exclude>pedsim/social/**</exclude>
+                            </excludes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- core + learning (incremental-learning module). -->
+        <profile>
+            <id>learning</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <excludes>
+                                <exclude>pedsim/night/**</exclude>
+                                <exclude>pedsim/cityimage/**</exclude>
+                                <exclude>pedsim/empirical/**</exclude>
+                                <exclude>pedsim/social/**</exclude>
+                            </excludes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- core + the legacy cityImage and empirical modules (kept together; empirical builds on cityImage). -->
+        <profile>
+            <id>cityimage-empirical</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <excludes>
+                                <exclude>pedsim/night/**</exclude>
                                 <exclude>pedsim/learning/**</exclude>
+                                <exclude>pedsim/social/**</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
@@ -406,9 +494,9 @@
         <profile>
             <id>all-modules</id>
             <!--
-              No compiler configuration override needed: deactivating core-night
-              leaves the base compiler config (no excludes), so all source files
-              under src/main/java are compiled.
+              No compiler configuration override: deactivating the default
+              'night' profile leaves the base compiler config (no excludes),
+              so every source file under src/main/java is compiled.
             -->
         </profile>
 
