@@ -7,13 +7,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import org.javatuples.Pair;
-import org.locationtech.jts.geom.Coordinate;
+
 import org.locationtech.jts.geom.Envelope;
-import org.locationtech.jts.geom.Polygon;
-import org.locationtech.jts.index.strtree.STRtree;
 import org.locationtech.jts.linearref.LengthIndexedLine;
 import org.locationtech.jts.planargraph.DirectedEdge;
+
 import pedsim.core.agents.Agent;
 import pedsim.core.cognition.cityimage.Barrier;
 import pedsim.core.cognition.cityimage.Gateway;
@@ -41,31 +39,7 @@ public class PedSimCity extends SimState {
   public static VectorLayer barriers = new VectorLayer();
   public static VectorLayer junctions = new VectorLayer();
   public static RobustVectorLayer sightLines = new RobustVectorLayer();
-  public static RobustVectorLayer censusZones = new RobustVectorLayer();
-
-  // Optional night/vulnerability data layers
-  public static RobustVectorLayer censusZonesVulnerability = new RobustVectorLayer();
-  public static RobustVectorLayer nightPoiDensities = new RobustVectorLayer();
-  public static RobustVectorLayer workplacePoiDensities = new RobustVectorLayer();
-
-  // Illuminated edges dataset (contains mean_lux per edge for night simulation)
-  public static VectorLayer illuminatedEdges = new VectorLayer();
-
-  // --- Census (residence) dataset ---
-  public static Map<NodeGraph, MasonGeometry> nodesCensusZonesMap = new HashMap<>();
-  public static STRtree censusZonesSpatialIndex = new STRtree();
-  public static List<MasonGeometry> censusZonesList = new ArrayList<>();
-  public static Map<MasonGeometry, List<NodeGraph>> censusZonesNodesMap = new HashMap<>();
-
-  // --- Vulnerability dataset (node -> vulnerability %) ---
-  public static Map<NodeGraph, Double> nodesVulnerabilityWeight = new HashMap<>();
-
-  // --- Night POI density dataset (node -> night POI count) ---
-  public static Map<NodeGraph, Double> nodesNightPoiWeight = new HashMap<>();
-
-  // --- Workplace POI density dataset (node -> workplace POI count) ---
-  public static Map<NodeGraph, Double> nodesWorkplacePoiWeight = new HashMap<>();
-
+ 
   public static Graph network = new Graph();
   public static Graph dualNetwork = new Graph();
   public static Envelope MBR = null;
@@ -88,11 +62,7 @@ public class PedSimCity extends SimState {
   public static List<MasonGeometry> startingNodes = new ArrayList<>();
 
   public static Map<DirectedEdge, LengthIndexedLine> indexedEdgeCache = new ConcurrentHashMap<>();
-  public static Map<Pair<Coordinate, Coordinate>, Polygon> censusZonesCache =
-      new ConcurrentHashMap<>();
-  // cached alternative routes for night movement
-  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> alternativeRoutes =
-      new ConcurrentHashMap<>();
+
 
   // used only when loading OD sets
   public int currentJob;
@@ -216,20 +186,8 @@ public class PedSimCity extends SimState {
     barriers.getGeometries().clear();
     junctions.getGeometries().clear();
     sightLines.getGeometries().clear();
-    censusZones.getGeometries().clear();
-    censusZonesVulnerability.getGeometries().clear();
-    nightPoiDensities.getGeometries().clear();
-    workplacePoiDensities.getGeometries().clear();
-    illuminatedEdges.getGeometries().clear();
     intersectionsDual.getGeometries().clear();
     centroids.getGeometries().clear();
-
-    nodesCensusZonesMap.clear();
-    censusZonesList.clear();
-    censusZonesNodesMap.clear();
-    nodesVulnerabilityWeight.clear();
-    nodesNightPoiWeight.clear();
-    nodesWorkplacePoiWeight.clear();
 
     network = new Graph();
     dualNetwork = new Graph();
@@ -245,10 +203,6 @@ public class PedSimCity extends SimState {
     startingNodes.clear();
 
     indexedEdgeCache.clear();
-    censusZonesCache.clear();
-    alternativeRoutes.clear();
-
-    censusZonesSpatialIndex = new STRtree();
     MBR = null;
   }
 }

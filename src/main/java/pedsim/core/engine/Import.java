@@ -2,6 +2,7 @@ package pedsim.core.engine;
 
 import java.net.URL;
 import java.util.logging.Logger;
+
 import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
 import sim.field.geo.VectorLayer;
@@ -16,7 +17,7 @@ import sim.field.geo.VectorLayer;
  */
 public class Import {
 
-  private static final Logger logger = LoggerUtil.getLogger();
+  protected static final Logger logger = LoggerUtil.getLogger();
   protected final ClassLoader CLASSLOADER = getClass().getClassLoader();
 
   /**
@@ -30,8 +31,6 @@ public class Import {
     readLandmarksAndSightLines();
     readBarriers();
     readGraphs();
-    readCensusZones();
-    readPoiWeights();
   }
 
   /**
@@ -114,47 +113,7 @@ public class Import {
     }
   }
 
-  protected void readCensusZones() throws Exception {
-    readOptionalLayer("censusData", PedSimCity.censusZones);
-    if (Pars.isNight) {
-      readOptionalLayer("censusData_vulnerability", PedSimCity.censusZonesVulnerability);
-    }
-  }
-
-  protected void readPoiWeights() throws Exception {
-    if (Pars.isNight) {
-      readOptionalLayer("Night_POI_densities", PedSimCity.nightPoiDensities);
-      readOptionalLayer("Workplace_POI_densities", PedSimCity.workplacePoiDensities);
-      readIlluminatedEdges();
-    }
-  }
-
-  /**
-   * Loads the illuminated edges dataset (edges_illuminated_continuous.gpkg) which provides
-   * mean_lux values per street edge for the night simulation.
-   */
-  protected void readIlluminatedEdges() {
-    try {
-      String resourceName =
-          Pars.cityName + "/" + Pars.cityName + "_edges_illuminated_continuous.gpkg";
-      URL fileUrl = CLASSLOADER.getResource(resourceName);
-      if (fileUrl == null) {
-        logger.warning(
-            "Illuminated edges dataset not found at: "
-                + resourceName
-                + " — mean_lux will default to 0.");
-        return;
-      }
-      PedSimCity.illuminatedEdges.getGeometries().clear();
-      VectorLayer.readGPKG(fileUrl, PedSimCity.illuminatedEdges);
-      logger.info(
-          "Illuminated edges loaded: "
-              + PedSimCity.illuminatedEdges.getGeometries().size()
-              + " features.");
-    } catch (Exception e) {
-      logger.warning("Failed to load illuminated edges: " + e.getMessage());
-    }
-  }
+  
 
   /**
    * Reads an optional GeoPackage layer into the given target layer using a robust manual reader.

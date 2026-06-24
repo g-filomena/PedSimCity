@@ -147,9 +147,7 @@ public class Agent implements Steppable {
       destinationNode = homeNode;
     } else {
       // If it's day (not dark) and they haven't worked today, go to work!
-      if (workNode != null
-          && !hasWorkedToday
-          && !state.getClass().getSimpleName().contains("Night")) {
+      if (workNode != null && !hasWorkedToday && !isDark()) {
         destinationNode = workNode;
       } else {
         defineRandomDestination();
@@ -243,7 +241,16 @@ public class Agent implements Steppable {
       candidates = new ArrayList<>(allNodes);
     }
 
-    destinationNode = selectWeightedDestination(candidates, false);
+    destinationNode = selectWeightedDestination(candidates, isDark());
+  }
+
+  /**
+   * Whether the simulation currently considers it "night" for this agent. Core agents have no
+   * day/night cycle and always return {@code false}; activity-based modules override this to read
+   * the activity 24h clock.
+   */
+  protected boolean isDark() {
+    return false;
   }
 
   /**
@@ -253,6 +260,21 @@ public class Agent implements Steppable {
    * @param isDark     Whether to use night weights (true) or day weights (false).
    * @return The selected destination NodeGraph.
    */
+  /**
+   * Returns the POI-based selection weight for a candidate destination node.
+   *
+   * <p>Core agents have no activity data, so every node weighs 0.0 (uniform selection).
+   * Activity-based modules override this: activity uses workplace POI density during the day,
+   * night additionally uses night-time POI density when dark.
+   *
+   * @param node   The candidate destination node.
+   * @param isDark Whether the simulation currently considers it "Night".
+   * @return The weight for that node's zone (0.0 when no activity data is loaded).
+   */
+  protected double getPOIWeight(NodeGraph node, boolean isDark) {
+    return 0.0;
+  }
+
   protected NodeGraph selectWeightedDestination(List<NodeGraph> candidates, boolean isDark) {
     if (candidates == null || candidates.isEmpty()) return null;
 
@@ -260,8 +282,14 @@ public class Agent implements Steppable {
     double[] weights = new double[candidates.size()];
 
     for (int i = 0; i < candidates.size(); i++) {
-      weights[i] = pedsim.core.engine.Populate.getPOIWeight(candidates.get(i), isDark);
+      weights[i] = getPOIWeight(candidates.get(i), isDark);
       totalWeight += weights[i];
+    }
+
+    // No activity/POI data (every weight 0) → pick uniformly at random instead of always
+    // returning the first candidate (r would be 0 and 0 <= currentSum hits index 0).
+    if (totalWeight <= 0.0) {
+      return candidates.get(random.nextInt(candidates.size()));
     }
 
     double r = random.nextDouble() * totalWeight;

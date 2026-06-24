@@ -56,7 +56,7 @@ public class Engine {
       SimulationStateStore.getInstance()
           .setRoadsGeoJson(GeoJsonExporter.exportRoads(PedSimCity.roads));
 
-      Environment.prepare();
+      prepareEnvironment();
       logger.info("Environment prepared. About to start simulation");
 
       if (parallel) {
@@ -91,6 +91,14 @@ public class Engine {
 
   protected Import createImporter() {
     return new Import();
+  }
+
+  /**
+   * Prepares the simulation environment. Subclasses override to run their module-specific
+   * preparation (e.g. census joins in activity, lighting joins in night).
+   */
+  protected void prepareEnvironment() {
+    Environment.prepare();
   }
 
   protected Engine createWorkerEngine() {
