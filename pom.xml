@@ -376,6 +376,41 @@
                             </arguments>
                         </configuration>
                     </execution>
+
+                    <execution>
+                        <id>activity</id>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>pedsim.activity.applet.PedSimCityActivityApplet</mainClass>
+                            <additionalClasspathElements>
+                                <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
+                                <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
+                            </additionalClasspathElements>
+                        </configuration>
+                    </execution>
+
+                    <execution>
+                        <id>activity-website</id>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>pedsim.activity.applet.PedSimCityActivityApplet</mainClass>
+
+                            <classpathScope>compile</classpathScope>
+                            <includeProjectDependencies>true</includeProjectDependencies>
+                            <includePluginDependencies>false</includePluginDependencies>
+                            <additionalClasspathElements>
+                                <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
+                                <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
+                            </additionalClasspathElements>
+                            <arguments>
+                                <argument>--website</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
 		
