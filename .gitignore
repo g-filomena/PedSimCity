@@ -95,7 +95,7 @@ desktop.ini
 /notebook/learning/
 /notebook/.ipynb_checkpoints/
 /notebook/__pycache__/
-
+/notebook/*/cache/
 
 *.ipynb_checkpoints/
 __pycache__/
