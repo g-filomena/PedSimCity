@@ -88,14 +88,19 @@ desktop.ini
 # Notebooks / analysis outputs
 # -------------------------------------------------------------------
 
-/analysis/inputData/Barcelona/
-/analysis/inputData/Melbourne/
-/analysis/figures/
-/analysis/outputs/
+/inputData/Barcelona/
+/inputData/Melbourne/
 /analysis/learning/
 /analysis/.ipynb_checkpoints/
 /analysis/__pycache__/
 /analysis/**/cache/
+
+# Runtime / analysis output dirs (generated in the working dir = repo root)
+/figures/
+/outputs/
+
+# Stray build artifact
+/META-INF/
 
 *.ipynb_checkpoints/
 __pycache__/
