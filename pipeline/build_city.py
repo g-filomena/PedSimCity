@@ -12,7 +12,7 @@ def main():
     input_dir = os.path.abspath(args.input_dir)
     prefix = args.prefix
 
-    pipeline_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src", "main", "python", "pipeline")
+    pipeline_dir = os.path.dirname(os.path.abspath(__file__))
 
     print(f"============================================================")
     print(f"PedSimCity Data Pipeline Orchestrator")
@@ -20,32 +20,42 @@ def main():
     print(f"File Prefix: {prefix}")
     print(f"============================================================\n")
 
-    # Step 4: Street Lights Simple Prep
+    # Step 1: Unified census + POI + vulnerability layer
+    city = os.path.basename(os.path.normpath(input_dir))
+    census_out = os.path.join(input_dir, f"{city}_censusData.gpkg")
+    if os.path.exists(census_out):
+        print("[SKIP] 01_census_and_poi.py - Output file already exists.")
+    else:
+        print("[RUN] 01_census_and_poi.py - Building unified census + POI + vulnerability layer...")
+        script_path = os.path.join(pipeline_dir, "01_census_and_poi.py")
+        subprocess.run([sys.executable, script_path, "--input_dir", input_dir, "--prefix", prefix], check=True)
+
+    # Step 2: Street Lights Simple Prep
     punti_physics = os.path.join(input_dir, f"{prefix}puntiLuce_with_radius.gpkg")
     if os.path.exists(punti_physics):
-        print("[SKIP] 04_street_lights_simple.py - Output file already exists.")
+        print("[SKIP] 02_street_lights_simple.py - Output file already exists.")
     else:
-        print("[RUN] 04_street_lights_simple.py - Calculating base light physics...")
-        script_path = os.path.join(pipeline_dir, "04_street_lights_simple.py")
+        print("[RUN] 02_street_lights_simple.py - Calculating base light physics...")
+        script_path = os.path.join(pipeline_dir, "02_street_lights_simple.py")
         subprocess.run([sys.executable, script_path, "--input_dir", input_dir, "--prefix", prefix], check=True)
 
-    # Step 5: Street Lights
-    edges_illuminated = os.path.join(input_dir, "edges_illuminated_continuous.gpkg")
+    # Step 3: Street Lights
+    edges_illuminated = os.path.join(input_dir, f"{city}_edges_illuminated_continuous.gpkg")
     nodes_2m = os.path.join(input_dir, "nodes_2m_densified_illuminated.gpkg")
     if os.path.exists(edges_illuminated) and os.path.exists(nodes_2m):
-        print("[SKIP] 05_street_lights.py - Output files already exist.")
+        print("[SKIP] 03_street_lights.py - Output files already exist.")
     else:
-        print("[RUN] 05_street_lights.py - Calculating street illumination...")
-        script_path = os.path.join(pipeline_dir, "05_street_lights.py")
+        print("[RUN] 03_street_lights.py - Calculating street illumination...")
+        script_path = os.path.join(pipeline_dir, "03_street_lights.py")
         subprocess.run([sys.executable, script_path, "--input_dir", input_dir, "--prefix", prefix], check=True)
 
-    # Step 6: Directional Lighting
-    directional_csv = os.path.join(input_dir, f"{prefix}directional_lighting_lookup.csv")
+    # Step 4: Directional Lighting
+    directional_csv = os.path.join(input_dir, f"{city}_directional_lighting_lookup.csv")
     if os.path.exists(directional_csv):
-        print("[SKIP] 06_directional_lighting.py - Output file already exists.")
+        print("[SKIP] 04_directional_lighting.py - Output file already exists.")
     else:
-        print("[RUN] 06_directional_lighting.py - Calculating directional lighting...")
-        script_path = os.path.join(pipeline_dir, "06_directional_lighting.py")
+        print("[RUN] 04_directional_lighting.py - Calculating directional lighting...")
+        script_path = os.path.join(pipeline_dir, "04_directional_lighting.py")
         subprocess.run([sys.executable, script_path, "--input_dir", input_dir, "--prefix", prefix], check=True)
 
     print("\n============================================================")
