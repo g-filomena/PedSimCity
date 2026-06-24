@@ -88,14 +88,14 @@ desktop.ini
 # Notebooks / analysis outputs
 # -------------------------------------------------------------------
 
-/notebook/inputData/Barcelona/
-/notebook/inputData/Melbourne/
-/notebook/figures/
-/notebook/outputs/
-/notebook/learning/
-/notebook/.ipynb_checkpoints/
-/notebook/__pycache__/
-/notebook/*/cache/
+/analysis/inputData/Barcelona/
+/analysis/inputData/Melbourne/
+/analysis/figures/
+/analysis/outputs/
+/analysis/learning/
+/analysis/.ipynb_checkpoints/
+/analysis/__pycache__/
+/analysis/**/cache/
 
 *.ipynb_checkpoints/
 __pycache__/
