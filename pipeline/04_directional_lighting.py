@@ -19,7 +19,10 @@ prefix = args.prefix
 edges_filename = f"{prefix}edges.gpkg"
 edges_path = os.path.join(base_dir, edges_filename)
 nodes_2m_path = os.path.join(base_dir, "nodes_2m_densified_illuminated.gpkg")
-output_path = os.path.join(base_dir, "directional_lighting_lookup.csv")
+# Output name must match the Java reader: <City>_directional_lighting_lookup.csv
+# (PedSimCityNight.loadDirectionalLighting reads Pars.cityName + "_directional_lighting_lookup.csv").
+city = os.path.basename(os.path.normpath(base_dir))
+output_path = os.path.join(base_dir, f"{city}_directional_lighting_lookup.csv")
 
 print("Loading datasets...")
 edges = gpd.read_file(edges_path)
