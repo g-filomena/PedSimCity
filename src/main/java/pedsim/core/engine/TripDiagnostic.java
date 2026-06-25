@@ -1,5 +1,6 @@
 package pedsim.core.engine;
 
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -43,11 +44,19 @@ public class TripDiagnostic {
    *
    * @param filename absolute or relative path for the output file
    */
+  /** Resolves a result filename into the project's outputs/ dir, creating it if missing. */
+  static String outputsPath(String filename) {
+    File dir = new File("outputs");
+    if (!dir.exists()) dir.mkdirs();
+    return "outputs" + File.separator + filename;
+  }
+
   public static void save(String filename) {
     List<TripRouteRecorder.TripRecord> trips = TripRouteRecorder.getRecords();
-    logger.info("[TripDiagnostic] Writing " + trips.size() + " trips to " + filename);
+    String path = outputsPath(filename);
+    logger.info("[TripDiagnostic] Writing " + trips.size() + " trips to " + path);
 
-    try (FileWriter fw = new FileWriter(filename)) {
+    try (FileWriter fw = new FileWriter(path)) {
 
       // Header
       fw.write(
@@ -135,9 +144,10 @@ public class TripDiagnostic {
    */
   public static void saveABTestComparison(String filename) {
     List<TripRouteRecorder.TripRecord> allTrips = TripRouteRecorder.getRecords();
-    logger.info("[TripDiagnostic] Writing A/B test comparison to " + filename);
+    String path = outputsPath(filename);
+    logger.info("[TripDiagnostic] Writing A/B test comparison to " + path);
 
-    try (FileWriter fw = new FileWriter(filename)) {
+    try (FileWriter fw = new FileWriter(path)) {
       // Header
       fw.write(
           "pair_id,trip_index,start_node,dest_node,vuln_start_time,vuln_end_time,vuln_duration_min,vuln_distance_m,vuln_route,normal_start_time,normal_end_time,normal_duration_min,normal_distance_m,normal_route,routes_differ\n");

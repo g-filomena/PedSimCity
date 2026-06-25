@@ -119,8 +119,9 @@ public class TripRouteRecorder {
   }
 
   public static void saveToFile(String filename) {
-    logger.info("[TripRouteRecorder] Saving " + records.size() + " trips to " + filename);
-    try (FileWriter writer = new FileWriter(filename)) {
+    String path = TripDiagnostic.outputsPath(filename);
+    logger.info("[TripRouteRecorder] Saving " + records.size() + " trips to " + path);
+    try (FileWriter writer = new FileWriter(path)) {
       writer.write(
           "agent_id,start_step,end_step,origin_node_id,destination_node_id,edge_ids,node_ids\n");
       for (TripRecord record : records) {

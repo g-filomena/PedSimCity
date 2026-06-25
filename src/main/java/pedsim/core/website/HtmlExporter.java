@@ -35,11 +35,9 @@ import pedsim.core.utilities.LoggerUtil;
 public class HtmlExporter {
 
     private static final Logger logger = LoggerUtil.getLogger();
-    private static final String USER = System.getProperty("user.name");
-    private static final String OUTPUT_ROOT =
-            "C:" + File.separator + "Users" + File.separator + USER
-                    + File.separator + "PedSimCity" + File.separator + "Output"
-                    + File.separator + "results";
+    // Results live with the project, under outputs/results/ — portable and gitignored
+    // (was a hardcoded C:\Users\<user>\PedSimCity\Output\results path).
+    private static final String OUTPUT_ROOT = "outputs" + File.separator + "results";
 
     /**
      * Exports a complete, self-contained HTML dashboard.
