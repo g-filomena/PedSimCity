@@ -128,7 +128,7 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
 
   @Override
   protected ScenarioConfig buildScenarioConfig() {
-    return new ScenarioConfig(StringEnum.Vulnerable.values(), StringEnum.TimeOfDay.values());
+    return new ScenarioConfig(StringEnum.Vulnerable.values(), StringEnum.Hour.values());
   }
 
   @Override

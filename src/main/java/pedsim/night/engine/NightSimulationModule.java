@@ -55,7 +55,7 @@ public final class NightSimulationModule implements SimulationModule {
 
   @Override
   public ScenarioConfig scenarioConfig() {
-    return new ScenarioConfig(StringEnum.Vulnerable.values(), StringEnum.TimeOfDay.values());
+    return new ScenarioConfig(StringEnum.Vulnerable.values(), StringEnum.Hour.values());
   }
 
   @Override

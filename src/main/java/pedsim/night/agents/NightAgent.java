@@ -210,6 +210,15 @@ public class NightAgent extends ActivityAgent {
   }
 
   /**
+   * Night agents are grouped by vulnerability for volume tallying. The time dimension (hour, and
+   * the day/night aggregation derived from it) is inherited from {@link ActivityAgent}.
+   */
+  @Override
+  public Enum<?> getAgentScenario() {
+    return isVulnerable() ? Vulnerable.VULNERABLE : Vulnerable.NON_VULNERABLE;
+  }
+
+  /**
    * Gets the simulation state of the agent.
    *
    * @return The PedSimCity simulation state.
