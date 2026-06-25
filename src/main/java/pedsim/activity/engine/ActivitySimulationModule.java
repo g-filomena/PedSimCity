@@ -4,6 +4,7 @@ import pedsim.core.engine.Engine;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.engine.SimulationModule;
+import pedsim.core.utilities.StringEnum;
 import java.util.Map;
 
 public final class ActivitySimulationModule implements SimulationModule {
@@ -30,7 +31,8 @@ public final class ActivitySimulationModule implements SimulationModule {
 
     @Override
     public ScenarioConfig scenarioConfig() {
-        return ScenarioConfig.singleRun();
+        // Hourly volumes (h01–h24) for a single DEFAULT agent type — no vulnerability split.
+        return new ScenarioConfig(StringEnum.Default.values(), StringEnum.Hour.values());
     }
 
     @Override

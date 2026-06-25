@@ -12,6 +12,7 @@ import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.engine.SimulationLauncher;
 import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
+import pedsim.core.utilities.StringEnum;
 import pedsim.core.website.SimulationRestApi;
 
 /**
@@ -115,7 +116,7 @@ public class PedSimCityActivityApplet extends PedSimCityApplet {
 
   @Override
   protected ScenarioConfig buildScenarioConfig() {
-    return ScenarioConfig.singleRun();
+    return new ScenarioConfig(StringEnum.Default.values(), StringEnum.Hour.values());
   }
 
   @Override

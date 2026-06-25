@@ -4,6 +4,8 @@ import java.util.Map;
 import pedsim.activity.engine.PedSimCityActivity;
 import pedsim.core.agents.Agent;
 import pedsim.core.engine.PedSimCity;
+import pedsim.core.parameters.TimePars;
+import pedsim.core.utilities.StringEnum;
 import sim.graph.NodeGraph;
 
 /**
@@ -24,6 +26,16 @@ public class ActivityAgent extends Agent {
   @Override
   protected boolean isDark() {
     return state instanceof PedSimCityActivity activityState && activityState.isDark;
+  }
+
+  /**
+   * Activity volumes are tallied per hour of day (h01–h24); the agent type stays {@code DEFAULT}
+   * (no vulnerable / learner split). The hour is read when a trip is recorded, so a trip counts
+   * towards the hour it completes in.
+   */
+  @Override
+  public Enum<?> getSimulationScenario() {
+    return StringEnum.Hour.of(TimePars.getTime(state.schedule.getSteps()).toLocalTime().getHour());
   }
 
   /**

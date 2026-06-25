@@ -1,6 +1,5 @@
 package pedsim.activity.engine;
 
-import java.time.LocalTime;
 import pedsim.core.engine.Engine;
 import pedsim.core.engine.Import;
 import pedsim.core.engine.PedSimCity;
@@ -47,9 +46,7 @@ public class ActivityEngine extends Engine {
   @Override
   protected void onStepUpdate(PedSimCity state, double steps) {
     if (state instanceof PedSimCityActivity activityState) {
-      LocalTime time = TimePars.getTime(steps).toLocalTime();
-      activityState.isDark =
-          time.isAfter(LocalTime.of(19, 59)) || time.isBefore(LocalTime.of(6, 0));
+      activityState.isDark = TimePars.isNight(TimePars.getTime(steps).toLocalTime());
     }
   }
 
