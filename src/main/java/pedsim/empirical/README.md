@@ -2,11 +2,11 @@
 
 An **empirically-grounded ABM**: pedestrians are drawn from empirical agent *groups* (behavioural
 clusters with measured route-choice parameters) and routed over an OD matrix, so simulated flows can
-be benchmarked against population and null activitys.
+be benchmarked against population and null baselines. It calibrates and evaluates the interaction of
+the urban-element route-choice effects against empirical data (the *Empirical characterisation* study).
 
-This is a legacy module that extends `core` directly. Like `cityimage` it is **not** an activity-based
-module — it has no census home/work routine and no 24h clock; demand is an OD matrix, not a
-daily schedule.
+It extends `core` directly (not the activity foundation): no census home/work routine and no 24h
+clock; demand is an OD matrix, not a daily schedule.
 
 ## Relationship to core
 
@@ -39,7 +39,7 @@ daily schedule.
 
 ## Running
 
-Build with the `cityimage-empirical` profile (empirical builds alongside the legacy `cityimage`;
+Build with the `cityimage-empirical` profile (empirical builds alongside `cityimage`;
 **not** in the default build). `PedSimCityEmpirical` has a `main` entry point:
 
 ```bash

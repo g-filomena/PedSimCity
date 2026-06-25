@@ -79,17 +79,55 @@ The user can also change other simulation-related parameters by clicking on the 
 When choosing option 3, the route choice models of interest need to be chosen by clicking the ```Choose Route Choices``` button. 
 The user can also define the number of ```jobs```, and ```numberTripsPerAgent``` (one route choice model = one agent).
 
-**Architecture note — core vs. runnable modules:**
+## Architecture: modules
 
-`core` is shared infrastructure (engine base, routing, REST server, dashboard state store). It does
-not itself run a simulation. Runnable simulations are concrete domain modules:
+`core` is shared infrastructure (engine base, routing, cognitive-map machinery, REST server +
+dashboard state). It does **not** run a simulation on its own. Domain models extend it; each module
+has its own README under `src/main/java/pedsim/<module>/`:
 
-- `night` — illumination-aware night-time pedestrian model (`PedSimCityNightApplet`)
-- `cityImage` — cognitive-map city-image model (future)
-- `empirical` — GPS-calibrated empirical model (future)
+| Module | Role |
+|---|---|
+| [`core`](src/main/java/pedsim/core/README.md) | shared infrastructure: engine, routing, cognition, REST/dashboard |
+| [`activity`](src/main/java/pedsim/activity/README.md) | activity-based **24h foundation**: census home/work, workplace/night POI destinations, day/night clock |
+| [`night`](src/main/java/pedsim/night/README.md) | extends `activity` — vulnerability + lighting-aware night routing |
+| [`learning`](src/main/java/pedsim/learning/README.md) | extends `activity` — incremental, decaying cognitive map |
+| [`empirical`](src/main/java/pedsim/empirical/README.md) | extends `core` — **empirical ABM**: behaviour calibrated on empirical data |
+| [`cityImage`](src/main/java/pedsim/cityimage/README.md) | extends `core` — **route-choice experiments**: effect of landmarks / regions / barriers |
 
-The REST API and dashboard infrastructure live in `core`, but `/api/modules` lists only registered
-runnable modules, and `/api/start` routes to them.
+The dependency layering is `core → activity → {night, learning}`; `empirical` and `cityImage` extend
+`core` directly. The REST API/dashboard live in `core`, but `/api/modules` lists only registered
+runnable modules and `/api/start` routes to them.
+
+### Running a module
+
+Each runnable module has Maven exec profiles (GUI and REST+dashboard); see its README for parameters:
+
+| Module | GUI | REST + dashboard |
+|---|---|---|
+| night (default) | `mvn compile exec:java@night` | `mvn compile exec:java@night-website` |
+| activity | `mvn compile exec:java@activity` | `mvn compile exec:java@activity-website` |
+| learning | `mvn -Plearning compile exec:java@learning` | `mvn -Plearning compile exec:java@learning-website` |
+| cityImage / empirical | `mvn -Pcityimage-empirical compile …` | — |
+
+## Repository layout
+
+| Path | Contents |
+|---|---|
+| `src/main/java/pedsim/<module>/` | Java source, one folder per module (each with a README) |
+| `src/main/resources/<City>/` | per-city GIS input layers read by the simulation (`<City>_*.gpkg`) |
+| `inputData/` | raw, pre-resources material used when preparing a city |
+| `pipeline/` | Python data-prep scripts + `build_city.py` orchestrator — see [`pipeline/README.md`](pipeline/README.md) |
+| `analysis/` | Jupyter notebooks + scripts for post-hoc analysis of results |
+| `outputs/` | all simulation results (gitignored) |
+
+**Preparing a city's data** — on Windows double-click `build_city.bat` (full pipeline) or
+`build_census.bat` (census only) and answer the prompts; or run
+`python pipeline/build_city.py --input_dir src/main/resources/<City> --prefix <prefix>`. See
+[`pipeline/README.md`](pipeline/README.md) for the steps and the `<City>_…` filename conventions.
+
+**Results** — every run writes under `outputs/`: structured exports (volumes, routes, cognitive
+maps) under `outputs/<appName>/`, with trip diagnostics and the HTML dashboard at the `outputs/`
+root.
 
 **How to use the Web Dashboard:**
 

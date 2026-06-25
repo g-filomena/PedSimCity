@@ -1,11 +1,13 @@
 # City-image module (`pedsim.cityimage`)
 
-A **route-choice testing harness** (not a daily-routine model). It reproduces the historical
-city-image experiments: generate one shared OD matrix, then run the *same* trips under several
-route-choice strategies in parallel so their resulting flows can be compared on identical demand.
+A **route-choice experiment harness**. It reproduces the published city-image studies — *Testing
+Landmarks* and *Testing Urban Subdivisions* — comparing the effect of urban elements (landmarks,
+regions, barriers) on pedestrian route choice against minimisation-based models (distance shortest
+path, least cumulative angular change): one shared OD matrix is run under several route-choice
+strategies in parallel so their flows can be compared on identical demand.
 
-This is a legacy module: it extends `core` directly (it is **not** an activity-based module — there
-is no census, no 24h clock, no home/work routine).
+It extends `core` directly (it is **not** an activity-based module — there is no census, no 24h
+clock, no home/work routine).
 
 ## Relationship to core
 
@@ -45,6 +47,6 @@ mvn -Pcityimage-empirical compile exec:java -Dexec.mainClass=pedsim.cityimage.ap
 
 ## Notes
 
-- Legacy harness retained for reproducing earlier route-choice/landmark experiments; it shares the
-  current core engine and agent lifecycle but its own OD/test plumbing.
+- Harness for reproducing the route-choice / landmark experiments from the papers; it shares the
+  current core engine and agent lifecycle but keeps its own OD/test plumbing.
 - Has its own `utilities/StringEnum` (`RouteChoice`) and `agents/AgentProperties` specialisation.

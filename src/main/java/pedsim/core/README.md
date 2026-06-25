@@ -44,8 +44,8 @@ returns `false` (no day/night cycle) — both are activated by the **activity** 
 ```
 core  ──►  activity  ──►  night          (24h activity → + vulnerability/lighting)
                      ──►  learning        (24h activity → + incremental cognitive map)
-core  ──►  empirical                      (OD-based empirical groups; legacy)
-core  ──►  cityimage                      (route-choice testing harness; legacy)
+core  ──►  empirical                      (empirical ABM: behavioural groups vs. empirical data)
+core  ──►  cityimage                      (route-choice experiments: landmarks / regions / barriers)
 ```
 
 ## Running
