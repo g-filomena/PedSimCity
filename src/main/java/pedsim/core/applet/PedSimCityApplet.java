@@ -289,7 +289,7 @@ public class PedSimCityApplet extends Frame {
   }
 
   protected ScenarioConfig buildScenarioConfig() {
-    return new ScenarioConfig(StringEnum.Learner.values(), null);
+    return new ScenarioConfig(StringEnum.Default.values(), null);
   }
 
   protected Engine.StateFactory buildStateFactory() {

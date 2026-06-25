@@ -95,7 +95,7 @@ public class PedSimCityActionHandler {
   }
 
   private ScenarioConfig buildScenarioConfig() {
-    return new ScenarioConfig(StringEnum.Learner.values(), null);
+    return new ScenarioConfig(StringEnum.Default.values(), null);
   }
 
   private StateFactory buildStateFactory() {

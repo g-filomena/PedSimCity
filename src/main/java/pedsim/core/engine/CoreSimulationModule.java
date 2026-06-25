@@ -44,7 +44,7 @@ public final class CoreSimulationModule implements SimulationModule {
 
   @Override
   public ScenarioConfig scenarioConfig() {
-    return new ScenarioConfig(StringEnum.Learner.values(), null);
+    return new ScenarioConfig(StringEnum.Default.values(), null);
   }
 
   @Override

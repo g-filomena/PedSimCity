@@ -236,7 +236,9 @@ public class HtmlExporter {
                 .replace("__AB_TRIPS_JS__", abTripsJs)
                 .replace("__HOURLY_VOL_JS__", hourlyVolJs)
                 .replace("__IS_NIGHT__", isNight)
-                .replace("__ENABLE_AB__", enableAB);
+                .replace("__ENABLE_AB__", enableAB)
+                .replace("__DAY_START__", String.valueOf(TimePars.DAY_START_HOUR))
+                .replace("__NIGHT_START__", String.valueOf(TimePars.NIGHT_START_HOUR));
     }
 
     private static String escapeHtml(String value) {
@@ -459,8 +461,8 @@ public class HtmlExporter {
     <div class="row" style="display:flex;align-items:center;gap:14px">
       <span style="font-size:0.85rem;font-weight:600;color:#818cf8">Flow Period:</span>
       <select class="hv-speed" id="vol-period-select" style="background:rgba(30,41,59,0.85);color:#f1f5f9;border:1px solid #334155;border-radius:8px;padding:6px 12px;font-size:.75rem;font-weight:600;cursor:pointer;outline:none;transition:all .2s;display:inline-flex;align-items:center">
-        <option value="day" selected>☀️ Day Flow Average (07:00 – 19:00)</option>
-        <option value="night">🌙 Night Flow Average (19:00 – 07:00)</option>
+        <option value="day" selected>☀️ Day Flow Average (__DAY_START__:00 – __NIGHT_START__:00)</option>
+        <option value="night">🌙 Night Flow Average (__NIGHT_START__:00 – __DAY_START__:00)</option>
       </select>
       <select class="hv-speed" id="vol-theme-select" title="Color Theme" style="background:rgba(30,41,59,0.85);color:#f1f5f9;border:1px solid #334155;border-radius:8px;padding:6px 12px;font-size:.75rem;font-weight:600;cursor:pointer;outline:none;transition:all .2s;display:inline-flex;align-items:center">
         <option value="heatmap" selected>Magma Heatmap</option>
@@ -752,7 +754,7 @@ function updateGlobalLuxMetrics(step, tripsList, prefix, periodFilter) {
     if (t[2] <= step) {
       if (periodFilter) {
         const simHour = (t[1] * 20 / 60) % 24;
-        const isDayTrip = simHour >= 7 && simHour < 19;
+        const isDayTrip = simHour >= __DAY_START__ && simHour < __NIGHT_START__;
         if (periodFilter === 'day' && !isDayTrip) return;
         if (periodFilter === 'night' && isDayTrip) return;
       }
@@ -1273,7 +1275,7 @@ function volDraw() {
       volCtx.restore();
     });
   }
-  const titleTxt = period === 'day' ? '☀️ Day Flow Averages (07:00 – 19:00)' : '🌙 Night Flow Averages (19:00 – 07:00)';
+  const titleTxt = period === 'day' ? '☀️ Day Flow Averages (__DAY_START__:00 – __NIGHT_START__:00)' : '🌙 Night Flow Averages (__NIGHT_START__:00 – __DAY_START__:00)';
   document.getElementById('m-vol-type').textContent = period === 'day' ? 'Day Flow' : 'Night Flow';
   document.getElementById('m-vol-peak').textContent = Math.round(peakVol) + ' / h';
   document.getElementById('m-vol-total').textContent = Math.round(totalPeds);

@@ -66,7 +66,6 @@ public class Agent implements Steppable {
   public List<Coordinate> spookLocations = new ArrayList<>();
 
   private Heuristics heuristics;
-  Enum<?> agentScenario;
   protected boolean hasWorkedToday = false;
 
   /**
@@ -571,8 +570,21 @@ public class Agent implements Steppable {
     return state;
   }
 
+  /**
+   * The agent-type category this agent's volumes are tallied under. Plain agents have no sub-type,
+   * so they fall under a single {@code DEFAULT} category (never null). Modules that group agents
+   * (night = vulnerability, learning = learner, …) override this.
+   */
   public Enum<?> getAgentScenario() {
-    return agentScenario;
+    return pedsim.core.utilities.StringEnum.Default.DEFAULT;
+  }
+
+  /**
+   * The simulation (time-context) scenario this agent's volumes are tallied under, or {@code null}
+   * if the module has none. Activity overrides this to the hour of day; night to day/night.
+   */
+  public Enum<?> getSimulationScenario() {
+    return null;
   }
 
   public Heuristics getHeuristics() {

@@ -199,7 +199,8 @@ public class AgentMovement {
    */
   public void updateData() {
     agent.getRoute().resetRoute(new ArrayList<>(edgesWalkedSoFar));
-    state.flowHandler.updateFlowsData(agent, agent.getRoute(), agent.getAgentScenario(), null);
+    state.flowHandler.updateFlowsData(
+        agent, agent.getRoute(), agent.getAgentScenario(), agent.getSimulationScenario());
     pedsim.core.engine.TripRouteRecorder.recordTrip(
         agent,
         agent.tripStartStep,
