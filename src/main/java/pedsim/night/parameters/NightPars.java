@@ -8,5 +8,5 @@ public class NightPars {
 
   public static double crowdednessPercentile = 80.0;
 
-  public static boolean enableLightABTesting = false;
+  public static boolean enableLightABTesting = true;
 }
