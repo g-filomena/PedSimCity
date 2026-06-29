@@ -246,19 +246,7 @@ public class PedSimCityApplet extends Frame {
       launcher.preloadForDashboard();
       launcher.wireAndStartRestServer(8081);
 
-      // Launch dashboard.html in the default browser
-      try {
-        java.io.File htmlFile = new java.io.File("dashboard.html");
-        if (htmlFile.exists() && java.awt.Desktop.isDesktopSupported()) {
-          java.awt.Desktop.getDesktop().browse(htmlFile.toURI());
-        } else {
-          LoggerUtil.getLogger()
-              .warning(
-                  "Could not launch browser automatically. Please open dashboard.html manually.");
-        }
-      } catch (Exception e) {
-        LoggerUtil.getLogger().warning("Failed to open browser: " + e.getMessage());
-      }
+      SimulationRestApi.openDashboardInBrowser();
     } else {
       // Option 1: Standard GUI only — no REST API server is started.
       LoggerUtil.getLogger().info("[STARTUP] Launching Standard GUI...");

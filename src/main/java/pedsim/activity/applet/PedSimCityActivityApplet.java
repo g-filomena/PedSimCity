@@ -75,6 +75,7 @@ public class PedSimCityActivityApplet extends PedSimCityApplet {
       SimulationLauncher launcher = activityLauncher();
       launcher.preloadForDashboard();
       launcher.wireAndStartRestServer(8081);
+      SimulationRestApi.openDashboardInBrowser();
     } else {
       LoggerUtil.getLogger().info("[STARTUP] Launching Standard GUI...");
 
