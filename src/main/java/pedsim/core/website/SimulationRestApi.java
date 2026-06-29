@@ -345,6 +345,20 @@ public final class SimulationRestApi {
             + ". Dashboard unavailable.");
   }
 
+  /**
+   * Attempts to open the dashboard.html file in the system's default browser.
+   */
+  public static void openDashboardInBrowser() {
+    try {
+      if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
+        java.awt.Desktop.getDesktop().browse(new java.io.File("dashboard.html").toURI());
+      }
+    } catch (Exception e) {
+      Logger logger = LoggerUtil.getLogger();
+      logger.warning("[REST API] Could not open browser automatically: " + e.getMessage());
+    }
+  }
+
   // ----------------------------------------------------------------
   // Internal helpers
   // ----------------------------------------------------------------

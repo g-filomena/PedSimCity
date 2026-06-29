@@ -18,6 +18,7 @@ import pedsim.core.parameters.ParameterManager;
 import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
 import pedsim.core.utilities.StringEnum;
+import pedsim.core.website.SimulationRestApi;
 
 public class PedSimCityApplet extends Frame {
 
