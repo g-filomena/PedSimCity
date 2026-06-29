@@ -6,7 +6,7 @@ import pedsim.core.engine.Import;
  * Import strategy for activity-based modules. Adds the unified census layer on top of the core
  * {@link Import} (graphs, landmarks, barriers).
  *
- * <p>The census layer is a single GeoPackage (<City>_censusData.gpkg) whose polygons carry the full
+ * <p>The census layer is a single GeoPackage (&lt;City&gt;_censusData.gpkg) whose polygons carry the full
  * 24h activity pattern as columns: {@code residence_pct} (home spawning), {@code workplace_poi}
  * (daytime destinations) and {@code night_poi} (evening destinations).
  *

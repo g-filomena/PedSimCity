@@ -40,7 +40,7 @@ import tools.jackson.databind.ObjectMapper;
  * <h2>Module registration</h2>
  *
  * <p>Only concrete runnable modules (night, cityImage, empirical) should be registered. The {@code
- * core} infrastructure module must not be registered here. {@link SimulationLauncher} handles this
+ * core} infrastructure module must not be registered here. {@code SimulationLauncher} handles this
  * automatically via {@link SimulationModule#isConcreteRunnable()}.
  *
  * <pre>{@code
