@@ -369,11 +369,12 @@
           btn.style.background = 'var(--success)';
           beginPolling();
         } else {
-          throw new Error(`Server rejected request: ${resp.status}`);
+          const errText = await resp.text();
+          throw new Error(errText || `Server rejected request: ${resp.status}`);
         }
       } catch (err) {
         log(`Error: ${err.message}`);
-        btn.textContent = 'Launch Failed (Retry)';
+        btn.textContent = 'Launch Simulation';
         btn.disabled = false;
       }
     }
@@ -381,31 +382,63 @@
     function beginPolling() {
       if (pollInterval) return;
       log('Connecting to telemetry stream...');
-      pollInterval = setInterval(fetchState, 1500);
+      pollInterval = setInterval(fetchState, 1000);
       fetchState();
     }
 
     async function fetchState() {
       try {
-        const resp = await fetch(`${API_BASE}/api/state`, { signal: AbortSignal.timeout(1000) });
+        const resp = await fetch(`${API_BASE}/api/state`, { signal: AbortSignal.timeout(1500) });
         if (!resp.ok) throw new Error('Bad response');
         const data = await resp.json();
-        
-        // Update UI
-        document.getElementById('statusPill').className = 'status-badge';
-        document.getElementById('statusText').textContent = 'Live';
 
-        document.getElementById('val-time').textContent = data.simulationTime || '00:00:00';
-        document.getElementById('val-step').textContent = data.currentStep || 0;
-        document.getElementById('val-walking').textContent = data.walkingCount || 0;
-        document.getElementById('val-home').textContent = data.atHomeCount || 0;
-        document.getElementById('val-dest').textContent = data.atDestCount || 0;
+        // Update status badge
+        const pill = document.getElementById('statusPill');
+        const statusText = document.getElementById('statusText');
+        if (data.running) {
+          pill.className = 'status-badge';
+          statusText.textContent = 'Live';
+        } else if (data.finished) {
+          pill.className = 'status-badge';
+          pill.style.background = 'rgba(99,102,241,0.1)';
+          pill.style.borderColor = 'rgba(99,102,241,0.3)';
+          pill.style.color = '#6366f1';
+          statusText.textContent = 'Finished';
+          // Re-enable launch button
+          const btn = document.getElementById('startBtn');
+          btn.textContent = 'Launch Simulation';
+          btn.style.background = '';
+          btn.disabled = false;
+        } else {
+          pill.className = 'status-badge offline';
+          statusText.textContent = 'Ready';
+        }
+
+        // Update stats
+        document.getElementById('val-time').textContent = data.simulationTime || '—';
+        document.getElementById('val-step').textContent = data.currentStep ?? 0;
+        document.getElementById('val-walking').textContent = data.walkingCount ?? 0;
+        document.getElementById('val-home').textContent = data.atHomeCount ?? 0;
+        document.getElementById('val-dest').textContent = data.atDestCount ?? 0;
+
+        // Sync launch button if sim already running (e.g. opened dashboard mid-run)
+        if (data.running) {
+          const btn = document.getElementById('startBtn');
+          if (!btn.disabled) {
+            btn.textContent = 'Simulation Running';
+            btn.style.background = 'var(--success)';
+            btn.disabled = true;
+          }
+        }
 
       } catch (err) {
         document.getElementById('statusPill').className = 'status-badge offline';
         document.getElementById('statusText').textContent = 'Disconnected';
       }
     }
+
+    // Start polling immediately on page load — catches any already-running simulation
+    beginPolling();
   </script>
 
 </body>

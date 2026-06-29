@@ -168,6 +168,33 @@ public final class SimulationRestApi {
               }
             });
 
+        // --- GET / (serve dashboard.html) ---
+        server.createContext(
+            "/",
+            exchange -> {
+              try {
+                if (!"/".equals(exchange.getRequestURI().getPath())
+                    && !"/dashboard.html".equals(exchange.getRequestURI().getPath())) {
+                  exchange.sendResponseHeaders(404, -1);
+                  return;
+                }
+                java.io.File htmlFile = new java.io.File("dashboard.html");
+                if (!htmlFile.exists()) {
+                  byte[] err = "dashboard.html not found".getBytes(StandardCharsets.UTF_8);
+                  exchange.sendResponseHeaders(404, err.length);
+                  try (var out = exchange.getResponseBody()) { out.write(err); }
+                  return;
+                }
+                byte[] body = java.nio.file.Files.readAllBytes(htmlFile.toPath());
+                exchange.getResponseHeaders().add("Content-Type", "text/html; charset=UTF-8");
+                exchange.getResponseHeaders().add("Cache-Control", "no-cache");
+                exchange.sendResponseHeaders(200, body.length);
+                try (var out = exchange.getResponseBody()) { out.write(body); }
+              } catch (Exception ex) {
+                exchange.sendResponseHeaders(500, -1);
+              }
+            });
+
         // --- GET /api/roads ---
         server.createContext(
             "/api/roads",
@@ -351,7 +378,7 @@ public final class SimulationRestApi {
   public static void openDashboardInBrowser() {
     try {
       if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
-        java.awt.Desktop.getDesktop().browse(new java.io.File("dashboard.html").toURI());
+        java.awt.Desktop.getDesktop().browse(new java.net.URI("http://localhost:" + boundPort));
       }
     } catch (Exception e) {
       Logger logger = LoggerUtil.getLogger();
