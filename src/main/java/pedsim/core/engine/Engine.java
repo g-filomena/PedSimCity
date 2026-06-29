@@ -124,6 +124,8 @@ public class Engine {
     AgentReleaseManager currentDayReleaseManager =
         new AgentReleaseManager(state, kmCurrentDay, currentDay + 1);
 
+    java.util.Map<Integer, java.util.Map<String, Integer>> finalVolumesMap = new java.util.HashMap<>();
+
     try {
       double nextAgentRelease = 1.0;
 
@@ -178,8 +180,7 @@ public class Engine {
       }
 
       // Capture volumesMap before exportFlowsData clears it for the HTML dashboard
-      Map<Integer, Map<String, Integer>> finalVolumesMap = new java.util.HashMap<>();
-      for (Map.Entry<Integer, Map<String, Integer>> entry :
+      for (java.util.Map.Entry<Integer, java.util.Map<String, Integer>> entry :
           state.flowHandler.volumesMap.entrySet()) {
         finalVolumesMap.put(entry.getKey(), new java.util.HashMap<>(entry.getValue()));
       }
