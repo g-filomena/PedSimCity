@@ -79,7 +79,8 @@ public class PedSimCityActivityApplet extends PedSimCityApplet {
     } else {
       LoggerUtil.getLogger().info("[STARTUP] Launching Standard GUI...");
 
-      // REST server starts for state observation only; simulations are triggered via the GUI button.
+      // REST server starts for state observation only; simulations are triggered via the GUI
+      // button.
       SimulationRestApi.start(8081);
 
       PedSimCityActivityApplet applet = new PedSimCityActivityApplet();

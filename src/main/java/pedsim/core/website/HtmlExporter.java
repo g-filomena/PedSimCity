@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.logging.Logger;
-
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.TripRouteRecorder;
 import pedsim.core.parameters.Pars;
@@ -34,246 +33,245 @@ import pedsim.core.utilities.LoggerUtil;
  */
 public class HtmlExporter {
 
-    private static final Logger logger = LoggerUtil.getLogger();
-    // Results live with the project, under outputs/results/ — portable and gitignored
-    // (was a hardcoded C:\Users\<user>\PedSimCity\Output\results path).
-    private static final String OUTPUT_ROOT = "outputs" + File.separator + "results";
+  private static final Logger logger = LoggerUtil.getLogger();
+  // Results live with the project, under outputs/results/ — portable and gitignored
+  // (was a hardcoded C:\Users\<user>\PedSimCity\Output\results path).
+  private static final String OUTPUT_ROOT = "outputs" + File.separator + "results";
 
-    /**
-     * Exports a complete, self-contained HTML dashboard.
-     */
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    public static String export(int day, int job, List trips, Map volumesMap) {
-        try {
-            Files.createDirectories(Paths.get(OUTPUT_ROOT));
+  /**
+   * Exports a complete, self-contained HTML dashboard.
+   */
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  public static String export(int day, int job, List trips, Map volumesMap) {
+    try {
+      Files.createDirectories(Paths.get(OUTPUT_ROOT));
 
-            String city = Pars.cityName;
-            String timestamp = java.time.LocalDateTime.now()
-                    .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-            String filename = "results_" + city + "_day" + day + "_job" + job + "_" + timestamp + ".html";
-            String outputPath = OUTPUT_ROOT + File.separator + filename;
+      String city = Pars.cityName;
+      String timestamp =
+          java.time.LocalDateTime.now()
+              .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+      String filename = "results_" + city + "_day" + day + "_job" + job + "_" + timestamp + ".html";
+      String outputPath = OUTPUT_ROOT + File.separator + filename;
 
-            String roadsGeoJson = GeoJsonExporter.exportRoadsWithVolumes(PedSimCity.roads, volumesMap);
-            String tripsJs = buildTripsJs(trips);
+      String roadsGeoJson = GeoJsonExporter.exportRoadsWithVolumes(PedSimCity.roads, volumesMap);
+      String tripsJs = buildTripsJs(trips);
 
-            if (isABTestingEnabled()) {
-                saveAbTestTrips(tripsJs);
-            }
+      if (isABTestingEnabled()) {
+        saveAbTestTrips(tripsJs);
+      }
 
-            String abTripsJs = loadAbTestTrips();
-            String hourlyVolJs = buildHourlyVolumesJs(trips);
-            double[] centre = computeCentre();
+      String abTripsJs = loadAbTestTrips();
+      String hourlyVolJs = buildHourlyVolumesJs(trips);
+      double[] centre = computeCentre();
 
-            String html = renderHtml(city, day, job, roadsGeoJson, tripsJs, abTripsJs, hourlyVolJs, centre);
+      String html =
+          renderHtml(city, day, job, roadsGeoJson, tripsJs, abTripsJs, hourlyVolJs, centre);
 
-            try (FileWriter fw = new FileWriter(outputPath)) {
-                fw.write(html);
-            }
+      try (FileWriter fw = new FileWriter(outputPath)) {
+        fw.write(html);
+      }
 
-            logger.info("[HtmlExporter] Dashboard written → " + outputPath);
-            return outputPath;
-        } catch (IOException e) {
-            logger.severe("[HtmlExporter] Failed to write dashboard: " + e.getMessage());
-            return null;
+      logger.info("[HtmlExporter] Dashboard written → " + outputPath);
+      return outputPath;
+    } catch (IOException e) {
+      logger.severe("[HtmlExporter] Failed to write dashboard: " + e.getMessage());
+      return null;
+    }
+  }
+
+  private static void saveAbTestTrips(String tripsJs) {
+    String path = OUTPUT_ROOT + File.separator + "ab_test_trips.json";
+    try {
+      Files.createDirectories(Paths.get(OUTPUT_ROOT));
+      try (FileWriter fw = new FileWriter(path)) {
+        fw.write(tripsJs);
+      }
+      logger.info("[HtmlExporter] Saved A/B test trips data to " + path);
+    } catch (IOException e) {
+      logger.severe("[HtmlExporter] Failed to save A/B test trips: " + e.getMessage());
+    }
+  }
+
+  private static String loadAbTestTrips() {
+    String path = OUTPUT_ROOT + File.separator + "ab_test_trips.json";
+    File file = new File(path);
+    if (file.exists()) {
+      try {
+        return new String(Files.readAllBytes(Paths.get(path)));
+      } catch (IOException e) {
+        logger.severe("[HtmlExporter] Failed to read A/B test trips: " + e.getMessage());
+      }
+    }
+    return "[]";
+  }
+
+  /**
+   * Converts trip records into a compact JavaScript array literal.
+   * Trip shape: [agentId, startStep, endStep, [[x,y],...], vulnerable, [[x,y],...spooks]]
+   */
+  @SuppressWarnings("rawtypes")
+  private static String buildTripsJs(List trips) {
+    StringBuilder sb = new StringBuilder("[");
+    boolean first = true;
+
+    for (Object obj : trips) {
+      TripRouteRecorder.TripRecord trip = (TripRouteRecorder.TripRecord) obj;
+      if (!first) {
+        sb.append(',');
+      }
+      first = false;
+
+      sb.append('[')
+          .append(trip.agentId)
+          .append(',')
+          .append(String.format(Locale.US, "%.2f", trip.startStep))
+          .append(',')
+          .append(String.format(Locale.US, "%.2f", trip.endStep))
+          .append(',')
+          .append('[');
+
+      boolean firstCoord = true;
+      for (org.locationtech.jts.geom.Coordinate c : trip.pathCoords) {
+        if (!firstCoord) {
+          sb.append(',');
         }
+        firstCoord = false;
+        sb.append(String.format(Locale.US, "[%.6f,%.6f]", c.x, c.y));
+      }
+
+      sb.append("],").append(trip.vulnerable ? "true" : "false").append(",[");
+
+      boolean firstSpook = true;
+      for (org.locationtech.jts.geom.Coordinate s : trip.spookLocations) {
+        if (!firstSpook) {
+          sb.append(',');
+        }
+        firstSpook = false;
+        sb.append(String.format(Locale.US, "[%.6f,%.6f]", s.x, s.y));
+      }
+
+      sb.append("]]");
     }
 
-    private static void saveAbTestTrips(String tripsJs) {
-        String path = OUTPUT_ROOT + File.separator + "ab_test_trips.json";
-        try {
-            Files.createDirectories(Paths.get(OUTPUT_ROOT));
-            try (FileWriter fw = new FileWriter(path)) {
-                fw.write(tripsJs);
-            }
-            logger.info("[HtmlExporter] Saved A/B test trips data to " + path);
-        } catch (IOException e) {
-            logger.severe("[HtmlExporter] Failed to save A/B test trips: " + e.getMessage());
-        }
+    sb.append(']');
+    return sb.toString();
+  }
+
+  /**
+   * Builds a JS object: { edgeId: [vol_h0, vol_h1, ..., vol_h23], ... }.
+   * Each trip is attributed to the hour-of-day bucket of its startStep.
+   */
+  @SuppressWarnings("rawtypes")
+  private static String buildHourlyVolumesJs(List trips) {
+    Map<Integer, int[]> hourlyMap = new HashMap<>();
+
+    for (Object obj : trips) {
+      TripRouteRecorder.TripRecord trip = (TripRouteRecorder.TripRecord) obj;
+
+      long totalMinutes = (long) (trip.startStep * (TimePars.STEP_DURATION / 60));
+      int hourOfDay = (int) ((totalMinutes / 60) % 24);
+
+      for (int edgeId : trip.edgeIds) {
+        hourlyMap.computeIfAbsent(edgeId, k -> new int[24])[hourOfDay]++;
+      }
     }
 
-    private static String loadAbTestTrips() {
-        String path = OUTPUT_ROOT + File.separator + "ab_test_trips.json";
-        File file = new File(path);
-        if (file.exists()) {
-            try {
-                return new String(Files.readAllBytes(Paths.get(path)));
-            } catch (IOException e) {
-                logger.severe("[HtmlExporter] Failed to read A/B test trips: " + e.getMessage());
-            }
+    StringBuilder sb = new StringBuilder("{");
+    boolean first = true;
+
+    for (Map.Entry<Integer, int[]> entry : hourlyMap.entrySet()) {
+      if (!first) {
+        sb.append(',');
+      }
+      first = false;
+      sb.append(entry.getKey()).append(": [");
+
+      int[] counts = entry.getValue();
+      for (int h = 0; h < 24; h++) {
+        if (h > 0) {
+          sb.append(',');
         }
-        return "[]";
+        sb.append(counts[h]);
+      }
+      sb.append(']');
     }
 
-    /**
-     * Converts trip records into a compact JavaScript array literal.
-     * Trip shape: [agentId, startStep, endStep, [[x,y],...], vulnerable, [[x,y],...spooks]]
-     */
-    @SuppressWarnings("rawtypes")
-    private static String buildTripsJs(List trips) {
-        StringBuilder sb = new StringBuilder("[");
-        boolean first = true;
+    sb.append('}');
+    return sb.toString();
+  }
 
-        for (Object obj : trips) {
-            TripRouteRecorder.TripRecord trip = (TripRouteRecorder.TripRecord) obj;
-            if (!first) {
-                sb.append(',');
-            }
-            first = false;
-
-            sb.append('[')
-                    .append(trip.agentId)
-                    .append(',')
-                    .append(String.format(Locale.US, "%.2f", trip.startStep))
-                    .append(',')
-                    .append(String.format(Locale.US, "%.2f", trip.endStep))
-                    .append(',')
-                    .append('[');
-
-            boolean firstCoord = true;
-            for (org.locationtech.jts.geom.Coordinate c : trip.pathCoords) {
-                if (!firstCoord) {
-                    sb.append(',');
-                }
-                firstCoord = false;
-                sb.append(String.format(Locale.US, "[%.6f,%.6f]", c.x, c.y));
-            }
-
-            sb.append("],")
-                    .append(trip.vulnerable ? "true" : "false")
-                    .append(",[");
-
-            boolean firstSpook = true;
-            for (org.locationtech.jts.geom.Coordinate s : trip.spookLocations) {
-                if (!firstSpook) {
-                    sb.append(',');
-                }
-                firstSpook = false;
-                sb.append(String.format(Locale.US, "[%.6f,%.6f]", s.x, s.y));
-            }
-
-            sb.append("]]");
-        }
-
-        sb.append(']');
-        return sb.toString();
+  /** Returns [centreLatitude, centreLongitude] from the road layer MBR. */
+  private static double[] computeCentre() {
+    if (PedSimCity.MBR == null) {
+      return new double[] {45.07, 7.68};
     }
+    double cx = (PedSimCity.MBR.getMinX() + PedSimCity.MBR.getMaxX()) / 2.0;
+    double cy = (PedSimCity.MBR.getMinY() + PedSimCity.MBR.getMaxY()) / 2.0;
+    return new double[] {cy, cx};
+  }
 
-    /**
-     * Builds a JS object: { edgeId: [vol_h0, vol_h1, ..., vol_h23], ... }.
-     * Each trip is attributed to the hour-of-day bucket of its startStep.
-     */
-    @SuppressWarnings("rawtypes")
-    private static String buildHourlyVolumesJs(List trips) {
-        Map<Integer, int[]> hourlyMap = new HashMap<>();
+  private static String renderHtml(
+      String city,
+      int day,
+      int job,
+      String roadsGeoJson,
+      String tripsJs,
+      String abTripsJs,
+      String hourlyVolJs,
+      double[] centre) {
 
-        for (Object obj : trips) {
-            TripRouteRecorder.TripRecord trip = (TripRouteRecorder.TripRecord) obj;
+    String isNight = String.valueOf(Pars.isNight);
+    String enableAB = String.valueOf(isABTestingEnabled());
+    String runLabel = "Day " + day;
+    String dashboardTitle =
+        "Night Pedestrian Simulation: " + city + " — " + runLabel + " · Job " + job;
+    String dashboardTitleHtml = escapeHtml(dashboardTitle).replace(" — ", " &nbsp;—&nbsp; ");
 
-            long totalMinutes = (long) (trip.startStep * (TimePars.STEP_DURATION / 60));
-            int hourOfDay = (int) ((totalMinutes / 60) % 24);
+    return HTML_TEMPLATE
+        .replace("__DASHBOARD_TITLE__", escapeHtml(dashboardTitle))
+        .replace("__DASHBOARD_TITLE_HTML__", dashboardTitleHtml)
+        .replace("__RUN_LABEL__", escapeJsTemplateLiteral(runLabel))
+        .replace("__ROADS_GEOJSON__", roadsGeoJson)
+        .replace("__TRIPS_JS__", tripsJs)
+        .replace("__AB_TRIPS_JS__", abTripsJs)
+        .replace("__HOURLY_VOL_JS__", hourlyVolJs)
+        .replace("__IS_NIGHT__", isNight)
+        .replace("__ENABLE_AB__", enableAB)
+        .replace("__DAY_START__", String.valueOf(TimePars.DAY_START_HOUR))
+        .replace("__NIGHT_START__", String.valueOf(TimePars.NIGHT_START_HOUR));
+  }
 
-            for (int edgeId : trip.edgeIds) {
-                hourlyMap.computeIfAbsent(edgeId, k -> new int[24])[hourOfDay]++;
-            }
-        }
-
-        StringBuilder sb = new StringBuilder("{");
-        boolean first = true;
-
-        for (Map.Entry<Integer, int[]> entry : hourlyMap.entrySet()) {
-            if (!first) {
-                sb.append(',');
-            }
-            first = false;
-            sb.append(entry.getKey()).append(": [");
-
-            int[] counts = entry.getValue();
-            for (int h = 0; h < 24; h++) {
-                if (h > 0) {
-                    sb.append(',');
-                }
-                sb.append(counts[h]);
-            }
-            sb.append(']');
-        }
-
-        sb.append('}');
-        return sb.toString();
+  private static String escapeHtml(String value) {
+    if (value == null) {
+      return "";
     }
+    return value
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&#39;");
+  }
 
-    /** Returns [centreLatitude, centreLongitude] from the road layer MBR. */
-    private static double[] computeCentre() {
-        if (PedSimCity.MBR == null) {
-            return new double[] {45.07, 7.68};
-        }
-        double cx = (PedSimCity.MBR.getMinX() + PedSimCity.MBR.getMaxX()) / 2.0;
-        double cy = (PedSimCity.MBR.getMinY() + PedSimCity.MBR.getMaxY()) / 2.0;
-        return new double[] {cy, cx};
+  private static String escapeJsTemplateLiteral(String value) {
+    if (value == null) {
+      return "";
     }
+    return value.replace("\\", "\\\\").replace("`", "\\`").replace("$", "\\$");
+  }
 
-    private static String renderHtml(
-            String city,
-            int day,
-            int job,
-            String roadsGeoJson,
-            String tripsJs,
-            String abTripsJs,
-            String hourlyVolJs,
-            double[] centre) {
-
-        String isNight = String.valueOf(Pars.isNight);
-        String enableAB = String.valueOf(isABTestingEnabled());
-        String runLabel = "Day " + day;
-        String dashboardTitle = "Night Pedestrian Simulation: " + city + " — " + runLabel + " · Job " + job;
-        String dashboardTitleHtml = escapeHtml(dashboardTitle).replace(" — ", " &nbsp;—&nbsp; ");
-
-        return HTML_TEMPLATE
-                .replace("__DASHBOARD_TITLE__", escapeHtml(dashboardTitle))
-                .replace("__DASHBOARD_TITLE_HTML__", dashboardTitleHtml)
-                .replace("__RUN_LABEL__", escapeJsTemplateLiteral(runLabel))
-                .replace("__ROADS_GEOJSON__", roadsGeoJson)
-                .replace("__TRIPS_JS__", tripsJs)
-                .replace("__AB_TRIPS_JS__", abTripsJs)
-                .replace("__HOURLY_VOL_JS__", hourlyVolJs)
-                .replace("__IS_NIGHT__", isNight)
-                .replace("__ENABLE_AB__", enableAB)
-                .replace("__DAY_START__", String.valueOf(TimePars.DAY_START_HOUR))
-                .replace("__NIGHT_START__", String.valueOf(TimePars.NIGHT_START_HOUR));
+  private static boolean isABTestingEnabled() {
+    try {
+      Class<?> cls = Class.forName("pedsim.night.parameters.NightPars");
+      java.lang.reflect.Field f = cls.getField("enableLightABTesting");
+      return f.getBoolean(null);
+    } catch (Exception e) {
+      return false;
     }
+  }
 
-    private static String escapeHtml(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&#39;");
-    }
-
-    private static String escapeJsTemplateLiteral(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value
-                .replace("\\", "\\\\")
-                .replace("`", "\\`")
-                .replace("$", "\\$");
-    }
-
-    private static boolean isABTestingEnabled() {
-        try {
-            Class<?> cls = Class.forName("pedsim.night.parameters.NightPars");
-            java.lang.reflect.Field f = cls.getField("enableLightABTesting");
-            return f.getBoolean(null);
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    private static final String HTML_TEMPLATE = """
+  private static final String HTML_TEMPLATE =
+"""
 <!DOCTYPE html>
 <html lang="en">
 <head>

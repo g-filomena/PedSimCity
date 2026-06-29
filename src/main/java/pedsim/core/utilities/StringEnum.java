@@ -95,8 +95,30 @@ public class StringEnum {
 
   /** Hour of the day, used as the scenario dimension for hourly pedestrian volumes. */
   public enum Hour {
-    H01, H02, H03, H04, H05, H06, H07, H08, H09, H10, H11, H12,
-    H13, H14, H15, H16, H17, H18, H19, H20, H21, H22, H23, H24;
+    H01,
+    H02,
+    H03,
+    H04,
+    H05,
+    H06,
+    H07,
+    H08,
+    H09,
+    H10,
+    H11,
+    H12,
+    H13,
+    H14,
+    H15,
+    H16,
+    H17,
+    H18,
+    H19,
+    H20,
+    H21,
+    H22,
+    H23,
+    H24;
 
     /** CSV label "h01".."h24"; h24 covers 23:00–00:00. */
     @Override

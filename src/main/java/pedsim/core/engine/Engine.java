@@ -179,8 +179,9 @@ public class Engine {
 
       // Capture volumesMap before exportFlowsData clears it for the HTML dashboard
       Map<Integer, Map<String, Integer>> finalVolumesMap = new java.util.HashMap<>();
-      for (Map.Entry<Integer, Map<String, Integer>> entry : state.flowHandler.volumesMap.entrySet()) {
-          finalVolumesMap.put(entry.getKey(), new java.util.HashMap<>(entry.getValue()));
+      for (Map.Entry<Integer, Map<String, Integer>> entry :
+          state.flowHandler.volumesMap.entrySet()) {
+        finalVolumesMap.put(entry.getKey(), new java.util.HashMap<>(entry.getValue()));
       }
 
       state.flowHandler.updateCognitiveMapsData(null);
@@ -201,7 +202,11 @@ public class Engine {
     generateAndOpenHtmlDashboard(job, state, currentDay, finalVolumesMap);
   }
 
-  private void generateAndOpenHtmlDashboard(int job, PedSimCity state, int currentDay, java.util.Map<Integer, java.util.Map<String, Integer>> finalVolumesMap) {
+  private void generateAndOpenHtmlDashboard(
+      int job,
+      PedSimCity state,
+      int currentDay,
+      java.util.Map<Integer, java.util.Map<String, Integer>> finalVolumesMap) {
     try {
       logger.info("[Engine] Compiling HTML dashboard for job " + job + "…");
 

@@ -1,14 +1,12 @@
 package pedsim.core.engine;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import pedsim.core.agents.Agent;
 import pedsim.core.utilities.LoggerUtil;
 import tools.jackson.databind.ObjectMapper;

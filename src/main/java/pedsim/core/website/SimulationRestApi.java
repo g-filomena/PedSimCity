@@ -1,5 +1,6 @@
 package pedsim.core.website;
 
+import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.InetSocketAddress;
@@ -11,9 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
-
-import com.sun.net.httpserver.HttpServer;
-
 import pedsim.core.engine.SimulationModule;
 import pedsim.core.engine.SimulationStateStore;
 import pedsim.core.parameters.Pars;
@@ -182,14 +180,18 @@ public final class SimulationRestApi {
                 if (!htmlFile.exists()) {
                   byte[] err = "dashboard.html not found".getBytes(StandardCharsets.UTF_8);
                   exchange.sendResponseHeaders(404, err.length);
-                  try (var out = exchange.getResponseBody()) { out.write(err); }
+                  try (var out = exchange.getResponseBody()) {
+                    out.write(err);
+                  }
                   return;
                 }
                 byte[] body = java.nio.file.Files.readAllBytes(htmlFile.toPath());
                 exchange.getResponseHeaders().add("Content-Type", "text/html; charset=UTF-8");
                 exchange.getResponseHeaders().add("Cache-Control", "no-cache");
                 exchange.sendResponseHeaders(200, body.length);
-                try (var out = exchange.getResponseBody()) { out.write(body); }
+                try (var out = exchange.getResponseBody()) {
+                  out.write(body);
+                }
               } catch (Exception ex) {
                 exchange.sendResponseHeaders(500, -1);
               }
@@ -377,7 +379,8 @@ public final class SimulationRestApi {
    */
   public static void openDashboardInBrowser() {
     try {
-      if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
+      if (java.awt.Desktop.isDesktopSupported()
+          && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
         java.awt.Desktop.getDesktop().browse(new java.net.URI("http://localhost:" + boundPort));
       }
     } catch (Exception e) {

@@ -7,11 +7,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.linearref.LengthIndexedLine;
 import org.locationtech.jts.planargraph.DirectedEdge;
-
 import pedsim.core.agents.Agent;
 import pedsim.core.cognition.cityimage.Barrier;
 import pedsim.core.cognition.cityimage.Gateway;
@@ -39,7 +37,7 @@ public class PedSimCity extends SimState {
   public static VectorLayer barriers = new VectorLayer();
   public static VectorLayer junctions = new VectorLayer();
   public static RobustVectorLayer sightLines = new RobustVectorLayer();
- 
+
   public static Graph network = new Graph();
   public static Graph dualNetwork = new Graph();
   public static Envelope MBR = null;
@@ -62,7 +60,6 @@ public class PedSimCity extends SimState {
   public static List<MasonGeometry> startingNodes = new ArrayList<>();
 
   public static Map<DirectedEdge, LengthIndexedLine> indexedEdgeCache = new ConcurrentHashMap<>();
-
 
   // used only when loading OD sets
   public int currentJob;

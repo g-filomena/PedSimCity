@@ -5,11 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
 import org.javatuples.Pair;
 import org.locationtech.jts.linearref.LengthIndexedLine;
 import org.locationtech.jts.planargraph.DirectedEdge;
-
 import pedsim.activity.engine.PedSimCityActivity;
 import pedsim.core.engine.ScenarioConfig;
 import sim.field.geo.VectorLayer;
@@ -35,10 +33,10 @@ public class PedSimCityNight extends PedSimCityActivity {
   // cached alternative routes for night movement
   public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> alternativeRoutes =
       new ConcurrentHashMap<>();
-  
+
   // --- Vulnerability dataset (node -> vulnerability %) ---
   public static Map<NodeGraph, Double> nodesVulnerabilityWeight = new HashMap<>();
-  
+
   // Directional entrance light mapping (Node_A -> Node_B : min_lux), keyed by packed long.
   public static final Map<Long, Double> directionalLuxMap = new ConcurrentHashMap<>();
 
@@ -55,22 +53,28 @@ public class PedSimCityNight extends PedSimCityActivity {
   private static final int MAX_ROUTE_CACHE_SIZE = 5000;
 
   private static <K, V> Map<K, V> createBoundedCache() {
-      return java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<K, V>(MAX_ROUTE_CACHE_SIZE + 1, .75F, true) {
+    return java.util.Collections.synchronizedMap(
+        new java.util.LinkedHashMap<K, V>(MAX_ROUTE_CACHE_SIZE + 1, .75F, true) {
           @Override
           protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
-              return size() > MAX_ROUTE_CACHE_SIZE;
+            return size() > MAX_ROUTE_CACHE_SIZE;
           }
-      });
+        });
   }
 
   // cached route
-  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> routesDay = createBoundedCache();
-  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> routesNonVulnerableNight = createBoundedCache();
-  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> routesVulnerableNight = createBoundedCache();
+  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> routesDay =
+      createBoundedCache();
+  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> routesNonVulnerableNight =
+      createBoundedCache();
+  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> routesVulnerableNight =
+      createBoundedCache();
 
   // cached alternative routes for night movement
-  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> altRoutesVulnerable = createBoundedCache();
-  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> altRoutesNonVulnerable = createBoundedCache();
+  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> altRoutesVulnerable =
+      createBoundedCache();
+  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> altRoutesNonVulnerable =
+      createBoundedCache();
 
   /**
    * Constructs a new instance of the PedSimCity simulation environment.
@@ -186,8 +190,7 @@ public class PedSimCityNight extends PedSimCityActivity {
     illuminatedEdges.getGeometries().clear();
     nodesVulnerabilityWeight.clear();
 
-    //TODO CHECK
+    // TODO CHECK
     alternativeRoutes.clear();
   }
- 
 }

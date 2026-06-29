@@ -63,7 +63,8 @@ public class ActivityEnvironment extends Environment {
     PedSimCityActivity.censusZonesIndex = zoneIndex;
 
     // Derive per-node POI weights: split each zone's count (an extensive quantity) across its
-    // claimed nodes, accumulating across zones that share a node. Used by ActivityAgent.getPOIWeight.
+    // claimed nodes, accumulating across zones that share a node. Used by
+    // ActivityAgent.getPOIWeight.
     for (CensusZone zone : PedSimCityActivity.censusZones) {
       if (zone.nodes.isEmpty()) continue;
       double workPerNode = zone.workplace / zone.nodes.size();

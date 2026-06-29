@@ -2,7 +2,6 @@ package pedsim.core.engine;
 
 import java.net.URL;
 import java.util.logging.Logger;
-
 import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
 import sim.field.geo.VectorLayer;
@@ -112,8 +111,6 @@ public class Import {
       handleImportError("Importing Barriers Failed", e);
     }
   }
-
-  
 
   /**
    * Reads an optional GeoPackage layer into the given target layer using a robust manual reader.

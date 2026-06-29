@@ -1,7 +1,6 @@
 package pedsim.night.engine;
 
 import java.net.URL;
-
 import pedsim.activity.engine.ActivityImport;
 import sim.field.geo.VectorLayer;
 
