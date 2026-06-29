@@ -124,7 +124,8 @@ public class Engine {
     AgentReleaseManager currentDayReleaseManager =
         new AgentReleaseManager(state, kmCurrentDay, currentDay + 1);
 
-    java.util.Map<Integer, java.util.Map<String, Integer>> finalVolumesMap = new java.util.HashMap<>();
+    java.util.Map<Integer, java.util.Map<String, Integer>> finalVolumesMap =
+        new java.util.HashMap<>();
 
     try {
       double nextAgentRelease = 1.0;
