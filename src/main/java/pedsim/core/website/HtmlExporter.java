@@ -1323,9 +1323,9 @@ const volTgTop10 = document.getElementById('vol-tg-top10');
 if (volTgTop10) volTgTop10.addEventListener('change', volDraw);
 updateVolLegend();
 canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; resetView(); updateMetrics(0);
-document.querySelector('[onclick="switchTab(\'hourly\')"]').addEventListener('click', () => { setTimeout(() => { hvCanvas.width = hvCanvas.clientWidth; hvCanvas.height = hvCanvas.clientHeight; resetHvView(); }, 50); });
-document.querySelector('[onclick="switchTab(\'volumes\')"]').addEventListener('click', () => { setTimeout(() => { volCanvas.width = volCanvas.clientWidth; volCanvas.height = volCanvas.clientHeight; resetVolView(); }, 50); });
-document.querySelector('[onclick="switchTab(\'ab\')"]').addEventListener('click', () => { setTimeout(() => { abCanvas.width = abCanvas.clientWidth; abCanvas.height = abCanvas.clientHeight; abResetView(); if (AB_TRIPS && AB_TRIPS.length > 0) abUpdateMetrics(abCurrentFloatStep); }, 50); });
+document.querySelector(`[onclick="switchTab('hourly')"]`).addEventListener('click', () => { setTimeout(() => { hvCanvas.width = hvCanvas.clientWidth; hvCanvas.height = hvCanvas.clientHeight; resetHvView(); }, 50); });
+document.querySelector(`[onclick="switchTab('volumes')"]`).addEventListener('click', () => { setTimeout(() => { volCanvas.width = volCanvas.clientWidth; volCanvas.height = volCanvas.clientHeight; resetVolView(); }, 50); });
+document.querySelector(`[onclick="switchTab('ab')"]`).addEventListener('click', () => { setTimeout(() => { abCanvas.width = abCanvas.clientWidth; abCanvas.height = abCanvas.clientHeight; abResetView(); if (AB_TRIPS && AB_TRIPS.length > 0) abUpdateMetrics(abCurrentFloatStep); }, 50); });
 </script>
 </body>
 </html>
