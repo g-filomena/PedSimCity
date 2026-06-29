@@ -177,6 +177,12 @@ public class Engine {
         }
       }
 
+      // Capture volumesMap before exportFlowsData clears it for the HTML dashboard
+      Map<Integer, Map<String, Integer>> finalVolumesMap = new java.util.HashMap<>();
+      for (Map.Entry<Integer, Map<String, Integer>> entry : state.flowHandler.volumesMap.entrySet()) {
+          finalVolumesMap.put(entry.getKey(), new java.util.HashMap<>(entry.getValue()));
+      }
+
       state.flowHandler.updateCognitiveMapsData(null);
       state.flowHandler.exportFlowsData(currentDay + 1);
       state.flowHandler.exportCognitiveMapsData(currentDay + 1);
@@ -192,10 +198,10 @@ public class Engine {
     TripDiagnostic.save("trip_diagnostic.csv");
 
     // Generate the self-contained HTML dashboard and open it in the browser
-    generateAndOpenHtmlDashboard(job, state, currentDay);
+    generateAndOpenHtmlDashboard(job, state, currentDay, finalVolumesMap);
   }
 
-  private void generateAndOpenHtmlDashboard(int job, PedSimCity state, int currentDay) {
+  private void generateAndOpenHtmlDashboard(int job, PedSimCity state, int currentDay, java.util.Map<Integer, java.util.Map<String, Integer>> finalVolumesMap) {
     try {
       logger.info("[Engine] Compiling HTML dashboard for job " + job + "…");
 
@@ -204,7 +210,7 @@ public class Engine {
               currentDay + 1, // day (1-based)
               job,
               TripRouteRecorder.getRecords(),
-              state.flowHandler.volumesMap);
+              finalVolumesMap);
 
       if (htmlPath != null && Desktop.isDesktopSupported()) {
         Desktop.getDesktop().browse(new File(htmlPath).toURI());

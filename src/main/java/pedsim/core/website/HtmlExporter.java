@@ -594,7 +594,7 @@ function getVolColor(f, useLight) {
     return `rgb(${r},${g},${b})`;
   }
   const v = f.properties.volume || 0;
-  if (v < 1) return '#161c2e';
+  if (v < 1) return '#1e2a3a';  // dim but visible base road colour
   const t = Math.min(Math.pow(v / maxVol, 0.5), 1.0);
   let r, g, b;
   if (t < 0.33) {
@@ -615,7 +615,10 @@ function getVolColor(f, useLight) {
   }
   return `rgb(${r},${g},${b})`;
 }
-function getVolWeight(f) { return 1.25; }
+function getVolWeight(f) {
+  const v = f.properties.volume || 0;
+  return v < 1 ? 0.8 : Math.max(0.8, Math.min(3.0, 0.8 + (v / maxVol) * 2.2));
+}
 function getPointAlongPath(coords, segs, totalLength, progress) {
   if (!coords || coords.length === 0) return null;
   if (progress <= 0 || totalLength === 0) return { x: coords[0][0], y: coords[0][1] };
