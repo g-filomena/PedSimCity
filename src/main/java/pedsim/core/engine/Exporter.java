@@ -123,17 +123,17 @@ public class Exporter {
           for (Enum<?> a : agents) t += cellVolume(ev, a, s);
           row.add(Integer.toString(t));
         }
-        int day = 0;
-        int night = 0;
+        int dayVol = 0;
+        int nightVol = 0;
         for (Enum<?> a : agents) {
           for (Enum<?> s : simValues) {
             int v = cellVolume(ev, a, s);
-            if (isNightHour(s)) night += v;
-            else day += v;
+            if (isNightHour(s)) nightVol += v;
+            else dayVol += v;
           }
         }
-        row.add(Integer.toString(day));
-        row.add(Integer.toString(night));
+        row.add(Integer.toString(dayVol));
+        row.add(Integer.toString(nightVol));
         if (perAgent) {
           for (Enum<?> a : agents) {
             int d = 0;
