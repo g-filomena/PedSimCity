@@ -68,11 +68,10 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
     if (forceWebsite) choice = 2;
     else if (forceGui) choice = 1;
     else {
-      System.out.println("\n========================================");
-      System.out.println("   PedSimCity Night - Startup Options   ");
-      System.out.println("========================================");
-      System.out.println(" 1. Run Standard GUI (AWT)");
-      System.out.println(" 2. Start REST API + Open Browser/HTML Dashboard");
+      System.out.println("\n--- PedSimCity Night ---");
+      System.out.println("Select interface mode:");
+      System.out.println("  1) Standard Applet GUI");
+      System.out.println("  2) Web Dashboard (Browser)");
       System.out.print("\nSelect an option [1-2]: ");
 
       java.util.Scanner scanner = new java.util.Scanner(System.in);
