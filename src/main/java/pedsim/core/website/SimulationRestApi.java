@@ -171,22 +171,31 @@ public final class SimulationRestApi {
             "/",
             exchange -> {
               try {
-                if (!"/".equals(exchange.getRequestURI().getPath())
-                    && !"/dashboard.html".equals(exchange.getRequestURI().getPath())) {
+                String path = exchange.getRequestURI().getPath();
+                if (!"/".equals(path) && !"/dashboard.html".equals(path) && !path.endsWith(".png") && !path.endsWith(".jpg")) {
                   exchange.sendResponseHeaders(404, -1);
                   return;
                 }
-                java.io.File htmlFile = new java.io.File("dashboard.html");
-                if (!htmlFile.exists()) {
-                  byte[] err = "dashboard.html not found".getBytes(StandardCharsets.UTF_8);
+                
+                String fileName = "/".equals(path) ? "dashboard.html" : path.substring(1);
+                java.io.File file = new java.io.File(fileName);
+                if (!file.exists()) {
+                  byte[] err = "File not found".getBytes(StandardCharsets.UTF_8);
                   exchange.sendResponseHeaders(404, err.length);
                   try (var out = exchange.getResponseBody()) {
                     out.write(err);
                   }
                   return;
                 }
-                byte[] body = java.nio.file.Files.readAllBytes(htmlFile.toPath());
-                exchange.getResponseHeaders().add("Content-Type", "text/html; charset=UTF-8");
+                
+                byte[] body = java.nio.file.Files.readAllBytes(file.toPath());
+                if (fileName.endsWith(".png")) {
+                  exchange.getResponseHeaders().add("Content-Type", "image/png");
+                } else if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) {
+                  exchange.getResponseHeaders().add("Content-Type", "image/jpeg");
+                } else {
+                  exchange.getResponseHeaders().add("Content-Type", "text/html; charset=UTF-8");
+                }
                 exchange.getResponseHeaders().add("Cache-Control", "no-cache");
                 exchange.sendResponseHeaders(200, body.length);
                 try (var out = exchange.getResponseBody()) {
