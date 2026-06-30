@@ -285,6 +285,13 @@
         </div>
       </div>
 
+      <div class="row">
+        <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; flex-direction: row;">
+          <input type="checkbox" id="useGravityModel" checked style="width: auto; margin: 0; cursor: pointer;"/>
+          <label for="useGravityModel" style="margin: 0; cursor: pointer; font-size: 0.9rem;">Enable Gravity Model (Shorter Routes)</label>
+        </div>
+      </div>
+
       <button id="startBtn" onclick="startSimulation()">Launch Simulation</button>
     </div>
 
@@ -349,7 +356,8 @@
         actualPopulation: parseInt(document.getElementById('actualPopulation').value),
         percentage: parseFloat(document.getElementById('percentage').value),
         days: parseInt(document.getElementById('days').value),
-        jobs: parseInt(document.getElementById('jobs').value)
+        jobs: parseInt(document.getElementById('jobs').value),
+        useGravityModel: document.getElementById('useGravityModel').checked
       };
 
       const btn = document.getElementById('startBtn');

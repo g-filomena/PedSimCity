@@ -121,16 +121,27 @@ public class ActivityPopulate extends Populate {
     Point homePoint = GEOMETRY_FACTORY.createPoint(homeNode.getCoordinate());
     List<CensusZone> valid = new ArrayList<>();
     double totalWeight = 0.0;
+    
+    // Beta = 2.0 is a standard gravity model decay parameter
+    final double BETA = 2.0;
+
     for (CensusZone zone : candidates) {
       if (zone.workplace <= 0.0 || zone.nodes.isEmpty()) continue;
 
-      // Cheap centroid-distance pre-filter. The 0.6 relaxation is intentional: Euclidean distance
-      // is usually shorter than network distance.
       double distanceToCentroid = zone.geometry.getGeometry().getCentroid().distance(homePoint);
       if (distanceToCentroid >= RouteChoicePars.minTripDistance * 0.6
           && distanceToCentroid <= RouteChoicePars.maxTripDistance) {
         valid.add(zone);
-        totalWeight += zone.workplace; // weight by number of workplace opportunities (count)
+        
+        if (pedsim.core.parameters.RouteChoicePars.useGravityModel) {
+          // Apply distance decay to the workplace POI count
+          double dist = Math.max(10.0, distanceToCentroid);
+          double weight = zone.workplace / Math.pow(dist, BETA);
+          totalWeight += weight;
+        } else {
+          // Legacy uniform weight
+          totalWeight += zone.workplace;
+        }
       }
     }
     if (valid.isEmpty() || totalWeight <= 0.0) return null;
@@ -138,7 +149,16 @@ public class ActivityPopulate extends Populate {
     double r = random.nextDouble() * totalWeight;
     double cumulative = 0.0;
     for (CensusZone zone : valid) {
-      cumulative += zone.workplace;
+      double weight;
+      if (pedsim.core.parameters.RouteChoicePars.useGravityModel) {
+        double distanceToCentroid = zone.geometry.getGeometry().getCentroid().distance(homePoint);
+        double dist = Math.max(10.0, distanceToCentroid);
+        weight = zone.workplace / Math.pow(dist, BETA);
+      } else {
+        weight = zone.workplace;
+      }
+      
+      cumulative += weight;
       if (r <= cumulative) {
         spatialJumpSuccessCount.incrementAndGet();
         return randomNodeIn(zone);

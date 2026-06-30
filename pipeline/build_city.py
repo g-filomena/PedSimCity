@@ -58,6 +58,15 @@ def main():
         script_path = os.path.join(pipeline_dir, "04_directional_lighting.py")
         subprocess.run([sys.executable, script_path, "--input_dir", input_dir, "--prefix", prefix], check=True)
 
+    # Step 5: Active Frontages
+    edges_with_frontages = os.path.join(input_dir, f"{city}_edges_with_frontages.gpkg")
+    if os.path.exists(edges_with_frontages):
+        print("[SKIP] active_frontages.py - Output file already exists.")
+    else:
+        print("[RUN] active_frontages.py - Calculating active/hostile frontages...")
+        script_path = os.path.join(pipeline_dir, "active_frontages.py")
+        subprocess.run([sys.executable, script_path, "--input_dir", input_dir, "--prefix", prefix], check=True)
+
     print("\n============================================================")
     print(f"Pipeline completed successfully!")
     print(f"All required data components are ready in {input_dir}.")

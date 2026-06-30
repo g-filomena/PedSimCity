@@ -73,8 +73,10 @@ def main():
     output_path = input_dir / f"{city}_censusData.gpkg"
 
     if raw_census.resolve() == output_path.resolve():
-        raise SystemExit(f"Raw and output paths collide ({output_path}). Use a --prefix different "
-                         f"from the city folder name '{city}'.")
+        print(f"Warning: Raw and output paths collide ({output_path}). Will overwrite in-place.")
+        output_temp = input_dir / f"{city}_censusData_tmp.gpkg"
+    else:
+        output_temp = output_path
 
     print(f"raw census : {raw_census}")
     print(f"output     : {output_path}")
@@ -109,8 +111,10 @@ def main():
     keep = [c for c in keep if c in gdf.columns]
     out = gdf[keep].copy()
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    out.to_file(output_path)
+    output_temp.parent.mkdir(parents=True, exist_ok=True)
+    out.to_file(output_temp)
+    if output_temp != output_path:
+        os.replace(output_temp, output_path)
     print(f"saved: {output_path}")
     print(out.drop(columns="geometry").describe())
 

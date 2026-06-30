@@ -8,6 +8,7 @@ package pedsim.core.parameters;
 public class RouteChoicePars {
 
   public static boolean usingDMA = false;
+  public static boolean useGravityModel = true;
   public static double thresholdTurn = 45;
 
   // Distance between Origin and Destination

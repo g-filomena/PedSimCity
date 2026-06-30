@@ -65,17 +65,24 @@ public final class NightSimulationModule implements SimulationModule {
     if (params.containsKey("crowdednessPercentile"))
       NightPars.crowdednessPercentile =
           Double.parseDouble(params.get("crowdednessPercentile").toString());
+    if (params.containsKey("useGravityModel"))
+      pedsim.core.parameters.RouteChoicePars.useGravityModel =
+          Boolean.parseBoolean(params.get("useGravityModel").toString());
   }
 
   @Override
   public Map<String, Object> extraState() {
     return Map.of(
         "enableAB", NightPars.enableLightABTesting,
-        "crowdednessPercentile", NightPars.crowdednessPercentile);
+        "crowdednessPercentile", NightPars.crowdednessPercentile,
+        "useGravityModel", pedsim.core.parameters.RouteChoicePars.useGravityModel);
   }
 
   @Override
   public Map<String, Object> parameterSchema() {
-    return Map.of("enableAB", "boolean", "crowdednessPercentile", "double");
+    return Map.of(
+        "enableAB", "boolean",
+        "crowdednessPercentile", "double",
+        "useGravityModel", "boolean");
   }
 }
