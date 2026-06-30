@@ -264,9 +264,9 @@ public class PedSimCityApplet extends Frame {
 
   protected ServerProjectConfig buildServerProjectConfig() {
     return new ServerProjectConfig(
-        "/mnt/home/gabriele/PedSimCity",
+        ServerConfig.remoteProjectDir("PedSimCity"),
         "pedsim.core.applet.PedSimCityApplet",
-        "bin:lib/*:src/main/resources");
+        ServerConfig.classpath());
   }
 
   // =====================================================
