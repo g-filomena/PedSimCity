@@ -14,6 +14,7 @@ import pedsim.cityimage.engine.PedSimCityImage;
 import pedsim.cityimage.parameters.TestPars;
 import pedsim.cityimage.utilities.StringEnum.RouteChoice;
 import pedsim.core.applet.PedSimCityActionHandler;
+import pedsim.core.applet.ServerConfig;
 import pedsim.core.applet.ServerProjectConfig;
 import pedsim.core.engine.Engine;
 import pedsim.core.engine.ScenarioConfig;
@@ -291,9 +292,9 @@ public class PedSimCityImageApplet extends pedsim.core.applet.PedSimCityApplet
   @Override
   protected ServerProjectConfig buildServerProjectConfig() {
     return new ServerProjectConfig(
-        "/mnt/home/gabriele/PedSimCity",
+        ServerConfig.remoteProjectDir("PedSimCity"),
         "pedsim.cityimage.applet.PedSimCityImageApplet",
-        "bin:lib/*:src/main/resources");
+        ServerConfig.classpath());
   }
 
   public static void main(String[] args) throws Exception {

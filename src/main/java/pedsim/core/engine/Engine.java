@@ -59,7 +59,12 @@ public class Engine {
       prepareEnvironment();
       logger.info("Environment prepared. About to start simulation");
 
-      if (parallel) {
+      boolean runParallel = parallel && supportsParallel();
+      if (parallel && !runParallel) {
+        logger.info("This module does not support parallel jobs; running them sequentially.");
+      }
+
+      if (runParallel) {
         IntStream.range(0, Pars.jobs)
             .parallel()
             .forEach(
@@ -103,6 +108,14 @@ public class Engine {
 
   protected Engine createWorkerEngine() {
     return new Engine(stateFactory, baseSeed);
+  }
+
+  /**
+   * Whether this module's jobs may run in parallel. Modules with shared mutable state that is not
+   * thread-safe override this to force sequential runs even when {@code Pars.parallel} is set.
+   */
+  protected boolean supportsParallel() {
+    return true;
   }
 
   public void executeJob(int job, ScenarioConfig scenarioConfig) throws Exception {

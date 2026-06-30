@@ -6,6 +6,7 @@ import pedsim.activity.engine.ActivityEngine;
 import pedsim.activity.engine.ActivitySimulationModule;
 import pedsim.activity.engine.PedSimCityActivity;
 import pedsim.core.applet.PedSimCityApplet;
+import pedsim.core.applet.ServerConfig;
 import pedsim.core.applet.ServerProjectConfig;
 import pedsim.core.engine.Engine;
 import pedsim.core.engine.ScenarioConfig;
@@ -110,9 +111,9 @@ public class PedSimCityActivityApplet extends PedSimCityApplet {
   @Override
   protected ServerProjectConfig buildServerProjectConfig() {
     return new ServerProjectConfig(
-        "/mnt/home/gabriele/PedSimCityActivity",
+        ServerConfig.remoteProjectDir("PedSimCityActivity"),
         "pedsim.activity.applet.PedSimCityActivityApplet",
-        "bin:lib/*:src/main/resources");
+        ServerConfig.classpath());
   }
 
   @Override
