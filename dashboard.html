@@ -144,6 +144,92 @@
       transform: translateY(0);
     }
 
+    /* Checkbox & Advanced Settings */
+    .checkbox-label {
+      text-transform: none !important;
+      letter-spacing: normal !important;
+      font-size: 0.95rem;
+      font-weight: 400;
+      color: var(--text-main);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .settings-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      padding: 1rem 0;
+      color: var(--text-muted);
+      font-weight: 500;
+      font-size: 0.9rem;
+      border-top: 1px solid var(--glass-border);
+      border-bottom: 1px solid var(--glass-border);
+      margin: 1.5rem 0;
+      transition: color 0.2s ease;
+    }
+    .settings-toggle:hover {
+      color: var(--text-main);
+    }
+    .settings-toggle svg {
+      width: 16px;
+      height: 16px;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .settings-toggle.open svg {
+      transform: rotate(180deg);
+    }
+    
+    .settings-content {
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+      transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+    }
+    .settings-content.open {
+      max-height: 200px;
+      opacity: 1;
+      padding: 1rem 0;
+    }
+
+    /* Custom Checkbox */
+    .custom-checkbox-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      cursor: pointer;
+    }
+    .custom-checkbox-wrapper input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--glass-border);
+      border-radius: 4px;
+      background: rgba(0,0,0,0.2);
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s ease;
+      margin: 0;
+      padding: 0;
+    }
+    .custom-checkbox-wrapper input[type="checkbox"]:checked {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .custom-checkbox-wrapper input[type="checkbox"]:checked::after {
+      content: '';
+      position: absolute;
+      left: 5px;
+      top: 1px;
+      width: 5px;
+      height: 10px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
     /* Status Panel */
     .stats-grid {
       display: grid;
@@ -285,11 +371,18 @@
         </div>
       </div>
 
-      <div class="row">
-        <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; flex-direction: row;">
-          <input type="checkbox" id="useGravityModel" checked style="width: auto; margin: 0; cursor: pointer;"/>
-          <label for="useGravityModel" style="margin: 0; cursor: pointer; font-size: 0.9rem;">Enable Gravity Model (Shorter Routes)</label>
-        </div>
+      <div class="settings-toggle" onclick="toggleSettings()">
+        <span>Advanced Settings</span>
+        <svg fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+        </svg>
+      </div>
+      
+      <div class="settings-content" id="advancedSettings">
+        <label class="custom-checkbox-wrapper">
+          <input type="checkbox" id="useGravityModel" checked />
+          <span class="checkbox-label">Enable Gravity Model</span>
+        </label>
       </div>
 
       <button id="startBtn" onclick="startSimulation()">Launch Simulation</button>
@@ -348,6 +441,13 @@
       line.innerHTML = `<span class="terminal-time">${time}</span> ${msg}`;
       el.prepend(line);
       if (el.children.length > 50) el.removeChild(el.lastChild);
+    }
+
+    function toggleSettings() {
+      const content = document.getElementById('advancedSettings');
+      const toggle = document.querySelector('.settings-toggle');
+      content.classList.toggle('open');
+      toggle.classList.toggle('open');
     }
 
     async function startSimulation() {
