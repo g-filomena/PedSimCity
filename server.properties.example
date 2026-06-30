@@ -1,0 +1,35 @@
+# PedSimCity remote-run configuration.
+#
+# Copy this file to `server.properties` (same directory, the repo root) and fill in your own
+# values. `server.properties` is gitignored, so your credentials stay local.
+#
+# Every key is optional: a blank or missing value falls back to a sensible default.
+# NOTE: this is a Java .properties file, so backslashes must be doubled (e.g. C:\\Users\\you).
+
+# SSH client executable. Leave blank to use `ssh` from your PATH (works on Windows 10+, Linux, macOS).
+ssh.executable=
+
+# Path to your private key for the server. Leave blank to rely on your ssh-agent / default key.
+ssh.key=
+
+# Remote server, as user@host.
+server.host=
+
+# Remote JDK bin directory (containing java/javac). Leave blank to use java/javac from the PATH.
+server.javaBinDir=
+
+# Remote base directory under which each module's checkout lives (e.g. <base>/PedSimCityNight).
+# Leave blank for a path relative to the SSH login directory.
+server.projectBaseDir=
+
+# Classpath used for the remote run. Rarely needs changing.
+server.classpath=bin:lib/*:src/main/resources
+
+# ---------------------------------------------------------------------------
+# Example of a filled-in configuration:
+#
+# ssh.executable=C:\\Windows\\System32\\OpenSSH\\ssh.exe
+# ssh.key=C:\\Users\\you\\Scripts\\pedsimcity\\id_ed25519
+# server.host=you@your.server.ac.uk
+# server.javaBinDir=/usr/local/software/java/jdk-21.0.6/bin
+# server.projectBaseDir=/mnt/home/you

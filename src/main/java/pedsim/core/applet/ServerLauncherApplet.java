@@ -3,6 +3,8 @@ package pedsim.core.applet;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
 import pedsim.core.parameters.ParameterManager;
 import pedsim.core.utilities.LoggerUtil;
 
@@ -11,19 +13,18 @@ import pedsim.core.utilities.LoggerUtil;
  */
 public class ServerLauncherApplet {
 
-  // --- SSH / remote env config (override via setters) ---
-  private String sshPath = "C:\\Windows\\System32\\OpenSSH\\ssh.exe";
-  private String keyPath =
-      "C:\\Users\\gfilo\\OneDrive - The University of Liverpool\\Scripts\\pedsimcity\\id_ed25519";
-  private String server = "gabriele@gdsl1.liv.ac.uk";
+  // --- SSH / remote env config (defaults from server.properties; override via setters) ---
+  private String sshPath = ServerConfig.sshExecutable();
+  private String keyPath = ServerConfig.sshKey();
+  private String server = ServerConfig.serverHost();
 
   // Project-specific remote config (editable after init)
   private String projectDir;
   private String mainClass;
 
   // Remote Java toolchain
-  private String javaBinDir = "/usr/local/software/java/jdk-21.0.6/bin";
-  private String classpath = "bin:lib/*:src/main/resources";
+  private String javaBinDir = ServerConfig.javaBinDir();
+  private String classpath = ServerConfig.classpath();
 
   private String lastPid = null;
 
@@ -107,7 +108,7 @@ public class ServerLauncherApplet {
     applet.appendLog("[SERVER][CMD] " + remoteCmd);
 
     try {
-      ProcessBuilder pb = new ProcessBuilder(sshPath, "-i", keyPath, server, remoteCmd);
+      ProcessBuilder pb = sshCommand(remoteCmd);
       pb.redirectErrorStream(true);
       Process proc = pb.start();
 
@@ -140,7 +141,7 @@ public class ServerLauncherApplet {
   public void stopOnServer(PedSimCityApplet applet) {
     String killCmd = lastPid != null ? "kill " + lastPid : "pkill -f " + mainClass;
     try {
-      ProcessBuilder pb = new ProcessBuilder(sshPath, "-i", keyPath, server, killCmd);
+      ProcessBuilder pb = sshCommand(killCmd);
       pb.start();
       applet.appendLog("[SERVER] Sent kill command (" + killCmd + ")");
     } catch (IOException e) {
@@ -157,12 +158,25 @@ public class ServerLauncherApplet {
   // Internals
   // -------------------------
 
+  /** Build the ssh invocation, including {@code -i <key>} only when a key path is configured. */
+  private ProcessBuilder sshCommand(String remoteCmd) {
+    List<String> args = new ArrayList<>();
+    args.add(sshPath);
+    if (!keyPath.isBlank()) {
+      args.add("-i");
+      args.add(keyPath);
+    }
+    args.add(server);
+    args.add(remoteCmd);
+    return new ProcessBuilder(args);
+  }
+
   /**
    * Build the full remote command chain (check JDK, pull, compile, run)
    */
   private String buildRemoteCommand(String fullArgs) {
-    String java = javaBinDir + "/java";
-    String javac = javaBinDir + "/javac";
+    String java = javaBinDir.isBlank() ? "java" : javaBinDir + "/java";
+    String javac = javaBinDir.isBlank() ? "javac" : javaBinDir + "/javac";
 
     return "echo '>> Checking Java version' && "
         + java

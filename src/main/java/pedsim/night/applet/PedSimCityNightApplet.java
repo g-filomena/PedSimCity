@@ -3,6 +3,7 @@ package pedsim.night.applet;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import pedsim.core.applet.PedSimCityApplet;
+import pedsim.core.applet.ServerConfig;
 import pedsim.core.applet.ServerProjectConfig;
 import pedsim.core.engine.Engine;
 import pedsim.core.engine.ScenarioConfig;
@@ -121,9 +122,9 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
   @Override
   protected ServerProjectConfig buildServerProjectConfig() {
     return new ServerProjectConfig(
-        "/mnt/home/gabriele/PedSimCityNight",
+        ServerConfig.remoteProjectDir("PedSimCityNight"),
         "pedsim.night.applet.PedSimCityNightApplet",
-        "bin:lib/*:src/main/resources");
+        ServerConfig.classpath());
   }
 
   @Override
