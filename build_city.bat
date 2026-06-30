@@ -14,5 +14,7 @@ set /p PREFIX=Enter raw-file prefix (e.g. Torino_):
 
 set "INPUT_DIR=%~dp0src\main\resources\%CITY%"
 echo Building city data: "%INPUT_DIR%"  (prefix "%PREFIX%")
-python "%~dp0pipeline\build_city.py" --input_dir "%INPUT_DIR%" --prefix "%PREFIX%"
+
+py -3 "%~dp0pipeline\build_city.py" --input_dir "%INPUT_DIR%" --prefix "%PREFIX%"
+
 pause
