@@ -34,10 +34,6 @@ public final class TestPars extends Pars {
 
   public static boolean verboseMode = false;
 
-  public static String localPath =
-      "C:/Users/gfilo/OneDrive - The University of"
-          + " Liverpool/Scripts/pedsimcity/src/main/resources/";
-
   public static RouteChoice[] routeChoiceTestingLandmarks = {
     RouteChoice.ROAD_DISTANCE,
     RouteChoice.LANDMARKS_DISTANCE,
