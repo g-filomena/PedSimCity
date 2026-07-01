@@ -1,99 +1,119 @@
+"""Step 4: build directional lighting lookup.
+
+All layers are named <City>_… (City = the resources folder name = Pars.cityName).
+
+Reads:
+- <City>_edges.gpkg
+- <City>_nodes_2m_densified_illuminated.gpkg
+
+Writes (the name the Java PedSimCityNight loader expects):
+- <City>_directional_lighting_lookup.csv
+"""
+
+from __future__ import annotations
+
+import argparse
 import os
+from pathlib import Path
+
 import geopandas as gpd
-import numpy as np
 import pandas as pd
 
-# ==========================================
-# 1. SETUP PATHS & FILES
-# ==========================================
-import argparse
-import sys
-parser = argparse.ArgumentParser()
-parser.add_argument('--input_dir', required=True)
-parser.add_argument('--prefix', required=True)
-args = parser.parse_args()
-base_dir = args.input_dir
-prefix = args.prefix
+VISIBILITY_HORIZON_M = 12.0
 
 
-edges_filename = f"{prefix}edges.gpkg"
-edges_path = os.path.join(base_dir, edges_filename)
-nodes_2m_path = os.path.join(base_dir, "nodes_2m_densified_illuminated.gpkg")
-# Output name must match the Java reader: <City>_directional_lighting_lookup.csv
-# (PedSimCityNight.loadDirectionalLighting reads Pars.cityName + "_directional_lighting_lookup.csv").
-city = os.path.basename(os.path.normpath(base_dir))
-output_path = os.path.join(base_dir, f"{city}_directional_lighting_lookup.csv")
-
-print("Loading datasets...")
-edges = gpd.read_file(edges_path)
-nodes_2m = gpd.read_file(nodes_2m_path)
-
-# Define the Visibility Horizon (how many meters down the street the agent looks)
-visibility_horizon_m = 12.0 
-
-# ==========================================
-# 2. MAP TOPOLOGY (Find Edge Endpoints)
-# ==========================================
-print("Analyzing edge geometry endpoints...")
-# Assuming standard OSMnx network structure where edges have 'u' (from node) and 'v' (to node)
-# If your columns have different names, change 'u' and 'v' here
-has_topology = 'u' in edges.columns and 'v' in edges.columns
-
-directional_records = []
-
-# Group the 2m points by their parent edge for rapid slicing
-grouped_points = nodes_2m.groupby('parent_edge_idx')
-
-print("Calculating directional lightness profiles...")
-for idx, row in edges.iterrows():
-    if idx not in grouped_points.groups:
-        continue
-        
-    edge_pts = grouped_points.get_group(idx)
-    edge_length = row.geometry.length
-    
-    # Identify the node IDs at the start and end of this street
-    from_node = row['u'] if has_topology else f"node_start_{idx}"
-    to_node = row['v'] if has_topology else f"node_end_{idx}"
-    
-    # --- CHOICE A: Agent is standing at from_node, looking TOWARD to_node ---
-    # Look at the beginning of the edge line geometry
-    start_slice = edge_pts[edge_pts['dist_along_edge'] <= visibility_horizon_m]
-    lux_looking_forward = start_slice['calculated_lux'].mean() if not start_slice.empty else 0.0
-    min_lux_forward = start_slice['calculated_lux'].min() if not start_slice.empty else 0.0
-    
-    directional_records.append({
-        'current_node_id': from_node,
-        'target_node_id': to_node,
-        'chosen_edge_idx': idx,
-        'visibility_mean_lux': lux_looking_forward,
-        'visibility_min_lux': min_lux_forward
-    })
-    
-    # --- CHOICE B: Agent is standing at to_node, looking TOWARD from_node ---
-    # Look at the tail end of the edge line geometry
-    end_slice = edge_pts[edge_pts['dist_along_edge'] >= (edge_length - visibility_horizon_m)]
-    lux_looking_backward = end_slice['calculated_lux'].mean() if not end_slice.empty else 0.0
-    min_lux_backward = end_slice['calculated_lux'].min() if not end_slice.empty else 0.0
-    
-    directional_records.append({
-        'current_node_id': to_node,
-        'target_node_id': from_node,
-        'chosen_edge_idx': idx,
-        'visibility_mean_lux': lux_looking_backward,
-        'visibility_min_lux': min_lux_backward
-    })
+def first_existing(paths: list[Path], label: str) -> Path:
+    for path in paths:
+        if path.exists():
+            return path
+    joined = "\n  ".join(str(p) for p in paths)
+    raise FileNotFoundError(f"Could not find {label}. Tried:\n  {joined}")
 
 
-# exort to CSV
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Build directional lighting lookup CSV.")
+    parser.add_argument("--input_dir", required=True)
+    args = parser.parse_args()
 
-lookup_df = pd.DataFrame(directional_records)
+    base_dir = Path(os.path.abspath(args.input_dir))
+    city = base_dir.name
 
-# Handle any NaN entries safely
-lookup_df['visibility_mean_lux'] = lookup_df['visibility_mean_lux'].fillna(0.0)
-lookup_df['visibility_min_lux'] = lookup_df['visibility_min_lux'].fillna(0.0)
+    edges_path = first_existing(
+        [base_dir / f"{city}_edges.gpkg"],
+        "edges layer",
+    )
+    nodes_2m_path = first_existing(
+        [base_dir / f"{city}_nodes_2m_densified_illuminated.gpkg"],
+        "densified illuminated nodes",
+    )
+    output_path = base_dir / f"{city}_directional_lighting_lookup.csv"
+
+    print("Loading datasets...")
+    print(f" edges: {edges_path}")
+    print(f" nodes: {nodes_2m_path}")
+
+    edges = gpd.read_file(edges_path)
+    nodes_2m = gpd.read_file(nodes_2m_path)
+
+    required_node_cols = {"parent_edge_idx", "dist_along_edge", "calculated_lux"}
+    missing = required_node_cols - set(nodes_2m.columns)
+    if missing:
+        raise KeyError(f"Missing required columns in {nodes_2m_path}: {sorted(missing)}")
+
+    has_topology = "u" in edges.columns and "v" in edges.columns
+    directional_records = []
+
+    grouped_points = nodes_2m.groupby("parent_edge_idx")
+
+    print("Calculating directional lightness profiles...")
+    for idx, row in edges.iterrows():
+        if idx not in grouped_points.groups:
+            continue
+
+        edge_pts = grouped_points.get_group(idx)
+        edge_length = row.geometry.length if row.geometry is not None else 0.0
+
+        from_node = row["u"] if has_topology else f"node_start_{idx}"
+        to_node = row["v"] if has_topology else f"node_end_{idx}"
+
+        start_slice = edge_pts[edge_pts["dist_along_edge"] <= VISIBILITY_HORIZON_M]
+        directional_records.append(
+            {
+                "current_node_id": from_node,
+                "target_node_id": to_node,
+                "chosen_edge_idx": idx,
+                "visibility_mean_lux": start_slice["calculated_lux"].mean() if not start_slice.empty else 0.0,
+                "visibility_min_lux": start_slice["calculated_lux"].min() if not start_slice.empty else 0.0,
+            }
+        )
+
+        end_slice = edge_pts[edge_pts["dist_along_edge"] >= (edge_length - VISIBILITY_HORIZON_M)]
+        directional_records.append(
+            {
+                "current_node_id": to_node,
+                "target_node_id": from_node,
+                "chosen_edge_idx": idx,
+                "visibility_mean_lux": end_slice["calculated_lux"].mean() if not end_slice.empty else 0.0,
+                "visibility_min_lux": end_slice["calculated_lux"].min() if not end_slice.empty else 0.0,
+            }
+        )
+
+    lookup_df = pd.DataFrame(
+        directional_records,
+        columns=[
+            "current_node_id",
+            "target_node_id",
+            "chosen_edge_idx",
+            "visibility_mean_lux",
+            "visibility_min_lux",
+        ],
+    )
+    lookup_df["visibility_mean_lux"] = lookup_df["visibility_mean_lux"].fillna(0.0)
+    lookup_df["visibility_min_lux"] = lookup_df["visibility_min_lux"].fillna(0.0)
+
+    lookup_df.to_csv(output_path, index=False)
+    print(f"saved: {output_path} ({len(lookup_df)} rows)")
 
 
-lookup_df.to_csv(output_path, index=False)
-
-
+if __name__ == "__main__":
+    main()

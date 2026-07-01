@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions
 
-REM PedSimCity census-only launcher.
+REM PedSimCity street-lighting launcher - Turin `puntiLuce` inventory.
 REM No py.exe. No user-specific hardcoded paths. Uses Conda + environment.yml.
 
 set "ROOT=%~dp0"
@@ -48,9 +48,9 @@ if not exist "%INPUT_DIR%" (
     exit /b 1
 )
 
-echo Building census data: "%INPUT_DIR%"
+echo Building street lighting (Turin): "%INPUT_DIR%"
 
-"%CONDA_EXE%" run --no-capture-output -n "%ENV_NAME%" python "%ROOT%pipeline\01_census_and_poi.py" --input_dir "%INPUT_DIR%"
+"%CONDA_EXE%" run --no-capture-output -n "%ENV_NAME%" python "%ROOT%pipeline\build_lighting_torino.py" --input_dir "%INPUT_DIR%"
 set "EXITCODE=%ERRORLEVEL%"
 
 pause
