@@ -172,11 +172,14 @@ public final class SimulationRestApi {
             exchange -> {
               try {
                 String path = exchange.getRequestURI().getPath();
-                if (!"/".equals(path) && !"/dashboard.html".equals(path) && !path.endsWith(".png") && !path.endsWith(".jpg")) {
+                if (!"/".equals(path)
+                    && !"/dashboard.html".equals(path)
+                    && !path.endsWith(".png")
+                    && !path.endsWith(".jpg")) {
                   exchange.sendResponseHeaders(404, -1);
                   return;
                 }
-                
+
                 String fileName = "/".equals(path) ? "dashboard.html" : path.substring(1);
                 java.io.File file = new java.io.File(fileName);
                 if (!file.exists()) {
@@ -187,7 +190,7 @@ public final class SimulationRestApi {
                   }
                   return;
                 }
-                
+
                 byte[] body = java.nio.file.Files.readAllBytes(file.toPath());
                 if (fileName.endsWith(".png")) {
                   exchange.getResponseHeaders().add("Content-Type", "image/png");

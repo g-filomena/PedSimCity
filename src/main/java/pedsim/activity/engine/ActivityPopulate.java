@@ -121,7 +121,7 @@ public class ActivityPopulate extends Populate {
     Point homePoint = GEOMETRY_FACTORY.createPoint(homeNode.getCoordinate());
     List<CensusZone> valid = new ArrayList<>();
     double totalWeight = 0.0;
-    
+
     // Beta = 2.0 is a standard gravity model decay parameter
     final double BETA = 2.0;
 
@@ -132,7 +132,7 @@ public class ActivityPopulate extends Populate {
       if (distanceToCentroid >= RouteChoicePars.minTripDistance * 0.6
           && distanceToCentroid <= RouteChoicePars.maxTripDistance) {
         valid.add(zone);
-        
+
         if (pedsim.core.parameters.RouteChoicePars.useGravityModel) {
           // Apply distance decay to the workplace POI count
           double dist = Math.max(10.0, distanceToCentroid);
@@ -157,7 +157,7 @@ public class ActivityPopulate extends Populate {
       } else {
         weight = zone.workplace;
       }
-      
+
       cumulative += weight;
       if (r <= cumulative) {
         spatialJumpSuccessCount.incrementAndGet();
