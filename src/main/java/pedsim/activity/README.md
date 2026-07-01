@@ -47,7 +47,7 @@ back gracefully to DMA / uniform-random selection.
 | `night_poi` | count | evening/leisure destinations |
 | `vulnerability_pct` | rate [0,1] | per-zone vulnerability (read by the night module) |
 
-The layer is produced by `pipeline/01_census_and_poi.py` (run via `pipeline/build_city.py`).
+The layer is produced by `pipeline/01_census_and_poi.py` (run via `build_census.bat`).
 All zones are kept: non-residential zones (streets, parks, commercial) simply get `residence_pct = 0`
 and remain valid work/night destinations — no type-1/36 fusion. Each zone claims the network nodes
 within 50 m (growing to 100/200/400 m if none); POI **counts** are split across a zone's nodes, while
