@@ -1,12 +1,14 @@
 """Step 1: build the unified census layer for PedSimCity.
 
-Enriches <City>_censusData.gpkg in place (City = the resources folder name =
-Pars.cityName, the name the Java ActivityImport loader expects) with the columns
-read by the Java side:
+Enriches <city>_censusData.gpkg in place with the columns read by the Java side:
 - residence_pct
 - workplace_poi
 - night_poi
 - vulnerability_pct
+
+`--input_dir` is the resources folder path.
+`--city_name` is the filename prefix before `_censusData.gpkg`, `_edges.gpkg`, etc.
+If `--city_name` is omitted, the input folder name is used for backward compatibility.
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from pathlib import Path
 import geopandas as gpd
 import osmnx as ox
 import pandas as pd
+
 
 WORKPLACE_TAGS = {
     "office": True,
@@ -67,10 +70,12 @@ def geometry_union(gdf: gpd.GeoDataFrame):
 
 
 def osm_features_from_polygon(boundary_4326, tags):
-    # OSMnx has moved feature helpers between versions. Try both APIs.
+    """OSMnx 2.x-compatible feature downloader."""
+    if hasattr(ox, "features_from_polygon"):
+        return ox.features_from_polygon(boundary_4326, tags)
     if hasattr(ox, "features") and hasattr(ox.features, "features_from_polygon"):
         return ox.features.features_from_polygon(boundary_4326, tags)
-    return ox.features_from_polygon(boundary_4326, tags)
+    raise AttributeError("This OSMnx version has no features_from_polygon API.")
 
 
 def count_pois_per_zone(gdf: gpd.GeoDataFrame, boundary_4326, tags: dict) -> pd.Series:
@@ -86,7 +91,6 @@ def count_pois_per_zone(gdf: gpd.GeoDataFrame, boundary_4326, tags: dict) -> pd.
     feats = feats[feats.geometry.notnull() & ~feats.geometry.is_empty].copy()
     feats["geometry"] = feats.geometry.centroid
     pts = feats[feats.geometry.type == "Point"].copy()
-
     if pts.empty:
         return pd.Series(0, index=gdf.index, dtype="int64")
 
@@ -98,19 +102,24 @@ def count_pois_per_zone(gdf: gpd.GeoDataFrame, boundary_4326, tags: dict) -> pd.
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build the unified census layer for PedSimCity.")
     parser.add_argument("--input_dir", required=True, help="City resources folder, e.g. src/main/resources/Torino")
+    parser.add_argument(
+        "--city_name",
+        default=None,
+        help="Filename prefix before _censusData.gpkg / _edges.gpkg. Defaults to input folder name.",
+    )
     args = parser.parse_args()
 
     input_dir = Path(os.path.abspath(args.input_dir))
-    city = input_dir.name
+    city = args.city_name or input_dir.name
 
-    # Every layer is named <City>_… (City = folder name = Pars.cityName). The census
-    # layer is enriched in place, so we write a temp file and replace the original.
     census_path = input_dir / f"{city}_censusData.gpkg"
     census_temp = input_dir / f"{city}_censusData_tmp.gpkg"
 
     if not census_path.exists():
         raise FileNotFoundError(f"Census file not found: {census_path}")
 
+    print(f"resources folder: {input_dir}")
+    print(f"city file prefix: {city}")
     print(f"census: {census_path}")
 
     gdf = gpd.read_file(census_path)
@@ -118,7 +127,6 @@ def main() -> None:
         raise ValueError(f"Census layer is empty: {census_path}")
 
     print("CRS:", gdf.crs)
-
     if "P1" not in gdf.columns:
         raise KeyError("Required population column P1 not found in census data.")
 
@@ -159,8 +167,8 @@ def main() -> None:
 
     if census_temp.exists():
         census_temp.unlink()
-    out.to_file(census_temp, driver="GPKG")
 
+    out.to_file(census_temp, driver="GPKG")
     census_path.unlink()
     os.replace(census_temp, census_path)
 

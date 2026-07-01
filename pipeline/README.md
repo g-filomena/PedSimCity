@@ -32,11 +32,11 @@ order, stop on the first failure, and skip a step whose output already exists un
 
 | Script | Effect |
 |---|---|
-| `01_census_and_poi.py` | enriches `<City>_censusData.gpkg` in place with `residence_pct`, `workplace_poi`, `night_poi`, `vulnerability_pct` |
+| `01_census_and_poi.py` | reads raw `<City>_censusData_raw.gpkg`, writes enriched `<City>_censusData.gpkg` with `residence_pct`, `workplace_poi`, `night_poi`, `vulnerability_pct` |
 | `active_frontages.py` | writes `<City>_edges_with_frontages.gpkg` — **optional**, not yet read by the sim; run directly |
 
 These run standalone (no orchestrator): `build_census.bat` calls `01_census_and_poi.py`
-directly. The census layer is enriched in place, so re-running simply recomputes it.
+directly. The raw census `<City>_censusData_raw.gpkg` is left untouched, so re-running is safe.
 
 ## Street lighting — two variants
 

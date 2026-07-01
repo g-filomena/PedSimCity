@@ -3,10 +3,8 @@
 Enriches the edge network with active / hostile / inactive frontage lengths and ratios.
 This is optional and not part of the census or lighting pipelines; run it directly.
 
-All layers are named <City>_… (City = the resources folder name).
-
-Run manually:
-    python pipeline/active_frontages.py --input_dir src/main/resources/Torino
+Example:
+python pipeline/active_frontages.py --input_dir src/main/resources/Torino --city_name Torino
 """
 
 from __future__ import annotations
@@ -19,6 +17,7 @@ import geopandas as gpd
 import numpy as np
 import osmnx as ox
 import pandas as pd
+
 
 ACTIVE_TAGS = {
     "shop": True,
@@ -69,16 +68,34 @@ def first_existing(paths: list[Path], label: str) -> Path:
 
 
 def features_from_bbox_compat(west: float, south: float, east: float, north: float, tags: dict):
-    # OSMnx 2.x accepts bbox=(left, bottom, right, top). Older versions may differ.
+    """OSMnx 2.x-compatible bbox downloader, with legacy fallback."""
+    bbox = (west, south, east, north)
+    funcs = []
+
+    if hasattr(ox, "features_from_bbox"):
+        funcs.append(ox.features_from_bbox)
     if hasattr(ox, "features") and hasattr(ox.features, "features_from_bbox"):
-        return ox.features.features_from_bbox((west, south, east, north), tags)
-    return ox.features_from_bbox(north, south, east, west, tags)
+        funcs.append(ox.features.features_from_bbox)
+
+    last_type_error = None
+    for func in funcs:
+        try:
+            return func(bbox, tags)
+        except TypeError as exc:
+            last_type_error = exc
+            try:
+                return func(north, south, east, west, tags)
+            except TypeError as exc2:
+                last_type_error = exc2
+
+    if last_type_error is not None:
+        raise last_type_error
+    raise AttributeError("This OSMnx version has no features_from_bbox API.")
 
 
 def download_osm_pois(tags, bbox_wgs84, target_crs, tile_size_deg: float = 0.015) -> gpd.GeoDataFrame:
     minx, miny, maxx, maxy = bbox_wgs84
     frames = []
-
     for x0 in np.arange(minx, maxx, tile_size_deg):
         x1 = min(x0 + tile_size_deg, maxx)
         if x1 <= x0:
@@ -92,7 +109,7 @@ def download_osm_pois(tags, bbox_wgs84, target_crs, tile_size_deg: float = 0.015
                 if not chunk.empty:
                     frames.append(chunk)
             except Exception as exc:
-                print(f" chunk ({x0:.5f},{y0:.5f}) -> {exc}")
+                print(f"  chunk ({x0:.5f},{y0:.5f}) -> {exc}")
 
     if not frames:
         return gpd.GeoDataFrame(geometry=[], crs=target_crs)
@@ -118,7 +135,6 @@ def edge_buffer(highway) -> float:
 
 def measure_frontages(facades_per_edge: gpd.GeoDataFrame, poi_gdf: gpd.GeoDataFrame, name: str, target_crs) -> pd.DataFrame:
     col = f"{name}_wall_len"
-
     if poi_gdf.empty or facades_per_edge.empty:
         return pd.DataFrame(columns=["edge_unique_id", col])
 
@@ -134,19 +150,21 @@ def measure_frontages(facades_per_edge: gpd.GeoDataFrame, poi_gdf: gpd.GeoDataFr
 def main() -> None:
     parser = argparse.ArgumentParser(description="Calculate active/hostile street frontages.")
     parser.add_argument("--input_dir", required=True)
+    parser.add_argument(
+        "--city_name",
+        default=None,
+        help="Filename prefix before _edges.gpkg / _buildings.gpkg. Defaults to input folder name.",
+    )
     args = parser.parse_args()
 
     base_dir = Path(os.path.abspath(args.input_dir))
-    city = base_dir.name
+    city = args.city_name or base_dir.name
 
-    edges_path = first_existing(
-        [base_dir / f"{city}_edges.gpkg"],
-        "edges layer",
-    )
-    buildings_path = first_existing(
-        [base_dir / f"{city}_buildings.gpkg"],
-        "buildings layer",
-    )
+    edges_path = first_existing([base_dir / f"{city}_edges.gpkg"], "edges layer")
+    buildings_path = first_existing([base_dir / f"{city}_buildings.gpkg"], "buildings layer")
+
+    print(f"resources folder: {base_dir}")
+    print(f"city file prefix: {city}")
 
     edges = gpd.read_file(edges_path)
     buildings = gpd.read_file(buildings_path)
@@ -179,7 +197,7 @@ def main() -> None:
         hostile = hostile[hostile.geometry.notnull() & ~hostile.geometry.is_empty].copy()
         hostile["geometry"] = hostile.geometry.centroid
 
-    print(f" active={len(active)} hostile={len(hostile)}")
+    print(f"  active={len(active)} hostile={len(hostile)}")
 
     facades = buildings[["geometry"]].copy()
     facades["geometry"] = facades.geometry.boundary
@@ -191,6 +209,7 @@ def main() -> None:
         edges_buffered["geometry"] = edges_buffered.geometry.buffer(15.0)
 
     facades_per_edge = gpd.overlay(facades, edges_buffered, how="intersection")
+
     if facades_per_edge.empty:
         total = pd.DataFrame(columns=["edge_unique_id", "total_wall_len"])
     else:
@@ -224,8 +243,10 @@ def main() -> None:
 
     edges = edges.drop(columns=["edge_unique_id"])
     output_path = base_dir / f"{city}_edges_with_frontages.gpkg"
+
     if output_path.exists():
         output_path.unlink()
+
     edges.to_file(output_path, driver="GPKG")
     print(f"saved: {output_path}")
 

@@ -1,18 +1,8 @@
 """Step 2 (generic): assumed physics for bare lamp-point locations.
 
-For cities where only street-light pole / lamp-point LOCATIONS are available,
-with no technical attributes. Reads <City>_streetlights.gpkg (City = the resources
-folder name) and writes <City>_streetlights_with_radius.gpkg carrying the columns
-step 03 needs (downward_intensity_cd, altezza_palo_m, radius_m), computed from
-fixed assumed defaults applied uniformly to every lamp.
-
-Assumptions (edit the constants below to retune). These mirror the global
-fallback path of the Turin adapter, so downstream steps 03/04 are identical for
-both pipelines:
-    power       = 100 W
-    height      = 9 m
-    efficacy    = 70 lm/W
-    utilization = 0.4
+Reads <city>_streetlights.gpkg and writes <city>_streetlights_with_radius.gpkg.
+`--input_dir` is the resources folder path.
+`--city_name` is the filename prefix; if omitted, the input folder name is used.
 """
 
 from __future__ import annotations
@@ -23,6 +13,7 @@ from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
+
 
 # Assumed lamp physics, applied identically to every point (no per-lamp data).
 ASSUMED_POWER_W = 100.0
@@ -52,18 +43,23 @@ def to_points(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Assign assumed physics to bare lamp-point locations.")
     parser.add_argument("--input_dir", required=True)
+    parser.add_argument(
+        "--city_name",
+        default=None,
+        help="Filename prefix before _streetlights.gpkg / _edges.gpkg. Defaults to input folder name.",
+    )
     args = parser.parse_args()
 
     input_dir = Path(os.path.abspath(args.input_dir))
-    city = input_dir.name
+    city = args.city_name or input_dir.name
 
-    lamps_path = first_existing(
-        [input_dir / f"{city}_streetlights.gpkg"],
-        "lamp-point locations",
-    )
+    lamps_path = first_existing([input_dir / f"{city}_streetlights.gpkg"], "lamp-point locations")
     output_path = input_dir / f"{city}_streetlights_with_radius.gpkg"
 
+    print(f"resources folder: {input_dir}")
+    print(f"city file prefix: {city}")
     print(f"Loading lamp-point locations: {lamps_path}")
+
     lamps = gpd.read_file(lamps_path)
     if lamps.empty:
         raise ValueError(f"Lamp-point layer is empty: {lamps_path}")
@@ -82,7 +78,6 @@ def main() -> None:
     lamps["altezza_palo_m"] = ASSUMED_HEIGHT_M
     lamps["luminous_efficacy"] = ASSUMED_EFFICACY_LM_W
     lamps["utilization_factor"] = ASSUMED_UTILIZATION
-
     lamps["total_lumens"] = lamps["potenza_w_max"] * lamps["luminous_efficacy"]
     lamps["downward_intensity_cd"] = (lamps["total_lumens"] * lamps["utilization_factor"]) / np.pi
 
@@ -97,6 +92,7 @@ def main() -> None:
 
     if output_path.exists():
         output_path.unlink()
+
     print(f"Saving to {output_path}...")
     lamps.to_file(output_path, driver="GPKG")
     print("Done.")

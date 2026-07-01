@@ -1,13 +1,14 @@
 """Step 4: build directional lighting lookup.
 
-All layers are named <City>_… (City = the resources folder name = Pars.cityName).
-
 Reads:
-- <City>_edges.gpkg
-- <City>_nodes_2m_densified_illuminated.gpkg
+- <city>_edges.gpkg
+- <city>_nodes_2m_densified_illuminated.gpkg
 
-Writes (the name the Java PedSimCityNight loader expects):
-- <City>_directional_lighting_lookup.csv
+Writes:
+- <city>_directional_lighting_lookup.csv
+
+`--input_dir` is the resources folder path.
+`--city_name` is the filename prefix; if omitted, the input folder name is used.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
+
 
 VISIBILITY_HORIZON_M = 12.0
 
@@ -33,15 +35,17 @@ def first_existing(paths: list[Path], label: str) -> Path:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build directional lighting lookup CSV.")
     parser.add_argument("--input_dir", required=True)
+    parser.add_argument(
+        "--city_name",
+        default=None,
+        help="Filename prefix before _edges.gpkg. Defaults to input folder name.",
+    )
     args = parser.parse_args()
 
     base_dir = Path(os.path.abspath(args.input_dir))
-    city = base_dir.name
+    city = args.city_name or base_dir.name
 
-    edges_path = first_existing(
-        [base_dir / f"{city}_edges.gpkg"],
-        "edges layer",
-    )
+    edges_path = first_existing([base_dir / f"{city}_edges.gpkg"], "edges layer")
     nodes_2m_path = first_existing(
         [base_dir / f"{city}_nodes_2m_densified_illuminated.gpkg"],
         "densified illuminated nodes",
@@ -49,8 +53,10 @@ def main() -> None:
     output_path = base_dir / f"{city}_directional_lighting_lookup.csv"
 
     print("Loading datasets...")
-    print(f" edges: {edges_path}")
-    print(f" nodes: {nodes_2m_path}")
+    print(f"  resources folder: {base_dir}")
+    print(f"  city file prefix: {city}")
+    print(f"  edges: {edges_path}")
+    print(f"  nodes: {nodes_2m_path}")
 
     edges = gpd.read_file(edges_path)
     nodes_2m = gpd.read_file(nodes_2m_path)
@@ -61,8 +67,8 @@ def main() -> None:
         raise KeyError(f"Missing required columns in {nodes_2m_path}: {sorted(missing)}")
 
     has_topology = "u" in edges.columns and "v" in edges.columns
-    directional_records = []
 
+    directional_records = []
     grouped_points = nodes_2m.groupby("parent_edge_idx")
 
     print("Calculating directional lightness profiles...")
