@@ -1,0 +1,19 @@
+name: pedsimcity
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.11
+  - libblas=*=*openblas
+  - geopandas
+  - pandas
+  - numpy
+  - scipy
+  - shapely
+  - pyproj
+  - fiona
+  - pyogrio
+  - rtree
+  - osmnx
+  - networkx
+  - requests
