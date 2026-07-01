@@ -3,10 +3,20 @@ setlocal EnableExtensions
 
 REM PedSimCity street-lighting launcher - generic bare lamp-point locations.
 REM No py.exe. No user-specific hardcoded paths. Uses Conda + environment.yml.
+REM Prompts separately for:
+REM   1) resources folder name under src\main\resources
+REM   2) city file prefix before _edges.gpkg, _streetlights.gpkg, etc.
 
 set "ROOT=%~dp0"
 set "ENV_NAME=pedsimcity"
 set "ENV_FILE=%ROOT%environment.yml"
+set "PROJECT_CONDARC=%ROOT%.condarc"
+
+REM Avoid Conda warning: "Adding 'defaults' to channel list implicitly is deprecated".
+REM Keep Conda channel config local to this launcher and avoid touching user/global .condarc.
+set "CONDARC=%PROJECT_CONDARC%"
+set "CONDA_CHANNELS=conda-forge"
+set "CONDA_CHANNEL_PRIORITY=strict"
 
 call :find_conda
 if errorlevel 1 (
@@ -25,21 +35,35 @@ if not exist "%ENV_FILE%" (
     exit /b 1
 )
 
+if not exist "%PROJECT_CONDARC%" (
+    echo Missing project Conda config next to this .bat:
+    echo "%PROJECT_CONDARC%"
+    pause
+    exit /b 1
+)
+
 call :ensure_env
 if errorlevel 1 (
-    echo Failed to create Conda environment: %ENV_NAME%
+    echo Failed to create/update Conda environment: %ENV_NAME%
     pause
     exit /b 1
 )
 
-set /p CITY=Enter city name ^(folder under src\main\resources^):
-if "%CITY%"=="" (
-    echo No city name entered. Exiting.
+set /p FOLDER_NAME=Enter resources folder name ^(under src\main\resources^): 
+if "%FOLDER_NAME%"=="" (
+    echo No folder name entered. Exiting.
     pause
     exit /b 1
 )
 
-set "INPUT_DIR=%ROOT%src\main\resources\%CITY%"
+set /p CITY_NAME=Enter city file prefix ^(before _edges.gpkg / _streetlights.gpkg, e.g. Torino^): 
+if "%CITY_NAME%"=="" (
+    echo No city file prefix entered. Exiting.
+    pause
+    exit /b 1
+)
+
+set "INPUT_DIR=%ROOT%src\main\resources\%FOLDER_NAME%"
 
 if not exist "%INPUT_DIR%" (
     echo Input directory not found:
@@ -48,11 +72,25 @@ if not exist "%INPUT_DIR%" (
     exit /b 1
 )
 
-echo Building street lighting (generic): "%INPUT_DIR%"
+if not exist "%INPUT_DIR%\%CITY_NAME%_streetlights.gpkg" (
+    echo Expected generic streetlights file not found:
+    echo "%INPUT_DIR%\%CITY_NAME%_streetlights.gpkg"
+    pause
+    exit /b 1
+)
 
-"%CONDA_EXE%" run --no-capture-output -n "%ENV_NAME%" python "%ROOT%pipeline\build_lighting.py" --input_dir "%INPUT_DIR%"
+if not exist "%INPUT_DIR%\%CITY_NAME%_edges.gpkg" (
+    echo Expected edges file not found:
+    echo "%INPUT_DIR%\%CITY_NAME%_edges.gpkg"
+    pause
+    exit /b 1
+)
+
+echo Building street lighting ^(generic^) in folder: "%INPUT_DIR%"
+echo Using city file prefix: "%CITY_NAME%"
+
+"%CONDA_EXE%" run --no-capture-output -n "%ENV_NAME%" python "%ROOT%pipeline\build_lighting.py" --input_dir "%INPUT_DIR%" --city_name "%CITY_NAME%"
 set "EXITCODE=%ERRORLEVEL%"
-
 pause
 exit /b %EXITCODE%
 
@@ -87,7 +125,9 @@ exit /b 1
 "%CONDA_EXE%" env list | findstr /B /C:"%ENV_NAME% " >nul 2>nul
 if not errorlevel 1 (
     echo Conda environment already exists: %ENV_NAME%
-    exit /b 0
+    echo Updating Conda environment from environment.yml...
+    "%CONDA_EXE%" env update -n "%ENV_NAME%" -f "%ENV_FILE%" --prune
+    exit /b %ERRORLEVEL%
 )
 
 echo Creating Conda environment from environment.yml: %ENV_NAME%

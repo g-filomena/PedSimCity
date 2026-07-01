@@ -4,16 +4,12 @@ channels:
   - nodefaults
 dependencies:
   - python=3.11
-  - libblas=*=*openblas
+  - osmnx>=2
   - geopandas
   - pandas
   - numpy
   - scipy
-  - shapely
-  - pyproj
-  - fiona
-  - pyogrio
-  - rtree
-  - osmnx
   - networkx
   - requests
+  - openpyxl
+  - pyogrio
