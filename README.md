@@ -116,13 +116,14 @@ Each runnable module has Maven exec profiles (GUI and REST+dashboard); see its R
 | `src/main/java/pedsim/<module>/` | Java source, one folder per module (each with a README) |
 | `src/main/resources/<City>/` | per-city GIS input layers read by the simulation (`<City>_*.gpkg`) |
 | `inputData/` | raw, pre-resources material used when preparing a city |
-| `pipeline/` | Python data-prep scripts + `build_city.py` orchestrator — see [`pipeline/README.md`](pipeline/README.md) |
+| `pipeline/` | Python data-prep scripts + `build_lighting*.py` orchestrators — see [`pipeline/README.md`](pipeline/README.md) |
 | `analysis/` | Jupyter notebooks + scripts for post-hoc analysis of results |
 | `outputs/` | all simulation results (gitignored) |
 
-**Preparing a city's data** — on Windows double-click `build_city.bat` (full pipeline) or
-`build_census.bat` (census only) and answer the prompts; or run
-`python pipeline/build_city.py --input_dir src/main/resources/<City> --prefix <prefix>`. See
+**Preparing a city's data** — on Windows double-click `build_census.bat` (census/POI),
+`build_lighting_torino.bat` (Turin lamp inventory) or `build_lighting.bat` (bare lamp
+points) and enter the city; or run e.g.
+`python pipeline/build_lighting_torino.py --input_dir src/main/resources/<City>`. See
 [`pipeline/README.md`](pipeline/README.md) for the steps and the `<City>_…` filename conventions.
 
 **Results** — every run writes under `outputs/`: structured exports (volumes, routes, cognitive
