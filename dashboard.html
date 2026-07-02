@@ -11,18 +11,18 @@
 
   <style>
     :root {
-      --bg-light: #f8fafc;
-      --panel-bg: #ffffff;
-      --panel-border: #e2e8f0;
-      --accent: #2563eb;
-      --accent-hover: #1d4ed8;
-      --text-main: #0f172a;
-      --text-muted: #64748b;
-      --success: #059669;
-      --danger: #dc2626;
-      --input-border: #cbd5e1;
-      --input-bg: #ffffff;
-      --card-bg: #f1f5f9;
+      --bg-light: #0f172a;
+      --panel-bg: rgba(30, 41, 59, 0.85);
+      --panel-border: rgba(255, 255, 255, 0.1);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #eab308; /* gold to match map */
+      --accent-hover: #ca8a04;
+      --danger: #ef4444;
+      --success: #10b981;
+      --input-border: #334155;
+      --input-bg: #1e293b;
+      --card-bg: #1e293b;
     }
 
     * {
@@ -46,14 +46,14 @@
       content: '';
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(15, 23, 42, 0.6);
+      background: rgba(0, 0, 0, 0.6);
       z-index: -1;
     }
 
     /* Top Navigation */
     .nav-bar {
       width: 100%;
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(15, 23, 42, 0.95);
       backdrop-filter: blur(10px);
       border-bottom: 1px solid var(--panel-border);
       padding: 1rem 2rem;
@@ -61,7 +61,7 @@
       justify-content: center;
       gap: 2rem;
       margin-bottom: 3rem;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
       position: sticky;
       top: 0;
       z-index: 10;
@@ -80,12 +80,12 @@
     
     .nav-item:hover {
       color: var(--text-main);
-      background: rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.1);
     }
     
     .nav-item.active {
       color: var(--accent);
-      background: rgba(37, 99, 235, 0.1);
+      background: rgba(234, 179, 8, 0.15);
     }
 
     .tab-content {
@@ -109,10 +109,12 @@
     /* Professional Panel */
     .glass-panel {
       background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--panel-border);
       border-radius: 12px;
-      padding: 2.5rem;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+      padding: 2rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
       transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
 

@@ -281,24 +281,38 @@ public class HtmlExporter {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --bg-light: #0f172a;
+    --panel-bg: rgba(30, 41, 59, 0.85);
+    --panel-border: rgba(255, 255, 255, 0.1);
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --accent: #eab308;
+    --accent-hover: #ca8a04;
+    --danger: #ef4444;
+    --success: #10b981;
+  }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Inter',sans-serif;background:#000000;color:#f1f5f9;display:flex;flex-direction:column;height:100vh;overflow:hidden}
-  #header{padding:12px 20px;background:rgba(0,0,0,0.95);border-bottom:1px solid #1e293b;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-shrink:0}
-  #header h1{font-size:1.05rem;font-weight:700;color:#818cf8;letter-spacing:0.02em}
+  body{font-family:'Inter',sans-serif;background:var(--bg-light);color:var(--text-main);display:flex;flex-direction:column;height:100vh;overflow:hidden}
+  
+  #header{padding:16px 32px;background:rgba(15,23,42,0.95);backdrop-filter:blur(10px);border-bottom:1px solid var(--panel-border);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-shrink:0;box-shadow:0 4px 6px -1px rgba(0,0,0,0.5);z-index:10}
+  #header h1{font-size:1.1rem;font-weight:700;color:var(--text-main);letter-spacing:0.02em}
   .metrics{display:flex;gap:12px}
-  .card{background:rgba(30,41,59,0.45);border:1px solid #1e293b;border-radius:10px;padding:10px 18px;min-width:120px}
-  .card .label{font-size:.65rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em}
-  .card .value{font-size:1.4rem;font-weight:700;color:#818cf8;margin-top:2px}
-  .card .value.red{color:#ef4444}
+  .card{background:var(--panel-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--panel-border);border-radius:8px;padding:12px 18px;min-width:120px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.3)}
+  .card .label{font-size:.7rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+  .card .value{font-size:1.4rem;font-weight:700;color:var(--text-main);margin-top:4px}
+  .card .value.red{color:var(--danger)}
   .card .value.orange{color:#fb923c}
-  .card .value.yellow{color:#fde047}
-  #tab-bar{flex-shrink:0;display:flex;gap:0;background:rgba(0,0,0,0.98);border-bottom:1px solid #1e293b;padding:0 20px}
-  .tab-btn{padding:10px 22px;font-size:.8rem;font-weight:600;color:#64748b;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;letter-spacing:.03em}
-  .tab-btn.active{color:#818cf8;border-bottom-color:#6366f1}
-  .tab-btn:hover:not(.active){color:#a5b4fc}
+  .card .value.yellow{color:var(--accent)}
+  
+  #tab-bar{flex-shrink:0;display:flex;justify-content:center;gap:32px;background:rgba(15,23,42,0.95);backdrop-filter:blur(10px);border-bottom:1px solid var(--panel-border);padding:12px 32px}
+  .tab-btn{padding:8px 16px;font-size:0.95rem;font-weight:600;color:var(--text-muted);background:none;border:none;border-radius:6px;cursor:pointer;transition:all .2s;}
+  .tab-btn.active{color:var(--accent);background:rgba(234,179,8,0.15);}
+  .tab-btn:hover:not(.active){color:var(--text-main);background:rgba(255,255,255,0.1);}
+  
   .tab-panel{display:none;flex:1;position:relative;overflow:hidden}
   .tab-panel.active{display:flex;flex-direction:column}
-  #container, #ab-container, #hv-container, #vol-container {position:relative;flex:1;width:100%;overflow:hidden;background:#000000}
+  #container, #ab-container, #hv-container, #vol-container {position:relative;flex:1;width:100%;overflow:hidden;background:var(--bg-light)}
   #canvas, #ab-canvas, #hv-canvas, #vol-canvas {width:100%;height:100%;display:block;cursor:grab}
   #canvas:active, #ab-canvas:active, #hv-canvas:active, #vol-canvas:active {cursor:grabbing}
   #floating-controls{position:absolute;top:20px;right:20px;display:flex;flex-direction:column;gap:8px}
