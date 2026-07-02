@@ -227,7 +227,7 @@ public class HtmlExporter {
         "Night Pedestrian Simulation: " + city + " — " + runLabel + " · Job " + job;
     String dashboardTitleHtml = escapeHtml(dashboardTitle).replace(" — ", " &nbsp;—&nbsp; ");
 
-    return HTML_TEMPLATE
+    return new StringBuilder(HTML_TEMPLATE_1).append(HTML_TEMPLATE_2).toString()
         .replace("__DASHBOARD_TITLE__", escapeHtml(dashboardTitle))
         .replace("__DASHBOARD_TITLE_HTML__", dashboardTitleHtml)
         .replace("__RUN_LABEL__", escapeJsTemplateLiteral(runLabel))
@@ -270,7 +270,7 @@ public class HtmlExporter {
     }
   }
 
-  private static final String HTML_TEMPLATE =
+  private static final String HTML_TEMPLATE_1 =
 """
 <!DOCTYPE html>
 <html lang="en">
@@ -586,6 +586,10 @@ public class HtmlExporter {
     </div>
   </div>
 </div>
+""";
+
+  private static final String HTML_TEMPLATE_2 =
+"""
 <script>
 const ROADS_GEOJSON = __ROADS_GEOJSON__;
 const TRIPS = __TRIPS_JS__;
