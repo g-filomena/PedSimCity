@@ -156,6 +156,7 @@ public class Import {
       logger.info(layerName + " successfully imported.");
     } catch (Exception e) {
       logger.warning("Optional layer " + layerName + " failed to load: " + e.getMessage());
+      e.printStackTrace();
     }
   }
 

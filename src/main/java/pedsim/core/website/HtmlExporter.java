@@ -295,6 +295,20 @@ public class HtmlExporter {
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Inter',sans-serif;background:var(--bg-light);color:var(--text-main);display:flex;flex-direction:column;height:100vh;overflow:hidden}
   
+  .global-nav-bar { width: 100%; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--panel-border); padding: 1rem 2rem; display: flex; justify-content: center; gap: 2rem; flex-shrink: 0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); z-index: 20; position: relative; }
+  .global-nav-item { color: var(--text-muted); font-weight: 600; font-size: 0.95rem; text-decoration: none; cursor: pointer; padding: 0.5rem 1rem; border-radius: 6px; transition: all 0.2s ease; }
+  .global-nav-item:hover { color: var(--text-main); background: rgba(255, 255, 255, 0.1); }
+  .global-nav-item.active { color: var(--accent); background: rgba(234, 179, 8, 0.15); }
+
+  .global-tab-content { display: none; width: 100%; height: 100%; overflow-y: auto; padding-bottom: 2rem; }
+  .global-tab-content.active { display: block; }
+  #tab-dashboard.active { display: flex; flex-direction: column; overflow: hidden; } /* results need flex layout */
+
+  .static-content-container { max-width: 900px; margin: 3rem auto; }
+  .glass-panel { background: var(--panel-bg); backdrop-filter: blur(16px); border: 1px solid var(--panel-border); border-radius: 12px; padding: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3); }
+  .glass-panel h1 { font-size: 1.5rem; margin-bottom: 0.5rem; font-weight: 600; }
+  .glass-panel .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--panel-border); }
+
   #header{padding:16px 32px;background:rgba(15,23,42,0.95);backdrop-filter:blur(10px);border-bottom:1px solid var(--panel-border);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-shrink:0;box-shadow:0 4px 6px -1px rgba(0,0,0,0.5);z-index:10}
   #header h1{font-size:1.1rem;font-weight:700;color:var(--text-main);letter-spacing:0.02em}
   .metrics{display:flex;gap:12px}
@@ -355,9 +369,58 @@ public class HtmlExporter {
   .hour-btn{background:rgba(30,41,59,0.7);border:1px solid #1e293b;border-radius:4px;color:#94a3b8;padding:4px 8px;font-size:0.7rem;font-weight:600;cursor:pointer;transition:all 0.2s;flex-shrink:0}
   .hour-btn:hover{background:#334155;color:#f1f5f9}
   .hour-btn.active{background:#6366f1 !important;color:#ffffff !important;border-color:#6366f1 !important}
-</style>
+<script>
+  function switchGlobalTab(tabId, element) {
+    document.querySelectorAll('.global-tab-content').forEach(el => el.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    document.querySelectorAll('.global-nav-item').forEach(el => el.classList.remove('active'));
+    element.classList.add('active');
+  }
+</script>
 </head>
 <body>
+
+  <!-- Global Navigation -->
+  <nav class="global-nav-bar">
+    <a class="global-nav-item active" onclick="switchGlobalTab('tab-dashboard', this)">Dashboard</a>
+    <a class="global-nav-item" onclick="switchGlobalTab('tab-summary', this)">Summary</a>
+    <a class="global-nav-item" onclick="switchGlobalTab('tab-pubs', this)">Publications & Uses</a>
+    <a class="global-nav-item" href="https://github.com/g-filomena/PedSimCity" target="_blank">GitHub Repo</a>
+  </nav>
+
+  <!-- Summary Tab -->
+  <div id="tab-summary" class="global-tab-content">
+    <div class="static-content-container">
+      <div class="glass-panel">
+        <h1>Model Summary</h1>
+        <p class="subtitle">How the PedSimCity Engine Works</p>
+        <div style="line-height: 1.6; color: var(--text-muted); font-size: 0.95rem;">
+          <p style="margin-bottom: 1rem;">PedSimCity is an advanced pedestrian simulation engine designed specifically to model how individuals navigate urban environments at night.</p>
+          <p style="margin-bottom: 1rem;">By fusing detailed street lighting data, active commercial frontages, and localized demographics, the model predicts realistic night-time routing choices. It helps researchers understand pedestrian flows after dark and identify areas of high vulnerability based on illumination levels and street activity.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Publications Tab -->
+  <div id="tab-pubs" class="global-tab-content">
+    <div class="static-content-container">
+      <div class="glass-panel">
+        <h1>Publications & Uses</h1>
+        <p class="subtitle">Research, Case Studies, and Papers</p>
+        <div style="line-height: 1.6; color: var(--text-muted); font-size: 0.95rem;">
+          <ul style="margin-left: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+            <li></li>
+            <li></li>
+            <li></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results Dashboard Tab -->
+  <div id="tab-dashboard" class="global-tab-content active">
 <div id="header">
   <h1>__DASHBOARD_TITLE_HTML__</h1>
   <div class="metrics" id="metrics-trips">
@@ -1340,9 +1403,12 @@ canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; resetVie
 document.querySelector(`[onclick="switchTab('hourly')"]`).addEventListener('click', () => { setTimeout(() => { hvCanvas.width = hvCanvas.clientWidth; hvCanvas.height = hvCanvas.clientHeight; resetHvView(); }, 50); });
 document.querySelector(`[onclick="switchTab('volumes')"]`).addEventListener('click', () => { setTimeout(() => { volCanvas.width = volCanvas.clientWidth; volCanvas.height = volCanvas.clientHeight; resetVolView(); }, 50); });
 document.querySelector(`[onclick="switchTab('ab')"]`).addEventListener('click', () => { setTimeout(() => { abCanvas.width = abCanvas.clientWidth; abCanvas.height = abCanvas.clientHeight; abResetView(); if (AB_TRIPS && AB_TRIPS.length > 0) abUpdateMetrics(abCurrentFloatStep); }, 50); });
+  initTimeline();
+  switchTab('trips');
+  startAnim();
 </script>
+</div>
 </body>
 </html>
-
 """;
 }
