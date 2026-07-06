@@ -96,61 +96,6 @@ public class PedSimCityNight extends PedSimCityActivity {
     populate.populate(this);
   }
 
-  @Override
-  public void start() {
-    loadDirectionalLighting();
-    super.start();
-  }
-
-  private void loadDirectionalLighting() {
-    directionalLuxMap.clear();
-    try {
-      String resourceName =
-          pedsim.core.parameters.Pars.cityName
-              + "/"
-              + pedsim.core.parameters.Pars.cityName
-              + "_directional_lighting_lookup.csv";
-      java.net.URL fileUrl = getClass().getClassLoader().getResource(resourceName);
-      if (fileUrl == null) {
-        System.out.println("Directional lighting lookup not found at: " + resourceName);
-        return;
-      }
-      int loaded = 0;
-      int skipped = 0;
-      try (java.io.BufferedReader br =
-          new java.io.BufferedReader(new java.io.InputStreamReader(fileUrl.openStream()))) {
-        br.readLine(); // skip header
-        String line;
-        while ((line = br.readLine()) != null) {
-          String[] parts = line.split(",");
-          if (parts.length < 5) {
-            skipped++;
-            continue;
-          }
-          // Skip a malformed row instead of aborting the whole load (one bad line must not
-          // silently disable directional lighting for the rest of the city).
-          try {
-            long key =
-                luxKey(Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim()));
-            double minLux = Double.parseDouble(parts[4].trim()); // visibility_min_lux
-            directionalLuxMap.put(key, minLux);
-            loaded++;
-          } catch (NumberFormatException e) {
-            skipped++;
-          }
-        }
-      }
-      System.out.println(
-          "Loaded "
-              + loaded
-              + " directional lighting entries ("
-              + skipped
-              + " rows skipped).");
-    } catch (Exception e) {
-      System.err.println("Failed to load directional lighting: " + e.getMessage());
-    }
-  }
-
   // --- Getters & Setters for GUI ---
 
   public double getMinVulnerableLightSensitivity() {
@@ -196,18 +141,16 @@ public class PedSimCityNight extends PedSimCityActivity {
   // ---------------------------------
 
   public static void clearNightStaticData() {
-    indexedEdgeCache.clear();
-    edges.clear();
-    routesDay.clear();
-    routesNonVulnerableNight.clear();
-    routesVulnerableNight.clear();
-    altRoutesVulnerable.clear();
-    altRoutesNonVulnerable.clear();
-    directionalLuxMap.clear();
-    illuminatedEdges.getGeometries().clear();
-    nodesVulnerabilityWeight.clear();
-
-    // TODO CHECK
-    alternativeRoutes.clear();
-  }
+        indexedEdgeCache.clear();
+        edges.clear();
+        routesDay.clear();
+        routesNonVulnerableNight.clear();
+        routesVulnerableNight.clear();
+        altRoutesVulnerable.clear();
+        altRoutesNonVulnerable.clear();
+        directionalLuxMap.clear();
+        illuminatedEdges.getGeometries().clear();
+        nodesVulnerabilityWeight.clear();
+        alternativeRoutes.clear();
+    }
 }
