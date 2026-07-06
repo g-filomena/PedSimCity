@@ -142,11 +142,15 @@
 			<version>2.0.0</version>
         </dependency>
 
-       <!-- Mason -->
+       <!-- Mason: not on Maven Central; resolved from the vendored jar so `mvn compile` works
+            out of the box. system scope means it is NOT bundled in the assembly/fat-jar, so it is
+            supplied at run time via the exec plugin's additionalClasspathElements below. -->
         <dependency>
             <groupId>edu.gmu.eclab</groupId>
             <artifactId>mason</artifactId>
             <version>21</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/mason-21.jar</systemPath>
         </dependency>
 
         <!-- Javelit – browser dashboard framework -->
@@ -411,9 +415,44 @@
                             </arguments>
                         </configuration>
                     </execution>
+
+                    <execution>
+                        <id>social</id>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>pedsim.social.applet.PedSimCitySocialApplet</mainClass>
+                            <additionalClasspathElements>
+                                <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
+                                <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
+                            </additionalClasspathElements>
+                        </configuration>
+                    </execution>
+
+                    <execution>
+                        <id>social-website</id>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>pedsim.social.applet.PedSimCitySocialApplet</mainClass>
+
+                            <classpathScope>compile</classpathScope>
+                            <includeProjectDependencies>true</includeProjectDependencies>
+                            <includePluginDependencies>false</includePluginDependencies>
+                            <additionalClasspathElements>
+                                <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
+                                <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
+                            </additionalClasspathElements>
+                            <arguments>
+                                <argument>--website</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
-		
+
 			<!-- Spotless formatter -->
 			<plugin>
 			  <groupId>com.diffplug.spotless</groupId>
@@ -452,6 +491,7 @@
 
       night  (default)      mvn compile                       | core + night
       learning              mvn -Plearning compile            | core + learning
+      social                mvn -Psocial compile              | core + activity + social (group-based)
       cityimage-empirical   mvn -Pcityimage-empirical compile | core + cityImage + empirical (legacy)
       all-modules           mvn -Pall-modules compile         | everything (incl. social)
 
@@ -519,6 +559,27 @@
                                 <exclude>pedsim/night/**</exclude>
                                 <exclude>pedsim/learning/**</exclude>
                                 <exclude>pedsim/social/**</exclude>
+                            </excludes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- core + activity + social (group-based module; social builds on the activity framework). -->
+        <profile>
+            <id>social</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <excludes>
+                                <exclude>pedsim/night/**</exclude>
+                                <exclude>pedsim/learning/**</exclude>
+                                <exclude>pedsim/cityimage/**</exclude>
+                                <exclude>pedsim/empirical/**</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
