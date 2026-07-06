@@ -239,7 +239,11 @@ public class CognitiveMap extends SharedCognitiveMap {
         .flatMap(node -> node.adjacentBuildings.stream())
         .filter(
             building -> {
-              Double lScore = building.attributes.get("localLandmarkness").getDouble();
+              var attr = building.attributes.get("localLandmarkness");
+              if (attr == null) {
+                return false; // city without local-landmark scores: skip, don't NPE
+              }
+              Double lScore = attr.getDouble();
               return lScore != null && lScore > localLandmarkThreshold;
             })
         .map(building -> building.buildingID)

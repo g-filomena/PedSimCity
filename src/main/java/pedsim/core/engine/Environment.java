@@ -125,7 +125,11 @@ public class Environment {
           .ifPresent(v -> building.attributes.put("globalLandmarkness", v));
 
       Optional.ofNullable(buildingGeometry.getAttributes().get("lScore_sc"))
-          .ifPresent(v -> building.attributes.put("localLandmarkness", v));
+          .ifPresent(
+              v -> {
+                building.attributes.put("localLandmarkness", v);
+                PedSimCity.landmarksLoaded = true;
+              });
 
       List<MasonGeometry> nearestNodes =
           PedSimCity.junctions.featuresWithinDistance(buildingGeometry.getGeometry(), 500.0);

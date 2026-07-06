@@ -42,6 +42,14 @@ public class PedSimCity extends SimState {
   public static Graph dualNetwork = new Graph();
   public static Envelope MBR = null;
 
+  // Data-availability flags, set at import and read by route choice (Heuristics) to deactivate
+  // mechanisms whose data a given city does not provide.
+  /** A dual graph was loaded; angular-change (simplest-path) routing is available. */
+  public static boolean dualGraphLoaded = false;
+
+  /** Building landmark scores were loaded; landmark-based navigation is available. */
+  public static boolean landmarksLoaded = false;
+
   // dual graph
   public static VectorLayer intersectionsDual = new VectorLayer();
   public static VectorLayer centroids = new VectorLayer();
@@ -201,5 +209,8 @@ public class PedSimCity extends SimState {
 
     indexedEdgeCache.clear();
     MBR = null;
+
+    dualGraphLoaded = false;
+    landmarksLoaded = false;
   }
 }

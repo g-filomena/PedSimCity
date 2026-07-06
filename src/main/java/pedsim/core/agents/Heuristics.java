@@ -2,6 +2,7 @@ package pedsim.core.agents;
 
 import java.util.Objects;
 import java.util.Random;
+import pedsim.core.engine.PedSimCity;
 import pedsim.core.parameters.RouteChoicePars;
 import pedsim.core.utilities.StringEnum.LocalHeuristicMode;
 import pedsim.core.utilities.StringEnum.MinimisationMode;
@@ -43,26 +44,89 @@ public final class Heuristics {
 
   public void defineRouteChoiceMechanisms() {
 
-    if (isGlobalMinimisationDominant()) {
-      ap.setMinimisationMode(sampleMinimisationMode());
+    // No empirical (cluster) data drives this agent: use pure minimisation, alternating shortest
+    // path (distance) and least-turn (angular / simplest path) by the default distribution.
+    // Angular needs a dual graph, so primal-only cities always minimise distance.
+    if (!hasEmpiricalActivation()) {
+      ap.setMinimisationMode(defaultMinimisationMode());
       return;
     }
 
-    ap.setLocalHeuristicMode(sampleLocalHeuristicMode());
+    // Empirical-driven route choice, with each mechanism gated by the data the city actually loaded.
+    if (isGlobalMinimisationDominant()) {
+      ap.setMinimisationMode(constrainMinimisation(sampleMinimisationMode()));
+      return;
+    }
 
-    if (random.nextDouble() < probabilityBarrierSubGoals) {
+    ap.setLocalHeuristicMode(constrainLocalHeuristic(sampleLocalHeuristicMode()));
+
+    if (barriersAvailable() && random.nextDouble() < probabilityBarrierSubGoals) {
       ap.addElement(RouteChoiceElement.BARRIER_BASED_NAVIGATION);
-    } else {
+    } else if (landmarksAvailable()) {
       ap.addElement(RouteChoiceElement.LOCAL_LANDMARKS);
     }
 
-    if (random.nextDouble() < probabilityDistantLandmarks) {
+    if (landmarksAvailable() && random.nextDouble() < probabilityDistantLandmarks) {
       ap.addElement(RouteChoiceElement.DISTANT_LANDMARKS);
     }
 
-    if (random.nextDouble() < probabilityUsingRegions) {
+    if (regionsAvailable() && random.nextDouble() < probabilityUsingRegions) {
       ap.addElement(RouteChoiceElement.REGION_BASED_NAVIGATION);
     }
+  }
+
+  /** Whether any empirical (cluster-derived) activation probability has been set for this agent. */
+  private boolean hasEmpiricalActivation() {
+    return probabilityDistanceMinimisation > 0.0
+        || probabilityAngularMinimisation > 0.0
+        || probabilityDistantLandmarks > 0.0
+        || probabilityUsingRegions > 0.0
+        || probabilityBarrierSubGoals > 0.0;
+  }
+
+  /**
+   * Minimisation mode when no empirical data drives the agent: samples distance vs angular by the
+   * {@link RouteChoicePars} default split, but only offers angular when a dual graph is loaded.
+   */
+  private MinimisationMode defaultMinimisationMode() {
+    if (!dualAvailable()) {
+      return MinimisationMode.DISTANCE;
+    }
+    double d = Math.max(0.0, RouteChoicePars.defaultProbabilityDistanceMinimisation);
+    double a = Math.max(0.0, RouteChoicePars.defaultProbabilityAngularMinimisation);
+    double total = d + a;
+    if (total == 0.0) {
+      return MinimisationMode.DISTANCE;
+    }
+    return random.nextDouble() < d / total ? MinimisationMode.DISTANCE : MinimisationMode.ANGULAR;
+  }
+
+  /** Angular minimisation needs the dual graph; fall back to distance when it is absent. */
+  private MinimisationMode constrainMinimisation(MinimisationMode mode) {
+    return (mode == MinimisationMode.ANGULAR && !dualAvailable()) ? MinimisationMode.DISTANCE : mode;
+  }
+
+  /** Angular local heuristic needs the dual graph; fall back to distance when it is absent. */
+  private LocalHeuristicMode constrainLocalHeuristic(LocalHeuristicMode mode) {
+    return (mode == LocalHeuristicMode.ANGULAR && !dualAvailable())
+        ? LocalHeuristicMode.DISTANCE
+        : mode;
+  }
+
+  private boolean dualAvailable() {
+    return PedSimCity.dualGraphLoaded;
+  }
+
+  private boolean landmarksAvailable() {
+    return PedSimCity.landmarksLoaded;
+  }
+
+  private boolean regionsAvailable() {
+    return !PedSimCity.regionsMap.isEmpty();
+  }
+
+  private boolean barriersAvailable() {
+    return !PedSimCity.barriersMap.isEmpty();
   }
 
   private boolean isGlobalMinimisationDominant() {
