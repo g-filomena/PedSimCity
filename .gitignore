@@ -80,6 +80,7 @@ desktop.ini
 /Obsolete/
 /outputs/
 /src/main/java/pedsim/social/
+/src/main/java/pedsim/learning/
 
 /src/main/resources/Barcelona/
 /src/main/resources/Melbourne/
@@ -117,6 +118,9 @@ id_ed25519*
 .env
 .env.*
 !.env.example
+
+# Local server-launch config (copy of server.properties.example with your host/key/paths)
+server.properties
 
 
 # -------------------------------------------------------------------
