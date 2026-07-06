@@ -118,6 +118,14 @@ public class PedSimCityNight extends PedSimCityActivity {
     pedsim.night.parameters.NightPars.enableLightABTesting = enableLightABTesting;
   }
 
+  public int getAbTestPairs() {
+    return pedsim.night.parameters.NightPars.abTestPairs;
+  }
+
+  public void setAbTestPairs(int abTestPairs) {
+    pedsim.night.parameters.NightPars.abTestPairs = abTestPairs;
+  }
+
   public double getCrowdednessPercentile() {
     return pedsim.night.parameters.NightPars.crowdednessPercentile;
   }
