@@ -91,7 +91,8 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
 
     // Reset the per-trip lux accumulators (they live on the agent and persist across trips).
     NightAgent nightAgent = (NightAgent) agent;
-    nightAgent.accumulatedLux = 0.0;
+    nightAgent.accumulatedMeasuredLux = 0.0;
+    nightAgent.edgesWithMeasuredLux = 0;
     nightAgent.edgesWalked = 0;
 
     indexOnSequence = 0;
@@ -142,9 +143,7 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
       nightBehaviour.checkLightLevel();
     }
 
-    NightAgent nightAgent = (NightAgent) agent;
-    nightAgent.accumulatedLux += edgeLuxForMetric(currentEdge);
-    nightAgent.edgesWalked++;
+    recordLightingMetric(currentEdge);
 
     updateCounts();
 
@@ -160,20 +159,19 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
   }
 
   /**
-   * Representative illuminance credited to {@code edge} for the per-agent lux metric: the measured
-   * {@code mean_lux} when available; otherwise {@link pedsim.night.parameters.NightPars#litEdgeNominalLux}
-   * for edges known lit only via the binary "lit" flag; otherwise 0 (dark). Binary-lit edges thus
-   * contribute to the metric instead of counting as 0.
+   * Records lighting exposure for the edge actually walked: {@code edgesWalked} for every edge,
+   * and the measured {@code mean_lux} only where it exists (so the trip average is over measured
+   * edges, not diluted by dark/binary-lit ones).
    */
-  private double edgeLuxForMetric(EdgeGraph edge) {
+  private void recordLightingMetric(EdgeGraph edge) {
+    NightAgent nightAgent = (NightAgent) agent;
+    nightAgent.edgesWalked++;
+
     var meanLuxAttr = edge.attributes.get("mean_lux");
     if (meanLuxAttr != null) {
-      return meanLuxAttr.getDouble();
+      nightAgent.accumulatedMeasuredLux += meanLuxAttr.getDouble();
+      nightAgent.edgesWithMeasuredLux++;
     }
-    if (SharedCognitiveMap.getLitEdges().contains(edge)) {
-      return pedsim.night.parameters.NightPars.litEdgeNominalLux;
-    }
-    return 0.0;
   }
 
   /** Moves the agent along the current path. */
