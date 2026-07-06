@@ -41,6 +41,9 @@ public class NightEngine extends ActivityEngine {
   @Override
   protected void onJobFinished(int job, PedSimCity state, ScenarioConfig scenarioConfig) {
     if (NightPars.enableLightABTesting) {
+      System.out.println(
+          "Night A/B twin testing was enabled: vulnerability outputs are experimental twin "
+              + "comparisons, not census-sampled shares.");
       TripDiagnostic.saveABTestComparison("ab_test_comparison.csv");
     }
   }
