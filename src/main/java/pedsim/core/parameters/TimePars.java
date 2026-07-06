@@ -17,22 +17,22 @@ public class TimePars {
 
   // Gaussian Distribution parameters for pedestrian activity
   // The total volume across all distributions should roughly sum to 1.0 (100%)
-  public static double morningPeakVolume = 0.22;
-  public static double morningPeakTime = 8.5; // 8:30 AM
+  public static double morningPeakVolume = 0.25;
+  public static double morningPeakTime = 8.50; // 8:30 AM
   public static double morningPeakSpread = 1.20; // standard deviation in hours
 
-  public static double eveningPeakVolume = 0.38;
-  public static double eveningPeakTime = 17.5; // 5:30 PM
-  public static double eveningPeakSpread = 1.3;
-
   public static double lunchPeakVolume = 0.10;
-  public static double lunchPeakTime = 13.0; // 1:00 PM
-  public static double lunchPeakSpread = 0.8;
+  public static double lunchPeakTime = 13.00; // 1:00 PM
+  public static double lunchPeakSpread = 0.80;
+  
+  public static double eveningPeakVolume = 0.35;
+  public static double eveningPeakTime = 17.50; // 5:30 PM
+  public static double eveningPeakSpread = 1.30;
 
   public static double nightPeakVolume = 0.10;
-  public static double nightPeakTime = 20.0; // 8:00 PM
-  public static double nightLeftSpread = 1.0; // steep curve in the evening
-  public static double nightRightSpread = 1.5; //
+  public static double nightPeakTime = 20.00; // 8:00 PM
+  public static double nightLeftSpread = 1.00; // steep curve in the evening
+  public static double nightRightSpread = 1.50; //
 
   public static double backgroundVolume = 0.20; // Base volume uniformly spread over 24 hours
 
