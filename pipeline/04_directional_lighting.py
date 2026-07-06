@@ -74,7 +74,26 @@ def main() -> None:
     if node_key_col not in nodes_2m.columns:
         raise KeyError(f"Nodes file lacks a parent-edge key column: {nodes_2m_path}")
 
-    has_topology = "u" in edges.columns and "v" in edges.columns
+    required_edge_cols = {"u", "v"}
+    missing_edge_cols = sorted(required_edge_cols - set(edges.columns))
+    if missing_edge_cols:
+        raise KeyError(
+            f"Missing required edge topology columns in {edges_path}: {missing_edge_cols}. "
+            "Directional lighting CSV requires integer node IDs matching NodeGraph.getID(); "
+            "refusing to generate node_start_<idx>/node_end_<idx> fallback IDs."
+        )
+
+    def require_int_node_id(value, column_name: str, edge_idx: int) -> int:
+        if pd.isna(value):
+            raise ValueError(
+                f"Missing node ID in column '{column_name}' for edge row {edge_idx}."
+            )
+        try:
+            return int(value)
+        except Exception as exc:
+            raise ValueError(
+                f"Invalid node ID in column '{column_name}' for edge row {edge_idx}: {value!r}"
+            ) from exc
 
     directional_records = []
     grouped_points = nodes_2m.groupby(node_key_col)
@@ -88,8 +107,8 @@ def main() -> None:
         edge_pts = grouped_points.get_group(key)
         edge_length = row.geometry.length if row.geometry is not None else 0.0
 
-        from_node = row["u"] if has_topology else f"node_start_{idx}"
-        to_node = row["v"] if has_topology else f"node_end_{idx}"
+        from_node = require_int_node_id(row["u"], "u", idx)
+        to_node = require_int_node_id(row["v"], "v", idx)
 
         start_slice = edge_pts[edge_pts["dist_along_edge"] <= VISIBILITY_HORIZON_M]
         directional_records.append(
