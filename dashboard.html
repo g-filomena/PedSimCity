@@ -491,15 +491,6 @@
               <label class="field-label" for="dayStartHour">Day Start Hour</label>
               <input type="number" id="dayStartHour" value="6" min="4" max="10"/>
             </div>
-
-            <div class="form-group">
-              <label class="field-label" for="weatherCondition">Weather Condition</label>
-              <select id="weatherCondition">
-                <option value="clear">Clear</option>
-                <option value="overcast">Overcast</option>
-                <option value="rain">Rain</option>
-              </select>
-            </div>
           </div>
 
           <!-- Column 3: Agent Behaviour -->
@@ -607,7 +598,6 @@
         useFrontageBias:       document.getElementById('useFrontageBias').checked,
         nightStartHour:        parseInt(document.getElementById('nightStartHour').value),
         dayStartHour:          parseInt(document.getElementById('dayStartHour').value),
-        weatherCondition:      document.getElementById('weatherCondition').value,
         vulnerableRatio:       parseFloat(document.getElementById('vulnerableRatio').value),
         maxTripDistance:       parseInt(document.getElementById('maxTripDistance').value),
         enableABTest:          document.getElementById('enableABTest').checked,

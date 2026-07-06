@@ -369,6 +369,7 @@ public class HtmlExporter {
   .hour-btn{background:rgba(30,41,59,0.7);border:1px solid #1e293b;border-radius:4px;color:#94a3b8;padding:4px 8px;font-size:0.7rem;font-weight:600;cursor:pointer;transition:all 0.2s;flex-shrink:0}
   .hour-btn:hover{background:#334155;color:#f1f5f9}
   .hour-btn.active{background:#6366f1 !important;color:#ffffff !important;border-color:#6366f1 !important}
+</style>
 <script>
   function switchGlobalTab(tabId, element) {
     document.querySelectorAll('.global-tab-content').forEach(el => el.classList.remove('active'));
