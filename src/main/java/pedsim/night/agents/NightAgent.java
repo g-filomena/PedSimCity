@@ -183,9 +183,10 @@ public class NightAgent extends ActivityAgent {
   }
 
   /**
-   * Mean measured illuminance experienced on the just-completed trip: accumulated {@code mean_lux}
-   * over the edges that actually had a measured value, divided by their count. {@code NaN} until the
-   * trip contains at least one such edge.
+   * Mean illuminance experienced on the just-completed trip, over lit edges only: measured
+   * {@code mean_lux} where available, else the nominal {@code litEdgeNominalLux} for edges known lit
+   * only via the binary flag, divided by the count of such edges. {@code NaN} until the trip contains
+   * at least one lit edge (fully-dark edges are excluded).
    */
   @Override
   public double getTripMeanLux() {
