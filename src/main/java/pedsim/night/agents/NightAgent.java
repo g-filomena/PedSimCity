@@ -219,6 +219,16 @@ public class NightAgent extends ActivityAgent {
   }
 
   /**
+   * Mean illuminance experienced on the just-completed trip: accumulated per-edge lux divided by
+   * edges walked (reset per trip in {@link NightAgentMovement#initialisePath}). {@code NaN} until the
+   * agent has walked at least one edge.
+   */
+  @Override
+  public double getTripMeanLux() {
+    return edgesWalked > 0 ? accumulatedLux / edgesWalked : Double.NaN;
+  }
+
+  /**
    * Gets the simulation state of the agent.
    *
    * @return The PedSimCity simulation state.
