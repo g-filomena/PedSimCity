@@ -17,24 +17,24 @@ public class TimePars {
 
   // Gaussian Distribution parameters for pedestrian activity
   // The total volume across all distributions should roughly sum to 1.0 (100%)
-  public static double morningPeakVolume = 0.2;
+  public static double morningPeakVolume = 0.22;
   public static double morningPeakTime = 8.5; // 8:30 AM
-  public static double morningPeakSpread = 1.0; // standard deviation in hours
+  public static double morningPeakSpread = 1.20; // standard deviation in hours
 
-  public static double eveningPeakVolume = 0.2;
+  public static double eveningPeakVolume = 0.38;
   public static double eveningPeakTime = 17.5; // 5:30 PM
-  public static double eveningPeakSpread = 1.0;
+  public static double eveningPeakSpread = 1.3;
 
-  public static double lunchPeakVolume = 0.05;
+  public static double lunchPeakVolume = 0.10;
   public static double lunchPeakTime = 13.0; // 1:00 PM
-  public static double lunchPeakSpread = 0.5;
+  public static double lunchPeakSpread = 0.8;
 
-  public static double nightPeakVolume = 0.3;
+  public static double nightPeakVolume = 0.10;
   public static double nightPeakTime = 20.0; // 8:00 PM
   public static double nightLeftSpread = 1.0; // steep curve in the evening
-  public static double nightRightSpread = 4.0; // long tail into the morning
+  public static double nightRightSpread = 1.5; //
 
-  public static double backgroundVolume = 0.25; // Base volume uniformly spread over 24 hours
+  public static double backgroundVolume = 0.20; // Base volume uniformly spread over 24 hours
 
   // Day/night boundary — the single source of truth, used for the isDark behaviour flag, the
   // day/night volume aggregation in the exporter, and the dashboard. Night is
