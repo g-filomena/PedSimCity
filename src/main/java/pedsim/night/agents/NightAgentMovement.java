@@ -89,6 +89,11 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
       return;
     }
 
+    // Reset the per-trip lux accumulators (they live on the agent and persist across trips).
+    NightAgent nightAgent = (NightAgent) agent;
+    nightAgent.accumulatedLux = 0.0;
+    nightAgent.edgesWalked = 0;
+
     indexOnSequence = 0;
     originalRouteIndex = 0;
     this.directedEdgesSequence = route.directedEdgesSequence;
@@ -131,15 +136,15 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
     // and currentEdge with the first edge of a bypass. Everything below therefore
     // operates on the
     // edge the agent will actually walk, not on the (skipped) problematic edge.
-    if (state.isDark && currentDirectedEdge != firstDirectedEdge) {
+    // The first edge is checked too: rerouting is still impossible at the origin
+    // (indexOnSequence == 0), but the agent can react by speeding up on a dark first edge.
+    if (state.isDark) {
       nightBehaviour.checkLightLevel();
     }
 
-    var meanLuxAttr = currentEdge.attributes.get("mean_lux");
-    if (meanLuxAttr != null) {
-      ((pedsim.night.agents.NightAgent) agent).accumulatedLux += meanLuxAttr.getDouble();
-    }
-    ((pedsim.night.agents.NightAgent) agent).edgesWalked++;
+    NightAgent nightAgent = (NightAgent) agent;
+    nightAgent.accumulatedLux += edgeLuxForMetric(currentEdge);
+    nightAgent.edgesWalked++;
 
     updateCounts();
 
@@ -152,6 +157,23 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
 
     currentIndex = indexedSegment.getStartIndex();
     endIndex = indexedSegment.getEndIndex();
+  }
+
+  /**
+   * Representative illuminance credited to {@code edge} for the per-agent lux metric: the measured
+   * {@code mean_lux} when available; otherwise {@link pedsim.night.parameters.NightPars#litEdgeNominalLux}
+   * for edges known lit only via the binary "lit" flag; otherwise 0 (dark). Binary-lit edges thus
+   * contribute to the metric instead of counting as 0.
+   */
+  private double edgeLuxForMetric(EdgeGraph edge) {
+    var meanLuxAttr = edge.attributes.get("mean_lux");
+    if (meanLuxAttr != null) {
+      return meanLuxAttr.getDouble();
+    }
+    if (SharedCognitiveMap.getLitEdges().contains(edge)) {
+      return pedsim.night.parameters.NightPars.litEdgeNominalLux;
+    }
+    return 0.0;
   }
 
   /** Moves the agent along the current path. */

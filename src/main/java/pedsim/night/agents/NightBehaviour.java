@@ -165,38 +165,69 @@ public class NightBehaviour {
     }
   }
 
-  /** Checks the light level of the current edge. */
+  /**
+   * Checks the light level of the current edge and dispatches to the lit / non-lit behaviour.
+   *
+   * <p>Each lighting signal (whole-edge average, directional entrance) is applied only when its
+   * dataset was loaded for this city. Within a loaded dataset a missing per-edge value means "no
+   * light there" (dark), so incomplete data can no longer silently pass the check; a dataset that
+   * was never loaded simply does not contribute its term. When no lighting data exists at all, the
+   * edge is treated as lit — there is no basis to judge it dark.
+   */
   protected void checkLightLevel() {
-    double meanLux = 0.0;
+    final double threshold = agent.lightSensitivityThreshold;
+    boolean tooDark = false;
 
+    // --- Whole-edge average illuminance, with the binary "lit" flag as a fallback. ---
     var meanLuxAttr = nightMovement.currentEdge.attributes.get("mean_lux");
     if (meanLuxAttr != null) {
-      meanLux = meanLuxAttr.getDouble();
-    } else if (SharedCognitiveMap.getLitEdges().contains(nightMovement.currentEdge)) {
-      // No continuous lux for this city/edge: fall back to the binary lit-edge set.
-      meanLux = Double.MAX_VALUE;
-    }
-
-    double entranceLux = Double.MAX_VALUE;
-    if (nightMovement.currentDirectedEdge != null) {
-      NodeGraph fromNode = (NodeGraph) nightMovement.currentDirectedEdge.getFromNode();
-      NodeGraph toNode = (NodeGraph) nightMovement.currentDirectedEdge.getToNode();
-      if (fromNode != null && toNode != null) {
-        long edgeKey = pedsim.night.engine.PedSimCityNight.luxKey(fromNode.getID(), toNode.getID());
-        Double luxValue = pedsim.night.engine.PedSimCityNight.directionalLuxMap.get(edgeKey);
-        if (luxValue != null) {
-          entranceLux = luxValue;
-        }
+      if (meanLuxAttr.getDouble() < threshold) {
+        tooDark = true;
+      }
+    } else {
+      // No continuous value on this edge. Judge by the binary lit flag only if some edge-level
+      // lighting dataset exists; if none exists at all, this term is not applied.
+      boolean edgeLightingDataExists =
+          !pedsim.night.engine.PedSimCityNight.illuminatedEdges.getGeometries().isEmpty()
+              || !SharedCognitiveMap.getLitEdges().isEmpty();
+      if (edgeLightingDataExists
+          && !SharedCognitiveMap.getLitEdges().contains(nightMovement.currentEdge)) {
+        tooDark = true;
       }
     }
 
-    // If either the average street light or the immediate entrance is too dark, reroute
-    if (meanLux >= agent.lightSensitivityThreshold
-        && entranceLux >= agent.lightSensitivityThreshold) {
-      whenLit(nightMovement.currentEdge);
-    } else {
-      whenNonLit(nightMovement.currentEdge);
+    // --- Directional entrance illuminance, applied only where the directional dataset was loaded.
+    // A missing entry within a loaded dataset counts as dark (0), consistent with the mean term. ---
+    if (!pedsim.night.engine.PedSimCityNight.directionalLuxMap.isEmpty()
+        && directionalEntranceLux() < threshold) {
+      tooDark = true;
     }
+
+    if (tooDark) {
+      whenNonLit(nightMovement.currentEdge);
+    } else {
+      whenLit(nightMovement.currentEdge);
+    }
+  }
+
+  /**
+   * Directional entrance illuminance for the current directed edge, from the directional lighting
+   * lookup. Returns 0.0 (dark) when the dataset is loaded but has no entry for this edge/direction,
+   * so incomplete directional data is treated conservatively rather than silently passing.
+   */
+  private double directionalEntranceLux() {
+    if (nightMovement.currentDirectedEdge == null) {
+      return 0.0;
+    }
+    NodeGraph fromNode = (NodeGraph) nightMovement.currentDirectedEdge.getFromNode();
+    NodeGraph toNode = (NodeGraph) nightMovement.currentDirectedEdge.getToNode();
+    if (fromNode == null || toNode == null) {
+      return 0.0;
+    }
+    Double luxValue =
+        pedsim.night.engine.PedSimCityNight.directionalLuxMap.get(
+            pedsim.night.engine.PedSimCityNight.luxKey(fromNode.getID(), toNode.getID()));
+    return luxValue != null ? luxValue : 0.0;
   }
 
   /** Determines whether to reroute the agent or increase its speed. */
