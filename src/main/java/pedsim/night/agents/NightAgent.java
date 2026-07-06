@@ -28,7 +28,9 @@ public class NightAgent extends ActivityAgent {
   private boolean nightRoute = false;
 
   public double lightSensitivityThreshold;
-  public double accumulatedLux = 0.0;
+  // Per-trip lighting metric: mean over edges that actually had a measured mean_lux.
+  public double accumulatedMeasuredLux = 0.0;
+  public int edgesWithMeasuredLux = 0;
   public int edgesWalked = 0;
 
   /**
@@ -219,14 +221,17 @@ public class NightAgent extends ActivityAgent {
   }
 
   /**
-   * Mean illuminance experienced on the just-completed trip: accumulated per-edge lux divided by
-   * edges walked (reset per trip in {@link NightAgentMovement#initialisePath}). {@code NaN} until the
-   * agent has walked at least one edge.
-   */
-  @Override
-  public double getTripMeanLux() {
-    return edgesWalked > 0 ? accumulatedLux / edgesWalked : Double.NaN;
-  }
+     * Mean measured illuminance experienced on the just-completed trip: accumulated measured
+     * per-edge lux divided by the number of edges with measured lux. Binary lit fallback and
+     * missing lighting data are tracked separately and are not treated as measured lux.
+     * {@code NaN} until the trip contains at least one edge with measured lux.
+     */
+    @Override
+    public double getTripMeanLux() {
+        return edgesWithMeasuredLux > 0
+            ? accumulatedMeasuredLux / edgesWithMeasuredLux
+            : Double.NaN;
+    }
 
   /**
    * Gets the simulation state of the agent.
