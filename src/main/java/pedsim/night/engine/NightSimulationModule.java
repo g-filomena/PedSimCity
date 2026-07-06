@@ -60,29 +60,58 @@ public final class NightSimulationModule implements SimulationModule {
 
   @Override
   public void applyParameters(Map<String, Object> params) {
-    if (params.containsKey("enableAB"))
+    if (params.containsKey("enableAB")) {
       NightPars.enableLightABTesting = Boolean.parseBoolean(params.get("enableAB").toString());
-    if (params.containsKey("crowdednessPercentile"))
+    }
+    if (params.containsKey("abTestPairs")) {
+      NightPars.abTestPairs = Integer.parseInt(params.get("abTestPairs").toString().trim());
+    }
+    if (params.containsKey("crowdednessPercentile")) {
       NightPars.crowdednessPercentile =
           Double.parseDouble(params.get("crowdednessPercentile").toString());
-    if (params.containsKey("useGravityModel"))
+    }
+    if (params.containsKey("directionalLuxStatistic")) {
+      NightPars.directionalLuxStatistic =
+          NightPars.DirectionalLuxStatistic.valueOf(
+              params.get("directionalLuxStatistic").toString().trim().toUpperCase());
+    }
+    if (params.containsKey("minVulnerableLightSensitivity")) {
+      NightPars.minVulnerableLightSensitivity =
+          Double.parseDouble(params.get("minVulnerableLightSensitivity").toString());
+    }
+    if (params.containsKey("maxVulnerableLightSensitivity")) {
+      NightPars.maxVulnerableLightSensitivity =
+          Double.parseDouble(params.get("maxVulnerableLightSensitivity").toString());
+    }
+    if (params.containsKey("nonVulnerableLightSensitivity")) {
+      NightPars.nonVulnerableLightSensitivity =
+          Double.parseDouble(params.get("nonVulnerableLightSensitivity").toString());
+    }
+    if (params.containsKey("useGravityModel")) {
       pedsim.core.parameters.RouteChoicePars.useGravityModel =
           Boolean.parseBoolean(params.get("useGravityModel").toString());
+    }
   }
 
   @Override
   public Map<String, Object> extraState() {
-    return Map.of(
-        "enableAB", NightPars.enableLightABTesting,
-        "crowdednessPercentile", NightPars.crowdednessPercentile,
-        "useGravityModel", pedsim.core.parameters.RouteChoicePars.useGravityModel);
-  }
+        return Map.of(
+            "enableAB", NightPars.enableLightABTesting,
+            "abTestPairs", NightPars.abTestPairs,
+            "crowdednessPercentile", NightPars.crowdednessPercentile,
+            "directionalLuxStatistic", NightPars.directionalLuxStatistic.toString(),
+            "nonVulnerableLightSensitivity", NightPars.nonVulnerableLightSensitivity,
+            "useGravityModel", pedsim.core.parameters.RouteChoicePars.useGravityModel);
+    }
 
   @Override
   public Map<String, Object> parameterSchema() {
-    return Map.of(
-        "enableAB", "boolean",
-        "crowdednessPercentile", "double",
-        "useGravityModel", "boolean");
-  }
+        return Map.of(
+            "enableAB", "boolean",
+            "abTestPairs", "int",
+            "crowdednessPercentile", "double",
+            "directionalLuxStatistic", "enum:MIN|MEAN",
+            "nonVulnerableLightSensitivity", "double",
+            "useGravityModel", "boolean");
+    }
 }
