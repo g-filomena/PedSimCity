@@ -4,7 +4,7 @@ Enriches <city>_censusData.gpkg in place with the columns read by the Java side:
 - residence_pct
 - workplace_poi
 - night_poi
-- vulnerability_pct
+- vulnerability_pct  (share of residents who are female, under 15, or 65+; counted once each)
 
 `--input_dir` is the resources folder path.
 `--city_name` is the filename prefix before `_censusData.gpkg`, `_edges.gpkg`, etc.
@@ -134,10 +134,26 @@ def main() -> None:
     total = pop.sum()
     gdf["residence_pct"] = (pop / total) if total > 0 else 0.0
 
-    p3 = pd.to_numeric(gdf["P3"], errors="coerce") if "P3" in gdf.columns else 0.0
-    p19 = pd.to_numeric(gdf["P19"], errors="coerce") if "P19" in gdf.columns else 0.0
-    vuln = (p3 + p19) / pop.replace(0, pd.NA)
-    gdf["vulnerability_pct"] = vuln.fillna(0.0).clip(0.0, 1.0)
+    # Vulnerability: share of residents who are elderly, under 15, or female, counted once each.
+    # The vulnerable set is the union: all females  U  males under 15  U  males 65+.
+    # Taking every female once, then only the *male* children and *male* elderly, avoids
+    # double-counting the female children / female elderly already inside "all females".
+    # Column meanings (Torino_census_metaData.xlsx, sheet metaDataCensus):
+    #   P3           females (all ages)
+    #   P30,P31,P32  males aged <5 / 5-9 / 10-14   -> males under 15
+    #   P43,P44,P45  males aged 65-69 / 70-74 / >74 -> males 65+
+    # NOTE: the ISTAT census-section dataset has no disability variable, so disability cannot be
+    # included here; add its column(s) to VULNERABLE_COLS if a future dataset provides them.
+    VULNERABLE_COLS = ["P3", "P30", "P31", "P32", "P43", "P44", "P45"]
+    vulnerable = sum(
+        (
+            pd.to_numeric(gdf[c], errors="coerce").fillna(0.0)
+            for c in VULNERABLE_COLS
+            if c in gdf.columns
+        ),
+        start=pd.Series(0.0, index=gdf.index),
+    )
+    gdf["vulnerability_pct"] = (vulnerable / pop.replace(0, pd.NA)).fillna(0.0).clip(0.0, 1.0)
 
     gdf = gdf.reset_index(drop=True)
     gdf["zone_idx"] = gdf.index
