@@ -5,7 +5,6 @@ import java.util.logging.Logger;
 import pedsim.core.parameters.ParameterManager;
 import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
-import pedsim.core.website.GeoJsonExporter;
 import pedsim.core.website.SimulationRestApi;
 
 /**
@@ -60,32 +59,6 @@ public final class SimulationLauncher {
       Pars.parallel = (Pars.jobs > 1);
     }
     module.applyParameters(params);
-  }
-
-  /**
-   * Pre-loads GIS data so the dashboard can render roads before the first simulation run.
-   *
-   * <p>Ordering contract — must not be changed:
-   *
-   * <ol>
-   *   <li>{@code clearAll()} — flushes core and module-specific static data
-   *   <li>{@code applyMode()} — sets {@code Pars.isNight} and registers the active module
-   *   <li>{@code Pars.setSimulationParameters()} — reads {@code Pars.isNight}; must come after
-   *   <li>{@code Import.importFiles()} — reads {@code Pars.isNight}; must come after
-   *   <li>{@code setRoadsGeoJson()} — exports loaded road data
-   * </ol>
-   */
-  public void preloadForDashboard() {
-    try {
-      clearAll(); // 1. clear first
-      applyMode(); // 2. mode flags before any parameter/import call
-      Pars.setSimulationParameters();
-      new Import().importFiles();
-      SimulationStateStore.getInstance()
-          .setRoadsGeoJson(GeoJsonExporter.exportRoads(PedSimCity.roads));
-    } catch (Exception e) {
-      logger.warning("Could not pre-load default roads: " + e.getMessage());
-    }
   }
 
   /**

@@ -2,14 +2,16 @@ package pedsim.night.engine;
 
 import java.util.Map;
 import pedsim.activity.engine.ActivityPopulate;
+import pedsim.core.agents.Agent;
 import pedsim.core.engine.PedSimCity;
-import pedsim.core.utilities.StringEnum.Vulnerable;
+import pedsim.night.agents.NightAgent;
+import pedsim.night.parameters.NightPars;
 import sim.graph.NodeGraph;
 
 /**
  * Populate strategy for the night module. Extends the activity-based {@link ActivityPopulate}
- * (census residence + workplace home/work selection) and adds per-agent vulnerability assignment
- * and A/B-test twin generation.
+ * (census residence + workplace home/work selection) and adds per-agent vulnerability assignment and
+ * A/B-test twin generation.
  */
 public class NightPopulate extends ActivityPopulate {
 
@@ -25,30 +27,26 @@ public class NightPopulate extends ActivityPopulate {
     }
   }
 
+  /**
+   * Spawns identical vulnerable/non-vulnerable twin pairs sharing the same home/work locations, for a
+   * controlled A/B comparison. The number of pairs is the user-set {@link NightPars#abTestPairs}
+   * (2 agents per pair), independent of the census-derived population. Vulnerability here is assigned
+   * by construction, not sampled from the census {@code vulnerability_pct}.
+   */
   private void populateABTest() {
-    int pairs = 72;
+    int pairs = Math.max(1, NightPars.abTestPairs);
     int currentAgentID = 0;
     for (int i = 0; i < pairs; i++) {
-      // Create a dummy agent just to get valid home/work locations from the core logic
-      pedsim.night.agents.NightAgent dummy = new pedsim.night.agents.NightAgent(this.state, false);
-      super.defineHomeWorkLocations(dummy);
-
-      // Vulnerable twin
-      pedsim.night.agents.NightAgent vulnerableTwin =
-          new pedsim.night.agents.NightAgent(this.state, false);
+      NightAgent vulnerableTwin = new NightAgent(this.state, false);
       vulnerableTwin.agentID = currentAgentID++;
-      vulnerableTwin.setHomeWorkLoctations(dummy.homeNode, dummy.workNode);
+      defineHomeWorkLocations(vulnerableTwin);
       vulnerableTwin.setVulnerable(true);
-      vulnerableTwin.vulnerable = Vulnerable.VULNERABLE;
       vulnerableTwin.initSensitivity();
 
-      // Normal twin
-      pedsim.night.agents.NightAgent normalTwin =
-          new pedsim.night.agents.NightAgent(this.state, false);
+      NightAgent normalTwin = new NightAgent(this.state, false);
       normalTwin.agentID = currentAgentID++;
-      normalTwin.setHomeWorkLoctations(dummy.homeNode, dummy.workNode);
+      normalTwin.setHomeWorkLoctations(vulnerableTwin.homeNode, vulnerableTwin.workNode);
       normalTwin.setVulnerable(false);
-      normalTwin.vulnerable = Vulnerable.NON_VULNERABLE;
       normalTwin.initSensitivity();
 
       vulnerableTwin.abTestTwin = normalTwin;
@@ -57,11 +55,10 @@ public class NightPopulate extends ActivityPopulate {
       registerAgent(vulnerableTwin);
       registerAgent(normalTwin);
     }
-    System.out.println(
-        "Spawned " + pairs + " A/B testing identical twin pairs (Vulnerable vs Normal).");
+    System.out.println("Spawned " + pairs + " A/B twin pairs (vulnerable vs non-vulnerable).");
   }
 
-  private void registerAgent(pedsim.night.agents.NightAgent agent) {
+  private void registerAgent(NightAgent agent) {
     if (agent.homeNode != null) {
       agent.currentLocation.geometry =
           new org.locationtech.jts.geom.GeometryFactory()
@@ -71,51 +68,27 @@ public class NightPopulate extends ActivityPopulate {
     agent.updateAgentLists(false, true); // adds to agentsList + agentsAtHome
   }
 
-  /**
-   * Creates a new agent with an assigned vulnerability status based on the vulnerability dataset.
-   * If the vulnerability dataset was not loaded, all agents default to NON_VULNERABLE.
-   *
-   * @param agentID The identifier of the agent.
-   * @return The created agent.
-   */
   @Override
-  protected pedsim.core.agents.Agent createAgent(int agentID) {
-
-    pedsim.night.agents.NightAgent agent = new pedsim.night.agents.NightAgent(this.state, false);
+  protected Agent createAgent(int agentID) {
+    NightAgent agent = new NightAgent(this.state, false);
     agent.agentID = agentID;
-
     defineHomeWorkLocations(agent);
     assignVulnerabilityStatus(agent);
-    agent.vulnerable =
-        agent.isVulnerableBoolean() ? Vulnerable.VULNERABLE : Vulnerable.NON_VULNERABLE;
-
     agent.initSensitivity();
     return agent;
   }
 
   /**
-   * Assigns vulnerability to the agent based on its home node and the vulnerability dataset.
-   * If the vulnerability dataset was not loaded (empty map) or the node has no zone,
-   * the agent defaults to NOT vulnerable.
-   *
-   * @param agent The agent to assign vulnerability to.
+   * Assigns vulnerability from the agent's home-zone {@code vulnerability_pct}. Defaults to not
+   * vulnerable when the vulnerability dataset was not loaded or the home node has no zone value.
+   * ({@code vulnerability_pct} is already a [0,1] rate from the census pipeline.)
    */
-  private void assignVulnerabilityStatus(pedsim.night.agents.NightAgent agent) {
-
+  private void assignVulnerabilityStatus(NightAgent agent) {
     Map<NodeGraph, Double> vulnMap = PedSimCityNight.nodesVulnerabilityWeight;
-
     if (vulnMap.isEmpty() || agent.homeNode == null) {
       agent.setVulnerable(false);
       return;
     }
-
-    double vulnProb = vulnMap.getOrDefault(agent.homeNode, 0.0);
-
-    // Normalise: values > 1.0 are assumed to be percentages (e.g. 45.2 -> 0.452)
-    if (vulnProb > 1.0) {
-      vulnProb /= 100.0;
-    }
-
-    agent.setVulnerable(random.nextDouble() < vulnProb);
+    agent.setVulnerable(random.nextDouble() < vulnMap.getOrDefault(agent.homeNode, 0.0));
   }
 }

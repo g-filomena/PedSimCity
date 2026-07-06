@@ -86,7 +86,9 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
     if (choice == 2) {
       LoggerUtil.getLogger().info("[STARTUP] Starting REST API for External Dashboard...");
       SimulationLauncher launcher = nightLauncher();
-      launcher.preloadForDashboard();
+      // No default-city preload: GIS layers are imported at POST /api/start for the city chosen on
+      // the dashboard (Engine.runJobs -> importFiles), so startup can't fail on a default city's data
+      // (e.g. the barriers layer) before the user has picked one.
       launcher.wireAndStartRestServer(8081);
       SimulationRestApi.openDashboardInBrowser();
     } else {

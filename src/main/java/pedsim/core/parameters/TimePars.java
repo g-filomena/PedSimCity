@@ -39,8 +39,9 @@ public class TimePars {
   // Day/night boundary — the single source of truth, used for the isDark behaviour flag, the
   // day/night volume aggregation in the exporter, and the dashboard. Night is
   // [NIGHT_START_HOUR, 24) ∪ [0, DAY_START_HOUR); day is [DAY_START_HOUR, NIGHT_START_HOUR).
-  public static final int DAY_START_HOUR = 6;
-  public static final int NIGHT_START_HOUR = 20;
+  // Non-final: overridable per run from the dashboard (dayStartHour / nightStartHour params).
+  public static int DAY_START_HOUR = 6;
+  public static int NIGHT_START_HOUR = 20;
 
   /** Whether a 0–23 clock hour falls in the night window. */
   public static boolean isNight(int clockHour) {

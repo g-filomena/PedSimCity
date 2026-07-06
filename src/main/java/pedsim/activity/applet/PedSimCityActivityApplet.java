@@ -74,7 +74,7 @@ public class PedSimCityActivityApplet extends PedSimCityApplet {
     if (choice == 2) {
       LoggerUtil.getLogger().info("[STARTUP] Starting REST API for External Dashboard...");
       SimulationLauncher launcher = activityLauncher();
-      launcher.preloadForDashboard();
+      // No default-city preload: layers are imported at POST /api/start for the chosen city.
       launcher.wireAndStartRestServer(8081);
       SimulationRestApi.openDashboardInBrowser();
     } else {

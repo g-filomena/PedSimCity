@@ -56,8 +56,9 @@ public class NightImport extends ActivityImport {
   /**
    * Loads the directional entrance-lighting lookup ({@code <City>_directional_lighting_lookup.csv})
    * into {@link PedSimCityNight#directionalLuxMap}, keyed by (current_node_id, target_node_id) with
-   * the min or mean lux per {@link NightPars#directionalLuxStatistic}. Reads by header name and
-   * fails closed if a required column is missing.
+   * the min or mean lux per {@link NightPars#directionalLuxStatistic}. Reads by header name; on a
+   * missing/empty/malformed file it logs a warning and leaves the map empty (the model then falls
+   * back to the binary lit flag), consistent with {@link #readIlluminatedEdges()}.
    */
   protected void readDirectionalLighting() {
     PedSimCityNight.directionalLuxMap.clear();
@@ -83,18 +84,21 @@ public class NightImport extends ActivityImport {
         new BufferedReader(new InputStreamReader(fileUrl.openStream(), StandardCharsets.UTF_8))) {
       String headerLine = br.readLine();
       if (headerLine == null) {
-        throw new IllegalArgumentException("Directional lighting CSV is empty: " + resourceName);
+        logger.warning("Directional lighting CSV is empty: " + resourceName);
+        return;
       }
       List<String> header = Arrays.asList(headerLine.split(",", -1));
       int fromIdx = header.indexOf("current_node_id");
       int toIdx = header.indexOf("target_node_id");
       int luxIdx = header.indexOf(luxColumn);
       if (fromIdx < 0 || toIdx < 0 || luxIdx < 0) {
-        throw new IllegalArgumentException(
+        logger.warning(
             "Directional lighting CSV missing a required column (current_node_id, target_node_id, "
                 + luxColumn
                 + "); header="
-                + header);
+                + header
+                + " — skipping directional lighting.");
+        return;
       }
       int maxIdx = Math.max(fromIdx, Math.max(toIdx, luxIdx));
 
@@ -116,7 +120,8 @@ public class NightImport extends ActivityImport {
         }
       }
     } catch (Exception e) {
-      throw new IllegalStateException("Failed to load directional lighting: " + resourceName, e);
+      logger.warning("Failed to load directional lighting: " + e.getMessage());
+      return;
     }
 
     logger.info(

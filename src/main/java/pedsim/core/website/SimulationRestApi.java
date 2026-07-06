@@ -15,6 +15,7 @@ import java.util.logging.Logger;
 import pedsim.core.engine.SimulationModule;
 import pedsim.core.engine.SimulationStateStore;
 import pedsim.core.parameters.Pars;
+import pedsim.core.parameters.TimePars;
 import pedsim.core.utilities.LoggerUtil;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
@@ -452,6 +453,10 @@ public final class SimulationRestApi {
       Pars.jobs = Integer.parseInt(params.get("jobs").toString());
       Pars.parallel = (Pars.jobs > 1);
     }
+    if (params.containsKey("dayStartHour"))
+      TimePars.DAY_START_HOUR = Integer.parseInt(params.get("dayStartHour").toString());
+    if (params.containsKey("nightStartHour"))
+      TimePars.NIGHT_START_HOUR = Integer.parseInt(params.get("nightStartHour").toString());
   }
 
   /** Builds the JSON body for {@code GET /api/modules}. */
