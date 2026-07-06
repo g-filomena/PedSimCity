@@ -1,6 +1,12 @@
 package pedsim.night.parameters;
 
 public class NightPars {
+    public enum DirectionalLuxStatistic {
+        MIN,
+        MEAN
+    }
+
+    public static DirectionalLuxStatistic directionalLuxStatistic = DirectionalLuxStatistic.MIN;
   // GUI Configurable parameters for light sensitivity (Lux)
   public static double minVulnerableLightSensitivity = 5.0;
   public static double maxVulnerableLightSensitivity = 15.0;
