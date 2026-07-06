@@ -30,10 +30,6 @@ public class PedSimCityNight extends PedSimCityActivity {
   // Illuminated edges dataset (contains mean_lux per edge for night simulation)
   public static VectorLayer illuminatedEdges = new VectorLayer();
 
-  // cached alternative routes for night movement
-  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> alternativeRoutes =
-      new ConcurrentHashMap<>();
-
   // --- Vulnerability dataset (node -> vulnerability %) ---
   public static Map<NodeGraph, Double> nodesVulnerabilityWeight = new HashMap<>();
 
@@ -61,14 +57,6 @@ public class PedSimCityNight extends PedSimCityActivity {
           }
         });
   }
-
-  // cached route
-  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> routesDay =
-      createBoundedCache();
-  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> routesNonVulnerableNight =
-      createBoundedCache();
-  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> routesVulnerableNight =
-      createBoundedCache();
 
   // cached alternative routes for night movement
   public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> altRoutesVulnerable =
@@ -141,16 +129,12 @@ public class PedSimCityNight extends PedSimCityActivity {
   // ---------------------------------
 
   public static void clearNightStaticData() {
-        indexedEdgeCache.clear();
-        edges.clear();
-        routesDay.clear();
-        routesNonVulnerableNight.clear();
-        routesVulnerableNight.clear();
-        altRoutesVulnerable.clear();
-        altRoutesNonVulnerable.clear();
-        directionalLuxMap.clear();
-        illuminatedEdges.getGeometries().clear();
-        nodesVulnerabilityWeight.clear();
-        alternativeRoutes.clear();
-    }
+    indexedEdgeCache.clear();
+    edges.clear();
+    altRoutesVulnerable.clear();
+    altRoutesNonVulnerable.clear();
+    directionalLuxMap.clear();
+    illuminatedEdges.getGeometries().clear();
+    nodesVulnerabilityWeight.clear();
+  }
 }
