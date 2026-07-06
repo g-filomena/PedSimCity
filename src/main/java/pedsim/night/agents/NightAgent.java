@@ -4,7 +4,6 @@ import java.util.List;
 import pedsim.activity.agents.ActivityAgent;
 import pedsim.core.agents.Heuristics;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
-import pedsim.core.utilities.StringEnum;
 import pedsim.core.utilities.StringEnum.Vulnerable;
 import pedsim.night.engine.PedSimCityNight;
 import pedsim.night.routing.pathfinder.RoadDistancePathFinder;
@@ -13,19 +12,17 @@ import sim.graph.Graph;
 import sim.graph.NodeGraph;
 
 /**
- * Pedestrian agent for the night module. Inherits the 24h activity pattern (time-of-day
- * destination selection) from {@link ActivityAgent} and adds the night perception/safety layer:
+ * Pedestrian agent for the night module. Inherits the 24h activity pattern (time-of-day destination
+ * selection) from {@link ActivityAgent} and adds the night perception/safety layer:
  * vulnerability-aware, lighting-aware routing and avoidance of parks/water after dark.
  */
 public class NightAgent extends ActivityAgent {
 
   private static final long serialVersionUID = 1L;
+
   public NightAgent abTestTwin = null;
-  public StringEnum.Vulnerable vulnerable;
-  private Graph agentNetwork;
-  protected pedsim.night.agents.NightAgentMovement nightMovement;
   protected PedSimCityNight state;
-  private boolean nightRoute = false;
+  private final Graph agentNetwork;
 
   public double lightSensitivityThreshold;
   // Per-trip lighting metric: mean over edges that actually had a measured mean_lux.
@@ -33,12 +30,6 @@ public class NightAgent extends ActivityAgent {
   public int edgesWithMeasuredLux = 0;
   public int edgesWalked = 0;
 
-  /**
-   * Constructor Function. Creates a new agent with the specified agent
-   * properties.
-   *
-   * @param state the PedSimCity simulation state.
-   */
   public NightAgent(PedSimCityNight state) {
     this(state, true);
   }
@@ -49,91 +40,80 @@ public class NightAgent extends ActivityAgent {
     this.agentNetwork = SharedCognitiveMap.getCommunityPrimalNetwork();
   }
 
+  /**
+   * Sets the light-sensitivity threshold: a random draw in [min, max] for vulnerable agents, the
+   * fixed non-vulnerable value otherwise.
+   */
   public void initSensitivity() {
-    // Initialize light sensitivity threshold based on vulnerability
     if (isVulnerable()) {
       double min = state.getMinVulnerableLightSensitivity();
       double max = state.getMaxVulnerableLightSensitivity();
-      this.lightSensitivityThreshold = min + (state.random.nextDouble() * (max - min));
+      this.lightSensitivityThreshold = min + state.random.nextDouble() * (max - min);
     } else {
       this.lightSensitivityThreshold = state.getNonVulnerableLightSensitivity();
     }
   }
 
-  /**
-   * This is called every tick by the scheduler. It moves the agent along the
-   * path.
-   *
-   * @param state the simulation state.
-   */
+  /** Called every tick: plans a trip when idle, otherwise advances along the night-aware path. */
   @Override
-  public void step(SimState state) {
-
-    if (isWaiting()) return;
-
+  public void step(SimState simState) {
+    if (isWaiting()) {
+      return;
+    }
     if (isWalkingAlone() && destinationNode == null) {
-      // simple cognitive map in this sim
       if (!cognitiveMap.formed) {
         getCognitiveMap().buildSimpleActivityBone();
         cognitiveMap.formed = true;
       }
-      if (this.state.isDark) {
-        planNightTrip();
-        nightRoute = true;
-      } else planTrip();
+      planTrip();
     } else if (reachedDestination.get()) {
-      nightRoute = false;
       handleReachedDestination();
-    } else if (isAtDestination() && timeAtDestination <= state.schedule.getSteps()) goHome();
-    else if (isAtDestination())
-      ;
-    else if (nightRoute) nightMovement.keepWalking();
-    else agentMovement.keepWalking();
-  }
-
-  private synchronized void planNightTrip() {
-    defineOrigin();
-    if (isGoingHome()) {
-      destinationNode = homeNode;
+    } else if (isAtDestination()) {
+      if (timeAtDestination <= state.schedule.getSteps()) {
+        goHome();
+      }
+      // else: still resting at the destination.
     } else {
-      defineRandomDestination();
+      agentMovement.keepWalking();
     }
-    if (sameOriginDestination()) return;
-    planNightRoute();
-    tripStartStep = state.schedule.getSteps();
-    nightMovement = new NightAgentMovement(this);
-    nightMovement.initialisePath(getRoute());
   }
 
   /**
-   * Plans the route for the agent.
-   */
-  protected void planNightRoute() {
-    Heuristics heuristics = new Heuristics(this);
-    heuristics.defineHeuristic(originNode, destinationNode, true);
-    setRoute(new RoadDistancePathFinder().roadDistanceNight(originNode, destinationNode, this));
-  }
-
-  /**
-   * Plans the route for the agent.
+   * Plans one trip. Destination is home when heading home, the workplace during the day (before work
+   * is done), otherwise a random reachable node — avoiding parks/water when dark. Routing is
+   * night-aware after dark and plain shortest path during the day (see {@link #planRoute()}).
    */
   @Override
   protected void planTrip() {
     defineOrigin();
     if (isGoingHome()) {
       destinationNode = homeNode;
+    } else if (workNode != null && !hasWorkedToday && !state.isDark) {
+      destinationNode = workNode;
     } else {
-      if (workNode != null && !hasWorkedToday && !state.isDark) {
-        destinationNode = workNode;
-      } else {
-        defineRandomDestination();
-      }
+      defineRandomDestination();
     }
-    if (sameOriginDestination()) return;
+    if (sameOriginDestination()) {
+      return;
+    }
     planRoute();
     tripStartStep = state.schedule.getSteps();
     agentMovement = new NightAgentMovement(this);
     agentMovement.initialisePath(getRoute());
+  }
+
+  /**
+   * Night-aware road-distance routing after dark (vulnerable agents avoid parks/water and unknown
+   * regions); plain shortest path during the day, so the defensive routing is a night-only response.
+   */
+  @Override
+  protected void planRoute() {
+    new Heuristics(this).defineHeuristic(originNode, destinationNode, true);
+    RoadDistancePathFinder pathFinder = new RoadDistancePathFinder();
+    setRoute(
+        state.isDark
+            ? pathFinder.roadDistanceNight(originNode, destinationNode, this)
+            : pathFinder.roadDistance(originNode, destinationNode, this));
   }
 
   private boolean sameOriginDestination() {
@@ -145,17 +125,9 @@ public class NightAgent extends ActivityAgent {
   }
 
   /**
-   * Plans the route for the agent.
-   */
-  @Override
-  protected void planRoute() {
-    Heuristics heuristics = new Heuristics(this);
-    heuristics.defineHeuristic(originNode, destinationNode, true);
-    setRoute(new RoadDistancePathFinder().roadDistanceNight(originNode, destinationNode, this));
-  }
-
-  /**
-   * Randomly selects a destination node within a specified distance range.
+   * Selects a random destination within a distance band around the origin. When dark, nodes on
+   * park/water edges are avoided. Bounded to a fixed number of attempts; if none is found the agent
+   * falls back to any reachable node so it can never stall.
    */
   private void defineRandomDestination() {
     if (abTestTwin != null
@@ -165,55 +137,45 @@ public class NightAgent extends ActivityAgent {
       return;
     }
 
-    // Initialise limits for distance calculation
     double lowerLimit = distanceNextDestination * 0.90;
     double upperLimit = distanceNextDestination * 1.10;
 
-    // Get the network graph from the cognitive map
-
-    // Loop until a valid destination is found
-    while (destinationNode == null) {
-
-      // Get candidate nodes between the current distance range
-      List<NodeGraph> destinationCandidates =
-          pedsim.core.agents.Agent.getNodesBetweenDistanceIntervalOptimized(
-              agentNetwork, originNode, lowerLimit, upperLimit);
-
-      if (destinationCandidates.isEmpty()) {
-        // Skip this iteration and adjust the limits if no candidates found
+    for (int attempt = 0; destinationNode == null && attempt < 100; attempt++) {
+      List<NodeGraph> candidates =
+          getNodesBetweenDistanceIntervalOptimized(agentNetwork, originNode, lowerLimit, upperLimit);
+      if (candidates.isEmpty()) {
         lowerLimit *= 0.90;
         upperLimit *= 1.10;
-        continue; // Continue with the next loop iteration
+        continue;
       }
 
-      // Select a weighted destination node from the list of candidates
-      destinationNode = selectWeightedDestination(destinationCandidates, state.isDark);
+      destinationNode = selectWeightedDestination(candidates, state.isDark);
 
-      // If it's dark, filter out destination nodes that lie in parks or along rivers
       if (state.isDark
+          && destinationNode != null
           && destinationNode.getEdges().stream()
               .anyMatch(SharedCognitiveMap.getEdgesWithinParksOrAlongWater()::contains)) {
-        destinationNode = null; // Set destination to null and try again
-
-        // Adjust the distance range for the next iteration
+        destinationNode = null;
         lowerLimit *= 0.90;
         upperLimit *= 1.10;
       }
     }
+
+    if (destinationNode == null) {
+      // No park/water-free destination found; accept any reachable node so the agent proceeds.
+      List<NodeGraph> nodes = agentNetwork.getNodes();
+      destinationNode = nodes.get(random.nextInt(nodes.size()));
+    }
   }
 
-  /**
-   * Checks if the agent is vulnerable.
-   *
-   * @return true if the agent is vulnerable, false otherwise.
-   */
+  /** True when this agent is vulnerable. Single source of truth: the base {@code vulnerable} flag. */
   public boolean isVulnerable() {
-    return vulnerable == Vulnerable.VULNERABLE;
+    return isVulnerableBoolean();
   }
 
   /**
-   * Night agents are grouped by vulnerability for volume tallying. The time dimension (hour, and
-   * the day/night aggregation derived from it) is inherited from {@link ActivityAgent}.
+   * Night agents are grouped by vulnerability for volume tallying. The time dimension (hour, and the
+   * day/night aggregation derived from it) is inherited from {@link ActivityAgent}.
    */
   @Override
   public Enum<?> getAgentScenario() {
@@ -221,23 +183,15 @@ public class NightAgent extends ActivityAgent {
   }
 
   /**
-     * Mean measured illuminance experienced on the just-completed trip: accumulated measured
-     * per-edge lux divided by the number of edges with measured lux. Binary lit fallback and
-     * missing lighting data are tracked separately and are not treated as measured lux.
-     * {@code NaN} until the trip contains at least one edge with measured lux.
-     */
-    @Override
-    public double getTripMeanLux() {
-        return edgesWithMeasuredLux > 0
-            ? accumulatedMeasuredLux / edgesWithMeasuredLux
-            : Double.NaN;
-    }
-
-  /**
-   * Gets the simulation state of the agent.
-   *
-   * @return The PedSimCity simulation state.
+   * Mean measured illuminance experienced on the just-completed trip: accumulated {@code mean_lux}
+   * over the edges that actually had a measured value, divided by their count. {@code NaN} until the
+   * trip contains at least one such edge.
    */
+  @Override
+  public double getTripMeanLux() {
+    return edgesWithMeasuredLux > 0 ? accumulatedMeasuredLux / edgesWithMeasuredLux : Double.NaN;
+  }
+
   @Override
   public PedSimCityNight getState() {
     return state;
