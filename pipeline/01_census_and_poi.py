@@ -1,10 +1,13 @@
 """Step 1: build the unified census layer for PedSimCity.
 
-Enriches <city>_censusData.gpkg in place with the columns read by the Java side:
+Reads the raw ISTAT census <city>_censusData_raw.gpkg and writes the enriched
+<city>_censusData.gpkg (the file the Java side loads) with these columns:
 - residence_pct
 - workplace_poi
 - night_poi
 - vulnerability_pct  (share of residents who are female, under 15, or 65+; counted once each)
+
+The raw file is left untouched, so this step is safe to re-run.
 
 `--input_dir` is the resources folder path.
 `--city_name` is the filename prefix before `_censusData.gpkg`, `_edges.gpkg`, etc.
@@ -112,19 +115,22 @@ def main() -> None:
     input_dir = Path(os.path.abspath(args.input_dir))
     city = args.city_name or input_dir.name
 
-    census_path = input_dir / f"{city}_censusData.gpkg"
-    census_temp = input_dir / f"{city}_censusData_tmp.gpkg"
+    # Raw ISTAT census in, enriched census out. Keeping them as distinct files leaves the raw
+    # source (with all the P* columns) intact, so this step stays re-runnable and non-destructive.
+    raw_census = input_dir / f"{city}_censusData_raw.gpkg"
+    output_path = input_dir / f"{city}_censusData.gpkg"
 
-    if not census_path.exists():
-        raise FileNotFoundError(f"Census file not found: {census_path}")
+    if not raw_census.exists():
+        raise FileNotFoundError(f"Raw census file not found: {raw_census}")
 
     print(f"resources folder: {input_dir}")
     print(f"city file prefix: {city}")
-    print(f"census: {census_path}")
+    print(f"raw census: {raw_census}")
+    print(f"output    : {output_path}")
 
-    gdf = gpd.read_file(census_path)
+    gdf = gpd.read_file(raw_census)
     if gdf.empty:
-        raise ValueError(f"Census layer is empty: {census_path}")
+        raise ValueError(f"Raw census layer is empty: {raw_census}")
 
     print("CRS:", gdf.crs)
     if "P1" not in gdf.columns:
@@ -181,14 +187,11 @@ def main() -> None:
     keep = [c for c in keep if c in gdf.columns]
     out = gdf[keep].copy()
 
-    if census_temp.exists():
-        census_temp.unlink()
+    if output_path.exists():
+        output_path.unlink()
+    out.to_file(output_path, driver="GPKG")
 
-    out.to_file(census_temp, driver="GPKG")
-    census_path.unlink()
-    os.replace(census_temp, census_path)
-
-    print(f"saved: {census_path}")
+    print(f"saved: {output_path}")
     print(out.drop(columns="geometry").describe())
 
 
