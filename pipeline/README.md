@@ -12,7 +12,7 @@ Double-clickable launchers at the repo root (Windows), each **prompts for the ci
 
 | Launcher | Runs | Produces |
 |---|---|---|
-| `build_census.bat` | `pipeline/01_census_and_poi.py` | enriches `<City>_censusData.gpkg` in place |
+| `build_census.bat` | `pipeline/01_census_and_poi.py` | reads raw `<City>_censusData_raw.gpkg` and writes enriched `<City>_censusData.gpkg` |
 | `build_lighting_torino.bat` | `pipeline/build_lighting_torino.py` | lighting from a Turin `puntiLuce` inventory |
 | `build_lighting.bat` | `pipeline/build_lighting.py` | lighting from bare lamp-point locations |
 
