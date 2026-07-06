@@ -86,9 +86,10 @@ def main() -> None:
     radius_term = np.power((intensity * height) / E_MIN_LUX, 2.0 / 3.0) - np.power(height, 2.0)
     lamps["radius_m"] = np.sqrt(np.clip(radius_term, a_min=0.0, a_max=None))
 
-    # Backward compatibility with the Turin adapter's output columns.
     lamps["radius"] = lamps["radius_m"]
-    lamps["lux"] = lamps["downward_intensity_cd"]
+    # Luminous INTENSITY in candela. Illuminance is computed per 2 m
+    # sample point in step 03 (calculated_lux); this per-lamp value is intensity.
+    lamps["intensity_cd"] = lamps["downward_intensity_cd"]
 
     if output_path.exists():
         output_path.unlink()

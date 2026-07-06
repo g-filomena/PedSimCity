@@ -113,9 +113,10 @@ def main() -> None:
     radius_term = np.power((intensity * height) / e_min, 2.0 / 3.0) - np.power(height, 2.0)
     punti["radius_m"] = np.sqrt(np.clip(radius_term, a_min=0.0, a_max=None)).fillna(0.0)
 
-    # Backward compatibility for existing readers.
     punti["radius"] = punti["radius_m"]
-    punti["lux"] = punti["downward_intensity_cd"]
+    # Luminous INTENSITY in candela. Illuminance is computed per 2 m
+    # sample point in step 03 (calculated_lux); this per-lamp value is intensity.
+    punti["intensity_cd"] = punti["downward_intensity_cd"]
 
     print(f"Saving to {output_path}...")
     remove_existing(output_path)
