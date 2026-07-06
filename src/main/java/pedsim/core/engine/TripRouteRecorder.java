@@ -27,6 +27,7 @@ public class TripRouteRecorder {
     public boolean vulnerable;
     public int originNodeId;
     public int destNodeId;
+    public double meanLux = Double.NaN; // mean illuminance on the trip; NaN when no lighting tracked
     public List<Coordinate> pathCoords = new ArrayList<>();
     public List<Integer> edgeIds = new ArrayList<>();
     public List<Integer> nodeIds = new ArrayList<>();
@@ -49,6 +50,7 @@ public class TripRouteRecorder {
     record.startStep = startStep;
     record.endStep = endStep;
     record.vulnerable = vulnerable;
+    record.meanLux = agent.getTripMeanLux();
     record.spookLocations = new ArrayList<>(agent.spookLocations);
 
     // First node of the first edge is the origin node
@@ -123,7 +125,7 @@ public class TripRouteRecorder {
     logger.info("[TripRouteRecorder] Saving " + records.size() + " trips to " + path);
     try (FileWriter writer = new FileWriter(path)) {
       writer.write(
-          "agent_id,start_step,end_step,origin_node_id,destination_node_id,edge_ids,node_ids\n");
+          "agent_id,start_step,end_step,origin_node_id,destination_node_id,mean_lux,edge_ids,node_ids\n");
       for (TripRecord record : records) {
         StringBuilder edgeStr = new StringBuilder();
         for (int i = 0; i < record.edgeIds.size(); i++) {
@@ -135,14 +137,17 @@ public class TripRouteRecorder {
           if (i > 0) nodeStr.append(";");
           nodeStr.append(record.nodeIds.get(i));
         }
+        String meanLuxStr =
+            Double.isNaN(record.meanLux) ? "" : String.format("%.2f", record.meanLux);
         writer.write(
             String.format(
-                "%d,%.2f,%.2f,%d,%d,%s,%s\n",
+                "%d,%.2f,%.2f,%d,%d,%s,%s,%s\n",
                 record.agentId,
                 record.startStep,
                 record.endStep,
                 record.originNodeId,
                 record.destNodeId,
+                meanLuxStr,
                 edgeStr.toString(),
                 nodeStr.toString()));
       }

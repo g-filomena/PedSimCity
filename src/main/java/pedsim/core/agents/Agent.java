@@ -587,6 +587,15 @@ public class Agent implements Steppable {
     return null;
   }
 
+  /**
+   * Mean illuminance (lux) experienced on the just-completed trip, or {@code NaN} when the module
+   * tracks no lighting. Overridden by the night module; recorded per trip by {@link
+   * pedsim.core.engine.TripRouteRecorder}.
+   */
+  public double getTripMeanLux() {
+    return Double.NaN;
+  }
+
   public Heuristics getHeuristics() {
     return heuristics;
   }
