@@ -44,13 +44,15 @@ def remove_existing(path: Path) -> None:
 
 
 def load_inputs(base_dir: Path, city: str):
+    # Require a step-2 output (*_with_radius.gpkg): it carries the per-lamp physics
+    # (downward_intensity_cd) this step needs. Raw puntiLuce is intentionally NOT accepted so that
+    # step 3 can never silently fabricate uniform lamp intensity — run step 2 first.
     punti_path = first_existing(
         [
-            base_dir / f"{city}_puntiLuce_with_radius.gpkg",       # Turin adapter
-            base_dir / f"{city}_streetlights_with_radius.gpkg",    # generic adapter
-            base_dir / f"{city}_puntiLuce.gpkg",                   # fallback raw Turin inventory
+            base_dir / f"{city}_puntiLuce_with_radius.gpkg",     # Turin adapter (02_street_lights_torino.py)
+            base_dir / f"{city}_streetlights_with_radius.gpkg",  # generic adapter (02_street_lights_generic.py)
         ],
-        "lamp inventory",
+        "lamp inventory with radius (run step 2 first)",
     )
     edges_path = first_existing([base_dir / f"{city}_edges.gpkg"], "edges layer")
     buildings_path = first_existing([base_dir / f"{city}_buildings.gpkg"], "buildings layer")
@@ -76,19 +78,29 @@ def load_inputs(base_dir: Path, city: str):
     else:
         punti["altezza_palo_m"] = punti["altezza_palo_m"].fillna(9.0)
 
+    # downward_intensity_cd is produced by step 2. Its absence means step 3 was pointed at a
+    # non-step-2 file: fail loudly rather than fabricating uniform lamp intensity.
     if "downward_intensity_cd" not in punti.columns:
-        print("Warning: no downward_intensity_cd column; defaulting to 1000.0 cd.")
-        punti["downward_intensity_cd"] = 1000.0
-    else:
-        if punti["downward_intensity_cd"].isnull().any():
-            if "tecnologia" in punti.columns:
-                punti["downward_intensity_cd"] = punti.groupby("tecnologia")["downward_intensity_cd"].transform(
-                    lambda x: x.fillna(x.mean() if not x.dropna().empty else 0.0)
-                )
-            mean_intensity = punti["downward_intensity_cd"].mean()
-            punti["downward_intensity_cd"] = punti["downward_intensity_cd"].fillna(
-                mean_intensity if not np.isnan(mean_intensity) else 1000.0
+        raise KeyError(
+            f"{punti_path} has no 'downward_intensity_cd' column. Run step 2 "
+            "(02_street_lights_torino.py / 02_street_lights_generic.py) to compute the per-lamp "
+            "physics before running step 3."
+        )
+
+    if punti["downward_intensity_cd"].isnull().any():
+        # Impute the occasional missing lamp value within an otherwise valid dataset (by technology
+        # group, then global mean). If every value is missing there is nothing to impute from, so
+        # fail rather than invent one.
+        if "tecnologia" in punti.columns:
+            punti["downward_intensity_cd"] = punti.groupby("tecnologia")["downward_intensity_cd"].transform(
+                lambda x: x.fillna(x.mean() if not x.dropna().empty else np.nan)
             )
+        mean_intensity = punti["downward_intensity_cd"].mean()
+        if np.isnan(mean_intensity):
+            raise ValueError(
+                f"{punti_path} has no usable 'downward_intensity_cd' values (all missing)."
+            )
+        punti["downward_intensity_cd"] = punti["downward_intensity_cd"].fillna(mean_intensity)
 
     target_crs = punti.crs or edges.crs or buildings.crs
     if target_crs is None:
@@ -109,12 +121,16 @@ def load_inputs(base_dir: Path, city: str):
 
 
 def densify_edges(edges: gpd.GeoDataFrame, spacing: float) -> gpd.GeoDataFrame:
+    # Stable per-edge key for the step-4 join: the edge's own edgeID when available, else the
+    # positional index. parent_edge_idx (positional) is kept for this file's own aggregation.
+    has_edge_id = "edgeID" in edges.columns
     rows = []
     counter = 0
     for idx, row in edges.iterrows():
         geom = row.geometry
         if geom is None or geom.is_empty:
             continue
+        edge_id = row["edgeID"] if has_edge_id else idx
         length = geom.length
         distances = np.arange(0, length, spacing)
         if len(distances) == 0 or distances[-1] < length:
@@ -125,6 +141,7 @@ def densify_edges(edges: gpd.GeoDataFrame, spacing: float) -> gpd.GeoDataFrame:
                 {
                     "node_id": f"node_2m_{counter}",
                     "parent_edge_idx": idx,
+                    "parent_edge_id": edge_id,
                     "dist_along_edge": float(dist),
                     "geometry": pt,
                     "x": pt.x,

@@ -61,22 +61,31 @@ def main() -> None:
     edges = gpd.read_file(edges_path)
     nodes_2m = gpd.read_file(nodes_2m_path)
 
-    required_node_cols = {"parent_edge_idx", "dist_along_edge", "calculated_lux"}
+    required_node_cols = {"dist_along_edge", "calculated_lux"}
     missing = required_node_cols - set(nodes_2m.columns)
     if missing:
         raise KeyError(f"Missing required columns in {nodes_2m_path}: {sorted(missing)}")
 
+    # Join sample points to edges by a stable key: the edge's edgeID (matching the parent_edge_id
+    # written by step 3) when available, else the positional index. Avoids relying on both files
+    # being read in the same row order.
+    use_edge_id = "parent_edge_id" in nodes_2m.columns and "edgeID" in edges.columns
+    node_key_col = "parent_edge_id" if use_edge_id else "parent_edge_idx"
+    if node_key_col not in nodes_2m.columns:
+        raise KeyError(f"Nodes file lacks a parent-edge key column: {nodes_2m_path}")
+
     has_topology = "u" in edges.columns and "v" in edges.columns
 
     directional_records = []
-    grouped_points = nodes_2m.groupby("parent_edge_idx")
+    grouped_points = nodes_2m.groupby(node_key_col)
 
     print("Calculating directional lightness profiles...")
     for idx, row in edges.iterrows():
-        if idx not in grouped_points.groups:
+        key = row["edgeID"] if use_edge_id else idx
+        if key not in grouped_points.groups:
             continue
 
-        edge_pts = grouped_points.get_group(idx)
+        edge_pts = grouped_points.get_group(key)
         edge_length = row.geometry.length if row.geometry is not None else 0.0
 
         from_node = row["u"] if has_topology else f"node_start_{idx}"
