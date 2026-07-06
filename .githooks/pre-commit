@@ -1,0 +1,35 @@
+#!/bin/sh
+# Guard against committing a Git-LFS-tracked file (e.g. *.gpkg) as a raw binary
+# instead of a pointer. This catches the "git lfs not installed" mistake that
+# silently bloats history with large binaries (see the Torino_*.gpkg incident).
+#
+# Install (once per clone):
+#   git lfs install
+#   cp .githooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+# Do NOT wire this via core.hooksPath — that would disable Git LFS's own hooks.
+
+fail=0
+
+# Newly added or modified files staged for this commit.
+for f in $(git diff --cached --name-only --diff-filter=AM); do
+    # Only files Git is meant to route through the LFS filter.
+    attr=$(git check-attr filter -- "$f" 2>/dev/null | sed 's/.*: //')
+    [ "$attr" = "lfs" ] || continue
+
+    # The staged blob must be an LFS pointer, not raw file content.
+    first=$(git cat-file -p ":$f" 2>/dev/null | head -c 45)
+    case "$first" in
+        "version https://git-lfs.github.com/spec/v1"*) : ;;  # ok: pointer
+        *)
+            echo "ERROR: '$f' is LFS-tracked but staged as a raw file, not a Git LFS pointer."
+            fail=1
+            ;;
+    esac
+done
+
+if [ "$fail" -ne 0 ]; then
+    echo ""
+    echo "Fix: run 'git lfs install', then re-stage the file(s) above. Commit aborted."
+    exit 1
+fi
+exit 0
