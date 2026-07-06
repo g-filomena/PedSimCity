@@ -11,6 +11,7 @@ import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.PedSimCity;
 import pedsim.night.engine.PedSimCityNight;
+import pedsim.night.parameters.NightPars;
 import sim.graph.EdgeGraph;
 import sim.graph.Graph;
 import sim.graph.GraphUtils;
@@ -159,9 +160,10 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
   }
 
   /**
-   * Records lighting exposure for the edge actually walked: {@code edgesWalked} for every edge,
-   * and the measured {@code mean_lux} only where it exists (so the trip average is over measured
-   * edges, not diluted by dark/binary-lit ones).
+   * Records lighting exposure for the edge actually walked: {@code edgesWalked} for every edge, and
+   * the illuminance for lit edges — the measured {@code mean_lux} where it exists, otherwise the
+   * nominal {@link NightPars#litEdgeNominalLux} for edges known lit only via the binary lit flag.
+   * Fully-dark edges (no data, not binary-lit) do not contribute to the average.
    */
   private void recordLightingMetric(EdgeGraph edge) {
     NightAgent nightAgent = (NightAgent) agent;
@@ -170,6 +172,10 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
     var meanLuxAttr = edge.attributes.get("mean_lux");
     if (meanLuxAttr != null) {
       nightAgent.accumulatedMeasuredLux += meanLuxAttr.getDouble();
+      nightAgent.edgesWithMeasuredLux++;
+    } else if (SharedCognitiveMap.getLitEdges().contains(edge)) {
+      // Lit only via the binary flag (no continuous mean_lux): credit the nominal lit value.
+      nightAgent.accumulatedMeasuredLux += NightPars.litEdgeNominalLux;
       nightAgent.edgesWithMeasuredLux++;
     }
   }
