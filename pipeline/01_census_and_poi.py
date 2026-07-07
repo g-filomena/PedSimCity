@@ -139,6 +139,9 @@ def main() -> None:
     pop = pd.to_numeric(gdf["P1"], errors="coerce").fillna(0.0)
     total = pop.sum()
     gdf["residence_pct"] = (pop / total) if total > 0 else 0.0
+    # Absolute per-zone residents (P1). Java sums this on import to drive the population when present,
+    # so the sampling fraction applies to the real census headcount instead of a user-entered number.
+    gdf["residents"] = pop.round().astype("int64")
 
     # Vulnerability: share of residents who are elderly, under 15, or female, counted once each.
     # The vulnerable set is the union: all females  U  males under 15  U  males 65+.
@@ -188,6 +191,7 @@ def main() -> None:
         "censusZoneID",
         "censusZoneTypeID",
         "residence_pct",
+        "residents",
         "vulnerability_pct",
         "workplace_poi",
         "night_poi",
