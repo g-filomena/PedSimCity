@@ -23,6 +23,7 @@ from pathlib import Path
 import geopandas as gpd
 import osmnx as ox
 import pandas as pd
+from shapely.geometry import MultiPolygon
 
 
 WORKPLACE_TAGS = {
@@ -199,6 +200,18 @@ def main() -> None:
     ]
     keep = [c for c in keep if c in gdf.columns]
     out = gdf[keep].copy()
+
+    # Repair invalid geometries. geopandas/GDAL tolerate them, but GeoMason's GeoPackage importer
+    # returns a null geometry for an invalid feature and then NPEs on read — which drops the whole
+    # census layer in the Java sim. buffer(0) fixes invalid polygons in place, keeping them polygonal.
+    invalid_mask = ~out.geometry.is_valid
+    n_invalid = int(invalid_mask.sum())
+    if n_invalid:
+        fixed = out.loc[invalid_mask, "geometry"].buffer(0)
+        # buffer(0) can return a single Polygon; keep the layer uniformly MultiPolygon.
+        fixed = fixed.apply(lambda g: MultiPolygon([g]) if g.geom_type == "Polygon" else g)
+        out.loc[invalid_mask, "geometry"] = fixed
+        print(f"repaired {n_invalid} invalid geometr{'y' if n_invalid == 1 else 'ies'} for MASON")
 
     if output_path.exists():
         output_path.unlink()
