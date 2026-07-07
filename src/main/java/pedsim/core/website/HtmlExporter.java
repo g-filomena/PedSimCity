@@ -563,6 +563,7 @@ public class HtmlExporter {
     <div id="ab-floating-controls" style="position:absolute;top:20px;right:20px;display:none;flex-direction:column;gap:8px">
       <label class="toggle-label" id="ab-lbl-light"><input type="checkbox" id="ab-tg-light" /><div class="toggle-switch"></div> Light Level Map</label>
       <label class="toggle-label"><input type="checkbox" id="ab-tg-tethers" checked /><div class="toggle-switch"></div> Show A/B Tethers</label>
+      <label class="toggle-label"><input type="checkbox" id="ab-tg-follow" /><div class="toggle-switch"></div> Follow Agent</label>
       <button class="btn-float" id="ab-reset-btn">Reset Zoom</button>
     </div>
   </div>
@@ -572,10 +573,13 @@ public class HtmlExporter {
       <input type="range" id="ab-step-slider" style="flex:1;-webkit-appearance:none;height:5px;border-radius:3px;background:#1e293b;outline:none;cursor:pointer" min="0" value="0"/>
       <span id="ab-time-label" style="font-size:.8rem;color:#a5b4fc;min-width:48px;text-align:right;font-weight:600">__RUN_LABEL__ 00:00</span>
       <select id="ab-speed-select" style="background:rgba(30,41,59,0.85);color:#f1f5f9;border:1px solid #334155;border-radius:8px;padding:6px 12px;font-size:.75rem;font-weight:600;cursor:pointer;outline:none;transition:all .2s;display:inline-flex;align-items:center" title="Playback Speed">
+        <option value="0.02">0.02x Speed</option>
+        <option value="0.05">0.05x Speed</option>
         <option value="0.1">0.1x Speed</option>
+        <option value="0.25">0.25x Speed</option>
         <option value="0.5">0.5x Speed</option>
-        <option value="1">1x Speed</option>
-        <option value="2" selected>2x Speed</option>
+        <option value="1" selected>1x Speed</option>
+        <option value="2">2x Speed</option>
         <option value="5">5x Speed</option>
         <option value="10">10x Speed</option>
       </select>
@@ -1120,7 +1124,10 @@ function abGetLiveAgents(floatStep) {
 }
 const abOffscreenVol = document.createElement('canvas'); const abOffCtxVol = abOffscreenVol.getContext('2d'); const abOffscreenLight = document.createElement('canvas'); const abOffscreenLightCtx = abOffscreenLight.getContext('2d'); let abRoadsDirty = true;
 const abTgLight = document.getElementById('ab-tg-light'); const abTgTethers = document.getElementById('ab-tg-tethers');
-if (abTgLight) abTgLight.addEventListener('change', () => { abDraw(); }); if (abTgTethers) abTgTethers.addEventListener('change', () => { abDraw(); });
+if (abTgLight) abTgLight.addEventListener('change', () => { abRoadsDirty = true; abDraw(); }); if (abTgTethers) abTgTethers.addEventListener('change', () => { abDraw(); });
+let abFollowMode = false, abFollowAgent = null;
+const abTgFollow = document.getElementById('ab-tg-follow');
+if (abTgFollow) abTgFollow.addEventListener('change', () => { abFollowMode = abTgFollow.checked; if (!abFollowMode) { abFollowAgent = null; abResetView(); } });
 function abBuildRoadLayers() {
   if (abOffscreenVol.width !== abCanvas.width || abOffscreenVol.height !== abCanvas.height) {
     abOffscreenVol.width = abCanvas.width; abOffscreenVol.height = abCanvas.height;
@@ -1139,13 +1146,24 @@ function abBuildRoadLayers() {
 function abDraw(agents) {
   if (!agents) agents = abGetLiveAgents(abCurrentFloatStep);
   if (abRoadsDirty) abBuildRoadLayers();
-  const simHour = (abTgLight && abTgLight.checked) ? ((abCurrentFloatStep * 20 / 60) % 24) : 12;
+  const simHour = (abTgLight && abTgLight.checked) ? ((abCurrentFloatStep * 20 / 60) % 24) : 0;
   abCtx.fillStyle = getSkyColor(simHour);
   abCtx.fillRect(0, 0, abCanvas.width, abCanvas.height);
   abCtx.drawImage(abTgLight && abTgLight.checked ? abOffscreenLight : abOffscreenVol, 0, 0); const posById = {};
-  agents.forEach(a => { posById[a.id] = abToScreen(a.x, a.y); }); if (abTgTethers && abTgTethers.checked) {
-    abCtx.strokeStyle = 'rgba(255, 255, 255, 0.35)'; abCtx.lineWidth = 1.0; abCtx.setLineDash([4, 4]); abCtx.beginPath();
-    agents.forEach(a => { if (a.vuln && posById[a.id + 1]) { const p1 = posById[a.id], p2 = posById[a.id + 1]; abCtx.moveTo(p1.x, p1.y); abCtx.lineTo(p2.x, p2.y); } });
+  agents.forEach(a => { posById[a.id] = abToScreen(a.x, a.y); });
+  // Draw tethers between vulnerable/normal pairs
+  if (abTgTethers && abTgTethers.checked) {
+    abCtx.strokeStyle = 'rgba(255, 255, 255, 0.7)'; abCtx.lineWidth = 1.5; abCtx.setLineDash([6, 4]); abCtx.beginPath();
+    agents.forEach(a => {
+      if (a.vuln) {
+        // Pair: even vuln ID n -> odd norm ID n+1
+        const partnerId = (a.id % 2 === 0) ? a.id + 1 : a.id - 1;
+        if (posById[partnerId]) {
+          const p1 = posById[a.id], p2 = posById[partnerId];
+          abCtx.moveTo(p1.x, p1.y); abCtx.lineTo(p2.x, p2.y);
+        }
+      }
+    });
     abCtx.stroke(); abCtx.setLineDash([]);
   }
   AB_TRIPS.forEach(t => {
@@ -1234,11 +1252,31 @@ function abAnimate(ts) {
   if (!abPlaying) return;
   const dt = Math.min(64, ts - abLastTs);
   abLastTs = ts;
-  abSliderFloatVal += (parseFloat(abSpeedSelect.value) || 2) * dt / 30;
-  if (abSliderFloatVal > parseFloat(abSlider.max)) { abSliderFloatVal = 0; abNextTripIdx = 0; abActiveList = []; }
+  abSliderFloatVal += (parseFloat(abSpeedSelect.value) || 1) * dt / 30;
+  if (abSliderFloatVal > parseFloat(abSlider.max)) { abSliderFloatVal = 0; abNextTripIdx = 0; abActiveList = []; abFollowAgent = null; }
   abSlider.value = Math.floor(abSliderFloatVal); abCurrentFloatStep = abSliderFloatVal / 10;
   abUpdateActiveTrips(abCurrentFloatStep);
   const agents = abGetLiveAgents(abCurrentFloatStep);
+  // Camera follow logic
+  if (abFollowMode) {
+    if (!abFollowAgent || !agents.find(a => a.id === abFollowAgent.id && a.vuln === abFollowAgent.vuln)) {
+      // Pick a new agent to follow (prefer vulnerable)
+      const vulnAgents = agents.filter(a => a.vuln);
+      abFollowAgent = vulnAgents.length > 0 ? vulnAgents[Math.floor(Math.random() * vulnAgents.length)] : (agents.length > 0 ? agents[0] : null);
+    }
+    if (abFollowAgent) {
+      const current = agents.find(a => a.id === abFollowAgent.id && a.vuln === abFollowAgent.vuln);
+      if (current) {
+        const targetScale = 12;
+        abScale += (targetScale - abScale) * 0.05;
+        const targetPanX = abCanvas.width / 2 - (current.x - minX) * abScale;
+        const targetPanY = abCanvas.height / 2 + (current.y - minY) * abScale - abCanvas.height;
+        abPanX += (targetPanX - abPanX) * 0.08;
+        abPanY += (targetPanY - abPanY) * 0.08;
+        abRoadsDirty = true;
+      }
+    }
+  }
   abDraw(agents); abUpdateMetrics(abCurrentFloatStep, agents);
   abAnimId = requestAnimationFrame(abAnimate);
 }
