@@ -10,11 +10,11 @@ import sim.util.geo.MasonGeometry;
  * Reads the absolute resident total (sum of the {@code residents} / census P1 column) from a city's
  * enriched census layer {@code <City>_censusData.gpkg} on the classpath.
  *
- * <p>Exposed to core UIs (dashboard REST endpoint, Swing applets) via
- * {@link pedsim.core.engine.SimulationModule#populationForCity(String)} so they can decide, before a
- * run starts, whether the population is census-driven (and the population input should be locked).
- * Returns 0 when the city, file, or column is absent, so callers fall back to a user-set population.
- * This is a lightweight data probe; the actual population override lives in {@link ActivityEnvironment}.
+ * <p>Exposed to core UIs via {@link pedsim.core.engine.SimulationModule#populationForCity(String)} so
+ * the dashboard and Swing applets can decide, before a run starts, whether the population is
+ * census-driven (and lock the population input). Returns 0 when the city, file, or column is absent —
+ * callers then fall back to a user-set population. This is a lightweight data probe; the actual
+ * population override lives in {@link ActivityEnvironment}.
  */
 public final class CensusPopulation {
 
@@ -28,8 +28,9 @@ public final class CensusPopulation {
     URL url =
         CensusPopulation.class.getClassLoader().getResource(city + "/" + city + "_censusData.gpkg");
     if (url == null) {
-      return 0;
+      return 0; // no census for this city (normal, e.g. cities without a census layer)
     }
+
     long total = 0;
     try {
       VectorLayer layer = new VectorLayer();
@@ -49,6 +50,8 @@ public final class CensusPopulation {
           .warning("Census population probe failed for " + city + ": " + e.getMessage());
       return 0;
     }
+
+    LoggerUtil.getLogger().fine("Census population for " + city + ": " + total);
     return total;
   }
 }

@@ -124,6 +124,7 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
   protected void updateCityNameOptions() {
     cityName.removeAll();
     cityName.add("Torino");
+    cityName.add("Torino_simplified");
     cityName.validate();
   }
 

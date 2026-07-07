@@ -158,7 +158,7 @@ public class ParameterManager {
    */
   public static String collectParameters(PedSimCityApplet applet, boolean headless) {
     if (applet.getCityName() != null) setFieldValue(Pars.class, "cityName", applet.getCityName());
-    if (applet.getDays() != null) setFieldValue(TimePars.class, "numberOfDays", applet.getDays());
+    if (applet.getDays() != null) setFieldValue(Pars.class, "durationDays", applet.getDays());
     if (applet.getPopulation() != null)
       setFieldValue(Pars.class, "population", applet.getPopulation());
     if (applet.getPercentage() != null)

@@ -73,8 +73,10 @@ public class NightEnvironment extends ActivityEnvironment {
             joined++;
         }
 
+        int graphEdges = pedsim.core.engine.PedSimCity.edgesMap.size();
         logger.info(
-            "mean_lux joined onto " + joined + " / " + illuminatedGeoms.size()
-                + " illuminated edges (" + missing + " skipped).");
+            "mean_lux set on " + joined + " / " + graphEdges + " graph edges ("
+                + illuminatedGeoms.size() + " illuminated records, " + missing
+                + " with no matching graph edge).");
     }
 }

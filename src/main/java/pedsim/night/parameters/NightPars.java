@@ -21,6 +21,9 @@ public class NightPars {
 
   public static double crowdednessPercentile = 80.0;
 
+  // A/B twin testing is an opt-in experimental mode: when true it spawns abTestPairs vulnerable/
+  // non-vulnerable twins instead of the census-derived population. Off by default so a normal run
+  // uses the full sampled population.
   public static boolean enableLightABTesting = false;
 
   // Number of vulnerable/non-vulnerable twin pairs spawned in A/B mode (2 agents per pair).
