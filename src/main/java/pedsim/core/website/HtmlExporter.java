@@ -614,7 +614,7 @@ if (AB_TRIPS && AB_TRIPS.length > 0) {
 function switchTab(name) {
   if (playing) { playing = false; playBtn.textContent = '▶'; playBtn.classList.remove('playing'); cancelAnimationFrame(animId); }
   if (hvPlaying) { hvPlaying = false; hvPlayBtn.textContent = '▶'; hvPlayBtn.classList.remove('playing'); cancelAnimationFrame(hvAnimId); }
-  if (abPlaying) { abPlaying = false; abPlayBtn.textContent = '▶'; abPlayBtn.classList.remove('playing'); cancelAnimationFrame(abAnimId); }
+  if (typeof abPlaying !== 'undefined' && abPlaying && typeof abPlayBtn !== 'undefined' && abPlayBtn) { abPlaying = false; abPlayBtn.textContent = '▶'; abPlayBtn.classList.remove('playing'); cancelAnimationFrame(abAnimId); }
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
@@ -660,7 +660,28 @@ ROADS_GEOJSON.features.forEach(f => {
 });
 const maxHourlyVol = (()=>{ let mx=0; Object.values(HOURLY_VOL).forEach(arr=>{ arr.forEach(v=>{ if(v>mx) mx=v; }); }); return mx||1; })();
 function getSkyColor(hour) {
-  return '#000000';
+  // 6-7 sunrise, 7-18 day, 18-20 sunset, 20-6 night
+  if (hour >= 7 && hour < 18) {
+    // daytime — light blue-grey
+    return '#c8d6e5';
+  } else if (hour >= 18 && hour < 20) {
+    // sunset transition
+    const t = (hour - 18) / 2;
+    const r = Math.round(200 - t * 185);
+    const g = Math.round(214 - t * 202);
+    const b = Math.round(229 - t * 204);
+    return `rgb(${r},${g},${b})`;
+  } else if (hour >= 6 && hour < 7) {
+    // sunrise transition
+    const t = (hour - 6);
+    const r = Math.round(15 + t * 185);
+    const g = Math.round(12 + t * 202);
+    const b = Math.round(25 + t * 204);
+    return `rgb(${r},${g},${b})`;
+  } else {
+    // night — dark
+    return '#0f0c19';
+  }
 }
 const maxVol = (()=>{ let mx=0; ROADS_GEOJSON.features.forEach(f=>{ const v=f.properties.volume||0; if(v>mx) mx=v; }); return mx||1; })();
 function getVolColor(f, useLight) {
@@ -1109,7 +1130,7 @@ function abBuildRoadLayers() {
   const sortedFeatures = [...ROADS_GEOJSON.features].sort((a, b) => (a.properties.volume || 0) - (b.properties.volume || 0));
   sortedFeatures.forEach(f => {
     if (!f.geometry) return; const pts = getPoints(f.geometry); if (pts.length < 2) return;
-    abOffCtxVol.strokeStyle = getVolColor(f, false); abOffCtxVol.lineWidth = getVolWeight(f); abOffCtxVol.lineCap = 'round'; abOffCtxVol.lineJoin = 'round'; abOffCtxVol.beginPath();
+    abOffCtxVol.strokeStyle = '#6b7280'; abOffCtxVol.lineWidth = 0.8; abOffCtxVol.lineCap = 'round'; abOffCtxVol.lineJoin = 'round'; abOffCtxVol.beginPath();
     let p0 = abToScreen(pts[0][0], pts[0][1]); abOffCtxVol.moveTo(p0.x, p0.y); for (let i = 1; i < pts.length; i++) { const pi = abToScreen(pts[i][0], pts[i][1]); abOffCtxVol.lineTo(pi.x, pi.y); } abOffCtxVol.stroke();
     abOffscreenLightCtx.strokeStyle = getVolColor(f, true); abOffscreenLightCtx.lineWidth = getVolWeight(f); abOffscreenLightCtx.lineCap = 'round'; abOffscreenLightCtx.lineJoin = 'round'; abOffscreenLightCtx.beginPath();
     p0 = abToScreen(pts[0][0], pts[0][1]); abOffscreenLightCtx.moveTo(p0.x, p0.y); for (let i = 1; i < pts.length; i++) { const pi = abToScreen(pts[i][0], pts[i][1]); abOffscreenLightCtx.lineTo(pi.x, pi.y); } abOffscreenLightCtx.stroke();
@@ -1130,7 +1151,7 @@ function abDraw(agents) {
   AB_TRIPS.forEach(t => {
     if (t[1] > abCurrentFloatStep) return;
     const isCompleted = t[2] <= abCurrentFloatStep;
-    if (isCompleted && (abCurrentFloatStep - t[2] > 120)) return; // disappear after ~2 seconds (120 frames at 60fps)
+    if (isCompleted && (abCurrentFloatStep - t[2] > 3)) return; // disappear ~2 secs after completion
     const progress = isCompleted ? 1.0 : (abCurrentFloatStep - t[1]) / (t[2] - t[1] || 1.0);
     const coords = t[3];
     const segs = t[6];
@@ -1139,8 +1160,7 @@ function abDraw(agents) {
     if (coords && coords.length > 0) {
       let alpha = 0.85;
       if (isCompleted) {
-         alpha = 0.85 * (1.0 - (abCurrentFloatStep - t[2]) / 120.0);
-         if (alpha < 0) alpha = 0;
+         alpha = 0.85 * Math.max(0, 1.0 - (abCurrentFloatStep - t[2]) / 3.0);
       }
       abCtx.strokeStyle = vuln ? `rgba(239, 68, 68, ${alpha})` : `rgba(56, 189, 248, ${alpha})`;
       abCtx.lineWidth = 2.5;
@@ -1181,15 +1201,18 @@ function abUpdateMetrics(step, agents) {
   const total = agents.length, vuln = agents.filter(a=>a.vuln).length; document.getElementById('m-active').textContent = total; document.getElementById('m-vuln').textContent = total > 0 ? (vuln/total*100).toFixed(1)+'%' : '0%';
   const simHour = (step * 20 / 60) % 24; const hh = String(Math.floor(simHour)).padStart(2,'0'); const mm = String(Math.floor(step*20)%60).padStart(2,'0');
   document.getElementById('m-time').textContent = `__RUN_LABEL__ ${hh}:${mm}`; document.getElementById('ab-time-label').textContent = document.getElementById('m-time').textContent;
-  if (abTgLight) { const shouldLight = simHour >= 18.5 || simHour < 6.85; if (abTgLight.checked !== shouldLight) { abTgLight.checked = shouldLight; abDraw(agents); } }
+  // light toggle is manual only — no auto-switch
   const vulnActive = agents.filter(a => a.vuln); const normActive = agents.filter(a => !a.vuln);
   const avgVulnActiveDist = vulnActive.length > 0 ? Math.round(vulnActive.reduce((s, a) => s + (abTripLengthById[a.id] || 0), 0) / vulnActive.length) : 0;
   const avgNormActiveDist = normActive.length > 0 ? Math.round(normActive.reduce((s, a) => s + (abTripLengthById[a.id] || 0), 0) / normActive.length) : 0;
   document.getElementById('m-vuln-d').textContent = avgVulnActiveDist > 0 ? avgVulnActiveDist + ' m' : '-'; document.getElementById('m-norm-d').textContent = avgNormActiveDist > 0 ? avgNormActiveDist + ' m' : '-';
-  if (abTgLight && abTgLight.checked && total > 0) {
-    let sumLux = 0; agents.forEach(a => {
-      const gx = Math.floor(a.x/GRID_SZ), gy = Math.floor(a.y/GRID_SZ); sumLux += parseFloat(luxGrid[gx+','+gy] || 0); });
-    document.getElementById('ab-m-lux').textContent = (sumLux / total).toFixed(2); } else { document.getElementById('m-lux').textContent = '-'; }
+  if (total > 0) {
+    let sumVulnLux = 0, sumNormLux = 0;
+    vulnActive.forEach(a => { const gx = Math.floor(a.x/GRID_SZ), gy = Math.floor(a.y/GRID_SZ); sumVulnLux += parseFloat(luxGrid[gx+','+gy] || 0); });
+    normActive.forEach(a => { const gx = Math.floor(a.x/GRID_SZ), gy = Math.floor(a.y/GRID_SZ); sumNormLux += parseFloat(luxGrid[gx+','+gy] || 0); });
+    document.getElementById('m-lux-vuln').textContent = vulnActive.length > 0 ? (sumVulnLux / vulnActive.length).toFixed(2) : '-';
+    document.getElementById('m-lux-norm').textContent = normActive.length > 0 ? (sumNormLux / normActive.length).toFixed(2) : '-';
+  } else { document.getElementById('m-lux-vuln').textContent = '-'; document.getElementById('m-lux-norm').textContent = '-'; }
 }
 const abSlider = document.getElementById('ab-step-slider'); if (abSlider) { abSlider.min = 0; abSlider.max = (Math.max(1, abMaxStep)) * 10; abSlider.value = 0;
   abSlider.addEventListener('input', () => { abSliderFloatVal = parseInt(abSlider.value); abCurrentFloatStep = abSliderFloatVal / 10; abNextTripIdx = 0; abActiveList = []; abUpdateActiveTrips(abCurrentFloatStep); const agents = abGetLiveAgents(abCurrentFloatStep); abDraw(agents); abUpdateMetrics(abCurrentFloatStep, agents); }); }
