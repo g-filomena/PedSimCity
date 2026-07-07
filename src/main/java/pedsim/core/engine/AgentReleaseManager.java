@@ -91,7 +91,7 @@ public class AgentReleaseManager implements AutoCloseable {
           vulnAgent.startWalkingAlone();
           normalAgent.startWalkingAlone();
 
-          logger.info(
+          logger.fine(
               "A/B Testing: Released pair "
                   + pairIndex
                   + " (Agent "
