@@ -41,7 +41,7 @@ def fetch_available_modules():
 available_modules = fetch_available_modules()
 module = st.sidebar.selectbox("Module", available_modules, index=0)
 
-city_name = st.sidebar.selectbox("City Name", ["TorinoCentre", "Muenster"], index=0)
+city_name = st.sidebar.selectbox("City Name", ["Torino", "Torino_simplified", "TorinoCentre", "Muenster"], index=0)
 duration = st.sidebar.number_input("Duration (days)", 1, 30, 7)
 population = st.sidebar.number_input("Actual Population", 1000, 500000, 100000)
 percentage = st.sidebar.slider("% Represented", 0.001, 1.0, 0.01, format="%.3f")
