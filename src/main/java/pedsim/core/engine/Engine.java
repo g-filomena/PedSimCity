@@ -171,9 +171,8 @@ public class Engine {
         trajectoryRecorder.record((long) steps);
 
         if (isNextDay(steps, currentDay)) {
-          state.flowHandler.updateCognitiveMapsData(null);
           state.flowHandler.exportFlowsData(currentDay + 1);
-          state.flowHandler.exportCognitiveMapsData(currentDay + 1);
+          exportCognitiveData(state, currentDay + 1);
           currentDay++;
 
           currentDayReleaseManager.close();
@@ -199,9 +198,8 @@ public class Engine {
         finalVolumesMap.put(entry.getKey(), new java.util.HashMap<>(entry.getValue()));
       }
 
-      state.flowHandler.updateCognitiveMapsData(null);
       state.flowHandler.exportFlowsData(currentDay + 1);
-      state.flowHandler.exportCognitiveMapsData(currentDay + 1);
+      exportCognitiveData(state, currentDay + 1);
 
     } finally {
       currentDayReleaseManager.close();
@@ -272,6 +270,15 @@ public class Engine {
   }
 
   protected void handleEndWeek(PedSimCity state, int job, ScenarioConfig scenarioConfig) {
+    // no-op
+  }
+
+  /**
+   * Hook to persist agent cognitive-map data (known edges / known landmarks) at each day boundary.
+   * No-op by default: cognitive-map export is entirely a learning-module concern, so only
+   * {@code LearningEngine} overrides it. Volumes/flows export stays in the core loop for all modules.
+   */
+  protected void exportCognitiveData(PedSimCity state, int day) throws Exception {
     // no-op
   }
 
