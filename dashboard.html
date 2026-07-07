@@ -585,6 +585,30 @@
       if (el.children.length > 50) el.removeChild(el.lastChild);
     }
 
+    // Census-driven population: when the chosen city's census carries P1 resident totals, the
+    // backend derives the population from them, so lock the input and show the census figure.
+    const cityEl = document.getElementById('cityName');
+    const popEl = document.getElementById('actualPopulation');
+    async function updateCensusPopulation() {
+      try {
+        const resp = await fetch(`${API_BASE}/api/census?city=${encodeURIComponent(cityEl.value)}`,
+          { signal: AbortSignal.timeout(4000) });
+        const info = await resp.json();
+        if (info.hasCensusPopulation) {
+          popEl.value = info.population;
+          popEl.disabled = true;
+          popEl.title = 'Population is taken from the census (P1 total) for this city.';
+        } else {
+          popEl.disabled = false;
+          popEl.title = '';
+        }
+      } catch (e) {
+        popEl.disabled = false; // leave editable if the server is unreachable
+      }
+    }
+    cityEl.addEventListener('change', updateCensusPopulation);
+    updateCensusPopulation();
+
     async function startSimulation() {
       const payload = {
         cityName:              document.getElementById('cityName').value,

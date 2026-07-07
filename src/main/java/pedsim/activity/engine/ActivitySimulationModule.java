@@ -14,6 +14,11 @@ public final class ActivitySimulationModule implements SimulationModule {
   private ActivitySimulationModule() {}
 
   @Override
+  public long populationForCity(String city) {
+    return CensusPopulation.residentTotal(city);
+  }
+
+  @Override
   public String moduleId() {
     return "activity";
   }

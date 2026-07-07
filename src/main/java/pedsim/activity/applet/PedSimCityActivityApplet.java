@@ -11,6 +11,7 @@ import pedsim.core.applet.ServerProjectConfig;
 import pedsim.core.engine.Engine;
 import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.engine.SimulationLauncher;
+import pedsim.core.engine.SimulationModule;
 import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
 import pedsim.core.utilities.StringEnum;
@@ -34,6 +35,11 @@ public class PedSimCityActivityApplet extends PedSimCityApplet {
   /** Returns a {@link SimulationLauncher} configured for the activity module. */
   private static SimulationLauncher activityLauncher() {
     return new SimulationLauncher(ActivitySimulationModule.INSTANCE);
+  }
+
+  @Override
+  protected SimulationModule module() {
+    return ActivitySimulationModule.INSTANCE;
   }
 
   public static void main(String[] args) throws Exception {

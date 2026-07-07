@@ -54,10 +54,19 @@ public class Pars {
 
     TimePars.setTemporalPars();
     moveRate = TimePars.STEP_DURATION * pedestrianSpeed;
-    numAgents = (int) (population * percentagePopulationAgent);
-    metersPerDay = metersPerDayPerPerson * numAgents;
+    recomputeAgentCount();
     setRoadTypeMap();
     RouteChoicePars.setMinMaxTripDistance();
+  }
+
+  /**
+   * Recomputes the sampled agent count (and derived daily distance) from {@code population *
+   * percentagePopulationAgent}. Call after changing {@code population} at runtime — e.g. when the
+   * activity module derives it from the census resident total.
+   */
+  public static void recomputeAgentCount() {
+    numAgents = (int) (population * percentagePopulationAgent);
+    metersPerDay = metersPerDayPerPerson * numAgents;
   }
 
   private static void setRoadTypeMap() {

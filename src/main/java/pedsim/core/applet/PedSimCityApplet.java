@@ -14,6 +14,7 @@ import pedsim.core.engine.Engine;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.engine.SimulationLauncher;
+import pedsim.core.engine.SimulationModule;
 import pedsim.core.parameters.ParameterManager;
 import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
@@ -79,6 +80,10 @@ public class PedSimCityApplet extends Frame {
     percentageTextField.setBounds(190, 160, 100, 20);
     add(percentageLabel);
     add(percentageTextField);
+
+    // Lock the population field for cities whose census carries P1 resident totals — population is
+    // then derived from the census (see ActivityEnvironment). Updated on city change and on display.
+    cityName.addItemListener(e -> updatePopulationFieldForCity());
 
     Label nrJobsLabel = new Label("Jobs:");
     jobsTextField = new TextField("1");
@@ -303,6 +308,36 @@ public class PedSimCityApplet extends Frame {
 
   public String getPopulation() {
     return populationTextField.getText();
+  }
+
+  /**
+   * The simulation module backing this applet. The core applet is non-census; activity-based applets
+   * override this so the population field reflects the census.
+   */
+  protected SimulationModule module() {
+    return CoreSimulationModule.INSTANCE;
+  }
+
+  /**
+   * Disables and fills the population field when the selected city's census carries an absolute
+   * resident total (population is then census-driven, mirroring the dashboard); re-enables it
+   * otherwise so cities without census counts keep a user-set population.
+   */
+  private void updatePopulationFieldForCity() {
+    long total = module().populationForCity(cityName.getSelectedItem());
+    if (total > 0) {
+      populationTextField.setText(Long.toString(total));
+      populationTextField.setEnabled(false);
+    } else {
+      populationTextField.setEnabled(true);
+    }
+  }
+
+  /** Sets the initial population-field state once the component (and its city list) is displayable. */
+  @Override
+  public void addNotify() {
+    super.addNotify();
+    updatePopulationFieldForCity();
   }
 
   public String getPercentage() {

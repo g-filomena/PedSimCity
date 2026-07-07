@@ -7,6 +7,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.index.strtree.STRtree;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.Environment;
+import pedsim.core.parameters.Pars;
 import sim.graph.NodeGraph;
 import sim.util.geo.AttributeValue;
 import sim.util.geo.MasonGeometry;
@@ -45,6 +46,7 @@ public class ActivityEnvironment extends Environment {
 
     STRtree zoneIndex = new STRtree();
     int withNodes = 0;
+    double totalResidents = 0.0;
     for (MasonGeometry geom : PedSimCityActivity.censusLayer.getGeometries()) {
       if (geom.getGeometry() == null) continue;
 
@@ -52,6 +54,7 @@ public class ActivityEnvironment extends Environment {
       zone.residence = zoneValue(geom, "residence_pct");
       zone.workplace = zoneValue(geom, "workplace_poi");
       zone.night = zoneValue(geom, "night_poi");
+      totalResidents += zoneValue(geom, "residents");
 
       zone.nodes.addAll(claimNodes(geom.getGeometry(), nodeIndex));
       if (!zone.nodes.isEmpty()) withNodes++;
@@ -61,6 +64,20 @@ public class ActivityEnvironment extends Environment {
     }
     zoneIndex.build();
     PedSimCityActivity.censusZonesIndex = zoneIndex;
+
+    // When the census carries absolute resident counts (P1), the sampling fraction applies to the
+    // real headcount: override the population and recompute the agent count. Absent the column
+    // (totalResidents == 0), the user-supplied population is kept.
+    if (totalResidents > 0.0) {
+      // Census carries absolute counts: apply the sampling fraction to the real headcount.
+      Pars.population = (int) Math.round(totalResidents);
+      Pars.recomputeAgentCount();
+      logger.info(
+          "Population set from census resident total (P1): "
+              + Pars.population
+              + " -> numAgents="
+              + Pars.numAgents);
+    }
 
     // Derive per-node POI weights: split each zone's count (an extensive quantity) across its
     // claimed nodes, accumulating across zones that share a node. Used by

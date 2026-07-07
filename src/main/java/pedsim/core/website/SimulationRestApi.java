@@ -233,6 +233,28 @@ public final class SimulationRestApi {
               }
             });
 
+        // --- GET /api/census?city=X — whether the city's census carries P1 resident totals ---
+        server.createContext(
+            "/api/census",
+            exchange -> {
+              try {
+                if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                  exchange.sendResponseHeaders(405, -1);
+                  return;
+                }
+                String city = queryParam(exchange.getRequestURI().getQuery(), "city");
+                byte[] body = censusPopulationJson(city).getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().add("Content-Type", "application/json");
+                exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+                exchange.sendResponseHeaders(200, body.length);
+                try (var out = exchange.getResponseBody()) {
+                  out.write(body);
+                }
+              } catch (Exception ex) {
+                exchange.sendResponseHeaders(500, -1);
+              }
+            });
+
         // --- GET /api/modules ---
         server.createContext(
             "/api/modules",
@@ -472,5 +494,33 @@ public final class SimulationRestApi {
     }
     Map<String, Object> root = Map.of("modules", list);
     return MAPPER.writeValueAsString(root);
+  }
+
+  /** Extracts a single URL-decoded query-string parameter value, or null if absent. */
+  private static String queryParam(String query, String key) {
+    if (query == null) return null;
+    for (String pair : query.split("&")) {
+      int eq = pair.indexOf('=');
+      if (eq > 0 && pair.substring(0, eq).equals(key)) {
+        return java.net.URLDecoder.decode(pair.substring(eq + 1), StandardCharsets.UTF_8);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Reports whether the given city's enriched census layer carries absolute resident counts (the
+   * {@code residents} / P1 column) and, if so, their total. Read directly from the classpath
+   * resource so the dashboard can decide, before a run starts, whether to disable its population
+   * field (population is then census-driven).
+   */
+  private static String censusPopulationJson(String city) {
+    long total = 0;
+    synchronized (SimulationRestApi.class) {
+      if (!modules.isEmpty()) {
+        total = modules.values().iterator().next().populationForCity(city);
+      }
+    }
+    return "{\"hasCensusPopulation\":" + (total > 0) + ",\"population\":" + total + "}";
   }
 }

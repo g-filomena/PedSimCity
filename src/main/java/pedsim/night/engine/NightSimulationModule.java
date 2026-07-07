@@ -1,6 +1,7 @@
 package pedsim.night.engine;
 
 import java.util.Map;
+import pedsim.activity.engine.CensusPopulation;
 import pedsim.activity.engine.PedSimCityActivity;
 import pedsim.core.engine.Engine;
 import pedsim.core.engine.PedSimCity;
@@ -16,6 +17,11 @@ public final class NightSimulationModule implements SimulationModule {
   public static final NightSimulationModule INSTANCE = new NightSimulationModule();
 
   private NightSimulationModule() {}
+
+  @Override
+  public long populationForCity(String city) {
+    return CensusPopulation.residentTotal(city);
+  }
 
   @Override
   public String moduleId() {

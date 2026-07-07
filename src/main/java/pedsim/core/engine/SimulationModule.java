@@ -89,4 +89,14 @@ public interface SimulationModule {
   default Map<String, Object> parameterSchema() {
     return Map.of();
   }
+
+  /**
+   * The population this module would use for the given city, or {@code 0} when it has none (callers
+   * then fall back to a user-supplied value). Activity-based modules derive it from the census
+   * resident total; the default is {@code 0}. Lets core UIs (dashboard, applet) show/lock the
+   * population field without depending on the activity module.
+   */
+  default long populationForCity(String city) {
+    return 0;
+  }
 }
