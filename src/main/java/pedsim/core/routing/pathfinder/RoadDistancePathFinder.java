@@ -27,9 +27,6 @@ public class RoadDistancePathFinder extends PathFinder {
 
     this.agent = agent;
     final DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
-    if (!agent.getCognitiveMap().getNodesInKnownNetwork().contains(destinationNode)) {
-      System.out.println("Destination node is not in the known network: " + destinationNode);
-    }
 
     partialSequence =
         pathfinder.dijkstraAlgorithm(
