@@ -21,7 +21,7 @@ public class NightPars {
 
   public static double crowdednessPercentile = 80.0;
 
-  public static boolean enableLightABTesting = true;
+  public static boolean enableLightABTesting = false;
 
   // Number of vulnerable/non-vulnerable twin pairs spawned in A/B mode (2 agents per pair).
   // User-configurable; independent of the census-derived population size.
