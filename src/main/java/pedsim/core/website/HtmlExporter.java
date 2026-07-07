@@ -1102,6 +1102,7 @@ const abCanvas = document.getElementById('ab-canvas'); const abCtx = abCanvas.ge
 let abScale = 1.0, abPanX = 0, abPanY = 0, abCurrentFloatStep = 0;
 function abToScreen(wx, wy) { return { x: (wx - minX) * abScale + abPanX, y: abCanvas.height - ((wy - minY) * abScale + abPanY) }; }
 function abResetView() {
+  if (typeof abStopFollow === 'function') abStopFollow();
   const dx = maxX - minX, dy = maxY - minY, pad = 40;
   abScale = Math.min((abCanvas.width - pad*2) / (dx || 1), (abCanvas.height - pad*2) / (dy || 1));
   abPanX = abCanvas.width / 2 - (minX + dx / 2 - minX) * abScale; abPanY = abCanvas.height / 2 - (minY + dy / 2 - minY) * abScale;
@@ -1127,6 +1128,7 @@ const abTgLight = document.getElementById('ab-tg-light'); const abTgTethers = do
 if (abTgLight) abTgLight.addEventListener('change', () => { abRoadsDirty = true; abDraw(); }); if (abTgTethers) abTgTethers.addEventListener('change', () => { abDraw(); });
 let abFollowMode = false, abFollowAgent = null;
 const abTgFollow = document.getElementById('ab-tg-follow');
+function abStopFollow() { if (abFollowMode) { abFollowMode = false; abFollowAgent = null; if (abTgFollow) abTgFollow.checked = false; } }
 if (abTgFollow) abTgFollow.addEventListener('change', () => { abFollowMode = abTgFollow.checked; if (!abFollowMode) { abFollowAgent = null; abResetView(); } });
 function abBuildRoadLayers() {
   if (abOffscreenVol.width !== abCanvas.width || abOffscreenVol.height !== abCanvas.height) {
@@ -1207,10 +1209,11 @@ function abDraw(agents) {
   });
   agents.forEach(a => { const p = posById[a.id]; abCtx.beginPath(); abCtx.arc(p.x, p.y, a.vuln ? 7 : 5, 0, Math.PI * 2); abCtx.fillStyle = a.vuln ? '#ef4444' : '#38bdf8'; abCtx.fill(); });
 }
-let abIsDragging = false, abStartX = 0, abStartY = 0; abCanvas.addEventListener('mousedown', e => { abIsDragging = true; abStartX = e.clientX; abStartY = e.clientY; });
+let abIsDragging = false, abStartX = 0, abStartY = 0; abCanvas.addEventListener('mousedown', e => { abStopFollow(); abIsDragging = true; abStartX = e.clientX; abStartY = e.clientY; });
 window.addEventListener('mousemove', e => { if (!abIsDragging) return; abPanX += e.clientX - abStartX; abPanY -= e.clientY - abStartY; abStartX = e.clientX; abStartY = e.clientY; abRoadsDirty = true; abDraw(); });
 window.addEventListener('mouseup', () => { abIsDragging = false; }); let abZoomRafId = null;
 abCanvas.addEventListener('wheel', e => {
+  abStopFollow();
   e.preventDefault(); const rect = abCanvas.getBoundingClientRect(), mouseX = e.clientX - rect.left, mouseY = e.clientY - rect.top; const worldX = (mouseX - abPanX) / abScale + minX, worldY = (abCanvas.height - mouseY - abPanY) / abScale + minY; const factor = e.deltaY < 0 ? 1.12 : 1/1.12;
   abScale *= factor; abPanX = mouseX - (worldX - minX) * abScale; abPanY = (abCanvas.height - mouseY) - (worldY - minY) * abScale; abRoadsDirty = true; if (abZoomRafId) cancelAnimationFrame(abZoomRafId); abZoomRafId = requestAnimationFrame(() => { abZoomRafId = null; abDraw(); });
 }, { passive: false }); document.getElementById('ab-reset-btn').addEventListener('click', abResetView);
@@ -1267,10 +1270,10 @@ function abAnimate(ts) {
     if (abFollowAgent) {
       const current = agents.find(a => a.id === abFollowAgent.id && a.vuln === abFollowAgent.vuln);
       if (current) {
-        const targetScale = 12;
+        const targetScale = 1.8;
         abScale += (targetScale - abScale) * 0.05;
         const targetPanX = abCanvas.width / 2 - (current.x - minX) * abScale;
-        const targetPanY = abCanvas.height / 2 + (current.y - minY) * abScale - abCanvas.height;
+        const targetPanY = abCanvas.height / 2 - (current.y - minY) * abScale;
         abPanX += (targetPanX - abPanX) * 0.08;
         abPanY += (targetPanY - abPanY) * 0.08;
         abRoadsDirty = true;
