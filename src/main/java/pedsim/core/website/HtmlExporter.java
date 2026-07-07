@@ -561,7 +561,7 @@ public class HtmlExporter {
       <p style="max-width:450px;font-size:0.85rem;line-height:1.6">Please run the simulation with A/B testing enabled (enableLightABTesting = true in parameters) once. The simulation will save the 72-pair hourly release test data, which will then sit here permanently.</p>
     </div>
     <div id="ab-floating-controls" style="position:absolute;top:20px;right:20px;display:none;flex-direction:column;gap:8px">
-      <label class="toggle-label" id="ab-lbl-light"><input type="checkbox" id="ab-tg-light" checked /><div class="toggle-switch"></div> Light Level Map</label>
+      <label class="toggle-label" id="ab-lbl-light"><input type="checkbox" id="ab-tg-light" /><div class="toggle-switch"></div> Light Level Map</label>
       <label class="toggle-label"><input type="checkbox" id="ab-tg-tethers" checked /><div class="toggle-switch"></div> Show A/B Tethers</label>
       <button class="btn-float" id="ab-reset-btn">Reset Zoom</button>
     </div>
@@ -1117,7 +1117,10 @@ function abBuildRoadLayers() {
 }
 function abDraw(agents) {
   if (!agents) agents = abGetLiveAgents(abCurrentFloatStep);
-  if (abRoadsDirty) abBuildRoadLayers(); const simHour = (abCurrentFloatStep * 20 / 60) % 24; abCtx.fillStyle = getSkyColor(simHour); abCtx.fillRect(0, 0, abCanvas.width, abCanvas.height);
+  if (abRoadsDirty) abBuildRoadLayers();
+  const simHour = (abTgLight && abTgLight.checked) ? ((abCurrentFloatStep * 20 / 60) % 24) : 12;
+  abCtx.fillStyle = getSkyColor(simHour);
+  abCtx.fillRect(0, 0, abCanvas.width, abCanvas.height);
   abCtx.drawImage(abTgLight && abTgLight.checked ? abOffscreenLight : abOffscreenVol, 0, 0); const posById = {};
   agents.forEach(a => { posById[a.id] = abToScreen(a.x, a.y); }); if (abTgTethers && abTgTethers.checked) {
     abCtx.strokeStyle = 'rgba(255, 255, 255, 0.35)'; abCtx.lineWidth = 1.0; abCtx.setLineDash([4, 4]); abCtx.beginPath();
@@ -1127,14 +1130,20 @@ function abDraw(agents) {
   AB_TRIPS.forEach(t => {
     if (t[1] > abCurrentFloatStep) return;
     const isCompleted = t[2] <= abCurrentFloatStep;
+    if (isCompleted && (abCurrentFloatStep - t[2] > 120)) return; // disappear after ~2 seconds (120 frames at 60fps)
     const progress = isCompleted ? 1.0 : (abCurrentFloatStep - t[1]) / (t[2] - t[1] || 1.0);
     const coords = t[3];
     const segs = t[6];
     const totalLength = t[7];
     const vuln = t[4];
     if (coords && coords.length > 0) {
-      abCtx.strokeStyle = vuln ? 'rgba(239, 68, 68, 0.35)' : 'rgba(56, 189, 248, 0.35)';
-      abCtx.lineWidth = 1.1;
+      let alpha = 0.85;
+      if (isCompleted) {
+         alpha = 0.85 * (1.0 - (abCurrentFloatStep - t[2]) / 120.0);
+         if (alpha < 0) alpha = 0;
+      }
+      abCtx.strokeStyle = vuln ? `rgba(239, 68, 68, ${alpha})` : `rgba(56, 189, 248, ${alpha})`;
+      abCtx.lineWidth = 2.5;
       abCtx.beginPath();
       let p0 = abToScreen(coords[0][0], coords[0][1]);
       abCtx.moveTo(p0.x, p0.y);
@@ -1158,7 +1167,7 @@ function abDraw(agents) {
       abCtx.stroke();
     }
   });
-  agents.forEach(a => { const p = posById[a.id]; abCtx.beginPath(); abCtx.arc(p.x, p.y, a.vuln ? 4 : 3, 0, Math.PI * 2); abCtx.fillStyle = a.vuln ? '#ef4444' : '#38bdf8'; abCtx.fill(); });
+  agents.forEach(a => { const p = posById[a.id]; abCtx.beginPath(); abCtx.arc(p.x, p.y, a.vuln ? 7 : 5, 0, Math.PI * 2); abCtx.fillStyle = a.vuln ? '#ef4444' : '#38bdf8'; abCtx.fill(); });
 }
 let abIsDragging = false, abStartX = 0, abStartY = 0; abCanvas.addEventListener('mousedown', e => { abIsDragging = true; abStartX = e.clientX; abStartY = e.clientY; });
 window.addEventListener('mousemove', e => { if (!abIsDragging) return; abPanX += e.clientX - abStartX; abPanY -= e.clientY - abStartY; abStartX = e.clientX; abStartY = e.clientY; abRoadsDirty = true; abDraw(); });
