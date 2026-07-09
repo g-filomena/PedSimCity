@@ -479,6 +479,10 @@ public final class SimulationRestApi {
       TimePars.DAY_START_HOUR = Integer.parseInt(params.get("dayStartHour").toString());
     if (params.containsKey("nightStartHour"))
       TimePars.NIGHT_START_HOUR = Integer.parseInt(params.get("nightStartHour").toString());
+    if (params.containsKey("usePublicTransport"))
+      pedsim.core.parameters.RouteChoicePars.usePublicTransport = Boolean.parseBoolean(params.get("usePublicTransport").toString());
+    if (params.containsKey("useGravityModel"))
+      pedsim.core.parameters.RouteChoicePars.useGravityModel = Boolean.parseBoolean(params.get("useGravityModel").toString());
   }
 
   /** Builds the JSON body for {@code GET /api/modules}. */

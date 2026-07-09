@@ -81,7 +81,8 @@ public final class SimulationLauncher {
    * internally; this method only needs to set mode flags and CLI parameters first.
    */
   public void headlessRun(String[] args) throws Exception {
-    ParameterManager.initFromArgs(args);
+    Map<String, String> argsMap = ParameterManager.initFromArgs(args);
+    module.applyParameters(new java.util.HashMap<>(argsMap));
     applyMode();
     module.createEngine().runJobs(module.scenarioConfig(), Pars.parallel);
   }

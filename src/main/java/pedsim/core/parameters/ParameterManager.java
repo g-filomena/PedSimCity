@@ -47,6 +47,16 @@ public class ParameterManager {
   public static Map<String, String> initFromArgs(String[] args) {
     Map<String, String> params = parseArgs(args);
     applyParams(params, Pars.class, TimePars.class, RouteChoicePars.class);
+    if (params.containsKey("percentage")) {
+      Pars.percentagePopulationAgent = Double.parseDouble(params.get("percentage"));
+    }
+    if (params.containsKey("actualPopulation")) {
+      Pars.population = Integer.parseInt(params.get("actualPopulation"));
+    }
+    if (params.containsKey("days")) {
+      Pars.durationDays = Integer.parseInt(params.get("days"));
+    }
+    Pars.recomputeAgentCount();
     return params;
   }
 

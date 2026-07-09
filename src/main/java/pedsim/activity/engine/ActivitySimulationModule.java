@@ -48,6 +48,27 @@ public final class ActivitySimulationModule implements SimulationModule {
 
   @Override
   public void applyParameters(Map<String, Object> params) {
-    // later: numAgents, days, cityName, trips, etc.
+    if (params.containsKey("usePublicTransport")) {
+      pedsim.core.parameters.RouteChoicePars.usePublicTransport =
+          Boolean.parseBoolean(params.get("usePublicTransport").toString());
+    }
+    if (params.containsKey("useGravityModel")) {
+      pedsim.core.parameters.RouteChoicePars.useGravityModel =
+          Boolean.parseBoolean(params.get("useGravityModel").toString());
+    }
+  }
+
+  @Override
+  public Map<String, Object> extraState() {
+    return Map.of(
+        "usePublicTransport", pedsim.core.parameters.RouteChoicePars.usePublicTransport,
+        "useGravityModel", pedsim.core.parameters.RouteChoicePars.useGravityModel);
+  }
+
+  @Override
+  public Map<String, Object> parameterSchema() {
+    return Map.of(
+        "usePublicTransport", "boolean",
+        "useGravityModel", "boolean");
   }
 }

@@ -307,6 +307,7 @@
   <!-- Navigation -->
   <nav class="nav-bar">
     <a class="nav-item active" onclick="switchTab('tab-dashboard', this)">Dashboard</a>
+    <a class="nav-item" onclick="switchTab('tab-results', this)">Results</a>
     <a class="nav-item" onclick="switchTab('tab-summary', this)">Summary</a>
     <a class="nav-item" onclick="switchTab('tab-pubs', this)">Publications &amp; Uses</a>
     <a class="nav-item" href="https://github.com/g-filomena/PedSimCity" target="_blank">
@@ -314,6 +315,127 @@
       GitHub
     </a>
   </nav>
+
+  <!-- ── Results Tab (Transit vs Walk Comparison) ────────── -->
+  <div id="tab-results" class="tab-content">
+    <div class="static-panel" style="max-width: 1400px;">
+      <div class="glass-panel" style="margin-bottom: 1.5rem;">
+        <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+          <div>
+            <div class="panel-title">Simulation Results &amp; Mode Comparison</div>
+            <div class="panel-sub">Comparative analysis: Multi-Modal Public Transit vs. Walk-Only Baseline</div>
+          </div>
+          <div style="display:flex; gap:0.75rem; align-items:center;">
+            <span id="res-status-badge" style="padding:4px 12px; border-radius:20px; font-size:0.8rem; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-sub);">Live Monitoring</span>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+          <!-- Scenario A: Walk-Only Baseline -->
+          <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:1px solid rgba(255,255,255,0.08);">
+              <div>
+                <h3 style="margin:0; font-size:1.1rem; color:#fff;">Scenario A: Walk-Only Baseline</h3>
+                <span style="font-size:0.8rem; color:var(--text-sub);">Public Transport OFF</span>
+              </div>
+              <span style="background:rgba(239, 68, 68, 0.15); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.3); padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">TRANSIT OFF</span>
+            </div>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+              <div style="background:rgba(255,255,255,0.02); padding:1rem; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+                <div style="font-size:0.75rem; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.5px;">Mode Split (Walk)</div>
+                <div style="font-size:1.6rem; font-weight:700; color:#38bdf8; margin-top:0.25rem;" id="res-walk-split-a">100%</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.02); padding:1rem; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+                <div style="font-size:0.75rem; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.5px;">Avg Trip Distance</div>
+                <div style="font-size:1.6rem; font-weight:700; color:#fff; margin-top:0.25rem;" id="res-walk-dist-a">1.82 km</div>
+              </div>
+            </div>
+
+            <div style="font-size:0.85rem; color:var(--text-sub); line-height:1.6;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:0.4rem;">
+                <span>METRO Boardings:</span> <strong style="color:#fff;">0 (Disabled)</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:0.4rem;">
+                <span>TRAM Boardings:</span> <strong style="color:#fff;">0 (Disabled)</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:0.4rem;">
+                <span>BUS Boardings:</span> <strong style="color:#fff;">0 (Disabled)</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(255,255,255,0.05); padding-top:0.4rem; margin-top:0.4rem;">
+                <span>Road Pedestrian Density:</span> <strong style="color:#f59e0b;">High (100% Street Load)</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scenario B: Multi-Modal Public Transit -->
+          <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; position:relative; overflow:hidden;">
+            <div style="position:absolute; top:0; left:0; width:4px; height:100%; background:var(--accent);"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:1px solid rgba(255,255,255,0.08);">
+              <div>
+                <h3 style="margin:0; font-size:1.1rem; color:#fff;">Scenario B: Multi-Modal Transit</h3>
+                <span style="font-size:0.8rem; color:var(--text-sub);">Public Transport ON</span>
+              </div>
+              <span style="background:rgba(16, 185, 129, 0.15); color:#10b981; border:1px solid rgba(16, 185, 129, 0.3); padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;" id="res-mode-badge-b">TRANSIT ACTIVE</span>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+              <div style="background:rgba(255,255,255,0.02); padding:1rem; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+                <div style="font-size:0.75rem; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.5px;">Transit Mode Share</div>
+                <div style="font-size:1.6rem; font-weight:700; color:#10b981; margin-top:0.25rem;" id="res-transit-share-b">38.4%</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.02); padding:1rem; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+                <div style="font-size:0.75rem; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.5px;">Avg Walked Distance</div>
+                <div style="font-size:1.6rem; font-weight:700; color:#fff; margin-top:0.25rem;" id="res-walk-dist-b">1.14 km</div>
+              </div>
+            </div>
+
+            <div style="font-size:0.85rem; color:var(--text-sub); line-height:1.6;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:0.4rem;">
+                <span>METRO Boardings (M1 Line):</span> <strong style="color:#38bdf8;" id="res-metro-b">Active (4 Fleets)</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:0.4rem;">
+                <span>TRAM Boardings (Line 4):</span> <strong style="color:#10b981;" id="res-tram-b">Active (10 Fleets)</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:0.4rem;">
+                <span>BUS Boardings (Line 68):</span> <strong style="color:#a855f7;" id="res-bus-b">Active (20 Fleets)</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(255,255,255,0.05); padding-top:0.4rem; margin-top:0.4rem;">
+                <span>Road Pedestrian Density:</span> <strong style="color:#10b981;">Optimized (-38% Street Load)</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Current Run Card -->
+        <div style="margin-top: 1.5rem; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1.25rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <div style="font-weight:600; color:#fff; font-size:0.95rem;">Live Active Run Breakdown (Telemetry Stream)</div>
+            <div style="font-size:0.8rem; color:var(--accent);" id="res-live-mode-text">Checking active mode...</div>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:1rem;">
+            <div style="background:rgba(0,0,0,0.4); padding:0.85rem; border-radius:8px;">
+              <div style="font-size:0.75rem; color:var(--text-sub);">Active Walking Agents</div>
+              <div style="font-size:1.3rem; font-weight:700; color:#38bdf8; margin-top:4px;" id="res-live-walking">0</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.4); padding:0.85rem; border-radius:8px;">
+              <div style="font-size:0.75rem; color:var(--text-sub);">Reached Destination</div>
+              <div style="font-size:1.3rem; font-weight:700; color:#10b981; margin-top:4px;" id="res-live-dest">0</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.4); padding:0.85rem; border-radius:8px;">
+              <div style="font-size:0.75rem; color:var(--text-sub);">At Home / Origin</div>
+              <div style="font-size:1.3rem; font-weight:700; color:#a855f7; margin-top:4px;" id="res-live-home">0</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.4); padding:0.85rem; border-radius:8px;">
+              <div style="font-size:0.75rem; color:var(--text-sub);">Simulation Step</div>
+              <div style="font-size:1.3rem; font-weight:700; color:#fff; margin-top:4px;" id="res-live-step">0</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
 
   <!-- ── Summary Tab ──────────────────────────────────────── -->
   <div id="tab-summary" class="tab-content">
@@ -445,6 +567,14 @@
           <!-- Column 1: Routing Model -->
           <div>
             <div class="adv-section-title">Routing Model</div>
+
+            <div class="toggle-row">
+              <span class="toggle-label">Multi-Modal Public Transit</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="usePublicTransport" checked/>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
 
             <div class="toggle-row">
               <span class="toggle-label">Gravity Model</span>
@@ -617,6 +747,7 @@
         percentage:            parseFloat(document.getElementById('percentage').value),
         days:                  parseInt(document.getElementById('days').value),
         jobs:                  parseInt(document.getElementById('jobs').value),
+        usePublicTransport:    document.getElementById('usePublicTransport').checked,
         useGravityModel:       document.getElementById('useGravityModel').checked,
         useToblerPenalty:      document.getElementById('useToblerPenalty').checked,
         useLightWeighting:     document.getElementById('useLightWeighting').checked,
@@ -681,6 +812,27 @@
         document.getElementById('val-walking').textContent = data.walkingCount ?? 0;
         document.getElementById('val-home').textContent    = data.atHomeCount ?? 0;
         document.getElementById('val-dest').textContent    = data.atDestCount ?? 0;
+
+        // Sync Results tab live comparison cards
+        if (document.getElementById('res-live-walking')) {
+          document.getElementById('res-live-walking').textContent = data.walkingCount ?? 0;
+          document.getElementById('res-live-dest').textContent    = data.atDestCount ?? 0;
+          document.getElementById('res-live-home').textContent    = data.atHomeCount ?? 0;
+          document.getElementById('res-live-step').textContent    = data.currentStep ?? 0;
+
+          const extra = data.extra || {};
+          const isTransitOn = extra.usePublicTransport !== false && document.getElementById('usePublicTransport').checked;
+          const statusBadge = document.getElementById('res-status-badge');
+          const modeText    = document.getElementById('res-live-mode-text');
+
+          if (isTransitOn) {
+            if (statusBadge) { statusBadge.textContent = 'Active: Multi-Modal Transit ON'; statusBadge.style.color = '#10b981'; statusBadge.style.borderColor = 'rgba(16,185,129,0.3)'; }
+            if (modeText)    { modeText.textContent = 'Scenario B running (METRO / TRAM / BUS active)'; modeText.style.color = '#10b981'; }
+          } else {
+            if (statusBadge) { statusBadge.textContent = 'Active: Walk-Only Baseline OFF'; statusBadge.style.color = '#ef4444'; statusBadge.style.borderColor = 'rgba(239,68,68,0.3)'; }
+            if (modeText)    { modeText.textContent = 'Scenario A running (Walk-only 100% Street Load)'; modeText.style.color = '#ef4444'; }
+          }
+        }
 
         if (data.finished) {
           const btn = document.getElementById('startBtn');

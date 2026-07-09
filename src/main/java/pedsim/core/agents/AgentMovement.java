@@ -52,6 +52,14 @@ public class AgentMovement {
   public void initialisePath(Route route) {
 
     indexOnSequence = 0;
+    if (route == null || route.directedEdgesSequence == null || route.directedEdgesSequence.isEmpty()) {
+      this.directedEdgesSequence = new ArrayList<>();
+      if (agent.destinationNode != null && agent.destinationNode.getCoordinate() != null) {
+        agent.updateAgentPosition(agent.destinationNode.getCoordinate());
+      }
+      agent.reachedDestination.set(true);
+      return;
+    }
     this.directedEdgesSequence = route.directedEdgesSequence;
 
     // set up how to traverse this first link
@@ -61,6 +69,7 @@ public class AgentMovement {
     // Sets the Agent up to proceed along an Edge
     setupEdge(firstDirectedEdge);
   }
+
 
   /**
    * Sets the agent up to proceed along a specified edge.

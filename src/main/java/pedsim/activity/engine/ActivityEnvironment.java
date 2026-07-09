@@ -32,13 +32,15 @@ public class ActivityEnvironment extends Environment {
   /** Radii (m) tried in order when claiming nodes for a zone; grows until ≥1 node is found. */
   private static final double[] CLAIM_RADII = {50.0, 100.0, 200.0, 400.0};
 
-  /** Runs the core infrastructure preparation, then builds the census-zone model. */
+  /** Runs the core infrastructure preparation, then builds the census-zone model and transit stops. */
   public static void prepare() {
     Environment.prepare();
     if (!PedSimCityActivity.censusLayer.getGeometries().isEmpty()) {
       buildCensusZones();
     }
+    pedsim.transit.TransitLoader.loadStops(null);
   }
+
 
   private static void buildCensusZones() {
     List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
@@ -69,8 +71,15 @@ public class ActivityEnvironment extends Environment {
     // real headcount: override the population and recompute the agent count. Absent the column
     // (totalResidents == 0), the user-supplied population is kept.
     if (totalResidents > 0.0) {
-      // Census carries absolute counts: apply the sampling fraction to the real headcount.
-      Pars.population = (int) Math.round(totalResidents);
+      if (Pars.population == 1500000) {
+        if (Pars.cityName != null && Pars.cityName.contains("Torino")) {
+          // Hardcode full municipal census population of Torino (846,567) even when running on Torino_simplified graph
+          Pars.population = 846567;
+        } else {
+          // Census carries absolute counts: apply the sampling fraction to the real headcount.
+          Pars.population = (int) Math.round(totalResidents);
+        }
+      }
       Pars.recomputeAgentCount();
       logger.info(
           "Population set from census resident total (P1): "
@@ -144,7 +153,15 @@ public class ActivityEnvironment extends Environment {
     try {
       return value.getDouble();
     } catch (Exception e) {
-      return 0.0;
+      try {
+        return Double.parseDouble(value.toString().trim());
+      } catch (Exception e2) {
+        try {
+          return value.getInteger();
+        } catch (Exception e3) {
+          return 0.0;
+        }
+      }
     }
   }
 }

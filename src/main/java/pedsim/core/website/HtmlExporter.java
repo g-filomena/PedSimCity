@@ -664,28 +664,7 @@ ROADS_GEOJSON.features.forEach(f => {
 });
 const maxHourlyVol = (()=>{ let mx=0; Object.values(HOURLY_VOL).forEach(arr=>{ arr.forEach(v=>{ if(v>mx) mx=v; }); }); return mx||1; })();
 function getSkyColor(hour) {
-  // 6-7 sunrise, 7-18 day, 18-20 sunset, 20-6 night
-  if (hour >= 7 && hour < 18) {
-    // daytime — light blue-grey
-    return '#c8d6e5';
-  } else if (hour >= 18 && hour < 20) {
-    // sunset transition
-    const t = (hour - 18) / 2;
-    const r = Math.round(200 - t * 185);
-    const g = Math.round(214 - t * 202);
-    const b = Math.round(229 - t * 204);
-    return `rgb(${r},${g},${b})`;
-  } else if (hour >= 6 && hour < 7) {
-    // sunrise transition
-    const t = (hour - 6);
-    const r = Math.round(15 + t * 185);
-    const g = Math.round(12 + t * 202);
-    const b = Math.round(25 + t * 204);
-    return `rgb(${r},${g},${b})`;
-  } else {
-    // night — dark
-    return '#0f0c19';
-  }
+  return '#0f0c19';
 }
 const maxVol = (()=>{ let mx=0; ROADS_GEOJSON.features.forEach(f=>{ const v=f.properties.volume||0; if(v>mx) mx=v; }); return mx||1; })();
 function getVolColor(f, useLight) {
@@ -899,11 +878,7 @@ function updateMetrics(step, agents) {
   const mm = String(Math.floor(step*20)%60).padStart(2,'0');
   document.getElementById('m-time').textContent = `__RUN_LABEL__ ${hh}:${mm}`;
   document.getElementById('time-label').textContent = document.getElementById('m-time').textContent;
-  const shouldLight = simHour >= 18.5 || simHour < 6.85;
-  if (tgLight.checked !== shouldLight) {
-    tgLight.checked = shouldLight;
-    draw(agents);
-  }
+  // light toggle is manual only — no auto-switch
   const vulnActive = agents.filter(a => a.vuln);
   const normActive = agents.filter(a => !a.vuln);
   const avgVulnActiveDist = vulnActive.length > 0 ? Math.round(vulnActive.reduce((s, a) => s + (tripLengthById[a.id] || 0), 0) / vulnActive.length) : 0;
@@ -1099,12 +1074,15 @@ if (hvThemeSelect) {
 }
 updateHvLegend();
 const abCanvas = document.getElementById('ab-canvas'); const abCtx = abCanvas.getContext('2d'); abCtx.imageSmoothingEnabled = true;
-let abScale = 1.0, abPanX = 0, abPanY = 0, abCurrentFloatStep = 0;
+let abScale = 1.0, abPanX = 0, abPanY = 0, abCurrentFloatStep = 0, abDefaultScale = 1.0, abCamWorldX = 0, abCamWorldY = 0;
 function abToScreen(wx, wy) { return { x: (wx - minX) * abScale + abPanX, y: abCanvas.height - ((wy - minY) * abScale + abPanY) }; }
 function abResetView() {
   if (typeof abStopFollow === 'function') abStopFollow();
   const dx = maxX - minX, dy = maxY - minY, pad = 40;
   abScale = Math.min((abCanvas.width - pad*2) / (dx || 1), (abCanvas.height - pad*2) / (dy || 1));
+  abDefaultScale = abScale;
+  abCamWorldX = minX + dx / 2;
+  abCamWorldY = minY + dy / 2;
   abPanX = abCanvas.width / 2 - (minX + dx / 2 - minX) * abScale; abPanY = abCanvas.height / 2 - (minY + dy / 2 - minY) * abScale;
   abRoadsDirty = true; abDraw();
 }
@@ -1266,16 +1244,22 @@ function abAnimate(ts) {
       // Pick a new agent to follow (prefer vulnerable)
       const vulnAgents = agents.filter(a => a.vuln);
       abFollowAgent = vulnAgents.length > 0 ? vulnAgents[Math.floor(Math.random() * vulnAgents.length)] : (agents.length > 0 ? agents[0] : null);
+      if (abFollowAgent) {
+        const current = agents.find(a => a.id === abFollowAgent.id && a.vuln === abFollowAgent.vuln);
+        if (current) {
+          abCamWorldX = current.x; abCamWorldY = current.y;
+        }
+      }
     }
     if (abFollowAgent) {
       const current = agents.find(a => a.id === abFollowAgent.id && a.vuln === abFollowAgent.vuln);
       if (current) {
-        const targetScale = 1.8;
-        abScale += (targetScale - abScale) * 0.05;
-        const targetPanX = abCanvas.width / 2 - (current.x - minX) * abScale;
-        const targetPanY = abCanvas.height / 2 - (current.y - minY) * abScale;
-        abPanX += (targetPanX - abPanX) * 0.08;
-        abPanY += (targetPanY - abPanY) * 0.08;
+        const targetScale = (abDefaultScale || 1.0) * 3.5;
+        abScale += (targetScale - abScale) * 0.1;
+        abCamWorldX += (current.x - abCamWorldX) * 0.15;
+        abCamWorldY += (current.y - abCamWorldY) * 0.15;
+        abPanX = abCanvas.width / 2 - (abCamWorldX - minX) * abScale;
+        abPanY = abCanvas.height / 2 - (abCamWorldY - minY) * abScale;
         abRoadsDirty = true;
       }
     }

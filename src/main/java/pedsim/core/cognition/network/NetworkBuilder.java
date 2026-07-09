@@ -52,22 +52,31 @@ public class NetworkBuilder {
   }
 
   private void buildKNownDualNetwork() {
-
     setNecessaryDualEdges(new HashSet<>());
     for (EdgeGraph edge : getNecessaryEdges()) {
-      for (DirectedEdge directedEdge : edge.getDualNode().getOutEdges().getEdges()) {
-        getNecessaryDualEdges().add((EdgeGraph) directedEdge.getEdge());
+      if (edge != null && edge.getDualNode() != null && edge.getDualNode().getOutEdges() != null) {
+        for (DirectedEdge directedEdge : edge.getDualNode().getOutEdges().getEdges()) {
+          getNecessaryDualEdges().add((EdgeGraph) directedEdge.getEdge());
+        }
       }
     }
 
+    if (getNecessaryDualEdges().isEmpty()) {
+      setNecessaryDualNodes(new HashSet<>());
+      return;
+    }
+
     Graph dualGraph = SharedCognitiveMap.getCommunityDualNetwork();
-    Islands dualIslands = new Islands(dualGraph);
-    if (dualIslands.findDisconnectedIslands(getNecessaryDualEdges()).size() > 1) {
-      setNecessaryDualEdges(dualIslands.mergeConnectedIslands(getNecessaryDualEdges()));
+    if (dualGraph != null && !dualGraph.getEdges().isEmpty()) {
+      Islands dualIslands = new Islands(dualGraph);
+      if (dualIslands.findDisconnectedIslands(getNecessaryDualEdges()).size() > 1) {
+        setNecessaryDualEdges(dualIslands.mergeConnectedIslands(getNecessaryDualEdges()));
+      }
     }
     setNecessaryDualNodes(GraphUtils.nodesFromEdges(getNecessaryDualEdges()));
     accommodateDualNetwork();
   }
+
 
   private void accommodateDualNetwork() {
     getNecessaryDualNodes()

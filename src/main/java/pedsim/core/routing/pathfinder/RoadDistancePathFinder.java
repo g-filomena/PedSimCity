@@ -25,6 +25,8 @@ public class RoadDistancePathFinder extends PathFinder {
    */
   public Route roadDistance(NodeGraph originNode, NodeGraph destinationNode, Agent agent) {
 
+    this.originNode = originNode;
+    this.destinationNode = destinationNode;
     this.agent = agent;
     final DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
 
@@ -48,7 +50,7 @@ public class RoadDistancePathFinder extends PathFinder {
    *                      nodes;
    * @param agent         The agent for which the route is computed.
    * @return a `Route' object representing the road-distance shortest path for the
-   *         sequence of nodes.
+   *         given sequence of landmarks and gateways.
    */
   public Route roadDistanceSequence(List<NodeGraph> sequenceNodes, Agent agent) {
 
@@ -107,6 +109,17 @@ public class RoadDistancePathFinder extends PathFinder {
   }
 
   protected void fillRoute() {
+    if (partialSequence == null || partialSequence.isEmpty()) {
+      route.directedEdgesSequence = new ArrayList<>();
+      route.nodesSequence = new ArrayList<>();
+      if (originNode != null) {
+        route.nodesSequence.add(originNode);
+      }
+      if (destinationNode != null && !destinationNode.equals(originNode)) {
+        route.nodesSequence.add(destinationNode);
+      }
+      return;
+    }
     route.directedEdgesSequence = partialSequence;
     route.computeRouteSequences();
   }

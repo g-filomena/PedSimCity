@@ -60,7 +60,7 @@ public class TripDiagnostic {
 
       // Header
       fw.write(
-          "agent_id,start_time,end_time,duration_min,distance_m,nodes_walked,edges_walked,vulnerable\n");
+          "agent_id,start_time,end_time,duration_min,distance_m,nodes_walked,edges_walked,vulnerable,mean_lux\n");
 
       for (TripRouteRecorder.TripRecord t : trips) {
 
@@ -79,10 +79,11 @@ public class TripDiagnostic {
         String nodes = joinInts(t.nodeIds);
         String edges = joinInts(t.edgeIds);
 
+        double luxVal = Double.isNaN(t.meanLux) ? 0.0 : t.meanLux;
         fw.write(
             String.format(
-                "%d,%s,%s,%d,%.1f,%s,%s,%b%n",
-                t.agentId, startTime, endTime, durationMin, distanceM, nodes, edges, t.vulnerable));
+                "%d,%s,%s,%d,%.1f,%s,%s,%b,%.2f%n",
+                t.agentId, startTime, endTime, durationMin, distanceM, nodes, edges, t.vulnerable, luxVal));
       }
 
       logger.info("[TripDiagnostic] Saved successfully → " + filename);

@@ -157,12 +157,17 @@ public class Agent implements Steppable {
       reachedDestination.set(true);
       return;
     }
+    reinitializeMovementPath();
+  }
+
+  public void reinitializeMovementPath() {
     planRoute();
     spookLocations.clear();
     tripStartStep = state.schedule.getSteps();
     agentMovement = new AgentMovement(this);
     agentMovement.initialisePath(getRoute());
   }
+
 
   public void startWalkingAlone() {
     destinationNode = null;
@@ -497,6 +502,11 @@ public class Agent implements Steppable {
   public AgentStatus getStatus() {
     return status;
   }
+
+  public void setStatus(AgentStatus status) {
+    this.status = status;
+  }
+
 
   /**
    * Checks if the agent is waiting.
