@@ -1,6 +1,7 @@
 package pedsim.core.routing.pathfinding;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -61,6 +62,11 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
 
     NodeGraph currentNode;
     while ((currentNode = pollFreshNode()) != null) {
+      // The destination's cost is final once it is polled; expanding the rest of the
+      // network cannot change the reconstructed route.
+      if (currentNode.equals(destinationNode)) {
+        break;
+      }
       findBestLandmarkness(currentNode);
     }
   }
@@ -74,19 +80,25 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
    * @param currentNode The current node for which to find adjacent nodes.
    */
   void findBestLandmarkness(NodeGraph currentNode) {
-    List<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
-    for (NodeGraph targetNode : adjacentNodes) {
-      if (visitedNodes.contains(targetNode) || !knownNodes.contains(targetNode)) {
+    // Known-network filtering only applies to individualised cognitive maps (mirrors the
+    // road-distance variant): knownNodes/knownEdges are only populated when the map is
+    // individualised, so testing them unconditionally would filter out every neighbour for
+    // community-map agents.
+    boolean individualised = agent.getCognitiveMap().individualised;
+
+    for (DirectedEdge outEdge : currentNode.getOutDirectedEdges()) {
+      NodeGraph targetNode = (NodeGraph) outEdge.getToNode();
+      if (visitedNodes.contains(targetNode)
+          || (individualised && !knownNodes.contains(targetNode))) {
         continue;
       }
 
-      EdgeGraph commonEdge = agentNetwork.getEdgeBetween(currentNode, targetNode);
-      if (!knownEdges.contains(commonEdge)) {
+      EdgeGraph commonEdge = (EdgeGraph) outEdge.getEdge();
+      if (individualised && !knownEdges.contains(commonEdge)) {
         continue;
       }
 
-      DirectedEdge outEdge = agentNetwork.getDirectedEdgeBetween(currentNode, targetNode);
-      if (edgesToAvoid.contains(outEdge.getEdge())) {
+      if (edgesToAvoid.contains(commonEdge)) {
         continue;
       }
 
@@ -113,14 +125,18 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
 
     // check that the route has been formulated properly
     if (nodeWrappersMap.get(destinationNode) == null || nodeWrappersMap.size() <= 1) {
-      directedEdgesSequence.clear();
       return directedEdgesSequence;
     }
-    while (nodeWrappersMap.get(step).nodeFrom != null) {
-      DirectedEdge directedEdge = nodeWrappersMap.get(step).directedEdgeFrom;
-      step = nodeWrappersMap.get(step).nodeFrom;
-      directedEdgesSequence.add(0, directedEdge);
+    // append then reverse once: repeated head insertion on an ArrayList is O(n^2)
+    while (true) {
+      NodeWrapper wrapper = nodeWrappersMap.get(step);
+      if (wrapper.nodeFrom == null) {
+        break;
+      }
+      directedEdgesSequence.add(wrapper.directedEdgeFrom);
+      step = wrapper.nodeFrom;
     }
+    Collections.reverse(directedEdgesSequence);
 
     return directedEdgesSequence;
   }

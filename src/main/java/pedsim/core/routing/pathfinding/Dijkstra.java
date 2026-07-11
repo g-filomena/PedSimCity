@@ -22,8 +22,6 @@ import sim.graph.NodeGraph;
 import sim.graph.SubGraph;
 import sim.routing.NodeWrapper;
 import sim.routing.Route;
-import sim.routing.RoutingUtils;
-import sim.util.geo.Utilities;
 
 /**
  * The Dijkstra class provides functionality for performing Dijkstra's algorithm
@@ -207,6 +205,11 @@ public abstract class Dijkstra {
   /**
    * Computes the cost perception error based on the role of barriers.
    *
+   * <p>Performance: this runs once per neighbour of every expanded node, so it draws exactly one
+   * random value (a severing-barrier draw wins over a natural-barrier one, matching the original
+   * overwrite order) and tests barrier membership in place instead of copying the edge's barrier
+   * lists and intersecting them with retainAll.
+   *
    * @param targetNode The target node for cost calculation.
    * @param commonEdge The common edge used in cost calculation.
    * @param dual       Indicates whether it is a dual graph.
@@ -214,39 +217,52 @@ public abstract class Dijkstra {
    */
   protected double costPerceptionError(NodeGraph targetNode, EdgeGraph commonEdge, boolean dual) {
 
-    double error = Utilities.fromDistribution(1.0, 0.10, null);
-    Set<Integer> knownBarriers = agent.getCognitiveMap().getAgentKnownBarriers();
+    if (!properties.shouldOnlyUseMinimization()) {
+      EdgeGraph primalEdge = dual ? targetNode.getPrimalEdge() : commonEdge;
+      Set<Integer> knownBarriers = agent.getCognitiveMap().getAgentKnownBarriers();
 
-    if (positiveBarrierEffect()) {
-      // Defensive copy: getArray() returns the stored list by reference, so retainAll must
-      // not be applied to it directly or it would permanently corrupt the edge's barrier data.
-      List<Integer> pBarriers =
-          new ArrayList<>(
-              dual
-                  ? targetNode.getPrimalEdge().attributes.get("positiveBarriers").getArray()
-                  : commonEdge.attributes.get("positiveBarriers").getArray());
-      pBarriers.retainAll(knownBarriers);
-      if (!pBarriers.isEmpty()) {
-        error =
-            Utilities.fromDistribution(
-                properties.getNaturalBarriersMean(), properties.getNaturalBarriersSD(), "left");
+      if (properties.isAversionSeveringBarriers()
+          && anyBarrierKnown(primalEdge, "negativeBarriers", knownBarriers)) {
+        return drawFromDistribution(
+            properties.getSeveringBarriersMean(), properties.getSeveringBarriersSD(), "right");
+      }
+      if (properties.isPreferenceNaturalBarriers()
+          && anyBarrierKnown(primalEdge, "positiveBarriers", knownBarriers)) {
+        return drawFromDistribution(
+            properties.getNaturalBarriersMean(), properties.getNaturalBarriersSD(), "left");
       }
     }
-    if (negativeBarrierEffect()) {
-      List<Integer> nBarriers =
-          new ArrayList<>(
-              dual
-                  ? targetNode.getPrimalEdge().attributes.get("negativeBarriers").getArray()
-                  : commonEdge.attributes.get("negativeBarriers").getArray());
-      nBarriers.retainAll(knownBarriers);
-      if (!nBarriers.isEmpty()) {
-        error =
-            Utilities.fromDistribution(
-                properties.getSeveringBarriersMean(), properties.getSeveringBarriersSD(), "right");
+    return drawFromDistribution(1.0, 0.10, null);
+  }
+
+  /**
+   * Whether any of the edge's barriers under the given attribute is known to the agent. Reads the
+   * stored list in place; no copies, no mutation.
+   */
+  private static boolean anyBarrierKnown(
+      EdgeGraph edge, String attribute, Set<Integer> knownBarriers) {
+    List<Integer> barriers = edge.attributes.get(attribute).getArray();
+    for (Integer barrier : barriers) {
+      if (knownBarriers.contains(barrier)) {
+        return true;
       }
     }
+    return false;
+  }
 
-    return error;
+  /**
+   * Truncated-Gaussian draw with the same semantics as GeoMason's
+   * {@code Utilities.fromDistribution}, but sourced from the job's own seeded MASON RNG. The
+   * library helper funnels every draw through one shared static {@link java.util.Random}, which
+   * both serialises parallel jobs on a single atomic seed and escapes per-job seeding.
+   */
+  protected double drawFromDistribution(double mean, double sd, String direction) {
+    double value = agent.getState().random.nextGaussian() * sd + mean;
+    if (("left".equals(direction) && value > mean)
+        || ("right".equals(direction) && value < mean)) {
+      value = mean;
+    }
+    return value <= 0 ? mean : value;
   }
 
   /**
@@ -325,17 +341,21 @@ public abstract class Dijkstra {
    * Checks if the tentative cost is the best for the currentNode and targetNode
    * with the specified outEdge in a dual context.
    *
-   * @param currentNode The current node.
-   * @param targetNode  The target node.
-   * @param outEdge     The directed edge from the current node to the target
-   *                    node.
+   * @param currentNode     The current node.
+   * @param targetNode      The target node.
+   * @param outEdge         The directed edge from the current node to the target
+   *                        node.
+   * @param primalJunction  The primal junction shared by the two dual nodes, already resolved by
+   *                        the caller (the lookup is symmetric, so the caller's result is reused
+   *                        instead of recomputing it here).
    */
-  protected void isBestDual(NodeGraph currentNode, NodeGraph targetNode, DirectedEdge outEdge) {
+  protected void isBestDual(
+      NodeGraph currentNode, NodeGraph targetNode, DirectedEdge outEdge, NodeGraph primalJunction) {
     if (getBest(targetNode) > tentativeCost) {
       NodeWrapper nodeWrapper = nodeWrappersMap.computeIfAbsent(targetNode, NodeWrapper::new);
       nodeWrapper.nodeFrom = currentNode;
       nodeWrapper.directedEdgeFrom = outEdge;
-      nodeWrapper.commonPrimalJunction = RoutingUtils.getPrimalJunction(currentNode, targetNode);
+      nodeWrapper.commonPrimalJunction = primalJunction;
       nodeWrapper.gx = tentativeCost;
       unvisitedNodes.add(new Entry(targetNode, tentativeCost));
     }
@@ -351,28 +371,6 @@ public abstract class Dijkstra {
   protected double getBest(NodeGraph targetNode) {
     NodeWrapper nodeWrapper = nodeWrappersMap.get(targetNode);
     return nodeWrapper != null ? nodeWrapper.gx : Double.MAX_VALUE;
-  }
-
-  /**
-   * Determines whether there is a positive barrier effect based on the provided
-   * list of barriers.
-   *
-   * @param pBarriers The list of positive barriers to check.
-   * @return True if there is a positive barrier effect; otherwise, false.
-   */
-  private boolean positiveBarrierEffect() {
-    return (!properties.shouldOnlyUseMinimization() && properties.isPreferenceNaturalBarriers());
-  }
-
-  /**
-   * Determines whether there is a negative barrier effect based on the provided
-   * list of barriers and the agent properties.
-   *
-   * @param nBarriers The list of negative barriers to check.
-   * @return True if there is a negative barrier effect; otherwise, false.
-   */
-  private boolean negativeBarrierEffect() {
-    return (!properties.shouldOnlyUseMinimization() && properties.isAversionSeveringBarriers());
   }
 
   /**

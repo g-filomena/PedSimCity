@@ -4,7 +4,7 @@ import sim.field.geo.VectorLayer;
 
 /**
  * A thin extension of {@link VectorLayer} that provides a more resilient
- * interface for optional data layers (e.g. census zones, POI densities).
+ * interface for optional data layers (e.g. zonal statistics, POI layers).
  *
  * <p>This class exists to allow optional simulation data layers to be declared
  * with a distinct type, making it clear at the declaration site that the layer

@@ -79,6 +79,11 @@ public class DijkstraRoadDistance extends Dijkstra {
 
     NodeGraph currentNode;
     while ((currentNode = pollFreshNode()) != null) {
+      // The destination's cost is final once it is polled; expanding the rest of the
+      // network cannot change the reconstructed route.
+      if (currentNode.equals(destinationNode)) {
+        break;
+      }
       findMinDistances(currentNode);
     }
   }
@@ -86,22 +91,23 @@ public class DijkstraRoadDistance extends Dijkstra {
   /**
    * Finds the minimum distances for adjacent nodes of the given current node in the primal graph.
    *
-   * <p>Performance: the directed edge between the two nodes is resolved only when the relaxation
-   * actually improves the target, so the (frequent) non-improving neighbours skip that graph
-   * lookup. The random cost-perception draw is still performed for every candidate neighbour, so
-   * the random sequence and the resulting route are unchanged.
+   * <p>Performance: neighbours are reached by iterating the node's own outgoing directed edges,
+   * which yields the target node, the undirected edge and the directed edge in one object — no
+   * {@code getEdgeBetween}/{@code getDirectedEdgeBetween} map lookups (each of which allocates a
+   * key pair) are needed.
    *
    * @param currentNode The current node in the primal graph for which to find adjacent nodes.
    */
   protected void findMinDistances(NodeGraph currentNode) {
 
-    for (NodeGraph targetNode : currentNode.getAdjacentNodes()) {
+    for (DirectedEdge outEdge : currentNode.getOutDirectedEdges()) {
 
+      NodeGraph targetNode = (NodeGraph) outEdge.getToNode();
       if (visitedNodes.contains(targetNode)) {
         continue;
       }
 
-      EdgeGraph commonEdge = agentNetwork.getEdgeBetween(currentNode, targetNode);
+      EdgeGraph commonEdge = (EdgeGraph) outEdge.getEdge();
       if (agent.getCognitiveMap().individualised && !isEdgeKnown(commonEdge)) {
         continue;
       }
@@ -114,7 +120,6 @@ public class DijkstraRoadDistance extends Dijkstra {
       computeTentativeCost(currentNode, targetNode, edgeCost);
 
       if (getBest(targetNode) > tentativeCost) {
-        DirectedEdge outEdge = agentNetwork.getDirectedEdgeBetween(currentNode, targetNode);
         isBest(currentNode, targetNode, outEdge);
       }
     }

@@ -10,7 +10,6 @@ import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.routing.pathfinding.DijkstraRoadDistance;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
-import sim.util.geo.Utilities;
 
 /**
  * Road-distance shortest path for night-time routing.
@@ -40,9 +39,11 @@ public class DijkstraRoadDistanceNight extends DijkstraRoadDistance {
    * <p>The neighbour filter is applied on every attempt; the degree of relaxation is governed by
    * {@link #secondAttempt} via {@link #shouldAvoidEdgeAtNight(EdgeGraph, boolean)}.
    *
-   * <p>Performance: neighbours are evaluated in a single pass. The shared edge is resolved once
-   * per neighbour and reused for both the avoidance test and the cost computation (previously it
-   * was looked up twice), and no intermediate stream/list is allocated.
+   * <p>Performance: neighbours are reached by iterating the node's own outgoing directed edges,
+   * which yields the target node, the undirected edge and the directed edge in one object — no
+   * {@code getEdgeBetween}/{@code getDirectedEdgeBetween} map lookups are needed. The cost noise
+   * comes from the job's own seeded RNG (see {@code Dijkstra.drawFromDistribution}) instead of the
+   * shared static Random in GeoMason.
    *
    * @param currentNode the current node in the primal graph
    */
@@ -50,15 +51,15 @@ public class DijkstraRoadDistanceNight extends DijkstraRoadDistance {
   protected void findMinDistances(NodeGraph currentNode) {
     boolean anyValidNeighbour = false;
 
-    for (NodeGraph targetNode : currentNode.getAdjacentNodes()) {
-      EdgeGraph commonEdge = agentNetwork.getEdgeBetween(currentNode, targetNode);
+    for (DirectedEdge outEdge : currentNode.getOutDirectedEdges()) {
+      NodeGraph targetNode = (NodeGraph) outEdge.getToNode();
+      EdgeGraph commonEdge = (EdgeGraph) outEdge.getEdge();
       if (!canMoveToNodeAtNight(targetNode, commonEdge)) {
         continue;
       }
       anyValidNeighbour = true;
 
-      DirectedEdge outEdge = agentNetwork.getDirectedEdgeBetween(currentNode, targetNode);
-      double error = Utilities.fromDistribution(1.0, 0.10, null);
+      double error = drawFromDistribution(1.0, 0.10, null);
       double edgeCost = commonEdge.getLength() * error;
       computeTentativeCost(currentNode, targetNode, edgeCost);
       isBest(currentNode, targetNode, outEdge);

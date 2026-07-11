@@ -1,8 +1,8 @@
 package pedsim.core.routing.pathfinding;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.agents.Agent;
@@ -78,6 +78,11 @@ public class DijkstraAngularChange extends Dijkstra {
 
     NodeGraph currentNode;
     while ((currentNode = pollFreshNode()) != null) {
+      // The destination's cost is final once it is polled; expanding the rest of the
+      // network cannot change the reconstructed route.
+      if (currentNode.equals(destinationNode)) {
+        break;
+      }
       findLeastAngularChange(currentNode);
     }
   }
@@ -91,8 +96,10 @@ public class DijkstraAngularChange extends Dijkstra {
    */
   private void findLeastAngularChange(NodeGraph currentNode) {
 
-    List<NodeGraph> adjacentNodes = currentNode.getAdjacentNodes();
-    for (NodeGraph targetNode : adjacentNodes) {
+    NodeGraph currentJunction = nodeWrappersMap.get(currentNode).commonPrimalJunction;
+
+    for (DirectedEdge outEdge : currentNode.getOutDirectedEdges()) {
+      NodeGraph targetNode = (NodeGraph) outEdge.getToNode();
       if (visitedNodes.contains(targetNode)) {
         continue;
       }
@@ -103,57 +110,61 @@ public class DijkstraAngularChange extends Dijkstra {
       // would go back to an
       // already traversed node; but the dual graph wouldn't know.
       NodeGraph primalJunction = RoutingUtils.getPrimalJunction(targetNode, currentNode);
-      if (primalJunction != null
-          && primalJunction.equals(nodeWrappersMap.get(currentNode).commonPrimalJunction)) {
+      if (primalJunction != null && primalJunction.equals(currentJunction)) {
         continue;
       }
 
-      EdgeGraph commonEdge = agentDualNetwork.getEdgeBetween(currentNode, targetNode);
-      if (!isDualEdgeKnown(commonEdge)) {
+      EdgeGraph commonEdge = (EdgeGraph) outEdge.getEdge();
+      // Known-network filtering only applies to individualised cognitive maps (mirrors the
+      // primal variant): knownDualEdges is only populated when the map is individualised, so
+      // testing it unconditionally would filter out every edge for community-map agents.
+      if (agent.getCognitiveMap().individualised && !isDualEdgeKnown(commonEdge)) {
         continue;
       }
 
-      DirectedEdge outEdge = agentDualNetwork.getDirectedEdgeBetween(currentNode, targetNode);
       // compute errors in perception of road coasts with stochastic variables
       double error = costPerceptionError(targetNode, commonEdge, true);
       double edgeCost = commonEdge.getDeflectionAngle() * error;
       computeTentativeCostDual(currentNode, targetNode, edgeCost);
-      isBestDual(currentNode, targetNode, outEdge);
+      // the shared primal junction is symmetric, so the value resolved above is reused
+      isBestDual(currentNode, targetNode, outEdge, primalJunction);
     }
   }
 
   /**
    * Reconstructs the sequence of directed edges composing the path.
    *
+   * <p>Performance: each predecessor wrapper is fetched once per step, and edges are appended then
+   * reversed once, avoiding the O(n^2) cost of repeated head insertions on an {@link ArrayList}. A
+   * broken predecessor chain ends the walk (previously handled by catching the resulting NPE); the
+   * returned order (origin to destination) is unchanged.
+   *
    * @return An ArrayList of DirectedEdges representing the path sequence.
    */
   private ArrayList<DirectedEdge> reconstructSequence() {
     ArrayList<DirectedEdge> directedEdgesSequence = new ArrayList<>();
-    NodeGraph step = destinationNode;
 
     // check that the route has been formulated properly
     if (nodeWrappersMap.get(destinationNode) == null || nodeWrappersMap.size() <= 1) {
-      directedEdgesSequence.clear();
-    }
-    try {
-      while (nodeWrappersMap.get(step).nodeFrom != null) {
-        DirectedEdge directedEdge = step.getPrimalEdge().getDirEdge(0); // this refer in any case to
-        // the Parent
-        // primal graph
-
-        step = nodeWrappersMap.get(step).nodeFrom;
-        directedEdgesSequence.add(0, directedEdge);
-
-        if (step.equals(originNode)) {
-          DirectedEdge firstEdge = step.getPrimalEdge().getDirEdge(0);
-          directedEdgesSequence.add(0, firstEdge);
-          break;
-        }
-      }
-    } catch (final java.lang.NullPointerException e) {
       return directedEdgesSequence;
     }
 
+    NodeGraph step = destinationNode;
+    while (true) {
+      NodeWrapper wrapper = nodeWrappersMap.get(step);
+      if (wrapper == null || wrapper.nodeFrom == null) {
+        break;
+      }
+      // the primal edge refers in any case to the parent primal graph
+      directedEdgesSequence.add(step.getPrimalEdge().getDirEdge(0));
+      step = wrapper.nodeFrom;
+
+      if (step.equals(originNode)) {
+        directedEdgesSequence.add(step.getPrimalEdge().getDirEdge(0));
+        break;
+      }
+    }
+    Collections.reverse(directedEdgesSequence);
     return directedEdgesSequence;
   }
 }
