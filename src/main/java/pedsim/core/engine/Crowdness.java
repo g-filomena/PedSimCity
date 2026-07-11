@@ -6,7 +6,7 @@ import sim.graph.EdgeGraph;
 
 public class Crowdness {
 
-  private static final double DEFAULT_CROWDEDNESS_PERCENTILE = 80.0;
+  static final double DEFAULT_CROWDEDNESS_PERCENTILE = 80.0;
 
   private static final ThreadLocal<CrowdnessCache> CACHE =
       ThreadLocal.withInitial(CrowdnessCache::new);
@@ -38,11 +38,8 @@ public class Crowdness {
     CrowdnessCache cache = CACHE.get();
 
     if (cache.state != state || cache.step != currentStep) {
-      double percentile = DEFAULT_CROWDEDNESS_PERCENTILE;
-
-      if (state instanceof pedsim.night.engine.PedSimCityNight) {
-        percentile = ((pedsim.night.engine.PedSimCityNight) state).getCrowdednessPercentile();
-      }
+      double percentile =
+          state != null ? state.getCrowdednessPercentile() : DEFAULT_CROWDEDNESS_PERCENTILE;
 
       cache.threshold = validThreshold(calculateVolumesPercentile(percentile));
       cache.step = currentStep;

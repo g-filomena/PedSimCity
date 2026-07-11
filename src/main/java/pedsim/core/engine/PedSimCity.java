@@ -155,6 +155,23 @@ public class PedSimCity extends SimState {
   }
 
   /**
+   * Percentile of per-edge agent volumes above which an edge counts as crowded (see
+   * {@link Crowdness}). Modules may override to expose their own parameter.
+   */
+  public double getCrowdednessPercentile() {
+    return Crowdness.DEFAULT_CROWDEDNESS_PERCENTILE;
+  }
+
+  /**
+   * Module hook for taking over a single agent-release event (see {@link AgentReleaseManager}).
+   * Returns the number of agents released ({@code >= 0}) when the module handled the event — the
+   * standard meters-based release is then skipped — or {@code -1} to let it run.
+   */
+  public int releaseAgentsOverride(double steps, int dayNumber) {
+    return -1;
+  }
+
+  /**
    * Starts moving agents in the simulation. This method schedules agents for repeated movement
    * updates and sets up the spatial index for agents.
    */

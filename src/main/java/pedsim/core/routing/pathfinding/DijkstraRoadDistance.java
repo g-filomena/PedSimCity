@@ -63,8 +63,7 @@ public class DijkstraRoadDistance extends Dijkstra {
    *
    * <p>Uses lazy deletion: each node is enqueued with a frozen cost snapshot (see
    * {@link Dijkstra.Entry}) and {@link #pollFreshNode()} discards stale entries, so every node is
-   * expanded exactly once at its finalised cost. This removes the redundant re-expansions caused
-   * by the previous live-comparator queue.
+   * expanded exactly once at its finalised cost.
    */
   protected void runDijkstra() {
 

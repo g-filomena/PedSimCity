@@ -60,12 +60,6 @@ public class ParameterManager {
     return params;
   }
 
-  /** Legacy alias kept for compatibility (use initFromArgs instead). */
-  @Deprecated(forRemoval = true)
-  public static Map<String, String> initFromArgsForServer(String[] args) {
-    return initFromArgs(args);
-  }
-
   /** Directly set a parameter field by name. */
   public static void setFieldValue(Class<?> targetClass, String key, String raw) {
     if (raw == null || raw.isBlank()) return;

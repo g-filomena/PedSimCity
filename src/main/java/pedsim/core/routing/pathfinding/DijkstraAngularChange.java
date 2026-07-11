@@ -136,8 +136,7 @@ public class DijkstraAngularChange extends Dijkstra {
    *
    * <p>Performance: each predecessor wrapper is fetched once per step, and edges are appended then
    * reversed once, avoiding the O(n^2) cost of repeated head insertions on an {@link ArrayList}. A
-   * broken predecessor chain ends the walk (previously handled by catching the resulting NPE); the
-   * returned order (origin to destination) is unchanged.
+   * broken predecessor chain ends the walk; the returned order is origin to destination.
    *
    * @return An ArrayList of DirectedEdges representing the path sequence.
    */

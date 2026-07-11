@@ -27,9 +27,8 @@ import pedsim.core.utilities.LoggerUtil;
  *   <li>A/B testing playback when available.</li>
  * </ul>
  *
- * This version includes the visual/dashboard tweaks previously applied manually:
- * thinner edges, smaller animated agents, high-volume edges drawn on top,
- * heatmap defaults, no Sim Consistency selector, smoother animation, and fixed A/B lux metrics.
+ * Visual defaults: thin edges, small animated agents, high-volume edges drawn on top,
+ * heatmap defaults, smooth animation, and A/B lux metrics.
  */
 public class HtmlExporter {
 

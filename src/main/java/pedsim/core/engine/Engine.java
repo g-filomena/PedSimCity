@@ -100,7 +100,7 @@ public class Engine {
 
   /**
    * Prepares the simulation environment. Subclasses override to run their module-specific
-   * preparation (e.g. census joins in activity, lighting joins in night).
+   * preparation (data joins on top of the core infrastructure).
    */
   protected void prepareEnvironment() {
     Environment.prepare();

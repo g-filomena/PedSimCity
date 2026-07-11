@@ -32,9 +32,8 @@ import sim.util.geo.MasonGeometry;
  * The Environment class is responsible for preparing the core simulation environment, including
  * junctions, buildings, barriers, and regions.
  *
- * <p>This is the pure-infrastructure base shared by every module. Census- and activity-related
- * preparation lives in {@link pedsim.activity.engine.ActivityEnvironment}; night-specific joins
- * live in the night module's environment.
+ * <p>This is the pure-infrastructure base shared by every module; module environments extend it
+ * with their own data joins.
  */
 public class Environment {
   protected static final java.util.logging.Logger logger =

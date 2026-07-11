@@ -20,8 +20,7 @@ import sim.graph.NodesLookup;
  * populating empirical groups for pedestrian simulation.
  *
  * <p>Core populate provides only the data-agnostic home/work assignment (DMA → uniform-random
- * fallback). Data-driven residence and workplace selection lives in
- * {@link pedsim.activity.engine.ActivityPopulate}, the base for activity-based modules.
+ * fallback). Modules override the assignment seams to draw from their own data.
  */
 public class Populate {
 
@@ -165,7 +164,7 @@ public class Populate {
         return null;
       }
 
-      // In the non-zone workflow, the legacy logic retries with a different home node.
+      // When the home node is not fixed by data, retry with a different home node.
       if (!keepHomeNode) {
         NodeGraph replacementHome = selectHomeNodeWithDMA();
         if (replacementHome != null) {
