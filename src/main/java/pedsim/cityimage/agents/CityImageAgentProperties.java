@@ -7,15 +7,16 @@ import pedsim.core.utilities.StringEnum.LocalHeuristicMode;
 import pedsim.core.utilities.StringEnum.MinimisationMode;
 
 /**
- * The `AgentProperties` class represents the properties and preferences of an agent in the
- * simulation. These properties influence the agent's navigation behaviour and route choices.
+ * Route-choice properties for cityImage test agents: maps a {@link RouteChoice} scenario onto the
+ * core {@link pedsim.core.agents.AgentProperties} configuration (minimisation mode, local
+ * heuristic, landmark/region/barrier elements).
  */
-public class AgentProperties extends pedsim.core.agents.AgentProperties {
+public class CityImageAgentProperties extends pedsim.core.agents.AgentProperties {
 
   // for general routing
   public RouteChoice routeChoice;
 
-  public AgentProperties() {
+  public CityImageAgentProperties() {
     super();
   }
 
@@ -84,56 +85,32 @@ public class AgentProperties extends pedsim.core.agents.AgentProperties {
     if (usingLocal) setLandmarkType(LandmarkType.LOCAL);
   }
 
-  /**
-   * Checks if the given route choice contains a "DISTANCE" component.
-   *
-   * @return True if "DISTANCE" is found in the route choice descriptor, false otherwise.
-   */
+  // ----------------------------------------------------------------
+  // RouteChoice token checks: the RouteChoice enum names are composed of tokens
+  // (DISTANCE, ANGULAR, REGION, BARRIER, LOCAL, DISTANT, LANDMARKS), so each
+  // component is detected by its token in the enum name.
+  // ----------------------------------------------------------------
+
   private boolean containsDistance() {
     return routeChoice.toString().contains("DISTANCE");
   }
 
-  /**
-   * Checks if the given route choice contains an "ANGULAR" component.
-   *
-   * @return True if "ANGULAR" is found in the route choice descriptor, false otherwise.
-   */
   private boolean containsAngular() {
     return routeChoice.toString().contains("ANGULAR");
   }
 
-  /**
-   * Checks if the given route choice contains a "REGION" component.
-   *
-   * @return True if "REGION" is found in the route choice descriptor, false otherwise.
-   */
   private boolean containsRegion() {
     return routeChoice.toString().contains("REGION");
   }
 
-  /**
-   * Checks if the given route choice contains a "BARRIER" component.
-   *
-   * @return True if "BARRIER" is found in the route choice descriptor, false otherwise.
-   */
   public boolean containsBarrier() {
     return routeChoice.toString().contains("BARRIER");
   }
 
-  /**
-   * Checks if the given route choice contains a "LOCAL" component.
-   *
-   * @return True if "LOCAL" is found in the route choice descriptor, false otherwise.
-   */
   private boolean containsLocal() {
     return routeChoice.toString().contains("LOCAL");
   }
 
-  /**
-   * Checks if the given route choice contains a "DISTANT" component.
-   *
-   * @return True if "DISTANT" is found in the route choice descriptor, false otherwise.
-   */
   private boolean containsGlobal() {
     return routeChoice.toString().contains("DISTANT");
   }

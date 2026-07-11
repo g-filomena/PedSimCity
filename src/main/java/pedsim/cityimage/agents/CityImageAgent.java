@@ -24,8 +24,8 @@ public final class CityImageAgent extends OdAgent {
       PedSimCityImage state, RouteChoice routeChoice, List<Pair<NodeGraph, NodeGraph>> odPairs) {
     super(state);
     this.routeChoice = routeChoice;
-    this.agentProperties = new AgentProperties();
-    ((AgentProperties) this.agentProperties).setRouteChoice(routeChoice);
+    this.agentProperties = new CityImageAgentProperties();
+    ((CityImageAgentProperties) this.agentProperties).setRouteChoice(routeChoice);
     this.agentMovement = new AgentMovement(this);
     setOD(odPairs);
   }

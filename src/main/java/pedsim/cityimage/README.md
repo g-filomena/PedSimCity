@@ -49,4 +49,4 @@ mvn -Pcityimage-empirical compile exec:java -Dexec.mainClass=pedsim.cityimage.ap
 
 - Harness for reproducing the route-choice / landmark experiments from the papers; it shares the
   current core engine and agent lifecycle but keeps its own OD/test plumbing.
-- Has its own `utilities/StringEnum` (`RouteChoice`) and `agents/AgentProperties` specialisation.
+- Has its own `utilities/StringEnum` (`RouteChoice`) and `agents/CityImageAgentProperties` specialisation.

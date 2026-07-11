@@ -309,7 +309,7 @@ public class PedSimCityImageApplet extends pedsim.core.applet.PedSimCityApplet
 
     if (headless) {
       LoggerUtil.getLogger().info("[SERVER] Running CityImage headless simulation...");
-      ParameterManager.initFromArgsForServer(args);
+      ParameterManager.initFromArgs(args);
       TestPars.defineMode();
 
       ScenarioConfig scenarioConfig = new ScenarioConfig(RouteChoice.values(), null);

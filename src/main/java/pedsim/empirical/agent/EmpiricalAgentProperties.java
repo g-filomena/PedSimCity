@@ -14,38 +14,29 @@ import pedsim.core.utilities.StringEnum.MinimisationMode;
 import pedsim.core.utilities.StringEnum.RouteChoiceProperty;
 
 /**
- * Agent properties sampled from empirical group-level parameters.
- *
- * This class adapts the legacy empirical-group logic to the current
- * core.AgentProperties API, which is setter/enum based rather than public-field
- * based.
+ * Agent properties sampled from empirical group-level parameters (cluster analysis of route-choice
+ * surveys): each draw of {@link #randomizeRouteChoiceParameters()} samples the group's activation
+ * probabilities and turns them into a concrete route-choice configuration.
  */
 public final class EmpiricalAgentProperties extends AgentProperties {
 
   /*
-   * IMPORTANT: this range intentionally follows the empirical model released in
-   * PedSimCity v1.11, where natural barriers are rescaled as 1.00 -> 0.00.
+   * Barrier cost-factor ranges. The two barrier kinds map the empirical [0, 1] tendency in
+   * OPPOSITE directions:
    *
-   * Natural barriers are not treated like severing obstacles here. A higher
-   * empirical tendency towards natural barriers must produce a lower routing-cost
-   * factor, i.e. a preference / perceived-cost discount.
+   * - Natural barriers (rivers, parks) are attractive: a higher empirical tendency must produce a
+   *   LOWER routing-cost factor (a perceived-cost discount). Hence the inverted range: the
+   *   constants are named for the probability end they correspond to, not by numeric order —
+   *   MIN_NATURAL_BARRIERS = 1.00 is the output at tendency 0.0, MAX_NATURAL_BARRIERS = 0.00 the
+   *   output at tendency 1.0, so the call is
    *
-   * The constant names are legacy semantic names, not numeric ordering: -
-   * MIN_NATURAL_BARRIERS = 1.00 is passed as the output value for the low end of
-   * the empirical probability range. - MAX_NATURAL_BARRIERS = 0.00 is passed as
-   * the output value for the high end of the empirical probability range.
+   *     rescale(0.0, 1.0, MIN_NATURAL_BARRIERS, MAX_NATURAL_BARRIERS, value)   // 0→1.0, 1→0.0
    *
-   * Therefore the correct call is:
+   *   Do not swap the two arguments: that would remove the inversion and change the model
+   *   semantics.
    *
-   * rescale(0.0, 1.0, MIN_NATURAL_BARRIERS, MAX_NATURAL_BARRIERS, value)
-   *
-   * This intentionally maps: 0.0 -> 1.0 1.0 -> 0.0
-   *
-   * Do not reorder these arguments to MAX_NATURAL_BARRIERS, MIN_NATURAL_BARRIERS:
-   * that would remove the inversion and change the empirical model semantics.
-   *
-   * Severing barriers are different: they follow the normal direction, where a
-   * higher empirical tendency means a higher perceived-cost factor.
+   * - Severing barriers (railways, motorways) are repellent: a higher tendency means a HIGHER
+   *   perceived-cost factor, so their range runs the normal way (1.00 → 2.00).
    */
   private static final double MIN_NATURAL_BARRIERS = 1.00;
   private static final double MAX_NATURAL_BARRIERS = 0.00;
@@ -171,8 +162,7 @@ public final class EmpiricalAgentProperties extends AgentProperties {
     distantLandmarksMap.put(RouteChoiceProperty.USING_DISTANT, pDistant);
     distantLandmarksMap.put(RouteChoiceProperty.NOT_USING_DISTANT, 1.0 - pDistant);
 
-    // TODO verify naturalBarrier is correctly inverted as a preference rather than
-    // a cost factor
+    // Natural barriers are inverted into a preference (see the constants block above).
     double naturalBarrierScore =
         rescale(
             0.0,
@@ -258,8 +248,7 @@ public final class EmpiricalAgentProperties extends AgentProperties {
         weightedChoice(distantLandmarksMap, RouteChoiceProperty.NOT_USING_DISTANT);
     setUsingDistantLandmarks(distantChoice == RouteChoiceProperty.USING_DISTANT);
 
-    // Defensive fallback: if the sampled "using elements" branch activated nothing,
-    // force a
+    // Defensive fallback: if the sampled "using elements" branch activated nothing, force a
     // simple local-landmark behaviour rather than leaving an empty element set.
     if (!isRegionBasedNavigation()
         && !isUsingLocalLandmarks()
