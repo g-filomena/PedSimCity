@@ -10,6 +10,7 @@ import pedsim.night.routing.pathfinder.RoadDistancePathFinder;
 import sim.engine.SimState;
 import sim.graph.Graph;
 import sim.graph.NodeGraph;
+import sim.graph.NodesLookup;
 
 /**
  * Pedestrian agent for the night module. Inherits the 24h activity pattern (time-of-day destination
@@ -79,16 +80,17 @@ public class NightAgent extends ActivityAgent {
   }
 
   /**
-   * Plans one trip. Destination is home when heading home, the workplace during the day (before work
-   * is done), otherwise a random reachable node — avoiding parks/water when dark. Routing is
-   * night-aware after dark and plain shortest path during the day (see {@link #planRoute()}).
+   * Plans one trip. Destination is home when heading home, the workplace when the persona's work
+   * rule fires (weekday, inside the start window, daylight), otherwise a random reachable node —
+   * avoiding parks/water when dark. Routing is night-aware after dark and plain shortest path
+   * during the day (see {@link #planRoute()}).
    */
   @Override
   protected void planTrip() {
     defineOrigin();
     if (isGoingHome()) {
       destinationNode = homeNode;
-    } else if (workNode != null && !hasWorkedToday && !state.isDark) {
+    } else if (shouldGoToWork()) {
       destinationNode = workNode;
     } else {
       defineRandomDestination();
@@ -98,8 +100,14 @@ public class NightAgent extends ActivityAgent {
     }
     planRoute();
     tripStartStep = state.schedule.getSteps();
-    agentMovement = new NightAgentMovement(this);
+    agentMovement = createMovement();
     agentMovement.initialisePath(getRoute());
+  }
+
+  /** Every trip — including chained agenda trips — uses the lighting-aware movement handler. */
+  @Override
+  protected pedsim.core.agents.AgentMovement createMovement() {
+    return new NightAgentMovement(this);
   }
 
   /**
@@ -108,7 +116,7 @@ public class NightAgent extends ActivityAgent {
    */
   @Override
   protected void planRoute() {
-    new Heuristics(this).defineHeuristic(originNode, destinationNode, true);
+    new Heuristics(this).defineHeuristic(true);
     RoadDistancePathFinder pathFinder = new RoadDistancePathFinder();
     setRoute(
         state.isDark
@@ -127,9 +135,13 @@ public class NightAgent extends ActivityAgent {
   /**
    * Selects a random destination within a distance band around the origin. When dark, nodes on
    * park/water edges are avoided. Bounded to a fixed number of attempts; if none is found the agent
-   * falls back to any reachable node so it can never stall.
+   * falls back to any reachable node so it can never stall. The trip purpose is resolved first, so
+   * the candidate weighting (via {@code getPOIWeight}) is purpose-aware; habitual-place reuse is
+   * intentionally skipped — the park/water avoidance must stay free to reject any candidate.
    */
-  private void defineRandomDestination() {
+  @Override
+  protected void defineRandomDestination() {
+    ensureCurrentPurpose();
     if (abTestTwin != null
         && abTestTwin.destinationNode != null
         && abTestTwin.destinationNode != abTestTwin.homeNode) {
@@ -142,7 +154,7 @@ public class NightAgent extends ActivityAgent {
 
     for (int attempt = 0; destinationNode == null && attempt < 100; attempt++) {
       List<NodeGraph> candidates =
-          getNodesBetweenDistanceIntervalOptimized(agentNetwork, originNode, lowerLimit, upperLimit);
+          NodesLookup.getNodesBetweenDistanceInterval(agentNetwork, originNode, lowerLimit, upperLimit);
       if (candidates.isEmpty()) {
         lowerLimit *= 0.90;
         upperLimit *= 1.10;

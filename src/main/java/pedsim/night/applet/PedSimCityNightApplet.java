@@ -100,7 +100,7 @@ public class PedSimCityNightApplet extends PedSimCityApplet {
     } else {
       LoggerUtil.getLogger().info("[STARTUP] Launching Standard GUI...");
 
-      // REST server starts for state observation only; no setOnStart registered
+      // REST server starts for state observation only; no runnable module registered
       // so /api/start returns 503. Simulations are triggered via the GUI button.
       SimulationRestApi.start(8081);
 
