@@ -162,8 +162,10 @@ public class PedSimCity extends SimState {
     for (Agent agent : agentsList) {
       Stoppable stop = schedule.scheduleRepeating(agent);
       agent.setStoppable(stop);
-      schedule.scheduleRepeating(agents.scheduleSpatialIndexUpdater(), Integer.MAX_VALUE, 1.0);
     }
+    // A single end-of-step index refresh covers the whole layer; scheduling it per agent would
+    // rebuild the quadtree N times every step.
+    schedule.scheduleRepeating(agents.scheduleSpatialIndexUpdater(), Integer.MAX_VALUE, 1.0);
     agents.setMBR(MBR);
   }
 
@@ -186,13 +188,16 @@ public class PedSimCity extends SimState {
    * Clears all static data structures to allow for a clean simulation restart.
    */
   public static void clearStaticData() {
-    roads.getGeometries().clear();
-    buildings.getGeometries().clear();
-    barriers.getGeometries().clear();
-    junctions.getGeometries().clear();
-    sightLines.getGeometries().clear();
-    intersectionsDual.getGeometries().clear();
-    centroids.getGeometries().clear();
+    // Clear the layers themselves: getGeometries() returns a defensive copy, so clearing that
+    // copy left the layers' contents (and spatial indexes) intact and every re-run re-imported
+    // the same features on top of the old ones.
+    roads.clear();
+    buildings.clear();
+    barriers.clear();
+    junctions.clear();
+    sightLines.clear();
+    intersectionsDual.clear();
+    centroids.clear();
 
     network = new Graph();
     dualNetwork = new Graph();

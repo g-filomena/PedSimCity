@@ -19,8 +19,8 @@ import sim.graph.NodesLookup;
  * The Populate class is responsible for generating test agents, building the OD matrix, and
  * populating empirical groups for pedestrian simulation.
  *
- * <p>Core populate provides only the census-agnostic home/work assignment (DMA → uniform-random
- * fallback). Census-zone-based residence and workplace selection lives in
+ * <p>Core populate provides only the data-agnostic home/work assignment (DMA → uniform-random
+ * fallback). Data-driven residence and workplace selection lives in
  * {@link pedsim.activity.engine.ActivityPopulate}, the base for activity-based modules.
  */
 public class Populate {
@@ -58,7 +58,7 @@ public class Populate {
       // Update agent position to its homeNode before adding to the layer
       if (agent.homeNode != null) {
         agent.currentLocation.geometry =
-            new GeometryFactory().createPoint(agent.homeNode.getCoordinate());
+            GEOMETRY_FACTORY.createPoint(agent.homeNode.getCoordinate());
       }
 
       state.agents.addGeometry(agent.getLocation());
@@ -98,17 +98,17 @@ public class Populate {
 
   /**
    * Assigns a home node. Core: DMA selection where available, otherwise uniform random.
-   * Census-based modules override this to draw from residence-weighted census zones first.
+   * Data-driven modules override this to draw from residence-weighted zones first.
    */
   protected void assignHomeNode() {
     if (homeNode == null) homeNode = selectHomeNodeWithDMA();
-    // When no DMA/census data is available, distribute uniformly across all network nodes.
+    // When no DMA data is available, distribute uniformly across all network nodes.
     if (homeNode == null) homeNode = selectRandomNode();
   }
 
   /**
    * Assigns a work node. Core: DMA selection, then distance-interval fallback, then uniform random.
-   * Census-based modules override this to draw from workplace-weighted census zones first.
+   * Data-driven modules override this to draw from workplace-weighted nodes first.
    */
   protected void assignWorkNode() {
     if (homeNode == null) return;

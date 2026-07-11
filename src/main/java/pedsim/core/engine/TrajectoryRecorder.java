@@ -26,9 +26,11 @@ public class TrajectoryRecorder {
   /**
    * How often (in simulation steps) a snapshot is taken.
    * Increase this value to reduce HTML file size for long runs.
-   * Default: every step. Adjust via {@link #setSnapshotInterval(int)}.
+   * Default: every 5 steps — snapshotting every step allocates one double[] per walking agent
+   * per step and grows an unbounded list, for playback detail the dashboard cannot show anyway.
+   * Adjust via {@link #setSnapshotInterval(int)}.
    */
-  private int snapshotInterval = 1;
+  private int snapshotInterval = 5;
 
   /** The simulation state, used to read the walking agent set. */
   private final PedSimCity state;

@@ -25,8 +25,9 @@ public class Pars {
   // Euclidean Distance between Origin and Destination
   public static double homeWorkRadius = 600;
 
-  // One step == 20 minutes (STEP_DURATION = 1200s), average pedestrian speed 1.42 m/s
-  // --> moveRate = 1200 * 1.42 = 1704 metres per step (distance walked in one step)
+  // Average pedestrian speed 1.42 m/s; moveRate (metres walked per step) is derived from
+  // TimePars.STEP_DURATION in setSimulationParameters(), so changing the step size rescales
+  // movement automatically (e.g. 300 s steps --> 426 m per step).
 
   protected static double pedestrianSpeed = 1.42;
   public static double SPEED_INCREMENT_FACTOR = 0.20;
@@ -61,8 +62,8 @@ public class Pars {
 
   /**
    * Recomputes the sampled agent count (and derived daily distance) from {@code population *
-   * percentagePopulationAgent}. Call after changing {@code population} at runtime — e.g. when the
-   * activity module derives it from the census resident total.
+   * percentagePopulationAgent}. Call after changing {@code population} at runtime — e.g. when a
+   * module derives it from its own city data.
    */
   public static void recomputeAgentCount() {
     numAgents = (int) (population * percentagePopulationAgent);
