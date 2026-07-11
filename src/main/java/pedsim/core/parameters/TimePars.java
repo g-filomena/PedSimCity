@@ -1,13 +1,23 @@
 package pedsim.core.parameters;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 public class TimePars {
 
-  // in seconds. One step = 20 minutes,
-  public static double STEP_DURATION = 1200; // seconds
+  // in seconds. One step = 5 minutes (finer than the historical 20 so that trips span several
+  // steps and intra-hour flow dynamics are resolved; moveRate is derived from this in Pars).
+  public static double STEP_DURATION = 300; // seconds
   public static int releaseAgentsEveryMinutes = 20;
+
+  /**
+   * Calendar date of simulation step 0 (00:00). Gives the simulation real dates so that day-of-week
+   * (weekday/weekend release curves, persona work days) and day-of-year (seasonal daylight) are
+   * defined. Default: a Monday in early June.
+   */
+  public static LocalDate SIMULATION_START_DATE = LocalDate.of(2026, 6, 1);
   public static double MINUTE_TO_STEPS;
   public static double releaseAgentsEverySteps;
   // public static static double hoursInSteps = 60 * minuteInSteps;
@@ -35,6 +45,24 @@ public class TimePars {
   public static double nightRightSpread = 1.50; //
 
   public static double backgroundVolume = 0.20; // Base volume uniformly spread over 24 hours
+
+  // Weekend release curve: no commute peak, later and flatter morning, larger night share.
+  // Each set sums to ~1.0 like the weekday one.
+  public static double weekendMorningPeakVolume = 0.10;
+  public static double weekendMorningPeakTime = 10.50;
+  public static double weekendMorningPeakSpread = 1.60;
+  public static double weekendLunchPeakVolume = 0.12;
+  public static double weekendLunchPeakTime = 13.50;
+  public static double weekendEveningPeakVolume = 0.28;
+  public static double weekendEveningPeakTime = 16.50;
+  public static double weekendEveningPeakSpread = 2.00;
+  public static double weekendNightPeakVolume = 0.18;
+  public static double weekendNightPeakTime = 21.50;
+  public static double weekendBackgroundVolume = 0.32;
+
+  // Friday keeps the weekday commute shape but shifts volume into the night (going out).
+  public static double fridayNightPeakVolume = 0.15;
+  public static double fridayBackgroundVolume = 0.15;
 
   // Day/night boundary — the single source of truth, used for the isDark behaviour flag, the
   // day/night volume aggregation in the exporter, and the dashboard. Night is
@@ -80,30 +108,66 @@ public class TimePars {
         + splitGaussian(x + 24, mean, leftStdDev, rightStdDev);
   }
 
+  /**
+   * Share of the daily walking budget released at this step, following a day-of-week-specific
+   * diurnal curve: the weekday curve has the commute peaks, Friday shifts volume into the night,
+   * and the weekend has no morning commute, a later flatter morning, and a larger night share.
+   */
   public static double computeTimeStepShare(LocalDateTime currentTime) {
     LocalTime localTime = currentTime.toLocalTime();
     double timeInHours =
         localTime.getHour() + localTime.getMinute() / 60.0 + localTime.getSecond() / 3600.0;
     double stepHours = STEP_DURATION / 3600.0;
 
-    double share = 0.0;
-    share +=
-        morningPeakVolume
-            * wrappedSplitGaussian(
-                timeInHours, morningPeakTime, morningPeakSpread, morningPeakSpread);
-    share +=
-        eveningPeakVolume
-            * wrappedSplitGaussian(
-                timeInHours, eveningPeakTime, eveningPeakSpread, eveningPeakSpread);
-    share +=
-        lunchPeakVolume
-            * wrappedSplitGaussian(timeInHours, lunchPeakTime, lunchPeakSpread, lunchPeakSpread);
-    share +=
-        nightPeakVolume
-            * wrappedSplitGaussian(timeInHours, nightPeakTime, nightLeftSpread, nightRightSpread);
+    DayOfWeek day = currentTime.getDayOfWeek();
+    boolean weekend = day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY;
+    boolean friday = day == DayOfWeek.FRIDAY;
 
-    // Add background noise across all steps evenly
-    share += backgroundVolume / 24.0;
+    double share = 0.0;
+    if (weekend) {
+      share +=
+          weekendMorningPeakVolume
+              * wrappedSplitGaussian(
+                  timeInHours,
+                  weekendMorningPeakTime,
+                  weekendMorningPeakSpread,
+                  weekendMorningPeakSpread);
+      share +=
+          weekendEveningPeakVolume
+              * wrappedSplitGaussian(
+                  timeInHours,
+                  weekendEveningPeakTime,
+                  weekendEveningPeakSpread,
+                  weekendEveningPeakSpread);
+      share +=
+          weekendLunchPeakVolume
+              * wrappedSplitGaussian(
+                  timeInHours, weekendLunchPeakTime, lunchPeakSpread, lunchPeakSpread);
+      share +=
+          weekendNightPeakVolume
+              * wrappedSplitGaussian(
+                  timeInHours, weekendNightPeakTime, nightLeftSpread, nightRightSpread);
+      share += weekendBackgroundVolume / 24.0;
+    } else {
+      double effectiveNightVolume = friday ? fridayNightPeakVolume : nightPeakVolume;
+      double effectiveBackground = friday ? fridayBackgroundVolume : backgroundVolume;
+      share +=
+          morningPeakVolume
+              * wrappedSplitGaussian(
+                  timeInHours, morningPeakTime, morningPeakSpread, morningPeakSpread);
+      share +=
+          eveningPeakVolume
+              * wrappedSplitGaussian(
+                  timeInHours, eveningPeakTime, eveningPeakSpread, eveningPeakSpread);
+      share +=
+          lunchPeakVolume
+              * wrappedSplitGaussian(timeInHours, lunchPeakTime, lunchPeakSpread, lunchPeakSpread);
+      share +=
+          effectiveNightVolume
+              * wrappedSplitGaussian(
+                  timeInHours, nightPeakTime, nightLeftSpread, nightRightSpread);
+      share += effectiveBackground / 24.0;
+    }
 
     // Multiply probability density by the step duration to get the area/share for
     // this step
@@ -121,10 +185,18 @@ public class TimePars {
     long hours = remainingMinutes / 60; // Convert remaining minutes to hours
     long minutes = remainingMinutes % 60; // Calculate remaining minutes
 
-    // Return date and time starting from day 0 at 00:00
-    return LocalDateTime.of(1970, 1, 1, 0, 0)
+    // Date and time anchored at the configured start date (step 0 = start date, 00:00), so
+    // day-of-week and day-of-year are meaningful.
+    return SIMULATION_START_DATE
+        .atStartOfDay()
         .plusDays(totalDays)
         .plusHours(hours)
         .plusMinutes(minutes);
+  }
+
+  /** Whether the given simulation time falls on a Saturday or Sunday. */
+  public static boolean isWeekend(LocalDateTime time) {
+    DayOfWeek day = time.getDayOfWeek();
+    return day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY;
   }
 }

@@ -233,9 +233,10 @@ public final class SimulationRestApi {
               }
             });
 
-        // --- GET /api/census?city=X — whether the city's census carries P1 resident totals ---
+        // --- GET /api/population?city=X — whether the module derives the population from city
+        // data (e.g. the activity module's census resident totals) ---
         server.createContext(
-            "/api/census",
+            "/api/population",
             exchange -> {
               try {
                 if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
@@ -243,7 +244,7 @@ public final class SimulationRestApi {
                   return;
                 }
                 String city = queryParam(exchange.getRequestURI().getQuery(), "city");
-                byte[] body = censusPopulationJson(city).getBytes(StandardCharsets.UTF_8);
+                byte[] body = populationJson(city).getBytes(StandardCharsets.UTF_8);
                 exchange.getResponseHeaders().add("Content-Type", "application/json");
                 exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
                 exchange.sendResponseHeaders(200, body.length);
@@ -513,18 +514,18 @@ public final class SimulationRestApi {
   }
 
   /**
-   * Reports whether the given city's enriched census layer carries absolute resident counts (the
-   * {@code residents} / P1 column) and, if so, their total. Read directly from the classpath
-   * resource so the dashboard can decide, before a run starts, whether to disable its population
-   * field (population is then census-driven).
+   * Reports whether the active module derives an absolute population for the given city from its
+   * own data (via {@code SimulationModule.populationForCity}; e.g. the activity module reads census
+   * resident totals) and, if so, that total — so the dashboard can decide, before a run starts,
+   * whether to disable its population field.
    */
-  private static String censusPopulationJson(String city) {
+  private static String populationJson(String city) {
     long total = 0;
     synchronized (SimulationRestApi.class) {
       if (!modules.isEmpty()) {
         total = modules.values().iterator().next().populationForCity(city);
       }
     }
-    return "{\"hasCensusPopulation\":" + (total > 0) + ",\"population\":" + total + "}";
+    return "{\"populationFromData\":" + (total > 0) + ",\"population\":" + total + "}";
   }
 }

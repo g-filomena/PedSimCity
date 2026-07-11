@@ -81,8 +81,8 @@ public class PedSimCityApplet extends Frame {
     add(percentageLabel);
     add(percentageTextField);
 
-    // Lock the population field for cities whose census carries P1 resident totals — population is
-    // then derived from the census (see ActivityEnvironment). Updated on city change and on display.
+    // Lock the population field when the module derives the city's population from its own data
+    // (via SimulationModule.populationForCity). Updated on city change and on display.
     cityName.addItemListener(e -> updatePopulationFieldForCity());
 
     Label nrJobsLabel = new Label("Jobs:");
@@ -311,17 +311,17 @@ public class PedSimCityApplet extends Frame {
   }
 
   /**
-   * The simulation module backing this applet. The core applet is non-census; activity-based applets
-   * override this so the population field reflects the census.
+   * The simulation module backing this applet. Modules that derive the population from city data
+   * override this so the population field reflects that figure.
    */
   protected SimulationModule module() {
     return CoreSimulationModule.INSTANCE;
   }
 
   /**
-   * Disables and fills the population field when the selected city's census carries an absolute
-   * resident total (population is then census-driven, mirroring the dashboard); re-enables it
-   * otherwise so cities without census counts keep a user-set population.
+   * Disables and fills the population field when the module derives an absolute population for the
+   * selected city from its own data (mirroring the dashboard); re-enables it otherwise so the
+   * user-set population applies.
    */
   private void updatePopulationFieldForCity() {
     long total = module().populationForCity(cityName.getSelectedItem());

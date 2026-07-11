@@ -68,7 +68,9 @@ public class AgentReleaseManager implements AutoCloseable {
     currentTime = TimePars.getTime(steps);
 
     if (pedsim.night.parameters.NightPars.enableLightABTesting && dayNumber == 1) {
-      int pairIndex = (int) steps - 1;
+      // One pair per release event (independent of step size: releases fire every
+      // releaseAgentsEverySteps steps, which was 1 step at the historical 20-minute step).
+      int pairIndex = (int) Math.round(steps / TimePars.releaseAgentsEverySteps) - 1;
       if (pairIndex >= 0 && pairIndex < 72) {
         pedsim.night.agents.NightAgent vulnAgent = null;
         pedsim.night.agents.NightAgent normalAgent = null;
