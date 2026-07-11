@@ -27,10 +27,12 @@ public class CityImageImport extends pedsim.core.engine.Import {
 
     if (TestPars.testingLandmarks) {
       importDistances();
-      readLandmarksAndSightLines();
+      readBuildings();
+      readSightLines();
     } else if (TestPars.testingSubdivisions) readBarriers();
     else if (TestPars.testingModels) {
-      readLandmarksAndSightLines();
+      readBuildings();
+      readSightLines();
       readBarriers();
     }
     // Read the street network shapefiles and create the primal and the dual graph
