@@ -1,12 +1,12 @@
-"""Quick post-hoc summary of trip_diagnostic.csv (written by the Java sim to the repo root)."""
+"""Quick post-hoc summary of trip_diagnostic.csv (written by the Java sim to outputs/)."""
 
 import csv
 from collections import Counter
 from pathlib import Path
 
 # Repo root is two levels up (analysis/ -> repo root). The Java engine writes trip_diagnostic.csv
-# into its working directory, i.e. the repo root.
-csv_path = Path(__file__).resolve().parent.parent / "trip_diagnostic.csv"
+# into the outputs/ directory (see TripDiagnostic.outputsPath).
+csv_path = Path(__file__).resolve().parent.parent / "outputs" / "trip_diagnostic.csv"
 
 rows = []
 with open(csv_path) as f:

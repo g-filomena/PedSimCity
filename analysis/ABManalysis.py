@@ -100,21 +100,30 @@ def merge_line_geometries(line_geometries):
 
 def get_edgesID(row, columns):
     """
-    The ABM stores the sequence of edgeIDs traversed in each route in different columns, given the 254 characters limit per field.
-    This functions merges such lists in one List.
-     
+    Returns the sequence of edgeIDs traversed in a route as a List.
+
+    GeoPackage route exports store the full sequence in a single 'edgeIDs' column (GeoPackage TEXT
+    columns have no length limit). Older ESRI-shapefile exports split it across edgeIDs_0, edgeIDs_1,
+    ... columns because of the 254-character DBF field limit; those are reconstructed here so this
+    function keeps reading both formats.
+
     Parameters
     ----------
     row: Pandas Series
         A row of the GeoDataFrame containing the routes
     columns: List of String
         A routes GeoDataFrame's columns
-        
+
     Returns
     -------
     List of Integer
     """
-    
+
+    # New single-column format (GeoPackage).
+    if 'edgeIDs' in columns and row['edgeIDs'] is not None:
+        return ast.literal_eval(row['edgeIDs'])
+
+    # Legacy split-column format (shapefile 254-char field limit).
     edgeID_string = row['edgeIDs_0']
     counter = 1
     while True:
