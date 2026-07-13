@@ -1,11 +1,13 @@
 @echo off
 setlocal EnableExtensions
 
-REM PedSimCity census-only launcher.
+REM PedSimCity census-only launcher — ISTAT adapter (Italian cities).
+REM Runs pipeline\01_census_istat.py: raw ISTAT census sections in (from
+REM inputData\<City> or the resources folder), the country-neutral enriched census
+REM layer out to src\main\resources\<City>. Other countries need their own adapter
+REM script producing the same output schema (e.g. a future UK one).
 REM No py.exe. No user-specific hardcoded paths. Uses Conda + environment.yml.
-REM Prompts separately for:
-REM   1) resources folder name under src\main\resources
-REM   2) city file prefix before _censusData_raw.gpkg, _edges.gpkg, etc.
+REM Prompts for the city name.
 
 set "ROOT=%~dp0"
 set "ENV_NAME=pedsimcity"
@@ -49,40 +51,16 @@ if errorlevel 1 (
     exit /b 1
 )
 
-set /p FOLDER_NAME=Enter resources folder name ^(under src\main\resources^): 
-if "%FOLDER_NAME%"=="" (
-    echo No folder name entered. Exiting.
-    pause
-    exit /b 1
-)
-
-set /p CITY_NAME=Enter city file prefix ^(before _censusData_raw.gpkg / _edges.gpkg, e.g. Torino^): 
+set /p CITY_NAME=Enter city name ^(e.g. Torino^):
 if "%CITY_NAME%"=="" (
-    echo No city file prefix entered. Exiting.
+    echo No city name entered. Exiting.
     pause
     exit /b 1
 )
 
-set "INPUT_DIR=%ROOT%src\main\resources\%FOLDER_NAME%"
+echo Building census data for: "%CITY_NAME%"
 
-if not exist "%INPUT_DIR%" (
-    echo Input directory not found:
-    echo "%INPUT_DIR%"
-    pause
-    exit /b 1
-)
-
-if not exist "%INPUT_DIR%\%CITY_NAME%_censusData_raw.gpkg" (
-    echo Expected census file not found:
-    echo "%INPUT_DIR%\%CITY_NAME%_censusData_raw.gpkg"
-    pause
-    exit /b 1
-)
-
-echo Building census data in folder: "%INPUT_DIR%"
-echo Using city file prefix: "%CITY_NAME%"
-
-"%CONDA_EXE%" run --no-capture-output -n "%ENV_NAME%" python "%ROOT%pipeline\01_census_and_poi.py" --input_dir "%INPUT_DIR%" --city_name "%CITY_NAME%"
+"%CONDA_EXE%" run --no-capture-output -n "%ENV_NAME%" python "%ROOT%pipeline\01_census_istat.py" --city "%CITY_NAME%"
 set "EXITCODE=%ERRORLEVEL%"
 pause
 exit /b %EXITCODE%

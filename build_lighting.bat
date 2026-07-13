@@ -1,11 +1,13 @@
 @echo off
 setlocal EnableExtensions
 
-REM PedSimCity street-lighting launcher - generic bare lamp-point locations.
+REM PedSimCity street-lighting launcher.
+REM Reads the lamp inventory (<City>_streetlights.gpkg or <City>_puntiLuce.gpkg) from
+REM inputData\<City> (or the resources folder); per-lamp technical attributes are used
+REM when present, assumed defaults otherwise. Sim-read outputs land in
+REM src\main\resources\<City>.
 REM No py.exe. No user-specific hardcoded paths. Uses Conda + environment.yml.
-REM Prompts separately for:
-REM   1) resources folder name under src\main\resources
-REM   2) city file prefix before _edges.gpkg, _streetlights.gpkg, etc.
+REM Prompts for the city name.
 
 set "ROOT=%~dp0"
 set "ENV_NAME=pedsimcity"
@@ -49,47 +51,16 @@ if errorlevel 1 (
     exit /b 1
 )
 
-set /p FOLDER_NAME=Enter resources folder name ^(under src\main\resources^): 
-if "%FOLDER_NAME%"=="" (
-    echo No folder name entered. Exiting.
-    pause
-    exit /b 1
-)
-
-set /p CITY_NAME=Enter city file prefix ^(before _edges.gpkg / _streetlights.gpkg, e.g. Torino^): 
+set /p CITY_NAME=Enter city name ^(e.g. Torino^):
 if "%CITY_NAME%"=="" (
-    echo No city file prefix entered. Exiting.
+    echo No city name entered. Exiting.
     pause
     exit /b 1
 )
 
-set "INPUT_DIR=%ROOT%src\main\resources\%FOLDER_NAME%"
+echo Building street lighting for: "%CITY_NAME%"
 
-if not exist "%INPUT_DIR%" (
-    echo Input directory not found:
-    echo "%INPUT_DIR%"
-    pause
-    exit /b 1
-)
-
-if not exist "%INPUT_DIR%\%CITY_NAME%_streetlights.gpkg" (
-    echo Expected generic streetlights file not found:
-    echo "%INPUT_DIR%\%CITY_NAME%_streetlights.gpkg"
-    pause
-    exit /b 1
-)
-
-if not exist "%INPUT_DIR%\%CITY_NAME%_edges.gpkg" (
-    echo Expected edges file not found:
-    echo "%INPUT_DIR%\%CITY_NAME%_edges.gpkg"
-    pause
-    exit /b 1
-)
-
-echo Building street lighting ^(generic^) in folder: "%INPUT_DIR%"
-echo Using city file prefix: "%CITY_NAME%"
-
-"%CONDA_EXE%" run --no-capture-output -n "%ENV_NAME%" python "%ROOT%pipeline\build_lighting.py" --input_dir "%INPUT_DIR%" --city_name "%CITY_NAME%"
+"%CONDA_EXE%" run --no-capture-output -n "%ENV_NAME%" python "%ROOT%pipeline\build_lighting.py" --city "%CITY_NAME%"
 set "EXITCODE=%ERRORLEVEL%"
 pause
 exit /b %EXITCODE%
