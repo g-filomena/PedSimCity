@@ -24,6 +24,14 @@ neighbourhoods spawn more retirees); they are emitted only when the raw census c
 the ISTAT age bands (P14-P29) and the Java side falls back to global persona shares
 without them.
 
+The raw layer keeps the **original ISTAT field names** (``P*``, ``SEZ21_ID``,
+``COD_TIPO_S`` …). The ISTAT-to-friendly translation lives in the sidecar workbook
+``<City>_census_metaData.xlsx`` (both sheets carry an ``EnglishFieldName`` column): this
+adapter reads the raw by its ISTAT names and applies that mapping so the *final product*
+carries friendly names only — no ISTAT codes leak into the enriched census the Java side
+loads. The workbook is optional; a built-in fallback covers the identifier columns this
+step depends on.
+
 The raw census is read from `inputData/<City>/` (or the resources folder) and the
 enriched output is written to `src/main/resources/<City>/`; the raw file is left
 untouched, so this step is safe to re-run.
@@ -65,6 +73,49 @@ ISTAT_VULNERABLE_COLS = ["P3", "P30", "P31", "P32", "P43", "P44", "P45"]
 ISTAT_UNDER15_COLS = ["P14", "P15", "P16"]   # 0-4, 5-9, 10-14
 ISTAT_STUDENT_AGE_COLS = ["P17", "P18"]      # 15-19, 20-24
 ISTAT_RETIREE_AGE_COLS = ["P27", "P28", "P29"]  # 65-69, 70-74, 75+
+
+# Passthrough identifier columns copied into the enriched output. The keys are the ISTAT
+# field names in the raw layer; the values are the friendly names the final product uses.
+# This is the built-in fallback used when the metadata workbook is absent — the workbook,
+# when present, is authoritative and may extend it (see load_field_renames).
+FALLBACK_RENAMES = {
+    "SEZ21_ID": "censusZoneID",
+    "COD_TIPO_S": "censusZoneTypeID",
+    "TIPO_LOC": "areaType",
+    "LOC21_ID": "areaID",
+}
+
+
+def load_field_renames(city: str) -> dict[str, str]:
+    """ISTAT field name -> friendly name, read from ``<City>_census_metaData.xlsx``.
+
+    In both metadata sheets the first column is the ISTAT field name and the
+    ``EnglishFieldName`` column is the friendly name the model uses; identity entries
+    (unchanged name) are dropped. Falls back to :data:`FALLBACK_RENAMES` when the workbook
+    is missing, so the step still runs on a bare checkout. The identifier columns this step
+    depends on are always guaranteed present.
+    """
+    meta = paths.find_input(city, "census_metaData.xlsx")
+    if meta is None:
+        print("no census metadata workbook: using built-in ISTAT->friendly identifier renames")
+        return dict(FALLBACK_RENAMES)
+
+    renames: dict[str, str] = {}
+    for _, df in pd.read_excel(meta, sheet_name=None, engine="openpyxl").items():
+        if df.empty or "EnglishFieldName" not in df.columns:
+            continue
+        istat_col = df.columns[0]  # italianFieldName / NOME CAMPO
+        for _, row in df.iterrows():
+            src = str(row[istat_col]).strip()
+            dst = str(row["EnglishFieldName"]).strip()
+            if not src or not dst or src.lower() == "nan" or dst.lower() == "nan":
+                continue
+            if src != dst:
+                renames[src] = dst
+    for src, dst in FALLBACK_RENAMES.items():
+        renames.setdefault(src, dst)
+    print(f"census metadata loaded ({meta.name}): {len(renames)} ISTAT->friendly field renames")
+    return renames
 
 
 def main() -> None:
@@ -151,6 +202,17 @@ def main() -> None:
 
     n_res = int((gdf["residence_pct"] > 0).sum())
     print(f"{len(gdf)} zones | residents={int(total)} | residential zones={n_res}")
+
+    # Translate the raw ISTAT field names to the friendly names the final product exposes,
+    # using the metadata workbook (built-in fallback for the identifier columns otherwise).
+    # Derived columns above were computed from the ISTAT P* names, which the mapping leaves
+    # untouched; only passthrough identifiers (SEZ21_ID, COD_TIPO_S, …) are renamed here.
+    renames = load_field_renames(city)
+    active = {src: dst for src, dst in renames.items() if src in gdf.columns}
+    gdf = gdf.rename(columns=active)
+    if active:
+        print("ISTAT->friendly renames applied: "
+              + ", ".join(f"{s}->{d}" for s, d in sorted(active.items())))
 
     keep = [
         "censusZoneID",
