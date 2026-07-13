@@ -46,15 +46,15 @@ public class Environment {
   public static void prepare() {
 
     prepareGraph();
-    if (!PedSimCity.buildings.getGeometries().isEmpty()) {
+    if (!PedSimCity.buildings.isEmpty()) {
       prepareBuildings();
     }
-    if (!PedSimCity.barriers.getGeometries().isEmpty()) {
+    if (!PedSimCity.barriers.isEmpty()) {
       identifyGateways();
     }
     prepareDualGraph();
 
-    if (!PedSimCity.barriers.getGeometries().isEmpty()) {
+    if (!PedSimCity.barriers.isEmpty()) {
       integrateBarriers();
       prepareRegions();
     }

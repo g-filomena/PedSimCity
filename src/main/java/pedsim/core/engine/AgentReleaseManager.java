@@ -67,51 +67,22 @@ public class AgentReleaseManager implements AutoCloseable {
 
     currentTime = TimePars.getTime(steps);
 
-    if (pedsim.night.parameters.NightPars.enableLightABTesting && dayNumber == 1) {
-      // One pair per release event (independent of step size: releases fire every
-      // releaseAgentsEverySteps steps, which was 1 step at the historical 20-minute step).
-      int pairIndex = (int) Math.round(steps / TimePars.releaseAgentsEverySteps) - 1;
-      if (pairIndex >= 0 && pairIndex < 72) {
-        pedsim.night.agents.NightAgent vulnAgent = null;
-        pedsim.night.agents.NightAgent normalAgent = null;
-
-        for (Agent a : state.agentsList) {
-          if (a instanceof pedsim.night.agents.NightAgent) {
-            pedsim.night.agents.NightAgent na = (pedsim.night.agents.NightAgent) a;
-            if (na.agentID == pairIndex * 2) {
-              vulnAgent = na;
-            } else if (na.agentID == pairIndex * 2 + 1) {
-              normalAgent = na;
-            }
-          }
-        }
-
-        if (vulnAgent != null && normalAgent != null) {
-          vulnAgent.setDistanceNextDestination(RouteChoicePars.avgTripDistance);
-          normalAgent.setDistanceNextDestination(RouteChoicePars.avgTripDistance);
-
-          vulnAgent.startWalkingAlone();
-          normalAgent.startWalkingAlone();
-
-          logger.fine(
-              "A/B Testing: Released pair "
-                  + pairIndex
-                  + " (Agent "
-                  + vulnAgent.agentID
-                  + " & "
-                  + normalAgent.agentID
-                  + ") at step "
-                  + steps);
-
-          logRelease(
-              steps, RouteChoicePars.avgTripDistance * 2, RouteChoicePars.avgTripDistance * 2, 2);
-        }
+    // Module hook: a module may take over this release event entirely (e.g. paired releases for
+    // an A/B experiment); the standard meters-based release is then skipped.
+    int overrideReleased = state.releaseAgentsOverride(steps, dayNumber);
+    if (overrideReleased >= 0) {
+      if (overrideReleased > 0) {
+        double meters = RouteChoicePars.avgTripDistance * overrideReleased;
+        logRelease(steps, meters, meters, overrideReleased);
       }
       return;
     }
 
     metersWalkedSoFarToday = computeMetersWalkedSoFar();
-    double metersToAllocate = metersToWalkCurrentDay * TimePars.computeTimeStepShare(currentTime);
+    double metersToAllocate =
+        metersToWalkCurrentDay
+            * TimePars.computeTimeStepShare(currentTime)
+            * state.releaseBudgetMultiplier(currentTime);
 
     int agentsReleased = 0;
     if (metersToAllocate > 0) {
@@ -200,24 +171,38 @@ public class AgentReleaseManager implements AutoCloseable {
   private void allocateMetersAcrossAgents(Set<Agent> agentSet) {
 
     agentSet.parallelStream()
-        .forEach(
-            agent -> {
-              double variabilityFactor = Utilities.fromDistribution(1.00, 0.30, null);
-              double metersToWalk = RouteChoicePars.avgTripDistance * variabilityFactor;
-
-              if (metersToWalk < RouteChoicePars.minTripDistance) {
-                metersToWalk = RouteChoicePars.minTripDistance;
-              } else if (metersToWalk > RouteChoicePars.maxTripDistance) {
-                metersToWalk = RouteChoicePars.maxTripDistance;
-              }
-
-              agent.setDistanceNextDestination(metersToWalk);
-            });
+        .forEach(agent -> agent.setDistanceNextDestination(sampleTripMeters()));
   }
 
   /**
-   * Selects a specified number of agents randomly, with a weighted probability
-   * towards agents that have walked less distance.
+   * Draws a trip distance around the average, clamped to the allowed interval. Draws rejected by
+   * the module's {@link PedSimCity#acceptTripDistance} filter (e.g. a walk-share filter) are
+   * resampled a bounded number of times; the last draw stands if the filter keeps rejecting.
+   */
+  private double sampleTripMeters() {
+    double metersToWalk = RouteChoicePars.avgTripDistance;
+    for (int attempt = 0; attempt < 20; attempt++) {
+      double variabilityFactor = Utilities.fromDistribution(1.00, 0.30, null);
+      metersToWalk = RouteChoicePars.avgTripDistance * variabilityFactor;
+
+      if (metersToWalk < RouteChoicePars.minTripDistance) {
+        metersToWalk = RouteChoicePars.minTripDistance;
+      } else if (metersToWalk > RouteChoicePars.maxTripDistance) {
+        metersToWalk = RouteChoicePars.maxTripDistance;
+      }
+
+      if (state.acceptTripDistance(metersToWalk)) {
+        return metersToWalk;
+      }
+    }
+    return metersToWalk;
+  }
+
+  /**
+   * Selects a specified number of agents randomly, with a weighted probability towards agents that
+   * have walked less distance, each pick additionally gated by the module's
+   * {@link PedSimCity#releaseCandidateWeight} (e.g. persona × hour affinity). When the gate starves
+   * the selection, the remainder is filled ignoring it so the release budget is still honoured.
    *
    * @param homeAgents the set of home agents to select from.
    * @param nrAgents   the number of agents to select.
@@ -232,8 +217,23 @@ public class AgentReleaseManager implements AutoCloseable {
     List<Agent> agents = new ArrayList<>(homeAgents);
     agents.sort(Comparator.comparingDouble(Agent::getTotalMetersWalked));
 
+    int hour = currentTime != null ? currentTime.getHour() : 0;
+    int target = Math.min(nrAgents, agents.size());
     Set<Agent> selectedAgents = new HashSet<>();
-    while (selectedAgents.size() < Math.min(nrAgents, agents.size())) {
+
+    int attempts = 0;
+    int maxAttempts = Math.max(100, agents.size() * 20);
+    while (selectedAgents.size() < target && attempts < maxAttempts) {
+      attempts++;
+      int weightedIndex = (int) (Math.pow(random.nextDouble(), 1.5) * agents.size());
+      Agent candidate = agents.get(weightedIndex);
+      double weight = state.releaseCandidateWeight(candidate, hour);
+      if (weight < 1.0 && random.nextDouble() >= weight) {
+        continue;
+      }
+      selectedAgents.add(candidate);
+    }
+    while (selectedAgents.size() < target) {
       int weightedIndex = (int) (Math.pow(random.nextDouble(), 1.5) * agents.size());
       selectedAgents.add(agents.get(weightedIndex));
     }

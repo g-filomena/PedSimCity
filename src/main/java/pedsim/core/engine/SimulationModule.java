@@ -65,7 +65,7 @@ public interface SimulationModule {
    * Returns a live snapshot of module-specific state merged into the REST {@code /api/state}
    * response under the {@code "moduleState"} key. Called on every state poll — keep it cheap.
    *
-   * <p>Example keys for the night module: {@code enableAB}, {@code crowdednessPercentile}.
+   * <p>Example keys: {@code enableAB}, {@code crowdednessPercentile}.
    *
    * <p><b>Implementation contract:</b> all values in the returned map must be JSON-serializable by
    * Jackson (primitives, strings, booleans, numbers, nested maps/lists of the same). Do not return
@@ -92,9 +92,9 @@ public interface SimulationModule {
 
   /**
    * The population this module would use for the given city, or {@code 0} when it has none (callers
-   * then fall back to a user-supplied value). Modules may derive it from their own city data (e.g.
-   * the activity module reads census resident totals); the default is {@code 0}. Lets core UIs
-   * (dashboard, applet) show/lock the population field without depending on any module.
+   * then fall back to a user-supplied value). Modules may derive it from their own city data; the
+   * default is {@code 0}. Lets core UIs (dashboard, applet) show/lock the population field without
+   * depending on any module.
    */
   default long populationForCity(String city) {
     return 0;

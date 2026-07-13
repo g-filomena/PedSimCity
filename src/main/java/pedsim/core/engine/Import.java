@@ -1,10 +1,12 @@
 package pedsim.core.engine;
 
 import java.net.URL;
+import java.util.List;
 import java.util.logging.Logger;
 import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
 import sim.field.geo.VectorLayer;
+import sim.util.geo.MasonGeometry;
 
 /**
  * This class is responsible for importing various data files required for the
@@ -27,7 +29,8 @@ public class Import {
    * @throws Exception If an error occurs during the import process.
    */
   public void importFiles() throws Exception {
-    readLandmarksAndSightLines();
+    readBuildings();
+    readSightLines();
     readBarriers();
     readGraphs();
   }
@@ -85,30 +88,98 @@ public class Import {
   }
 
   /**
-   * Reads and imports landmarks and sight lines data for the simulation.
+   * Reads and imports the buildings layer for the simulation.
+   *
+   * <p>The buildings layer (&lt;City&gt;_buildings.gpkg) holds every footprint; landmark scores
+   * ({@code gScore_sc}, {@code lScore_sc}), {@code land_use}/{@code DMA} and OSM-like use tags are
+   * optional per-building attributes on it. Landmarks are not a separate layer: they are the subset
+   * of buildings whose scores pass the runtime thresholds (see {@code SharedCognitiveMap}). Some
+   * city folders ship the same layer as &lt;City&gt;_landmarks.gpkg; both names are read.
    */
-  protected void readLandmarksAndSightLines() throws Exception {
+  protected void readBuildings() throws Exception {
     try {
-      String[] layerSuffixes = {"_landmarks", "_sight_lines2D"};
-      VectorLayer[] vectorLayers = {PedSimCity.buildings, PedSimCity.sightLines};
-
-      for (int i = 0; i < layerSuffixes.length; i++) {
-        String resourceName = Pars.cityName + "/" + Pars.cityName + layerSuffixes[i] + ".gpkg";
-
-        URL fileUrl = CLASSLOADER.getResource(resourceName);
-        if (fileUrl == null) {
-          System.out.println("Optional resource not found: " + resourceName);
-          continue;
+      boolean loaded = readBuildingsLayer("_buildings");
+      if (!loaded) {
+        loaded = readBuildingsLayer("_landmarks");
+        if (loaded) {
+          logger.info(
+              "Buildings layer loaded from " + Pars.cityName + "_landmarks.gpkg.");
         }
-
-        VectorLayer.readGPKG(fileUrl, vectorLayers[i]);
       }
-
-      PedSimCity.buildings.setID("buildingID");
-      logger.info("Buildings successfully imported.");
+      if (loaded) {
+        PedSimCity.buildings.setID("buildingID");
+        logger.info("Buildings successfully imported.");
+      } else {
+        logger.info("No usable buildings layer (" + Pars.cityName + "_buildings.gpkg); "
+            + "landmark navigation and building-based destination choice disabled.");
+      }
     } catch (Exception e) {
       handleImportError("Importing Buildings Failed", e);
     }
+  }
+
+  /**
+   * Reads and imports the sight-lines layer, which only serves landmark navigation
+   * ({@code SharedCognitiveMap.integrateLandmarks}): it is skipped — not just left unused — when
+   * the buildings carry no landmark scores, since the file can be large.
+   */
+  protected void readSightLines() throws Exception {
+    try {
+      if (!buildingsCarryLandmarkScores()) {
+        logger.info("Sight lines not loaded: buildings carry no landmark scores"
+            + " (landmark navigation disabled).");
+        return;
+      }
+      URL sightLinesUrl = findResource("_sight_lines2D");
+      if (sightLinesUrl == null) {
+        logger.info("Optional resource not found: " + Pars.cityName + "_sight_lines2D.gpkg");
+      } else {
+        VectorLayer.readGPKG(sightLinesUrl, PedSimCity.sightLines);
+        logger.info("Sight lines successfully imported.");
+      }
+    } catch (Exception e) {
+      handleImportError("Importing Sight Lines Failed", e);
+    }
+  }
+
+  /** Whether the loaded buildings layer carries landmark scores (checked on the first feature). */
+  private static boolean buildingsCarryLandmarkScores() {
+    List<MasonGeometry> geometries = PedSimCity.buildings.getGeometries();
+    if (geometries.isEmpty()) {
+      return false;
+    }
+    var attributes = geometries.get(0).getAttributes();
+    return attributes.containsKey("lScore_sc") || attributes.containsKey("gScore_sc");
+  }
+
+  /**
+   * Reads a candidate buildings layer; rejects (and clears) it when it is absent or carries no
+   * {@code buildingID}, so an unusable file cannot crash the environment preparation.
+   */
+  private boolean readBuildingsLayer(String suffix) throws Exception {
+    URL fileUrl = findResource(suffix);
+    if (fileUrl == null) {
+      return false;
+    }
+    // clear() the layer itself; getGeometries() returns a defensive copy, so the geometries
+    // must be read back *after* the load to reflect what was actually imported.
+    PedSimCity.buildings.clear();
+    VectorLayer.readGPKG(fileUrl, PedSimCity.buildings);
+    List<MasonGeometry> geometries = PedSimCity.buildings.getGeometries();
+    if (geometries.isEmpty()) {
+      return false;
+    }
+    if (!geometries.get(0).getAttributes().containsKey("buildingID")) {
+      logger.warning(Pars.cityName + suffix + ".gpkg has no buildingID column; ignoring it.");
+      PedSimCity.buildings.clear();
+      return false;
+    }
+    return true;
+  }
+
+  /** Resolves an optional city resource by suffix, or null when absent. */
+  private URL findResource(String suffix) {
+    return CLASSLOADER.getResource(Pars.cityName + "/" + Pars.cityName + suffix + ".gpkg");
   }
 
   /**
@@ -145,7 +216,9 @@ public class Import {
         throw new IllegalStateException("Resource not found: " + resourceName);
       }
 
-      targetLayer.getGeometries().clear();
+      // clear() the layer itself: getGeometries() returns a defensive copy, so clearing that
+      // copy would leave the layer untouched and re-reads would accumulate duplicate features.
+      targetLayer.clear();
 
       // Use the standard reader but catch specific data-integrity crashes
       try {
@@ -153,14 +226,14 @@ public class Import {
       } catch (Exception e) {
         if (e.getMessage() != null && e.getMessage().contains("getEnvelopeInternal")) {
           logger.warning(
-              "Census dataset contains records with null geometries. Skipping corrupt records and"
-                  + " continuing...");
+              "Layer " + layerName + " contains records with null geometries. Skipping corrupt"
+                  + " records and continuing...");
         } else {
           throw e;
         }
       }
 
-      if (targetLayer.getGeometries().isEmpty()) {
+      if (targetLayer.isEmpty()) {
         logger.warning("Layer " + layerName + " was loaded but is empty.");
       } else {
         targetLayer

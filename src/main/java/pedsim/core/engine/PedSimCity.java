@@ -14,7 +14,6 @@ import pedsim.core.agents.Agent;
 import pedsim.core.cognition.cityimage.Barrier;
 import pedsim.core.cognition.cityimage.Gateway;
 import pedsim.core.cognition.cityimage.Region;
-import pedsim.core.utilities.RobustVectorLayer;
 import sim.engine.SimState;
 import sim.engine.Stoppable;
 import sim.field.geo.VectorLayer;
@@ -36,7 +35,7 @@ public class PedSimCity extends SimState {
   public static VectorLayer buildings = new VectorLayer();
   public static VectorLayer barriers = new VectorLayer();
   public static VectorLayer junctions = new VectorLayer();
-  public static RobustVectorLayer sightLines = new RobustVectorLayer();
+  public static VectorLayer sightLines = new VectorLayer();
 
   public static Graph network = new Graph();
   public static Graph dualNetwork = new Graph();
@@ -136,10 +135,10 @@ public class PedSimCity extends SimState {
    */
   protected void prepareEnvironment() {
     MBR = roads.getMBR();
-    if (!buildings.getGeometries().isEmpty()) {
+    if (!buildings.isEmpty()) {
       MBR.expandToInclude(buildings.getMBR());
     }
-    if (!barriers.getGeometries().isEmpty()) {
+    if (!barriers.isEmpty()) {
       MBR.expandToInclude(barriers.getMBR());
     }
     roads.setMBR(MBR);
@@ -169,6 +168,32 @@ public class PedSimCity extends SimState {
    */
   public int releaseAgentsOverride(double steps, int dayNumber) {
     return -1;
+  }
+
+  /**
+   * Multiplier applied to the meters-to-allocate release budget at the given moment (see
+   * {@link AgentReleaseManager}). Modules may override — e.g. to suppress walking on rainy days.
+   */
+  public double releaseBudgetMultiplier(java.time.LocalDateTime time) {
+    return 1.0;
+  }
+
+  /**
+   * Acceptance probability in {@code [0, 1]} that the given agent is released at the given hour of
+   * day (see {@link AgentReleaseManager}). Modules may override — e.g. to favour commuter personas
+   * in the morning and leisure personas at midday. Must be thread-safe.
+   */
+  public double releaseCandidateWeight(Agent agent, int hour) {
+    return 1.0;
+  }
+
+  /**
+   * Whether a sampled trip distance (meters) is acceptable for release (see
+   * {@link AgentReleaseManager}); rejected draws are resampled. Modules may override — e.g. a
+   * walk-share filter that keeps most short trips and few long ones. Must be thread-safe.
+   */
+  public boolean acceptTripDistance(double meters) {
+    return true;
   }
 
   /**

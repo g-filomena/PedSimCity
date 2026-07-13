@@ -17,7 +17,7 @@ lighting, vulnerability or learning — those live in the modules that extend co
 | `cognition.network` | `NetworkBuilder` |
 | `routing` | `RoutePlanner`, navigation `elements/*`, `pathfinder/*`, `pathfinding/*` (Dijkstra variants) |
 | `parameters` | `Pars`, `RouteChoicePars`, `PopulationPars`, `TimePars`, `LearningPars` |
-| `utilities` | `RobustVectorLayer`, `RouteData`, `StringEnum`, `LoggerUtil` |
+| `utilities` | `RouteData`, `StringEnum`, `LoggerUtil` |
 | `website` | `SimulationRestApi`, `GeoJsonExporter`, `HtmlExporter` (dashboard) |
 | `applet` | Swing GUI + REST launcher (`PedSimCityApplet`, `SimulationViewer`, panels) |
 

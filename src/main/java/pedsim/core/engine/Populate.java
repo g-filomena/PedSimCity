@@ -127,7 +127,7 @@ public class Populate {
   protected NodeGraph selectHomeNodeWithDMA() {
     // DMA attributes are only assigned when the landmarks/buildings layer is loaded.
     // If it's empty, every node has dma="" and randomNodeDMA would spin forever.
-    if (PedSimCity.buildings.getGeometries().isEmpty()) {
+    if (PedSimCity.buildings.isEmpty()) {
       return null;
     }
     try {
@@ -141,7 +141,7 @@ public class Populate {
     // DMA attributes are only assigned when the landmarks/buildings layer is loaded.
     // If it's empty, every node has dma="" and randomNodeBetweenDistanceIntervalDMA would spin
     // forever.
-    if (PedSimCity.buildings.getGeometries().isEmpty()) {
+    if (PedSimCity.buildings.isEmpty()) {
       return null;
     }
 

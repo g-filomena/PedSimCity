@@ -18,7 +18,6 @@ import pedsim.core.utilities.LoggerUtil;
 import pedsim.core.utilities.RouteData;
 import pedsim.core.utilities.StringEnum;
 import sim.field.geo.VectorLayer;
-import sim.io.geo.ShapeFileExporter;
 import sim.util.geo.CSVUtils;
 import sim.util.geo.MasonGeometry;
 
@@ -37,8 +36,6 @@ public class Exporter {
   private String outputLandmarkCognitiveMapDirectory;
 
   protected static final Logger logger = LoggerUtil.getLogger();
-  protected static int nrColumns;
-  protected static final int FIELD_LIMIT = 254;
   protected int job;
   protected String currentDate;
 
@@ -195,7 +192,6 @@ public class Exporter {
     outputRoutesDirectory = verifyOutputPath(outputRoutesDirectory, "routes");
     outputRoutesDirectory += File.separator + currentDate + "_" + job + "_" + day;
     VectorLayer routes = new VectorLayer();
-    nrColumns = 0;
 
     for (RouteData routeData : flowHandler.routesData) {
       MasonGeometry masonGeometry = new MasonGeometry(routeData.lineGeometry);
@@ -206,22 +202,14 @@ public class Exporter {
       routes.addGeometry(masonGeometry);
     }
 
-    // Avoid geometries without needed columns' values filled in.
-    if (nrColumns > 0) {
-      for (int counter = 1; counter < nrColumns; counter++) {
-        List<MasonGeometry> routeGeometries = routes.getGeometries();
-        for (MasonGeometry route : routeGeometries) {
-          if (!route.hasAttribute("edgeIDs_" + counter)) {
-            route.addAttribute("edgeIDs_" + counter, "None");
-          }
-        }
-      }
-    }
-    if (routes.getGeometries().isEmpty()) {
+    if (routes.isEmpty()) {
       logger.warning("No routes were found to save for day " + day);
       return;
     }
-    ShapeFileExporter.write(outputRoutesDirectory, routes);
+    // Single-file GeoPackage (was a 3-file ESRI shapefile). GeoPackage TEXT columns have no length
+    // limit, so the full edgeIDs sequence lives in a single column (the old shapefile format had to
+    // split it across edgeIDs_0..n to stay under the 254-char DBF field limit).
+    VectorLayer.writeGPKG(outputRoutesDirectory, routes);
   }
 
   public void saveCognitiveMapsData(int day, String[] scenarios) throws Exception {
@@ -305,33 +293,14 @@ public class Exporter {
   }
 
   /**
-   * Forms route attributes and handles splitting long edgeIDs strings.
+   * Stores the full traversed edgeID sequence in a single {@code edgeIDs} attribute. GeoPackage TEXT
+   * columns are unbounded, so no field-length splitting is needed (the previous ESRI shapefile
+   * export had to split this across {@code edgeIDs_0..n} to stay under the 254-char DBF limit).
    *
    * @param masonGeometry The MasonGeometry object representing a route.
    * @param routeData The route data associated with the route.
    */
   private static void formRouteAttributes(MasonGeometry masonGeometry, RouteData routeData) {
-    String edgeIDs = ArrayUtils.toString(routeData.edgeIDsSequence);
-
-    if (edgeIDs.length() <= FIELD_LIMIT) {
-      masonGeometry.addAttribute("edgeIDs_0", edgeIDs);
-    } else {
-      String remainingEdges = edgeIDs;
-      for (int counter = 0; remainingEdges.length() > 0; counter++) {
-        if (counter >= nrColumns) {
-          nrColumns += 1;
-        }
-
-        String currentPart;
-        if (remainingEdges.length() > FIELD_LIMIT) {
-          currentPart = remainingEdges.substring(0, FIELD_LIMIT);
-          remainingEdges = remainingEdges.substring(FIELD_LIMIT);
-        } else {
-          currentPart = remainingEdges;
-          remainingEdges = "";
-        }
-        masonGeometry.addAttribute("edgeIDs_" + counter, currentPart);
-      }
-    }
+    masonGeometry.addAttribute("edgeIDs", ArrayUtils.toString(routeData.edgeIDsSequence));
   }
 }
