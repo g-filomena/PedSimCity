@@ -42,7 +42,9 @@ public class NightImport extends ActivityImport {
                 + " — mean_lux will default to 0.");
         return;
       }
-      PedSimCityNight.illuminatedEdges.getGeometries().clear();
+      // clear() the layer itself: getGeometries() returns a defensive copy, so clearing that
+      // copy would leave the layer untouched and re-reads would accumulate duplicate features.
+      PedSimCityNight.illuminatedEdges.clear();
       VectorLayer.readGPKG(fileUrl, PedSimCityNight.illuminatedEdges);
       logger.info(
           "Illuminated edges loaded: "

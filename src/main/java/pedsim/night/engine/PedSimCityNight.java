@@ -194,7 +194,9 @@ public class PedSimCityNight extends PedSimCityActivity {
     altRoutesVulnerable.clear();
     altRoutesNonVulnerable.clear();
     directionalLuxMap.clear();
-    illuminatedEdges.getGeometries().clear();
+    // clear() the layer itself: getGeometries() returns a defensive copy, so clearing that
+    // copy would leave the layer (and its spatial index) populated across re-initialisations.
+    illuminatedEdges.clear();
     nodesVulnerabilityWeight.clear();
   }
 }
