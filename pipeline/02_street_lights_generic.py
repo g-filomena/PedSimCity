@@ -1,18 +1,23 @@
-"""Step 2 (generic): assumed physics for bare lamp-point locations.
+"""Step 2 (generic adapter): assumed physics for bare lamp-point locations.
 
-Reads <city>_streetlights.gpkg and writes <city>_streetlights_with_radius.gpkg.
-`--input_dir` is the resources folder path.
-`--city_name` is the filename prefix; if omitted, the input folder name is used.
+For cities where only street-light pole / lamp-point LOCATIONS are available, with no
+technical attributes: every lamp gets the same assumed physics (constants below).
+
+Reads <City>_streetlights.gpkg (from inputData/<City>/ or the resources folder) and
+writes the intermediate <City>_streetlights_with_radius.gpkg to inputData/<City>/
+(the single step-2 output name step 3 consumes, whichever adapter produced it).
+
+`--city` is the city name (folder under inputData/ and resources/, and file prefix).
 """
 
 from __future__ import annotations
 
 import argparse
-import os
-from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
+
+import paths
 
 
 # Assumed lamp physics, applied identically to every point (no per-lamp data).
@@ -23,16 +28,8 @@ ASSUMED_UTILIZATION = 0.4
 E_MIN_LUX = 5.0
 
 
-def first_existing(paths: list[Path], label: str) -> Path:
-    for path in paths:
-        if path.exists():
-            return path
-    joined = "\n  ".join(str(p) for p in paths)
-    raise FileNotFoundError(f"Could not find {label}. Tried:\n  {joined}")
-
-
 def to_points(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    """Reduce any input geometry to representative points (centroids for non-points)."""
+    """Reduce any input geometry to points (centroids for non-points), dropping empties."""
     gdf = gdf[gdf.geometry.notnull() & ~gdf.geometry.is_empty].copy()
     non_point = gdf.geometry.type != "Point"
     if non_point.any():
@@ -41,24 +38,20 @@ def to_points(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Assign assumed physics to bare lamp-point locations.")
-    parser.add_argument("--input_dir", required=True)
-    parser.add_argument(
-        "--city_name",
-        default=None,
-        help="Filename prefix before _streetlights.gpkg / _edges.gpkg. Defaults to input folder name.",
+    parser = argparse.ArgumentParser(
+        description="Assign assumed physics to bare lamp-point locations."
     )
+    parser.add_argument("--city", required=True,
+                        help="City name: folder under inputData/ and src/main/resources/, "
+                             "and the <City>_* file prefix.")
     args = parser.parse_args()
+    city = args.city
 
-    input_dir = Path(os.path.abspath(args.input_dir))
-    city = args.city_name or input_dir.name
+    lamps_path = paths.require_input(city, "streetlights.gpkg", "lamp-point locations")
+    output_path = paths.raw_dir(city) / f"{city}_streetlights_with_radius.gpkg"
 
-    lamps_path = first_existing([input_dir / f"{city}_streetlights.gpkg"], "lamp-point locations")
-    output_path = input_dir / f"{city}_streetlights_with_radius.gpkg"
-
-    print(f"resources folder: {input_dir}")
-    print(f"city file prefix: {city}")
-    print(f"Loading lamp-point locations: {lamps_path}")
+    print(f"city: {city}")
+    print(f"Loading lamp-point locations: {lamps_path.name}")
 
     lamps = gpd.read_file(lamps_path)
     if lamps.empty:

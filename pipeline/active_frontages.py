@@ -2,21 +2,23 @@
 
 Enriches the edge network with active / hostile / inactive frontage lengths and ratios.
 This is optional and not part of the census or lighting pipelines; run it directly.
+The output is not (yet) read by the sim, so it is written to inputData/<City>/.
 
 Example:
-python pipeline/active_frontages.py --input_dir src/main/resources/Torino --city_name Torino
+python pipeline/active_frontages.py --city Torino
 """
 
 from __future__ import annotations
 
 import argparse
-import os
 from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
 import osmnx as ox
 import pandas as pd
+
+import paths
 
 
 ACTIVE_TAGS = {
@@ -57,14 +59,6 @@ HOSTILE_TAGS = {
 }
 
 POI_BUFFER_M = 10.0
-
-
-def first_existing(paths: list[Path], label: str) -> Path:
-    for path in paths:
-        if path.exists():
-            return path
-    joined = "\n  ".join(str(p) for p in paths)
-    raise FileNotFoundError(f"Could not find {label}. Tried:\n  {joined}")
 
 
 def features_from_bbox_compat(west: float, south: float, east: float, north: float, tags: dict):
@@ -149,22 +143,16 @@ def measure_frontages(facades_per_edge: gpd.GeoDataFrame, poi_gdf: gpd.GeoDataFr
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Calculate active/hostile street frontages.")
-    parser.add_argument("--input_dir", required=True)
-    parser.add_argument(
-        "--city_name",
-        default=None,
-        help="Filename prefix before _edges.gpkg / _buildings.gpkg. Defaults to input folder name.",
-    )
+    parser.add_argument("--city", required=True,
+                        help="City name: folder under inputData/ and src/main/resources/, "
+                             "and the <City>_* file prefix.")
     args = parser.parse_args()
+    city = args.city
 
-    base_dir = Path(os.path.abspath(args.input_dir))
-    city = args.city_name or base_dir.name
+    edges_path = paths.require_input(city, "edges.gpkg", "edges layer")
+    buildings_path = paths.require_input(city, "buildings.gpkg", "buildings layer")
 
-    edges_path = first_existing([base_dir / f"{city}_edges.gpkg"], "edges layer")
-    buildings_path = first_existing([base_dir / f"{city}_buildings.gpkg"], "buildings layer")
-
-    print(f"resources folder: {base_dir}")
-    print(f"city file prefix: {city}")
+    print(f"city: {city}")
 
     edges = gpd.read_file(edges_path)
     buildings = gpd.read_file(buildings_path)
@@ -242,7 +230,7 @@ def main() -> None:
     edges["street_activity_index"] = (edges["active_wall_len"] / (edges.geometry.length * 2.0)).clip(upper=1.0)
 
     edges = edges.drop(columns=["edge_unique_id"])
-    output_path = base_dir / f"{city}_edges_with_frontages.gpkg"
+    output_path = paths.raw_dir(city) / f"{city}_edges_with_frontages.gpkg"
 
     if output_path.exists():
         output_path.unlink()

@@ -1,22 +1,20 @@
 """Step 3: compute continuous street illumination.
 
-Inputs:
-- <city>_puntiLuce_with_radius.gpkg, <city>_streetlights_with_radius.gpkg, or <city>_puntiLuce.gpkg
-- <city>_edges.gpkg
-- <city>_buildings.gpkg
+Inputs (searched in inputData/<City>/ then the resources folder):
+- <City>_streetlights_with_radius.gpkg (step-2 output)
+- <City>_edges.gpkg
+- <City>_buildings.gpkg
 
 Outputs:
-- <city>_edges_illuminated_continuous.gpkg
-- <city>_nodes_2m_densified_illuminated.gpkg
+- <City>_edges_illuminated_continuous.gpkg  -> src/main/resources/<City>/ (read by the sim)
+- <City>_nodes_2m_densified_illuminated.gpkg -> inputData/<City>/ (intermediate for step 4)
 
-`--input_dir` is the resources folder path.
-`--city_name` is the filename prefix; if omitted, the input folder name is used.
+`--city` is the city name (folder under inputData/ and resources/, and file prefix).
 """
 
 from __future__ import annotations
 
 import argparse
-import os
 from pathlib import Path
 
 import geopandas as gpd
@@ -24,18 +22,12 @@ import numpy as np
 from scipy.spatial import cKDTree
 from shapely.geometry import LineString
 
+import paths
+
 
 SAMPLE_SPACING_M = 2.0
 LAMP_SEARCH_RADIUS_M = 40.0
 UNLIT_LUX_THRESHOLD = 5.0
-
-
-def first_existing(paths: list[Path], label: str) -> Path:
-    for path in paths:
-        if path.exists():
-            return path
-    joined = "\n  ".join(str(p) for p in paths)
-    raise FileNotFoundError(f"Could not find {label}. Tried:\n  {joined}")
 
 
 def remove_existing(path: Path) -> None:
@@ -43,23 +35,20 @@ def remove_existing(path: Path) -> None:
         path.unlink()
 
 
-def load_inputs(base_dir: Path, city: str):
-    # Require a step-2 output (*_with_radius.gpkg): it carries the per-lamp physics
-    # (downward_intensity_cd) this step needs. Raw puntiLuce is intentionally NOT accepted so that
-    # step 3 can never silently fabricate uniform lamp intensity — run step 2 first.
-    punti_path = first_existing(
-        [
-            base_dir / f"{city}_puntiLuce_with_radius.gpkg",     # Turin adapter (02_street_lights_torino.py)
-            base_dir / f"{city}_streetlights_with_radius.gpkg",  # generic adapter (02_street_lights_generic.py)
-        ],
+def load_inputs(city: str):
+    # Require the step-2 output (*_with_radius.gpkg): it carries the per-lamp physics
+    # (downward_intensity_cd) this step needs. The raw inventory is intentionally NOT accepted so
+    # that step 3 can never silently fabricate uniform lamp intensity — run step 2 first.
+    punti_path = paths.require_input(
+        city,
+        "streetlights_with_radius.gpkg",
         "lamp inventory with radius (run step 2 first)",
     )
-    edges_path = first_existing([base_dir / f"{city}_edges.gpkg"], "edges layer")
-    buildings_path = first_existing([base_dir / f"{city}_buildings.gpkg"], "buildings layer")
+    edges_path = paths.require_input(city, "edges.gpkg", "edges layer")
+    buildings_path = paths.require_input(city, "buildings.gpkg", "buildings layer")
 
     print("Loading datasets...")
-    print(f"  resources folder: {base_dir}")
-    print(f"  city file prefix: {city}")
+    print(f"  city: {city}")
     print(f"  lamps    : {punti_path}")
     print(f"  edges    : {edges_path}")
     print(f"  buildings: {buildings_path}")
@@ -83,8 +72,7 @@ def load_inputs(base_dir: Path, city: str):
     if "downward_intensity_cd" not in punti.columns:
         raise KeyError(
             f"{punti_path} has no 'downward_intensity_cd' column. Run step 2 "
-            "(02_street_lights_torino.py / 02_street_lights_generic.py) to compute the per-lamp "
-            "physics before running step 3."
+            "(02_street_lights.py) to compute the per-lamp physics before running step 3."
         )
 
     if punti["downward_intensity_cd"].isnull().any():
@@ -192,18 +180,13 @@ def compute_lux(points: gpd.GeoDataFrame, punti: gpd.GeoDataFrame, buildings: gp
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Calculate street illumination along network edges.")
-    parser.add_argument("--input_dir", required=True)
-    parser.add_argument(
-        "--city_name",
-        default=None,
-        help="Filename prefix before _edges.gpkg / _buildings.gpkg. Defaults to input folder name.",
-    )
+    parser.add_argument("--city", required=True,
+                        help="City name: folder under inputData/ and src/main/resources/, "
+                             "and the <City>_* file prefix.")
     args = parser.parse_args()
+    city = args.city
 
-    base_dir = Path(os.path.abspath(args.input_dir))
-    city = args.city_name or base_dir.name
-
-    punti, edges, buildings = load_inputs(base_dir, city)
+    punti, edges, buildings = load_inputs(city)
 
     print("Densifying edges to 2 m sample points...")
     points = densify_edges(edges, SAMPLE_SPACING_M)
@@ -224,12 +207,13 @@ def main() -> None:
     edges["mean_lux"] = edges["mean_lux"].fillna(0.0)
     edges["pct_unlit"] = edges["pct_unlit"].fillna(100.0)
 
-    edges_out = base_dir / f"{city}_edges_illuminated_continuous.gpkg"
+    # Sim-read output goes to resources; the densified nodes are an intermediate for step 4.
+    edges_out = paths.resources_dir(city) / f"{city}_edges_illuminated_continuous.gpkg"
     remove_existing(edges_out)
     edges.to_file(edges_out, driver="GPKG")
     print(f"saved: {edges_out}")
 
-    nodes_out = base_dir / f"{city}_nodes_2m_densified_illuminated.gpkg"
+    nodes_out = paths.raw_dir(city) / f"{city}_nodes_2m_densified_illuminated.gpkg"
     remove_existing(nodes_out)
     points.drop(columns=["x", "y"]).to_file(nodes_out, driver="GPKG")
     print(f"saved: {nodes_out} ({len(points)} nodes)")

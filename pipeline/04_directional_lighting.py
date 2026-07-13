@@ -1,60 +1,44 @@
 """Step 4: build directional lighting lookup.
 
-Reads:
-- <city>_edges.gpkg
-- <city>_nodes_2m_densified_illuminated.gpkg
+Reads (searched in inputData/<City>/ then the resources folder):
+- <City>_edges.gpkg
+- <City>_nodes_2m_densified_illuminated.gpkg (step-3 intermediate)
 
 Writes:
-- <city>_directional_lighting_lookup.csv
+- <City>_directional_lighting_lookup.csv -> src/main/resources/<City>/ (read by the sim)
 
-`--input_dir` is the resources folder path.
-`--city_name` is the filename prefix; if omitted, the input folder name is used.
+`--city` is the city name (folder under inputData/ and resources/, and file prefix).
 """
 
 from __future__ import annotations
 
 import argparse
-import os
-from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
+
+import paths
 
 
 VISIBILITY_HORIZON_M = 12.0
 
 
-def first_existing(paths: list[Path], label: str) -> Path:
-    for path in paths:
-        if path.exists():
-            return path
-    joined = "\n  ".join(str(p) for p in paths)
-    raise FileNotFoundError(f"Could not find {label}. Tried:\n  {joined}")
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build directional lighting lookup CSV.")
-    parser.add_argument("--input_dir", required=True)
-    parser.add_argument(
-        "--city_name",
-        default=None,
-        help="Filename prefix before _edges.gpkg. Defaults to input folder name.",
-    )
+    parser.add_argument("--city", required=True,
+                        help="City name: folder under inputData/ and src/main/resources/, "
+                             "and the <City>_* file prefix.")
     args = parser.parse_args()
+    city = args.city
 
-    base_dir = Path(os.path.abspath(args.input_dir))
-    city = args.city_name or base_dir.name
-
-    edges_path = first_existing([base_dir / f"{city}_edges.gpkg"], "edges layer")
-    nodes_2m_path = first_existing(
-        [base_dir / f"{city}_nodes_2m_densified_illuminated.gpkg"],
-        "densified illuminated nodes",
+    edges_path = paths.require_input(city, "edges.gpkg", "edges layer")
+    nodes_2m_path = paths.require_input(
+        city, "nodes_2m_densified_illuminated.gpkg", "densified illuminated nodes (run step 3 first)"
     )
-    output_path = base_dir / f"{city}_directional_lighting_lookup.csv"
+    output_path = paths.resources_dir(city) / f"{city}_directional_lighting_lookup.csv"
 
     print("Loading datasets...")
-    print(f"  resources folder: {base_dir}")
-    print(f"  city file prefix: {city}")
+    print(f"  city: {city}")
     print(f"  edges: {edges_path}")
     print(f"  nodes: {nodes_2m_path}")
 
