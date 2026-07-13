@@ -178,7 +178,7 @@ public class AgentMovement {
 
   /**
    * Resets the agent's movement reach to the base move rate, scaled by the agent's individual
-   * speed factor (persona-dependent in activity-based modules; 1.0 for core agents).
+   * speed factor (1.0 unless a module assigns one).
    */
   protected void resetReach() {
     reach = Pars.moveRate * (agent != null ? agent.getSpeedFactor() : 1.0);

@@ -3,6 +3,7 @@ package pedsim.core.website;
 import java.util.Map;
 import org.locationtech.jts.geom.Geometry;
 import sim.field.geo.VectorLayer;
+import sim.io.geo.GeoJSONExporter;
 import sim.util.geo.MasonGeometry;
 
 /**
@@ -18,30 +19,10 @@ public final class GeoJsonExporter {
    * Properties are empty — used by the live Streamlit/browser dashboard.
    */
   public static String exportRoads(VectorLayer roads) {
-    if (roads == null || roads.getGeometries().isEmpty()) {
+    if (roads == null) {
       return "{\"type\":\"FeatureCollection\",\"features\":[]}";
     }
-
-    StringBuilder sb = new StringBuilder();
-    sb.append("{\"type\":\"FeatureCollection\",\"features\":[");
-
-    boolean first = true;
-    for (Object obj : roads.getGeometries()) {
-      if (!(obj instanceof MasonGeometry mg)) continue;
-
-      Geometry geom = mg.getGeometry();
-      if (geom == null) continue;
-
-      if (!first) sb.append(',');
-      first = false;
-
-      sb.append("{\"type\":\"Feature\",\"geometry\":");
-      sb.append(geomToGeoJson(geom));
-      sb.append(",\"properties\":{}}");
-    }
-
-    sb.append("]}");
-    return sb.toString();
+    return GeoJSONExporter.toFeatureCollection(roads, false);
   }
 
   /**
@@ -56,7 +37,7 @@ public final class GeoJsonExporter {
   public static String exportRoadsWithVolumes(
       VectorLayer roads, Map<Integer, Map<String, Integer>> volumesMap) {
 
-    if (roads == null || roads.getGeometries().isEmpty()) {
+    if (roads == null || roads.isEmpty()) {
       return "{\"type\":\"FeatureCollection\",\"features\":[]}";
     }
 

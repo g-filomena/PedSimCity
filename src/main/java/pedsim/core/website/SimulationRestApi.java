@@ -10,7 +10,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.logging.Logger;
 import pedsim.core.engine.SimulationModule;
 import pedsim.core.engine.SimulationStateStore;
@@ -96,20 +95,6 @@ public final class SimulationRestApi {
   }
 
   // ----------------------------------------------------------------
-  // Legacy start-listener (kept for backward compatibility)
-  // ----------------------------------------------------------------
-
-  /**
-   * Registers a legacy start listener. Prefer {@link #registerModule(SimulationModule)} instead.
-   * Used only when no modules are registered and a raw callback is needed (e.g. custom tooling).
-   */
-  public static void setOnStart(Consumer<Map<String, Object>> listener) {
-    legacyStartListener = listener;
-  }
-
-  private static Consumer<Map<String, Object>> legacyStartListener;
-
-  // ----------------------------------------------------------------
   // Server lifecycle
   // ----------------------------------------------------------------
 
@@ -123,7 +108,6 @@ public final class SimulationRestApi {
       activeServer = null;
       boundPort = -1;
     }
-    legacyStartListener = null;
     modules.clear();
   }
 
@@ -233,8 +217,8 @@ public final class SimulationRestApi {
               }
             });
 
-        // --- GET /api/population?city=X — whether the module derives the population from city
-        // data (e.g. the activity module's census resident totals) ---
+        // --- GET /api/population?city=X — whether the module derives the population from its own
+        // city data ---
         server.createContext(
             "/api/population",
             exchange -> {
@@ -355,13 +339,6 @@ public final class SimulationRestApi {
                           + mod.moduleId()
                           + " params="
                           + params);
-                  exchange.sendResponseHeaders(200, 0);
-
-                } else if (legacyStartListener != null) {
-                  // Legacy path: raw Consumer<Map> registered without a module
-                  final Map<String, Object> finalParams = params;
-                  new Thread(() -> legacyStartListener.accept(finalParams)).start();
-                  logger.info("[REST API] Simulation start triggered (legacy listener).");
                   exchange.sendResponseHeaders(200, 0);
 
                 } else {
@@ -515,9 +492,8 @@ public final class SimulationRestApi {
 
   /**
    * Reports whether the active module derives an absolute population for the given city from its
-   * own data (via {@code SimulationModule.populationForCity}; e.g. the activity module reads census
-   * resident totals) and, if so, that total — so the dashboard can decide, before a run starts,
-   * whether to disable its population field.
+   * own data (via {@code SimulationModule.populationForCity}) and, if so, that total — so the
+   * dashboard can decide, before a run starts, whether to disable its population field.
    */
   private static String populationJson(String city) {
     long total = 0;

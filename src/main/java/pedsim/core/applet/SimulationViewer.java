@@ -57,7 +57,7 @@ public class SimulationViewer extends JFrame {
     if (state != null && state.schedule != null) {
       if (mapPanel.paths == null
           && PedSimCity.MBR != null
-          && !PedSimCity.roads.getGeometries().isEmpty()) {
+          && !PedSimCity.roads.isEmpty()) {
         mapPanel.regeneratePaths();
       }
 
