@@ -24,7 +24,7 @@ public class NightEnvironment extends ActivityEnvironment {
     deriveVulnerability();
 
     // Join illuminated edges (mean_lux) onto the primal graph if the night dataset was loaded.
-    if (!PedSimCityNight.illuminatedEdges.getGeometries().isEmpty()) {
+    if (!PedSimCityNight.illuminatedEdges.isEmpty()) {
       joinIlluminatedEdges();
     }
   }
