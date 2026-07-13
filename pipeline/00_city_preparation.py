@@ -20,20 +20,25 @@ completed stages unless ``--force``):
               (a_rivers, w_parks, p_barr, n_barr + structuring barriers)
   pois        activity POIs from OSM (amenity/shop/leisure/tourism/sport/office tags,
               the vocabulary pedsim.activity.agents.ActivityPurpose classifies)
-  buildings   buildings from OSM (obstructions); heights/base cascade:
-              <City>_detailedBuildings.gpkg -> DEM/DSM + DTM rasters -> OSM tags,
-              with terrain 'base' from the DTM; land uses (raw -> OSM groups -> DMA)
-              -> structural score
+  buildings   footprints from an official <City>_detailedBuildings.gpkg when supplied,
+              otherwise from OSM (obstructions). Heights/base cascade (OSM height tags
+              are NOT used): official layer's own height/base -> <City>_buildingHeights
+              .gpkg (overlap join) -> DEM/DSM + DTM rasters, with terrain 'base' from the
+              DTM. Land use / DMA always derive from OSM (raw -> OSM groups -> DMA);
+              official footprints borrow them from OSM by largest overlap. -> structural
+              score
   sightlines  3D sight lines nodes -> buildings (requires heights + the visibility3d
               extras; skipped with a warning when unavailable)
   landmarks   visibility + cultural (historic OSM elements) + pragmatic components
               -> global & local landmarkness scores
 
 Optional raw inputs in inputData/<City>/ (also found in the resources folder),
-projected in the city CRS: <City>_detailedBuildings.gpkg (building heights),
+projected in the city CRS: <City>_detailedBuildings.gpkg (official footprints; used
+as-is, with its own height/base when present), <City>_buildingHeights.gpkg (height
+polygons joined to footprints by overlap; needs a 'height' field, 'base' optional),
 <City>_DTM.tif (terrain) and <City>_DEM.tif / <City>_DSM.tif (surface). DTM alone
 gives node z and building base; surface + terrain additionally give building heights
-(top - ground).
+(top - ground). OSM height/building:levels tags are never used for heights.
 
 Final outputs, written to ``src/main/resources/<City>/`` with the names the Java
 simulation reads (see ``pedsim.core.engine.Import`` / ``Environment``):
@@ -163,6 +168,38 @@ def _find_raster(args, kind: str) -> Path | None:
 def _column_unset(gdf: gpd.GeoDataFrame, column: str) -> bool:
     """True when the column is absent or entirely missing/NaN."""
     return column not in gdf.columns or pd.to_numeric(gdf[column], errors="coerce").isna().all()
+
+
+def _assign_by_largest_overlap(target, source, columns, crs):
+    """Copy ``columns`` onto each target polygon from the source polygon it overlaps
+    most (by intersection area).
+
+    Used to carry OSM-derived land use / DMA onto official footprints. Target polygons
+    with no overlapping source get NaN in ``columns``.
+    """
+    if (target.crs != crs) or (source.crs != crs):
+        raise ValueError(
+            f"CRS mismatch in overlap transfer: target {target.crs}, source {source.crs}"
+        )
+    tgt = target.copy()
+    tgt["_tix"] = np.arange(len(tgt))
+    src = source[["geometry", *columns]].copy()
+    src["_geo_src"] = src.geometry
+
+    joined = gpd.sjoin(tgt[["_tix", "geometry"]], src, predicate="intersects", how="left")
+    joined = joined[joined["_geo_src"].notna()]
+    if joined.empty:
+        for col in columns:
+            tgt[col] = np.nan
+    else:
+        joined["_ov"] = joined.apply(
+            lambda r: r["geometry"].intersection(r["_geo_src"]).area, axis=1
+        )
+        # Keep, per target polygon, the source row with the largest intersection area.
+        best = joined.sort_values("_ov").groupby("_tix").tail(1).set_index("_tix")
+        for col in columns:
+            tgt[col] = tgt["_tix"].map(best[col])
+    return tgt.drop(columns="_tix")
 
 
 def _with_z(nodes: gpd.GeoDataFrame, stager: Stager) -> gpd.GeoDataFrame:
@@ -386,32 +423,56 @@ def stage_buildings(args, stager: Stager) -> None:
 
     edges = stager.load("edges_network")
 
-    log.info("buildings: downloading buildings for %r", args.place)
-    buildings = ci.buildings_from_osm(
+    dtm_path = _find_raster(args, "DTM")
+    surface_path = _find_raster(args, "DEM") or _find_raster(args, "DSM")
+    detailed_path = _find_raw(args, "detailedBuildings.gpkg")
+    heights_path = _find_raw(args, "buildingHeights.gpkg")
+
+    # OSM buildings are the default footprints and are always the land-use / DMA donor:
+    # cityImage's classifier is OSM-vocabulary-specific, so DMA is derived here whether
+    # or not official footprints are supplied.
+    log.info("buildings: downloading OSM buildings for %r", args.place)
+    osm = ci.buildings_from_osm(
         args.place, download_method=args.download_method, crs=args.crs, min_area=200
     )
-    buildings = ci.gdf_multipolygon_to_polygon(buildings)
+    osm = ci.gdf_multipolygon_to_polygon(osm)
+    log.info("buildings: deriving land uses (raw -> OSM groups -> DMA)")
+    osm = ci.derive_land_uses_raw_fromOSM(osm)
+    osm = ci.classify_land_uses_raws_into_OSMgroups(osm)
+    osm = ci.classify_land_uses_intoDMAs(osm)
+
+    if detailed_path is not None:
+        # Official dataset: its geometries are the authoritative footprints and its own
+        # 'height'/'base' columns (when present) are kept. Land use / DMA are borrowed
+        # from the OSM buildings by largest overlap.
+        log.info("buildings: using official footprints from %s", detailed_path.name)
+        buildings = gpd.read_file(detailed_path).to_crs(args.crs)
+        buildings = ci.gdf_multipolygon_to_polygon(buildings)
+        buildings = buildings[
+            buildings.geometry.notna() & ~buildings.geometry.is_empty
+        ].copy()
+        buildings = _assign_by_largest_overlap(buildings, osm, ["land_uses", "DMA"], args.crs)
+    else:
+        # OSM footprints carry their land use / DMA directly. OSM height tags are
+        # intentionally discarded: heights come only from a heights layer or rasters.
+        buildings = osm.drop(columns=[c for c in ("height", "base") if c in osm.columns])
+
     buildings = buildings.reset_index(drop=True)
     buildings["buildingID"] = buildings.index.astype(int)
     buildings["area"] = buildings.geometry.area
 
-    # --- height / base cascade: detailed layer -> DEM/DSM + DTM rasters -> OSM tags ---
-    dtm_path = _find_raster(args, "DTM")
-    surface_path = _find_raster(args, "DEM") or _find_raster(args, "DSM")
-
-    detailed_path = _find_raw(args, "detailedBuildings.gpkg")
-    if detailed_path is not None:
-        log.info("buildings: assigning heights (and base, when present) from %s",
-                 detailed_path.name)
-        detailed = gpd.read_file(detailed_path).to_crs(args.crs)
+    # --- height / base cascade (OSM height tags are NOT used): official layer's own
+    #     height/base -> <City>_buildingHeights.gpkg (overlap) -> DEM/DSM + DTM rasters.
+    #     The DTM (terrain) supplies the ground 'base'; the surface model (DSM, often
+    #     shipped as "DEM") supplies above-ground heights.
+    if heights_path is not None and _column_unset(buildings, "height"):
+        log.info("buildings: assigning heights from %s (overlap join)", heights_path.name)
+        heights = gpd.read_file(heights_path).to_crs(args.crs)
         buildings = ci.assign_building_heights_from_other_gdf(
-            buildings, detailed, args.crs, min_overlap=0.30
+            buildings, heights, args.crs, min_overlap=0.30
         )
 
-    # Rasters: the DTM (terrain) supplies the ground 'base'; the surface model (DSM,
-    # often shipped as "DEM") additionally supplies above-ground heights when no
-    # detailed layer provided them. Non-destructive: footprints outside the raster
-    # extent keep their rows with NaN elevations.
+    # Non-destructive: footprints outside the raster extent keep their rows with NaN.
     want_height = _column_unset(buildings, "height") and surface_path is not None
     want_base = _column_unset(buildings, "base")
     if dtm_path and (want_height or want_base):
@@ -429,15 +490,10 @@ def stage_buildings(args, stager: Stager) -> None:
 
     if _column_unset(buildings, "height"):
         log.warning(
-            "buildings: no %s_detailedBuildings.gpkg, no DEM/DTM pair, and no OSM heights; "
-            "sight lines will be skipped",
+            "buildings: no official heights, no %s_buildingHeights.gpkg, and no DEM/DTM "
+            "pair; sight lines will be skipped",
             args.city_name,
         )
-
-    log.info("buildings: deriving land uses (raw -> OSM groups -> DMA)")
-    buildings = ci.derive_land_uses_raw_fromOSM(buildings)
-    buildings = ci.classify_land_uses_raws_into_OSMgroups(buildings)
-    buildings = ci.classify_land_uses_intoDMAs(buildings)
 
     log.info("buildings: computing the structural score")
     buildings = ci.structural_score(

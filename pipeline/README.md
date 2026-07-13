@@ -49,20 +49,27 @@ and EPSG **only on the first run** for a city: they are saved to
 Optional raw inputs in `inputData/<City>/` (also found in the resources folder),
 projected in the city CRS:
 
-- `<City>_detailedBuildings.gpkg` — footprints with a `height` (and optionally `base`)
-  column; first choice for building heights (`assign_building_heights_from_other_gdf`).
+- `<City>_detailedBuildings.gpkg` — an **official** building dataset. When present its
+  geometries **replace** the OSM footprints (authoritative footprints), and its own
+  `height`/`base` columns are used as-is. Land use / DMA are still borrowed from OSM by
+  largest overlap (cityImage's land-use classifier is OSM-vocabulary-specific).
+- `<City>_buildingHeights.gpkg` — a dedicated **height** layer (polygons with a `height`
+  field, `base` optional). Heights are joined onto the footprints by largest overlap
+  (`assign_building_heights_from_other_gdf`). Use this to attach heights to OSM footprints
+  without a full official dataset.
 - `<City>_DTM.tif` (bare-earth **terrain**) — gives node `z` (elevation stage) and
   building `base` (ground under the footprint).
 - `<City>_DEM.tif` / `<City>_DSM.tif` (first-return **surface**, rooftops included —
   "DEM" is accepted because surface models are often shipped under that generic name) —
   together with the DTM, derives above-ground building heights as surface − terrain
-  (`ci.assign_elevations_from_rasters`) when no detailed layer provides them. A DTM
+  (`ci.assign_elevations_from_rasters`) when no earlier source provided them. A DTM
   alone cannot give heights — only `z` and `base`.
 
-The height cascade is detailed layer → DEM/DSM−DTM → OSM tags; without any height source
-the sight-lines stage is skipped with a warning and the sim runs without 3D-visibility
-landmark navigation. Without a DTM, node `z` and building `base` stay at ground 0 (flat
-city assumption — fine for Turin's centre, wrong for hilly cities).
+The height cascade is official layer's own height/base → `buildingHeights.gpkg` overlap →
+DEM/DSM−DTM. **OSM `height`/`building:levels` tags are never used.** Without any height
+source the sight-lines stage is skipped with a warning and the sim runs without
+3D-visibility landmark navigation. Without a DTM, node `z` and building `base` stay at
+ground 0 (flat city assumption — fine for Turin's centre, wrong for hilly cities).
 
 Output filenames and columns follow the Java readers exactly: `_sight_lines2D`,
 `_nodesDual`/`_edgesDual`, barrier kind in a `type` column, `district`/`gateway` ints on
