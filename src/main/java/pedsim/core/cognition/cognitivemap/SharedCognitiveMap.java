@@ -19,6 +19,7 @@ import pedsim.core.cognition.metrics.LandmarkIntegration;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.parameters.Pars;
 import pedsim.core.parameters.RouteChoicePars;
+import pedsim.core.utilities.LoggerUtil;
 import pedsim.core.utilities.StringEnum.BarrierType;
 import pedsim.core.utilities.StringEnum.RoadType;
 import sim.field.geo.VectorLayer;
@@ -103,9 +104,15 @@ public class SharedCognitiveMap {
 
     setCommunityPrimalNetwork(PedSimCity.network);
     setCommunityDualNetwork(PedSimCity.dualNetwork);
-    if (!PedSimCity.buildings.getGeometries().isEmpty()) {
-      identifyLandmarks(PedSimCity.buildings);
-      integrateLandmarks();
+    if (!PedSimCity.buildings.isEmpty()) {
+      if (PedSimCity.landmarksLoaded) {
+        identifyLandmarks(PedSimCity.buildings);
+        integrateLandmarks();
+      } else {
+        // Buildings without landmark scores still serve DMA, complexity and POI classification.
+        LoggerUtil.getLogger()
+            .info("Buildings carry no landmark scores; landmark navigation disabled.");
+      }
     }
     identifyRegionElements();
     barriers = PedSimCity.barriers;
@@ -386,12 +393,14 @@ public class SharedCognitiveMap {
 
     List<MasonGeometry> buildingsGeometries = buildings.getGeometries();
     for (final MasonGeometry building : buildingsGeometries) {
-      if (building.getDoubleAttribute("lScore_sc")
-          >= RouteChoicePars.localLandmarkThresholdCommunity) {
+      // Scores are optional per-building attributes; a building without them is simply
+      // not a landmark (it still serves as obstruction/DMA/POI source).
+      Double localScore = building.getDoubleAttribute("lScore_sc");
+      if (localScore != null && localScore >= RouteChoicePars.localLandmarkThresholdCommunity) {
         localLandmarks.addGeometry(building);
       }
-      if (building.getDoubleAttribute("gScore_sc")
-          >= RouteChoicePars.globalLandmarkThresholdCommunity) {
+      Double globalScore = building.getDoubleAttribute("gScore_sc");
+      if (globalScore != null && globalScore >= RouteChoicePars.globalLandmarkThresholdCommunity) {
         globalLandmarks.addGeometry(building);
       }
     }
@@ -404,7 +413,7 @@ public class SharedCognitiveMap {
   private static void identifyRegionElements() {
 
     boolean integrateLandmarks = false;
-    if (!PedSimCity.buildings.getGeometries().isEmpty()) {
+    if (!PedSimCity.buildings.isEmpty()) {
       integrateLandmarks = true;
     }
 
@@ -428,12 +437,12 @@ public class SharedCognitiveMap {
   private static void setRegionLandmarks(Region region) {
 
     for (MasonGeometry building : region.buildings) {
-      if (building.getDoubleAttribute("lScore_sc")
-          >= RouteChoicePars.localLandmarkThresholdCommunity) {
+      Double localScore = building.getDoubleAttribute("lScore_sc");
+      if (localScore != null && localScore >= RouteChoicePars.localLandmarkThresholdCommunity) {
         region.localLandmarks.add(building);
       }
-      if (building.getDoubleAttribute("gScore_sc")
-          >= RouteChoicePars.globalLandmarkThresholdCommunity) {
+      Double globalScore = building.getDoubleAttribute("gScore_sc");
+      if (globalScore != null && globalScore >= RouteChoicePars.globalLandmarkThresholdCommunity) {
         region.globalLandmarks.add(building);
       }
     }
