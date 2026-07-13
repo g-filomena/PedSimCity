@@ -1,9 +1,11 @@
 package pedsim.core.agents;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.javatuples.Pair;
 import org.locationtech.jts.geom.Coordinate;
@@ -32,6 +34,9 @@ import sim.util.geo.MasonGeometry;
 public class Agent implements Steppable {
 
   protected static final long serialVersionUID = 1L;
+
+  // JTS geometry factories are thread-safe; one instance serves every position update.
+  protected static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory();
   protected PedSimCity state;
   public Integer agentID;
 
@@ -87,8 +92,7 @@ public class Agent implements Steppable {
     status = AgentStatus.WAITING;
 
     // Always initialize currentLocation to prevent NullPointerException
-    final GeometryFactory fact = new GeometryFactory();
-    currentLocation = new MasonGeometry(fact.createPoint(new Coordinate(0, 0)));
+    currentLocation = new MasonGeometry(GEOMETRY_FACTORY.createPoint(new Coordinate(0, 0)));
     currentLocation.isMovable = true;
 
     if (registerSpatial) {
@@ -97,8 +101,7 @@ public class Agent implements Steppable {
   }
 
   protected void placeAgent() {
-    final GeometryFactory fact = new GeometryFactory();
-    currentLocation = new MasonGeometry(fact.createPoint(new Coordinate(10, 10)));
+    currentLocation = new MasonGeometry(GEOMETRY_FACTORY.createPoint(new Coordinate(10, 10)));
     currentLocation.isMovable = true;
     if (homeNode != null) {
       updateAgentPosition(homeNode.getCoordinate());
@@ -145,8 +148,7 @@ public class Agent implements Steppable {
     if (isGoingHome()) {
       destinationNode = homeNode;
     } else {
-      // If it's day (not dark) and they haven't worked today, go to work!
-      if (workNode != null && !hasWorkedToday && !isDark()) {
+      if (shouldGoToWork()) {
         destinationNode = workNode;
       } else {
         defineRandomDestination();
@@ -164,10 +166,35 @@ public class Agent implements Steppable {
     planRoute();
     spookLocations.clear();
     tripStartStep = state.schedule.getSteps();
-    agentMovement = new AgentMovement(this);
+    agentMovement = createMovement();
     agentMovement.initialisePath(getRoute());
   }
 
+  /**
+   * Whether the next non-home trip should target the work node. Core: a work node exists, the
+   * agent has not worked today and it is daytime. Activity-based modules refine this with persona
+   * work-start windows and day-of-week.
+   */
+  protected boolean shouldGoToWork() {
+    return workNode != null && !hasWorkedToday && !isDark();
+  }
+
+  /**
+   * Creates the movement handler for a new trip. Modules with specialised movement (e.g. the night
+   * module's lighting-aware movement) override this so every trip — including chained trips planned
+   * outside {@link #planTrip()} — uses the right handler.
+   */
+  protected AgentMovement createMovement() {
+    return new AgentMovement(this);
+  }
+
+  /**
+   * Walking-speed multiplier applied to the base move rate each step. Core agents all walk at the
+   * average pedestrian speed; activity personas override this (e.g. slower retirees).
+   */
+  public double getSpeedFactor() {
+    return 1.0;
+  }
 
   public void startWalkingAlone() {
     destinationNode = null;
@@ -187,55 +214,22 @@ public class Agent implements Steppable {
     }
   }
 
-  private static final java.util.concurrent.ConcurrentHashMap<String, List<NodeGraph>>
-      candidateCache = new java.util.concurrent.ConcurrentHashMap<>();
-
-  public static List<NodeGraph> getNodesBetweenDistanceIntervalOptimized(
-      Graph network, NodeGraph originNode, double lowerLimit, double upperLimit) {
-    if (candidateCache.size() > 50_000) {
-      candidateCache.clear();
-    }
-    String key = originNode.getID() + "_" + lowerLimit + "_" + upperLimit;
-    return candidateCache.computeIfAbsent(
-        key,
-        k -> {
-          double minEuc = lowerLimit / 2.5;
-          double maxEuc = upperLimit;
-          Coordinate originCoord = originNode.getCoordinate();
-          boolean hasEucCandidates = false;
-          for (Object obj : network.getNodes()) {
-            NodeGraph node = (NodeGraph) obj;
-            Coordinate c = node.getCoordinate();
-            double dx = c.x - originCoord.x;
-            double dy = c.y - originCoord.y;
-            double euc = Math.sqrt(dx * dx + dy * dy);
-            if (euc >= minEuc && euc <= maxEuc) {
-              hasEucCandidates = true;
-              break;
-            }
-          }
-          if (!hasEucCandidates) {
-            return new ArrayList<>();
-          }
-          return NodesLookup.getNodesBetweenDistanceInterval(
-              network, originNode, lowerLimit, upperLimit);
-        });
-  }
-
-  private void defineRandomDestination() {
+  protected void defineRandomDestination() {
 
     double lowerLimit = distanceNextDestination * 0.90;
     double upperLimit = distanceNextDestination;
     Graph network = SharedCognitiveMap.getCommunityPrimalNetwork();
+    Set<NodeGraph> knownNodes =
+        new HashSet<>(
+            GraphUtils.getNodesFromNodeIDs(
+                getCognitiveMap().getAgentKnownNodes(), PedSimCity.nodesMap));
     List<NodeGraph> candidates = new ArrayList<>();
     int maxIterations = 100;
     int iterations = 0;
     while (candidates.isEmpty() && iterations < maxIterations) {
       candidates =
-          getNodesBetweenDistanceIntervalOptimized(network, originNode, lowerLimit, upperLimit);
-      candidates.retainAll(
-          GraphUtils.getNodesFromNodeIDs(
-              getCognitiveMap().getAgentKnownNodes(), PedSimCity.nodesMap));
+          NodesLookup.getNodesBetweenDistanceInterval(network, originNode, lowerLimit, upperLimit);
+      candidates.retainAll(knownNodes);
       lowerLimit = lowerLimit * 0.90;
       upperLimit = upperLimit * 1.10;
       iterations++;
@@ -250,8 +244,7 @@ public class Agent implements Steppable {
 
   /**
    * Whether the simulation currently considers it "night" for this agent. Core agents have no
-   * day/night cycle and always return {@code false}; activity-based modules override this to read
-   * the activity 24h clock.
+   * day/night cycle and always return {@code false}; modules with a 24h clock override this.
    */
   protected boolean isDark() {
     return false;
@@ -267,13 +260,12 @@ public class Agent implements Steppable {
   /**
    * Returns the POI-based selection weight for a candidate destination node.
    *
-   * <p>Core agents have no activity data, so every node weighs 0.0 (uniform selection).
-   * Activity-based modules override this: activity uses workplace POI density during the day,
-   * night additionally uses night-time POI density when dark.
+   * <p>Core agents have no destination data, so every node weighs 0.0 (uniform selection).
+   * Modules override this to weight candidate nodes by their own attraction data.
    *
    * @param node   The candidate destination node.
    * @param isDark Whether the simulation currently considers it "Night".
-   * @return The weight for that node's zone (0.0 when no activity data is loaded).
+   * @return The weight for that node (0.0 when no activity data is loaded).
    */
   protected double getPOIWeight(NodeGraph node, boolean isDark) {
     return 0.0;
@@ -333,12 +325,15 @@ public class Agent implements Steppable {
   /**
    * Moves the agent to the given coordinates.
    *
+   * <p>The geometry is assigned directly: {@code VectorLayer.setGeometryLocation} queries and then
+   * rebuilds the layer's entire quadtree on every call, which is O(agents) work per agent per step.
+   * The layer's spatial index is instead refreshed once per step by the updater scheduled in
+   * {@link pedsim.core.engine.PedSimCity#startMovingAgents()}.
+   *
    * @param coordinate the coordinates.
    */
   public void updateAgentPosition(Coordinate coordinate) {
-    GeometryFactory geometryFactory = new GeometryFactory();
-    Point newLocation = geometryFactory.createPoint(coordinate);
-    state.agents.setGeometryLocation(currentLocation, newLocation);
+    Point newLocation = GEOMETRY_FACTORY.createPoint(coordinate);
     currentLocation.geometry = newLocation;
     pedsim.core.engine.SimulationStateStore.getInstance().updateAgent(this);
   }
@@ -399,8 +394,7 @@ public class Agent implements Steppable {
     if (originNode == null) {
       return;
     }
-    GeometryFactory geometryFactory = new GeometryFactory();
-    this.currentLocation.geometry = geometryFactory.createPoint(originNode.getCoordinate());
+    this.currentLocation.geometry = GEOMETRY_FACTORY.createPoint(originNode.getCoordinate());
   }
 
   protected void selectNodesFromOD() {
@@ -446,7 +440,7 @@ public class Agent implements Steppable {
     // Initialise and store the agent's heuristics so that other components
     // (e.g. landmark-based navigation) can safely access them via getHeuristics().
     heuristics = new Heuristics(this);
-    heuristics.defineHeuristic(originNode, destinationNode, false);
+    heuristics.defineHeuristic(false);
     RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
     setRoute(planner.definePath());
   }
@@ -599,7 +593,7 @@ public class Agent implements Steppable {
 
   /**
    * Mean illuminance (lux) experienced on the just-completed trip, or {@code NaN} when the module
-   * tracks no lighting. Overridden by the night module; recorded per trip by {@link
+   * tracks no lighting. Modules that track lighting override this; recorded per trip by {@link
    * pedsim.core.engine.TripRouteRecorder}.
    */
   public double getTripMeanLux() {

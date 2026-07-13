@@ -9,6 +9,12 @@ import pedsim.core.utilities.StringEnum.LocalHeuristicMode;
 import pedsim.core.utilities.StringEnum.MinimisationMode;
 import pedsim.core.utilities.StringEnum.RouteChoiceElement;
 
+/**
+ * An agent's route-choice configuration: the minimisation mode (shortest vs least-turn), the local
+ * heuristic, the active route-choice elements (landmarks, regions, barriers) and the barrier
+ * cost/preference factors. A plain state holder — {@code Heuristics} and the module-specific
+ * subclasses decide the values; the routing classes read them.
+ */
 public class AgentProperties {
 
   private MinimisationMode minimisationMode;
@@ -29,11 +35,6 @@ public class AgentProperties {
     this.elements = EnumSet.noneOf(RouteChoiceElement.class);
     reset();
   }
-
-  // // Optional compatibility constructor
-  // public AgentProperties(Agent ignoredAgent) {
-  // this();
-  // }
 
   public void reset() {
     minimisationMode = MinimisationMode.NONE;

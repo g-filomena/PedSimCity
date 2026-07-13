@@ -7,8 +7,21 @@ import pedsim.core.parameters.RouteChoicePars;
 import pedsim.core.utilities.StringEnum.LocalHeuristicMode;
 import pedsim.core.utilities.StringEnum.MinimisationMode;
 import pedsim.core.utilities.StringEnum.RouteChoiceElement;
-import sim.graph.NodeGraph;
 
+/**
+ * Samples an agent's route-choice configuration into its {@link AgentProperties}.
+ *
+ * <p>Two paths:
+ *
+ * <ul>
+ *   <li><b>Default</b> (no activation probabilities set): pure minimisation, sampling shortest
+ *       (distance) vs least-turn (angular) by the {@link RouteChoicePars} default split.
+ *   <li><b>Activated</b> (after {@link #setActivationProbabilities}): probability-driven choice of
+ *       minimisation, local heuristic and route-choice elements (landmarks, regions, barriers),
+ *       with each mechanism gated by the data the city actually loaded — angular modes need the
+ *       dual graph, landmark elements need landmark scores, and so on.
+ * </ul>
+ */
 public final class Heuristics {
 
   private double probabilityDistanceMinimisation;
@@ -17,7 +30,6 @@ public final class Heuristics {
   private double probabilityUsingRegions;
   private double probabilityBarrierSubGoals;
 
-  private final Agent agent;
   private final AgentProperties ap;
   private final Random random;
 
@@ -27,14 +39,17 @@ public final class Heuristics {
       RouteChoicePars.globalLandmarknessWeightAngularCommunity;
 
   public Heuristics(Agent agent) {
-    this.agent = Objects.requireNonNull(agent);
-    this.ap = Objects.requireNonNull(agent.getProperties());
+    this.ap = Objects.requireNonNull(Objects.requireNonNull(agent).getProperties());
     this.random = new Random();
   }
 
-  public void defineHeuristic(
-      NodeGraph originNode, NodeGraph destinationNode, boolean onlyDistanceMinimsation) {
-    if (onlyDistanceMinimsation) {
+  /**
+   * Configures the agent's route choice for the next trip. With {@code onlyDistanceMinimisation}
+   * the properties are reset to plain shortest-path routing; otherwise the route-choice mechanisms
+   * are sampled (see class doc).
+   */
+  public void defineHeuristic(boolean onlyDistanceMinimisation) {
+    if (onlyDistanceMinimisation) {
       ap.reset();
       ap.setMinimisationMode(MinimisationMode.DISTANCE);
       return;
@@ -44,15 +59,15 @@ public final class Heuristics {
 
   public void defineRouteChoiceMechanisms() {
 
-    // No empirical (cluster) data drives this agent: use pure minimisation, alternating shortest
+    // No activation probabilities set for this agent: use pure minimisation, alternating shortest
     // path (distance) and least-turn (angular / simplest path) by the default distribution.
     // Angular needs a dual graph, so primal-only cities always minimise distance.
-    if (!hasEmpiricalActivation()) {
+    if (!hasActivationProbabilities()) {
       ap.setMinimisationMode(defaultMinimisationMode());
       return;
     }
 
-    // Empirical-driven route choice, with each mechanism gated by the data the city actually loaded.
+    // Probability-driven route choice, with each mechanism gated by the data the city loaded.
     if (isGlobalMinimisationDominant()) {
       ap.setMinimisationMode(constrainMinimisation(sampleMinimisationMode()));
       return;
@@ -75,8 +90,8 @@ public final class Heuristics {
     }
   }
 
-  /** Whether any empirical (cluster-derived) activation probability has been set for this agent. */
-  private boolean hasEmpiricalActivation() {
+  /** Whether any activation probability has been set for this agent. */
+  private boolean hasActivationProbabilities() {
     return probabilityDistanceMinimisation > 0.0
         || probabilityAngularMinimisation > 0.0
         || probabilityDistantLandmarks > 0.0
@@ -85,20 +100,19 @@ public final class Heuristics {
   }
 
   /**
-   * Minimisation mode when no empirical data drives the agent: samples distance vs angular by the
-   * {@link RouteChoicePars} default split, but only offers angular when a dual graph is loaded.
+   * Minimisation mode when no activation probabilities drive the agent: samples distance vs
+   * angular by the {@link RouteChoicePars} default split, but only offers angular when a dual
+   * graph is loaded.
    */
   private MinimisationMode defaultMinimisationMode() {
     if (!dualAvailable()) {
       return MinimisationMode.DISTANCE;
     }
-    double d = Math.max(0.0, RouteChoicePars.defaultProbabilityDistanceMinimisation);
-    double a = Math.max(0.0, RouteChoicePars.defaultProbabilityAngularMinimisation);
-    double total = d + a;
-    if (total == 0.0) {
-      return MinimisationMode.DISTANCE;
-    }
-    return random.nextDouble() < d / total ? MinimisationMode.DISTANCE : MinimisationMode.ANGULAR;
+    return sampleDistanceOverAngular(
+            RouteChoicePars.defaultProbabilityDistanceMinimisation,
+            RouteChoicePars.defaultProbabilityAngularMinimisation)
+        ? MinimisationMode.DISTANCE
+        : MinimisationMode.ANGULAR;
   }
 
   /** Angular minimisation needs the dual graph; fall back to distance when it is absent. */
@@ -134,36 +148,36 @@ public final class Heuristics {
   }
 
   private MinimisationMode sampleMinimisationMode() {
-    return sampleWeightedMode(probabilityDistanceMinimisation, probabilityAngularMinimisation)
-            == BinaryMode.DISTANCE
+    return sampleDistanceOverAngular(
+            probabilityDistanceMinimisation, probabilityAngularMinimisation)
         ? MinimisationMode.DISTANCE
         : MinimisationMode.ANGULAR;
   }
 
   private LocalHeuristicMode sampleLocalHeuristicMode() {
-    return sampleWeightedMode(probabilityDistanceMinimisation, probabilityAngularMinimisation)
-            == BinaryMode.DISTANCE
+    return sampleDistanceOverAngular(
+            probabilityDistanceMinimisation, probabilityAngularMinimisation)
         ? LocalHeuristicMode.DISTANCE
         : LocalHeuristicMode.ANGULAR;
   }
 
-  private BinaryMode sampleWeightedMode(double distanceWeight, double angularWeight) {
+  /** Weighted coin flip between the two minimisation flavours; distance wins ties and zeros. */
+  private boolean sampleDistanceOverAngular(double distanceWeight, double angularWeight) {
     double d = Math.max(0.0, distanceWeight);
     double a = Math.max(0.0, angularWeight);
     double total = d + a;
 
     if (total == 0.0) {
-      return BinaryMode.DISTANCE;
+      return true;
     }
 
-    return random.nextDouble() < (d / total) ? BinaryMode.DISTANCE : BinaryMode.ANGULAR;
+    return random.nextDouble() < (d / total);
   }
 
-  private enum BinaryMode {
-    DISTANCE,
-    ANGULAR
-  }
-
+  /**
+   * Sets the per-mechanism activation probabilities that switch this agent from the default pure
+   * minimisation to probability-driven route choice (e.g. sampled from group-level parameters).
+   */
   public void setActivationProbabilities(
       double probabilityDistanceMinimisation,
       double probabilityAngularMinimisation,
@@ -184,13 +198,5 @@ public final class Heuristics {
 
   public double getGlobalLandmarkWeight(boolean angular) {
     return angular ? globalLandmarknessWeightAngular : globalLandmarknessWeightDistance;
-  }
-
-  public Agent getAgent() {
-    return agent;
-  }
-
-  public AgentProperties getAgentProperties() {
-    return ap;
   }
 }
