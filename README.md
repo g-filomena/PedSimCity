@@ -115,20 +115,30 @@ Each runnable module has Maven exec profiles (GUI and REST+dashboard); see its R
 |---|---|
 | `src/main/java/pedsim/<module>/` | Java source, one folder per module (each with a README) |
 | `src/main/resources/<City>/` | per-city GIS input layers read by the simulation (`<City>_*.gpkg`) |
-| `inputData/` | raw, pre-resources material used when preparing a city |
+| `inputData/<City>/` | raw preparation material (DTM/DEM rasters, detailed building layers, source notes); `00_city_preparation.py` searches it automatically after the resources folder |
 | `pipeline/` | Python data-prep scripts + `build_lighting*.py` orchestrators — see [`pipeline/README.md`](pipeline/README.md) |
 | `analysis/` | Jupyter notebooks + scripts for post-hoc analysis of results |
 | `outputs/` | all simulation results (gitignored) |
 
-**Preparing a city's data** — on Windows double-click `build_census.bat` (census/POI),
-`build_lighting_torino.bat` (Turin lamp inventory) or `build_lighting.bat` (bare lamp
-points) and enter the city; or run e.g.
-`python pipeline/build_lighting_torino.py --input_dir src/main/resources/<City>`. See
-[`pipeline/README.md`](pipeline/README.md) for the steps and the `<City>_…` filename conventions.
+**Preparing a city's data** — on Windows double-click `build_city.bat` (base layers +
+POIs), `build_census.bat` (ISTAT census) or `build_lighting.bat` (street lighting from
+the lamp inventory) and enter the city; or run e.g.
+`python pipeline/build_lighting.py --city <City>`. Raw material goes in
+`inputData/<City>/`; the pipeline writes what the sim reads to `src/main/resources/<City>/`.
+See [`pipeline/README.md`](pipeline/README.md) for the steps and the `<City>_…` filename
+conventions.
 
 **Results** — every run writes under `outputs/`: structured exports (volumes, routes, cognitive
 maps) under `outputs/<appName>/`, with trip diagnostics and the HTML dashboard at the `outputs/`
 root.
+
+**Publishing results** — the result pages under `outputs/results/` are self-contained HTML;
+`publish_site.bat` (or `python publish_site.py`) stages them with an index into `outputs/site/`
+and deploys to Cloudflare Pages (project `inclusivestreets`, served at
+[inclusivestreets.org](https://inclusivestreets.org)). One-time setup:
+`npm install -g wrangler`, `wrangler login`,
+`wrangler pages project create inclusivestreets`, then attach the custom domain in the
+Cloudflare dashboard (Workers & Pages → inclusivestreets → Custom domains).
 
 **How to use the Web Dashboard:**
 
