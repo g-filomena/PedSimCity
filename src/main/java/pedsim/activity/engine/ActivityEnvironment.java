@@ -14,9 +14,10 @@ import sim.util.geo.MasonGeometry;
 
 /**
  * Environment preparation for activity-based modules. Extends the core {@link Environment} (graph,
- * buildings, barriers, regions) by building the {@link CensusZone} model from the unified census
- * layer: residence, workplace and night POI weights, and the network nodes associated with each
- * zone by proximity.
+ * buildings, barriers, regions) by building the {@link CensusZone} model from the census layer:
+ * per-zone residence weights (population structure) and the network nodes associated with each
+ * zone by proximity. Destination attraction is no census matter — it comes from the OSM-tag
+ * purpose weights built by {@link PoiClassifier}.
  *
  * <p>Nodes are assigned to zones by proximity rather than strict containment, because graph nodes
  * sit on the street network (inside road zones) while population/POIs are attributed to the
@@ -32,12 +33,17 @@ public class ActivityEnvironment extends Environment {
   /** Radii (m) tried in order when claiming nodes for a zone; grows until ≥1 node is found. */
   private static final double[] CLAIM_RADII = {50.0, 100.0, 200.0, 400.0};
 
-  /** Runs the core infrastructure preparation, then builds the census-zone model and transit stops. */
+  /**
+   * Runs the core infrastructure preparation, then builds the census-zone model, the
+   * purpose-attraction weights from OSM-like use tags (independent of census availability), and
+   * loads the transit stops.
+   */
   public static void prepare() {
     Environment.prepare();
-    if (!PedSimCityActivity.censusLayer.getGeometries().isEmpty()) {
+    if (!PedSimCityActivity.censusLayer.isEmpty()) {
       buildCensusZones();
     }
+    PoiClassifier.buildPurposeWeights();
     pedsim.transit.TransitLoader.loadStops(null);
   }
 
@@ -46,7 +52,6 @@ public class ActivityEnvironment extends Environment {
     List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
     STRtree nodeIndex = buildNodeIndex(allNodes);
 
-    STRtree zoneIndex = new STRtree();
     int withNodes = 0;
     double totalResidents = 0.0;
     for (MasonGeometry geom : PedSimCityActivity.censusLayer.getGeometries()) {
@@ -54,18 +59,15 @@ public class ActivityEnvironment extends Environment {
 
       CensusZone zone = new CensusZone(geom);
       zone.residence = zoneValue(geom, "residence_pct");
-      zone.workplace = zoneValue(geom, "workplace_poi");
-      zone.night = zoneValue(geom, "night_poi");
+      zone.retireeShare = zoneValueOrNaN(geom, "retiree_pct");
+      zone.studentShare = zoneValueOrNaN(geom, "student_pct");
       totalResidents += zoneValue(geom, "residents");
 
       zone.nodes.addAll(claimNodes(geom.getGeometry(), nodeIndex));
       if (!zone.nodes.isEmpty()) withNodes++;
 
       PedSimCityActivity.censusZones.add(zone);
-      zoneIndex.insert(geom.getGeometry().getEnvelopeInternal(), zone);
     }
-    zoneIndex.build();
-    PedSimCityActivity.censusZonesIndex = zoneIndex;
 
     // When the census carries absolute resident counts (P1), the sampling fraction applies to the
     // real headcount: override the population and recompute the agent count. Absent the column
@@ -86,21 +88,6 @@ public class ActivityEnvironment extends Environment {
               + Pars.population
               + " -> numAgents="
               + Pars.numAgents);
-    }
-
-    // Derive per-node POI weights: split each zone's count (an extensive quantity) across its
-    // claimed nodes, accumulating across zones that share a node. Used by
-    // ActivityAgent.getPOIWeight.
-    for (CensusZone zone : PedSimCityActivity.censusZones) {
-      if (zone.nodes.isEmpty()) continue;
-      double workPerNode = zone.workplace / zone.nodes.size();
-      double nightPerNode = zone.night / zone.nodes.size();
-      for (NodeGraph node : zone.nodes) {
-        if (workPerNode != 0.0)
-          PedSimCityActivity.nodesWorkplaceWeight.merge(node, workPerNode, Double::sum);
-        if (nightPerNode != 0.0)
-          PedSimCityActivity.nodesNightWeight.merge(node, nightPerNode, Double::sum);
-      }
     }
 
     logger.info(
@@ -162,6 +149,20 @@ public class ActivityEnvironment extends Environment {
           return 0.0;
         }
       }
+    }
+  }
+
+  /**
+   * Like {@link #zoneValue}, but returns {@code NaN} when the column is absent or non-numeric —
+   * for optional columns where "not provided" must stay distinguishable from a genuine zero.
+   */
+  protected static double zoneValueOrNaN(MasonGeometry geom, String key) {
+    AttributeValue value = geom.getAttributes().get(key);
+    if (value == null) return Double.NaN;
+    try {
+      return value.getDouble();
+    } catch (Exception e) {
+      return Double.NaN;
     }
   }
 }

@@ -1,16 +1,21 @@
 package pedsim.activity.engine;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.locationtech.jts.index.strtree.STRtree;
+import pedsim.activity.agents.ActivityAgent;
+import pedsim.activity.agents.ActivityPurpose;
+import pedsim.activity.parameters.ActivityPars;
 import pedsim.core.agents.Agent;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
-import pedsim.core.utilities.RobustVectorLayer;
+import pedsim.core.parameters.TimePars;
 import pedsim.transit.TransitStop;
 import pedsim.transit.TransitVehicle;
+import sim.field.geo.VectorLayer;
 import sim.graph.NodeGraph;
 
 public class PedSimCityActivity extends PedSimCity {
@@ -20,21 +25,23 @@ public class PedSimCityActivity extends PedSimCity {
   // 24h activity clock: true between ~20:00 and ~06:00. Driven by ActivityEngine.onStepUpdate.
   public boolean isDark = false;
 
+  // Raw census layer as loaded from <City>_censusData.gpkg: one polygon set carrying population
+  // structure only (residence_pct, residents, plus module columns like vulnerability_pct).
+  // Destination attraction comes from the OSM-tag purpose weights, not from the census.
+  public static VectorLayer censusLayer = new VectorLayer();
 
-  // Raw census layer as loaded from <City>_censusData.gpkg: one polygon set carrying the
-  // residence_pct, workplace_poi and night_poi columns (the full 24h activity pattern).
-  public static RobustVectorLayer censusLayer = new RobustVectorLayer();
-
-  // Census zones built from the raw layer, each with its proximity-assigned network nodes and the
-  // per-zone residence / workplace / night weights.
+  // Census zones built from the raw layer, each with its proximity-assigned network nodes and its
+  // residence weight.
   public static List<CensusZone> censusZones = new ArrayList<>();
 
-  // Spatial index over the census zones, used to find candidate work zones near a home node.
-  public static STRtree censusZonesIndex = new STRtree();
+  // Optional dedicated POI layer (<City>_POIs.gpkg) carrying OSM-like use tags; buildings may
+  // carry the same tags. Both feed the purpose classifier below.
+  public static VectorLayer poisLayer = new VectorLayer();
 
-  // Per-node POI weights derived once from the zones (each zone's count split across its nodes).
-  public static Map<NodeGraph, Double> nodesWorkplaceWeight = new HashMap<>();
-  public static Map<NodeGraph, Double> nodesNightWeight = new HashMap<>();
+  // Per-node attraction weights per activity purpose, derived from OSM-like use tags on the
+  // buildings/POI layers by PoiClassifier. Empty when the city carries no tags.
+  public static Map<ActivityPurpose, Map<NodeGraph, Double>> nodesPurposeWeight =
+      new EnumMap<>(ActivityPurpose.class);
 
   // Multi-Modal Transit Static Data Structures
   public static List<TransitStop> allTransitStops = new ArrayList<>();
@@ -125,15 +132,61 @@ public class PedSimCityActivity extends PedSimCity {
     System.out.println("============================================================\n");
   }
 
+  /** Whether the current simulated day is rainy (see {@link Weather}). */
+  public boolean isRainyNow() {
+    return Weather.isRainy(
+        TimePars.getTime(schedule.getSteps()).toLocalDate(), seed());
+  }
+
+  /** Rainy days suppress the walking volume: fewer releases per time step. */
+  @Override
+  public double releaseBudgetMultiplier(LocalDateTime time) {
+    if (!ActivityPars.useWeather) {
+      return 1.0;
+    }
+    return Weather.isRainy(time.toLocalDate(), seed()) ? ActivityPars.rainReleaseMultiplier : 1.0;
+  }
+
+  /**
+   * Persona × hour release affinity: commuter personas are favoured at the morning/evening peaks,
+   * retirees at midday (see {@link pedsim.activity.agents.Persona#releaseAffinity}).
+   */
+  @Override
+  public double releaseCandidateWeight(Agent agent, int hour) {
+    if (!ActivityPars.usePersonaReleaseWeights
+        || !(agent instanceof ActivityAgent activityAgent)
+        || activityAgent.getPersona() == null) {
+      return 1.0;
+    }
+    return activityAgent.getPersona().releaseAffinity(hour);
+  }
+
+  /**
+   * Walk-share filter: logit acceptance of sampled trip distances, so most short trips are walked
+   * and few long ones are — the released trip-length mix follows observed walking mode shares.
+   */
+  @Override
+  public boolean acceptTripDistance(double meters) {
+    if (!ActivityPars.useWalkShareFilter) {
+      return true;
+    }
+    double walkProbability =
+        1.0
+            / (1.0
+                + Math.exp(
+                    ActivityPars.walkShareSteepness
+                        * (meters - ActivityPars.walkShareHalfDistance)));
+    return java.util.concurrent.ThreadLocalRandom.current().nextDouble() < walkProbability;
+  }
 
   /** Clears all static data structures to allow for a clean simulation restart. */
 
   public static void clearStaticData() {
-    censusLayer.getGeometries().clear();
+    // clear() the layers themselves: getGeometries() returns a defensive copy.
+    censusLayer.clear();
+    poisLayer.clear();
     censusZones.clear();
-    censusZonesIndex = new STRtree();
-    nodesWorkplaceWeight.clear();
-    nodesNightWeight.clear();
+    nodesPurposeWeight.clear();
     allTransitStops.clear();
     transitStopsByNodeId.clear();
     metroStops.clear();
