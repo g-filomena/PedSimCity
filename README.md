@@ -132,13 +132,17 @@ conventions.
 maps) under `outputs/<appName>/`, with trip diagnostics and the HTML dashboard at the `outputs/`
 root.
 
-**Publishing results** — the result pages under `outputs/results/` are self-contained HTML;
-`publish_site.bat` (or `python publish_site.py`) stages them with an index into `outputs/site/`
-and deploys to Cloudflare Pages (project `inclusivestreets`, served at
-[inclusivestreets.org](https://inclusivestreets.org)). One-time setup:
-`npm install -g wrangler`, `wrangler login`,
-`wrangler pages project create inclusivestreets`, then attach the custom domain in the
-Cloudflare dashboard (Workers & Pages → inclusivestreets → Custom domains).
+**Publishing results** — the result pages under `outputs/results/` are self-contained HTML.
+`python publish_site.py` (or `publish_site.bat`) stages them into `outputs/site/` — an overview
+page plus one sub-page per city — and deploys to Cloudflare Pages (project `inclusivestreets`),
+served at [pedsimcity.inclusivestreets.org](https://pedsimcity.inclusivestreets.org), with each
+city at `pedsimcity.inclusivestreets.org/<City>`. The site lives at the root of its own
+subdomain; the `inclusivestreets.org` apex is a separate umbrella and is not managed by this
+script. Use `--no-deploy` to only stage the folder (drag-and-drop it in the Pages dashboard
+instead), or `--open` to preview it locally. One-time toolchain setup (per machine):
+`npm install -g wrangler`, `wrangler login`, `wrangler pages project create inclusivestreets`;
+the `pedsimcity` subdomain is then attached once in the Cloudflare dashboard
+(Workers & Pages → inclusivestreets → Custom domains).
 
 **How to use the Web Dashboard:**
 

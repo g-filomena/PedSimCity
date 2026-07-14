@@ -716,19 +716,19 @@
       if (el.children.length > 50) el.removeChild(el.lastChild);
     }
 
-    // Census-driven population: when the chosen city's census carries P1 resident totals, the
-    // backend derives the population from them, so lock the input and show the census figure.
+    // Data-driven population: when the module derives the city's population from its own data
+    // (e.g. the activity module's census resident totals), lock the input and show that figure.
     const cityEl = document.getElementById('cityName');
     const popEl = document.getElementById('actualPopulation');
-    async function updateCensusPopulation() {
+    async function updatePopulationField() {
       try {
-        const resp = await fetch(`${API_BASE}/api/census?city=${encodeURIComponent(cityEl.value)}`,
+        const resp = await fetch(`${API_BASE}/api/population?city=${encodeURIComponent(cityEl.value)}`,
           { signal: AbortSignal.timeout(4000) });
         const info = await resp.json();
-        if (info.hasCensusPopulation) {
+        if (info.populationFromData) {
           popEl.value = info.population;
           popEl.disabled = true;
-          popEl.title = 'Population is taken from the census (P1 total) for this city.';
+          popEl.title = 'Population is derived from city data (e.g. census resident totals).';
         } else {
           popEl.disabled = false;
           popEl.title = '';
@@ -737,8 +737,8 @@
         popEl.disabled = false; // leave editable if the server is unreachable
       }
     }
-    cityEl.addEventListener('change', updateCensusPopulation);
-    updateCensusPopulation();
+    cityEl.addEventListener('change', updatePopulationField);
+    updatePopulationField();
 
     async function startSimulation() {
       const payload = {

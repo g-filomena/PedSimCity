@@ -137,3 +137,13 @@ server.properties
 *.sqlite3
 *.parquet
 *.pkl
+*.tif
+*.tiff
+
+
+# -------------------------------------------------------------------
+# Node / Cloudflare (wrangler) publishing tooling
+# -------------------------------------------------------------------
+
+node_modules/
+.wrangler/
