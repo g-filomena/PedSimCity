@@ -1,0 +1,1 @@
+"Day","Trip_id","Agency_id","Cod_dataset","Line_id","Pattern_id","Direction","TripCompanyCode","Seats","Corridor_Seats","Disability_Seats","Duty","Block","id_Vehicle","Max_day","Trip_fix"

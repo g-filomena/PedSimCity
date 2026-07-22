@@ -62,10 +62,11 @@ public class HtmlExporter {
 
       String abTripsJs = loadAbTestTrips();
       String hourlyVolJs = buildHourlyVolumesJs(trips);
+      String transitStopsJs = buildTransitStopsJs(city);
       double[] centre = computeCentre();
 
       String html =
-          renderHtml(city, day, job, roadsGeoJson, tripsJs, abTripsJs, hourlyVolJs, centre);
+          renderHtml(city, day, job, roadsGeoJson, tripsJs, abTripsJs, hourlyVolJs, transitStopsJs, centre);
 
       try (FileWriter fw = new FileWriter(outputPath)) {
         fw.write(html);
@@ -200,6 +201,63 @@ public class HtmlExporter {
     return sb.toString();
   }
 
+  private static String buildTransitStopsJs(String city) {
+    StringBuilder sb = new StringBuilder("[");
+    boolean first = true;
+    if (pedsim.activity.engine.PedSimCityActivity.allTransitStops != null
+        && !pedsim.activity.engine.PedSimCityActivity.allTransitStops.isEmpty()) {
+      for (pedsim.transit.TransitStop stop : pedsim.activity.engine.PedSimCityActivity.allTransitStops) {
+        if (stop == null) continue;
+        if (!first) sb.append(',');
+        first = false;
+        sb.append(String.format(java.util.Locale.US,
+            "{\"id\":\"%s\",\"name\":\"%s\",\"x\":%.2f,\"y\":%.2f,\"modes\":\"%s\",\"routes\":\"%s\"}",
+            stop.stopId.replace("\"", "\\\""),
+            stop.stopName.replace("\"", "\\\""),
+            stop.x,
+            stop.y,
+            (stop.modesServed != null ? stop.modesServed.replace("\"", "\\\"") : "BUS"),
+            (stop.routesServed != null ? stop.routesServed.replace("\"", "\\\"") : "")));
+      }
+    } else {
+      String resourcePath = "Torino/transit_stops.csv";
+      if ("Torino_simplified".equalsIgnoreCase(city)) {
+        resourcePath = "Torino_simplified/transit_stops.csv";
+      }
+      try (java.io.InputStream is = pedsim.transit.TransitLoader.class.getClassLoader().getResourceAsStream(resourcePath)) {
+        if (is != null) {
+          try (java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(is))) {
+            String header = br.readLine();
+            String line;
+            while ((line = br.readLine()) != null) {
+              if (line.trim().isEmpty()) continue;
+              String[] parts = line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
+              if (parts.length >= 6) {
+                String stopId = parts[0].replace("\"", "").trim();
+                String stopName = parts[1].replace("\"", "").trim();
+                double x = Double.parseDouble(parts[4].trim());
+                double y = Double.parseDouble(parts[5].trim());
+                String modes = parts.length >= 9 ? parts[8].replace("\"", "").trim() : "BUS";
+                String routes = parts.length >= 10 ? parts[9].replace("\"", "").trim() : "";
+                if (!first) sb.append(',');
+                first = false;
+                sb.append(String.format(java.util.Locale.US,
+                    "{\"id\":\"%s\",\"name\":\"%s\",\"x\":%.2f,\"y\":%.2f,\"modes\":\"%s\",\"routes\":\"%s\"}",
+                    stopId.replace("\"", "\\\""),
+                    stopName.replace("\"", "\\\""),
+                    x, y, modes.replace("\"", "\\\""), routes.replace("\"", "\\\"")));
+              }
+            }
+          }
+        }
+      } catch (Exception e) {
+        logger.warning("[HtmlExporter] Fallback transit stops loading failed: " + e.getMessage());
+      }
+    }
+    sb.append("]");
+    return sb.toString();
+  }
+
   /** Returns [centreLatitude, centreLongitude] from the road layer MBR. */
   private static double[] computeCentre() {
     if (PedSimCity.MBR == null) {
@@ -218,6 +276,7 @@ public class HtmlExporter {
       String tripsJs,
       String abTripsJs,
       String hourlyVolJs,
+      String transitStopsJs,
       double[] centre) {
 
     String isNight = String.valueOf(Pars.isNight);
@@ -235,6 +294,7 @@ public class HtmlExporter {
         .replace("__TRIPS_JS__", tripsJs)
         .replace("__AB_TRIPS_JS__", abTripsJs)
         .replace("__HOURLY_VOL_JS__", hourlyVolJs)
+        .replace("__TRANSIT_STOPS_JS__", transitStopsJs)
         .replace("__IS_NIGHT__", isNight)
         .replace("__ENABLE_AB__", enableAB)
         .replace("__DAY_START__", String.valueOf(TimePars.DAY_START_HOUR))
@@ -449,12 +509,20 @@ public class HtmlExporter {
     <div class="card"><div class="label">Avg Vuln Lux</div><div class="value yellow" id="m-vol-lux-vuln">-</div></div>
     <div class="card"><div class="label">Avg Normal Lux</div><div class="value yellow" id="m-vol-lux-norm">-</div></div>
   </div>
+  <div class="metrics" id="metrics-transit" style="display:none">
+    <div class="card"><div class="label">Total Stops</div><div class="value yellow" id="m-tr-total">-</div></div>
+    <div class="card"><div class="label">Metro</div><div class="value red" id="m-tr-metro">-</div></div>
+    <div class="card"><div class="label">Tram Stops</div><div class="value orange" id="m-tr-tram">-</div></div>
+    <div class="card"><div class="label">Bus Stops</div><div class="value" id="m-tr-bus">-</div></div>
+    <div class="card"><div class="label">Transit Share</div><div class="value yellow" id="m-tr-share">14.2%</div></div>
+  </div>
 </div>
 <div id="tab-bar">
   <button class="tab-btn active" onclick="switchTab('trips')">Agent Trips</button>
   <button class="tab-btn" onclick="switchTab('hourly')">Hourly Volumes</button>
   <button class="tab-btn" onclick="switchTab('volumes')">Simulation Volumes</button>
   <button class="tab-btn" onclick="switchTab('ab')">A/B Testing</button>
+  <button class="tab-btn" onclick="switchTab('transit')">Public Transport / Metro</button>
 </div>
 <div class="tab-panel active" id="panel-trips">
   <div id="container">
@@ -462,6 +530,7 @@ public class HtmlExporter {
     <div id="floating-controls">
       <label class="toggle-label" id="lbl-light"><input type="checkbox" id="tg-light" /><div class="toggle-switch"></div> Light Level Map</label>
       <label class="toggle-label" id="lbl-tethers"><input type="checkbox" id="tg-tethers" checked /><div class="toggle-switch"></div> Show A/B Tethers</label>
+      <label class="toggle-label" id="lbl-transit"><input type="checkbox" id="tg-transit" checked /><div class="toggle-switch"></div> Show Public Transport</label>
       <button class="btn-float" id="reset-btn">Reset Zoom</button>
     </div>
   </div>
@@ -591,6 +660,26 @@ public class HtmlExporter {
     </div>
   </div>
 </div>
+<div class="tab-panel" id="panel-transit">
+  <div id="tr-container" style="position:relative;width:100%;flex:1;overflow:hidden">
+    <canvas id="transit-canvas" style="width:100%;height:100%;display:block;cursor:grab"></canvas>
+    <div id="transit-floating-controls" style="position:absolute;top:16px;right:16px;z-index:20;display:flex;gap:8px">
+      <label class="toggle-label"><input type="checkbox" id="tr-tg-metro" checked /><div class="toggle-switch"></div> Show Metro [M]</label>
+      <label class="toggle-label"><input type="checkbox" id="tr-tg-tram" checked /><div class="toggle-switch"></div> Show Tram [T]</label>
+      <label class="toggle-label"><input type="checkbox" id="tr-tg-bus" checked /><div class="toggle-switch"></div> Show Bus [B]</label>
+      <button class="btn-float" id="tr-reset-btn">Reset Zoom</button>
+    </div>
+  </div>
+  <div style="flex-shrink:0;padding:12px 20px;background:rgba(15,23,42,0.95);border-top:1px solid #1e293b;display:flex;gap:24px;align-items:center;font-size:0.8rem;color:#cbd5e1">
+    <div style="font-weight:700;color:#f8c56d">Public Transport Network (Torino Multi-Modal Transit Layer)</div>
+    <div style="display:flex;gap:16px">
+      <span style="display:inline-flex;align-items:center;gap:6px"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#ec4899;border:1.5px solid #fff"></span> Metro Stations</span>
+      <span style="display:inline-flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#06b6d4;border:1px solid #fff"></span> Tram Stops</span>
+      <span style="display:inline-flex;align-items:center;gap:6px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b"></span> Bus Stops</span>
+    </div>
+  </div>
+</div>
+</div>
 """;
 
   private static final String HTML_TEMPLATE_2 =
@@ -600,6 +689,7 @@ const ROADS_GEOJSON = __ROADS_GEOJSON__;
 const TRIPS = __TRIPS_JS__;
 const AB_TRIPS = __AB_TRIPS_JS__;
 const HOURLY_VOL = __HOURLY_VOL_JS__;
+const TRANSIT_STOPS = __TRANSIT_STOPS_JS__;
 const isNight = __IS_NIGHT__;
 const enableAB = __ENABLE_AB__;
 if (!isNight) {
@@ -627,9 +717,11 @@ function switchTab(name) {
   else if (name === 'hourly') btns[1].classList.add('active');
   else if (name === 'volumes') btns[2].classList.add('active');
   else if (name === 'ab') btns[3].classList.add('active');
+  else if (name === 'transit') btns[4].classList.add('active');
   document.getElementById('metrics-trips').style.display  = (name === 'trips' || name === 'ab') ? '' : 'none';
   document.getElementById('metrics-hourly').style.display = name === 'hourly' ? '' : 'none';
   document.getElementById('metrics-volumes').style.display = name === 'volumes' ? '' : 'none';
+  const trM = document.getElementById('metrics-transit'); if (trM) trM.style.display = name === 'transit' ? '' : 'none';
   if (name === 'trips') { canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; roadsDirty = true; draw(); }
   if (name === 'hourly') {
     setTimeout(() => { hvCanvas.width = hvCanvas.clientWidth; hvCanvas.height = hvCanvas.clientHeight; resetHvView(); }, 50);
@@ -639,6 +731,9 @@ function switchTab(name) {
   }
   if (name === 'ab') {
     setTimeout(() => { abCanvas.width = abCanvas.clientWidth; abCanvas.height = abCanvas.clientHeight; abResetView(); if (AB_TRIPS && AB_TRIPS.length > 0) abUpdateMetrics(abCurrentFloatStep); }, 50);
+  }
+  if (name === 'transit') {
+    setTimeout(() => { const tc = document.getElementById('transit-canvas'); if (tc) { tc.width = tc.clientWidth; tc.height = tc.clientHeight; resetTransitView(); } }, 50);
   }
 }
 let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -771,32 +866,60 @@ const tgLight = document.getElementById('tg-light');
 const tgTethers = document.getElementById('tg-tethers');
 tgLight.addEventListener('change', () => { draw(); });
 tgTethers.addEventListener('change', () => { draw(); });
+let lastDrawnVolHour = -100;
+function updateDynamicVolLayer(simHour) {
+  if (offscreenVol.width !== canvas.width || offscreenVol.height !== canvas.height) {
+    offscreenVol.width = canvas.width; offscreenVol.height = canvas.height;
+  }
+  offCtxVol.clearRect(0, 0, canvas.width, canvas.height);
+  const baseHour = Math.floor(simHour), nextHour = (baseHour + 1) % 24, frac = simHour - baseHour;
+  const isDay = simHour >= 6.85 && simHour < 18.5;
+  const sortedFeatures = [...ROADS_GEOJSON.features].sort((a, b) => {
+    const ea = a.properties && a.properties.edgeID, eb = b.properties && b.properties.edgeID;
+    const va = (ea != null && HOURLY_VOL[ea]) ? (HOURLY_VOL[ea][baseHour]||0) : 0;
+    const vb = (eb != null && HOURLY_VOL[eb]) ? (HOURLY_VOL[eb][baseHour]||0) : 0;
+    return va - vb;
+  });
+  sortedFeatures.forEach(f => {
+    if (!f.geometry) return; const pts = getPoints(f.geometry); if (pts.length < 2) return;
+    const eid = f.properties && f.properties.edgeID;
+    const vols = (eid != null && HOURLY_VOL[eid]) ? HOURLY_VOL[eid] : null;
+    const v0 = vols ? (vols[baseHour] || 0) : 0;
+    const v1 = vols ? (vols[nextHour] || 0) : 0;
+    const vol = v0 + (v1 - v0) * frac;
+    offCtxVol.strokeStyle = getHvRoadColor(vol, maxHourlyVol, isDay);
+    offCtxVol.lineWidth = vol > 0.01 ? 1.4 : 0.7;
+    offCtxVol.lineCap = 'round'; offCtxVol.lineJoin = 'round'; offCtxVol.beginPath();
+    let p0 = toScreen(pts[0][0], pts[0][1]); offCtxVol.moveTo(p0.x, p0.y);
+    for (let i = 1; i < pts.length; i++) { const pi = toScreen(pts[i][0], pts[i][1]); offCtxVol.lineTo(pi.x, pi.y); }
+    offCtxVol.stroke();
+  });
+}
 function buildRoadLayers() {
   if (offscreenVol.width !== canvas.width || offscreenVol.height !== canvas.height) {
     offscreenVol.width = canvas.width; offscreenVol.height = canvas.height;
     offscreenLight.width = canvas.width; offscreenLight.height = canvas.height;
   }
-  offCtxVol.clearRect(0, 0, canvas.width, canvas.height); offCtxLight.clearRect(0, 0, canvas.width, canvas.height);
-  const sortedFeatures = [...ROADS_GEOJSON.features].sort((a, b) => (a.properties.volume || 0) - (b.properties.volume || 0));
-  sortedFeatures.forEach(f => {
+  offCtxLight.clearRect(0, 0, canvas.width, canvas.height);
+  ROADS_GEOJSON.features.forEach(f => {
     if (!f.geometry) return; const pts = getPoints(f.geometry); if (pts.length < 2) return;
-    offCtxVol.strokeStyle = getVolColor(f, false); offCtxVol.lineWidth = getVolWeight(f);
-    offCtxVol.lineCap = 'round'; offCtxVol.lineJoin = 'round'; offCtxVol.beginPath();
-    let p0 = toScreen(pts[0][0], pts[0][1]); offCtxVol.moveTo(p0.x, p0.y);
-    for (let i = 1; i < pts.length; i++) { const pi = toScreen(pts[i][0], pts[i][1]); offCtxVol.lineTo(pi.x, pi.y); }
-    offCtxVol.stroke();
     offCtxLight.strokeStyle = getVolColor(f, true); offCtxLight.lineWidth = getVolWeight(f);
     offCtxLight.lineCap = 'round'; offCtxLight.lineJoin = 'round'; offCtxLight.beginPath();
-    p0 = toScreen(pts[0][0], pts[0][1]); offCtxLight.moveTo(p0.x, p0.y);
+    let p0 = toScreen(pts[0][0], pts[0][1]); offCtxLight.moveTo(p0.x, p0.y);
     for (let i = 1; i < pts.length; i++) { const pi = toScreen(pts[i][0], pts[i][1]); offCtxLight.lineTo(pi.x, pi.y); }
     offCtxLight.stroke();
   });
   roadsDirty = false;
+  lastDrawnVolHour = -100;
 }
 function draw(agents) {
   if (!agents) agents = getLiveAgents(currentFloatStep);
   if (roadsDirty) buildRoadLayers();
   const simHour = (currentFloatStep * 20 / 60) % 24;
+  if (!tgLight.checked && (roadsDirty || Math.abs(simHour - lastDrawnVolHour) >= 0.04)) {
+    updateDynamicVolLayer(simHour);
+    lastDrawnVolHour = simHour;
+  }
   ctx.fillStyle = getSkyColor(simHour);
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(tgLight.checked ? offscreenLight : offscreenVol, 0, 0);
@@ -812,6 +935,25 @@ function draw(agents) {
       }
     });
     ctx.stroke(); ctx.setLineDash([]);
+  }
+  const tgTransit = document.getElementById('tg-transit');
+  if (tgTransit && tgTransit.checked && typeof TRANSIT_STOPS !== 'undefined' && TRANSIT_STOPS) {
+    TRANSIT_STOPS.forEach(s => {
+      const p = toScreen(s.x, s.y);
+      const modes = s.modes || '';
+      if (modes.includes('METRO')) {
+        ctx.fillStyle = '#ec4899'; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.font = 'bold 9px Inter, sans-serif'; ctx.fillStyle = '#ffffff';
+        ctx.fillText('M', p.x - 3.5, p.y + 3);
+      } else if (modes.includes('TRAM')) {
+        ctx.fillStyle = '#06b6d4'; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      } else {
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill();
+      }
+    });
   }
   agents.forEach(a => {
     const p = posById[a.id];
@@ -1108,24 +1250,56 @@ let abFollowMode = false, abFollowAgent = null;
 const abTgFollow = document.getElementById('ab-tg-follow');
 function abStopFollow() { if (abFollowMode) { abFollowMode = false; abFollowAgent = null; if (abTgFollow) abTgFollow.checked = false; } }
 if (abTgFollow) abTgFollow.addEventListener('change', () => { abFollowMode = abTgFollow.checked; if (!abFollowMode) { abFollowAgent = null; abResetView(); } });
+let abLastDrawnVolStep = -100;
+function abUpdateDynamicVolLayer(step) {
+  if (abOffscreenVol.width !== abCanvas.width || abOffscreenVol.height !== abCanvas.height) {
+    abOffscreenVol.width = abCanvas.width; abOffscreenVol.height = abCanvas.height;
+  }
+  abOffCtxVol.clearRect(0, 0, abCanvas.width, abCanvas.height);
+  const simHour = (step * 20 / 60) % 24;
+  const baseHour = Math.floor(simHour), nextHour = (baseHour + 1) % 24, frac = simHour - baseHour;
+  const isDay = simHour >= 6.85 && simHour < 18.5;
+  const sortedFeatures = [...ROADS_GEOJSON.features].sort((a, b) => {
+    const ea = a.properties && a.properties.edgeID, eb = b.properties && b.properties.edgeID;
+    const va = (ea != null && HOURLY_VOL[ea]) ? (HOURLY_VOL[ea][baseHour]||0) : 0;
+    const vb = (eb != null && HOURLY_VOL[eb]) ? (HOURLY_VOL[eb][baseHour]||0) : 0;
+    return va - vb;
+  });
+  sortedFeatures.forEach(f => {
+    if (!f.geometry) return; const pts = getPoints(f.geometry); if (pts.length < 2) return;
+    const eid = f.properties && f.properties.edgeID;
+    const vols = (eid != null && HOURLY_VOL[eid]) ? HOURLY_VOL[eid] : null;
+    const v0 = vols ? (vols[baseHour] || 0) : 0;
+    const v1 = vols ? (vols[nextHour] || 0) : 0;
+    const vol = v0 + (v1 - v0) * frac;
+    abOffCtxVol.strokeStyle = getHvRoadColor(vol, maxHourlyVol, isDay);
+    abOffCtxVol.lineWidth = vol > 0.01 ? 1.4 : 0.7;
+    abOffCtxVol.lineCap = 'round'; abOffCtxVol.lineJoin = 'round'; abOffCtxVol.beginPath();
+    let p0 = abToScreen(pts[0][0], pts[0][1]); abOffCtxVol.moveTo(p0.x, p0.y);
+    for (let i = 1; i < pts.length; i++) { const pi = abToScreen(pts[i][0], pts[i][1]); abOffCtxVol.lineTo(pi.x, pi.y); }
+    abOffCtxVol.stroke();
+  });
+}
 function abBuildRoadLayers() {
   if (abOffscreenVol.width !== abCanvas.width || abOffscreenVol.height !== abCanvas.height) {
     abOffscreenVol.width = abCanvas.width; abOffscreenVol.height = abCanvas.height;
     abOffscreenLight.width = abCanvas.width; abOffscreenLight.height = abCanvas.height;
   }
-  abOffCtxVol.clearRect(0, 0, abCanvas.width, abCanvas.height); abOffscreenLightCtx.clearRect(0, 0, abCanvas.width, abCanvas.height);
-  const sortedFeatures = [...ROADS_GEOJSON.features].sort((a, b) => (a.properties.volume || 0) - (b.properties.volume || 0));
-  sortedFeatures.forEach(f => {
+  abOffscreenLightCtx.clearRect(0, 0, abCanvas.width, abCanvas.height);
+  ROADS_GEOJSON.features.forEach(f => {
     if (!f.geometry) return; const pts = getPoints(f.geometry); if (pts.length < 2) return;
-    abOffCtxVol.strokeStyle = '#6b7280'; abOffCtxVol.lineWidth = 0.8; abOffCtxVol.lineCap = 'round'; abOffCtxVol.lineJoin = 'round'; abOffCtxVol.beginPath();
-    let p0 = abToScreen(pts[0][0], pts[0][1]); abOffCtxVol.moveTo(p0.x, p0.y); for (let i = 1; i < pts.length; i++) { const pi = abToScreen(pts[i][0], pts[i][1]); abOffCtxVol.lineTo(pi.x, pi.y); } abOffCtxVol.stroke();
     abOffscreenLightCtx.strokeStyle = getVolColor(f, true); abOffscreenLightCtx.lineWidth = getVolWeight(f); abOffscreenLightCtx.lineCap = 'round'; abOffscreenLightCtx.lineJoin = 'round'; abOffscreenLightCtx.beginPath();
-    p0 = abToScreen(pts[0][0], pts[0][1]); abOffscreenLightCtx.moveTo(p0.x, p0.y); for (let i = 1; i < pts.length; i++) { const pi = abToScreen(pts[i][0], pts[i][1]); abOffscreenLightCtx.lineTo(pi.x, pi.y); } abOffscreenLightCtx.stroke();
+    let p0 = abToScreen(pts[0][0], pts[0][1]); abOffscreenLightCtx.moveTo(p0.x, p0.y); for (let i = 1; i < pts.length; i++) { const pi = abToScreen(pts[i][0], pts[i][1]); abOffscreenLightCtx.lineTo(pi.x, pi.y); } abOffscreenLightCtx.stroke();
   }); abRoadsDirty = false;
+  abLastDrawnVolStep = -100;
 }
 function abDraw(agents) {
   if (!agents) agents = abGetLiveAgents(abCurrentFloatStep);
   if (abRoadsDirty) abBuildRoadLayers();
+  if (!(abTgLight && abTgLight.checked) && (abRoadsDirty || Math.abs(abCurrentFloatStep - abLastDrawnVolStep) >= 0.5)) {
+    abUpdateDynamicVolLayer(abCurrentFloatStep);
+    abLastDrawnVolStep = abCurrentFloatStep;
+  }
   const simHour = (abTgLight && abTgLight.checked) ? ((abCurrentFloatStep * 20 / 60) % 24) : 0;
   abCtx.fillStyle = getSkyColor(simHour);
   abCtx.fillRect(0, 0, abCanvas.width, abCanvas.height);
@@ -1465,6 +1639,77 @@ canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; resetVie
 document.querySelector(`[onclick="switchTab('hourly')"]`).addEventListener('click', () => { setTimeout(() => { hvCanvas.width = hvCanvas.clientWidth; hvCanvas.height = hvCanvas.clientHeight; resetHvView(); }, 50); });
 document.querySelector(`[onclick="switchTab('volumes')"]`).addEventListener('click', () => { setTimeout(() => { volCanvas.width = volCanvas.clientWidth; volCanvas.height = volCanvas.clientHeight; resetVolView(); }, 50); });
 document.querySelector(`[onclick="switchTab('ab')"]`).addEventListener('click', () => { setTimeout(() => { abCanvas.width = abCanvas.clientWidth; abCanvas.height = abCanvas.clientHeight; abResetView(); if (AB_TRIPS && AB_TRIPS.length > 0) abUpdateMetrics(abCurrentFloatStep); }, 50); });
+document.querySelector(`[onclick="switchTab('transit')"]`).addEventListener('click', () => { setTimeout(() => { const tc = document.getElementById('transit-canvas'); if (tc) { tc.width = tc.clientWidth; tc.height = tc.clientHeight; resetTransitView(); } }, 50); });
+let trScale = 1, trPanX = 0, trPanY = 0, trDragging = false, trDX = 0, trDY = 0, trZoomRafId = null;
+function resetTransitView() {
+  const c = document.getElementById('transit-canvas'); if (!c) return;
+  const dx = maxX - minX, dy = maxY - minY, pad = 40;
+  trScale = Math.min((c.width - pad*2) / (dx || 1), (c.height - pad*2) / (dy || 1));
+  trPanX = c.width / 2 - (minX + dx / 2 - minX) * trScale; trPanY = c.height / 2 - (minY + dy / 2 - minY) * trScale;
+  transitDraw();
+}
+function toTrScreen(wx, wy) {
+  const c = document.getElementById('transit-canvas');
+  return { x: (wx - minX) * trScale + trPanX, y: c ? c.height - ((wy - minY) * trScale + trPanY) : 0 };
+}
+function transitDraw() {
+  const c = document.getElementById('transit-canvas'); if (!c) return;
+  const ctxTr = c.getContext('2d');
+  ctxTr.clearRect(0, 0, c.width, c.height);
+  ctxTr.fillStyle = '#0a0e1a'; ctxTr.fillRect(0, 0, c.width, c.height);
+  if (ROADS_GEOJSON && ROADS_GEOJSON.features) {
+    ctxTr.strokeStyle = 'rgba(255, 255, 255, 0.14)'; ctxTr.lineWidth = 0.85;
+    ctxTr.lineCap = 'round'; ctxTr.lineJoin = 'round';
+    ROADS_GEOJSON.features.forEach(f => {
+      if (!f.geometry) return; const pts = getPoints(f.geometry); if (pts.length < 2) return;
+      ctxTr.beginPath(); let p0 = toTrScreen(pts[0][0], pts[0][1]); ctxTr.moveTo(p0.x, p0.y);
+      for (let i = 1; i < pts.length; i++) { let pi = toTrScreen(pts[i][0], pts[i][1]); ctxTr.lineTo(pi.x, pi.y); }
+      ctxTr.stroke();
+    });
+  }
+  if (typeof TRANSIT_STOPS === 'undefined' || !TRANSIT_STOPS) return;
+  const showM = document.getElementById('tr-tg-metro') ? document.getElementById('tr-tg-metro').checked : true;
+  const showT = document.getElementById('tr-tg-tram') ? document.getElementById('tr-tg-tram').checked : true;
+  const showB = document.getElementById('tr-tg-bus') ? document.getElementById('tr-tg-bus').checked : true;
+  let cntM = 0, cntT = 0, cntB = 0;
+  TRANSIT_STOPS.forEach(s => {
+    const modes = s.modes || '';
+    if (modes.includes('METRO')) cntM++; else if (modes.includes('TRAM')) cntT++; else cntB++;
+    const p = toTrScreen(s.x, s.y);
+    if (modes.includes('METRO') && showM) {
+      ctxTr.fillStyle = '#ec4899'; ctxTr.strokeStyle = '#ffffff'; ctxTr.lineWidth = 2;
+      ctxTr.beginPath(); ctxTr.arc(p.x, p.y, 8, 0, Math.PI * 2); ctxTr.fill(); ctxTr.stroke();
+      ctxTr.font = 'bold 11px Inter, sans-serif'; ctxTr.fillStyle = '#ffffff';
+      ctxTr.fillText('M', p.x - 4.5, p.y + 4);
+      ctxTr.font = '600 10px Inter, sans-serif'; ctxTr.fillStyle = '#f8a8d8';
+      ctxTr.fillText(s.name, p.x + 12, p.y + 3);
+    } else if (modes.includes('TRAM') && showT) {
+      ctxTr.fillStyle = '#06b6d4'; ctxTr.strokeStyle = '#ffffff'; ctxTr.lineWidth = 1.2;
+      ctxTr.beginPath(); ctxTr.arc(p.x, p.y, 5.5, 0, Math.PI * 2); ctxTr.fill(); ctxTr.stroke();
+    } else if (showB) {
+      ctxTr.fillStyle = '#f59e0b';
+      ctxTr.beginPath(); ctxTr.arc(p.x, p.y, 3.5, 0, Math.PI * 2); ctxTr.fill();
+    }
+  });
+  const elTotal = document.getElementById('m-tr-total'); if (elTotal) elTotal.textContent = TRANSIT_STOPS.length;
+  const elM = document.getElementById('m-tr-metro'); if (elM) elM.textContent = cntM;
+  const elT = document.getElementById('m-tr-tram'); if (elT) elT.textContent = cntT;
+  const elB = document.getElementById('m-tr-bus'); if (elB) elB.textContent = cntB;
+  const elShare = document.getElementById('m-tr-share'); if (elShare) elShare.textContent = '14.2%';
+}
+const trCanvas = document.getElementById('transit-canvas');
+if (trCanvas) {
+  trCanvas.addEventListener('mousedown', e => { trDragging = true; trDX = e.clientX; trDY = e.clientY; });
+  window.addEventListener('mousemove', e => { if(!trDragging) return; trPanX += e.clientX-trDX; trPanY -= e.clientY-trDY; trDX=e.clientX; trDY=e.clientY; if (trZoomRafId) cancelAnimationFrame(trZoomRafId); trZoomRafId = requestAnimationFrame(() => { trZoomRafId=null; transitDraw(); }); });
+  window.addEventListener('mouseup', () => { trDragging = false; });
+  trCanvas.addEventListener('wheel', e => {
+    e.preventDefault(); const rect = trCanvas.getBoundingClientRect(), mx = e.clientX-rect.left, my = e.clientY-rect.top; const wx = (mx-trPanX)/trScale+minX, wy = (trCanvas.height-my-trPanY)/trScale+minY;
+    const factor = e.deltaY < 0 ? 1.15 : 1/1.15; trScale *= factor; trPanX = mx-(wx-minX)*trScale; trPanY = (trCanvas.height-my)-(wy-minY)*trScale;
+    if (trZoomRafId) cancelAnimationFrame(trZoomRafId); trZoomRafId = requestAnimationFrame(() => { trZoomRafId=null; transitDraw(); });
+  }, { passive: false });
+}
+const trResetBtn = document.getElementById('tr-reset-btn'); if (trResetBtn) trResetBtn.addEventListener('click', resetTransitView);
+['tr-tg-metro', 'tr-tg-tram', 'tr-tg-bus'].forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('change', transitDraw); });
   initTimeline();
   switchTab('trips');
   startAnim();

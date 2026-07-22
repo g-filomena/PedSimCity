@@ -1,0 +1,5 @@
+"agency_id","agency_name","agency_url","agency_timezone","agency_lang","agency_phone","agency_fare_url","agency_email"
+"E","GTT Servizio Extraurbano","https://www.gtt.to.it/cms/percorari/extraurbano","Europe/Rome","it","800-019152","https://www.gtt.to.it/cms/biglietti-abbonamenti/biglietti/tariffe-extraurbano","extrato@extrato.it"
+"F","GTT Servizio Ferroviario","https://www.gtt.to.it/cms/percorari/ferrovie","Europe/Rome","it","800-019152","https://www.gtt.to.it/cms/biglietti-abbonamenti/biglietti/tariffe-ferrovie","urc.ferrovia@gtt.to.it"
+"T","GTT Servizi Turistici","https://www.gtt.to.it/cms/turismo","Europe/Rome","it","800-019152","https://www.gtt.to.it/cms/turismo/noleggio-tram-storici#tariffe","servizituristici@gtt.to.it"
+"U","GTT Servizio Urbano","https://www.gtt.to.it/cms/percorari/urbano","Europe/Rome","it","800-019152","https://www.gtt.to.it/cms/biglietti-abbonamenti/biglietti/biglietti-carnet","gtt@gtt.to.it"
