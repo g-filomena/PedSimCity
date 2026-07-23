@@ -106,13 +106,15 @@ $remoteDirQ = BashQuote $remoteDir
 $repoUrlQ   = BashQuote $repoUrl
 $cityQ      = BashQuote $city
 
-# One SSH invocation for a given remote command; returns its exit code.
+# One SSH invocation for a given remote command. Streams the server's output straight to the
+# console (do NOT capture it) and leaves the exit status in the automatic $LASTEXITCODE, which
+# the caller reads. Returning it from the function would swallow the streamed output into the
+# return value and corrupt the exit code.
 $sshBase = @()
 if ($sshKey -ne '') { $sshBase += @('-i', $sshKey) }
 function Invoke-Ssh([string]$cmd) {
     $a = @() + $sshBase + $serverHost + $cmd
     & $sshExe @a
-    return $LASTEXITCODE
 }
 
 Write-Host ''
@@ -122,7 +124,8 @@ Write-Host "[SERVER] $serverHost" -ForegroundColor Cyan
 $prepCmd = "if [ ! -d $remoteDirQ/.git ]; then echo '>> cloning repo' && git clone $repoUrlQ $remoteDirQ; fi && " +
            "cd $remoteDirQ && echo '>> pulling repo' && git pull --ff-only && mkdir -p inputData/$cityQ"
 Write-Host '>> Preparing server checkout ...'
-$code = Invoke-Ssh $prepCmd
+Invoke-Ssh $prepCmd
+$code = $LASTEXITCODE
 if ($code -ne 0) {
     Write-Host "Server checkout prep (clone/pull) failed with code $code." -ForegroundColor Red
     exit $code
@@ -169,7 +172,8 @@ $runCmd = "cd $remoteDirQ && bash pipeline/run_prep_remote.sh $remoteArgs"
 Write-Host ''
 Write-Host "[CMD] $runCmd" -ForegroundColor DarkGray
 Write-Host ''
-$code = Invoke-Ssh $runCmd
+Invoke-Ssh $runCmd
+$code = $LASTEXITCODE
 Write-Host ''
 if ($code -ne 0) {
     Write-Host "Remote pipeline exited with code $code." -ForegroundColor Red
