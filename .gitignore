@@ -82,9 +82,6 @@ desktop.ini
 /src/main/java/pedsim/social/
 /src/main/java/pedsim/learning/
 
-/src/main/resources/Barcelona/
-/src/main/resources/Melbourne/
-
 # -------------------------------------------------------------------
 # Notebooks / analysis outputs
 # -------------------------------------------------------------------
@@ -127,6 +124,7 @@ server.properties
 # Local data / geospatial heavy files
 # -------------------------------------------------------------------
 
+/inputData/
 *.shp
 *.shx
 *.dbf

@@ -20,6 +20,7 @@ Double-clickable launchers at the repo root (Windows), each **prompts for the ci
 | Launcher | Runs | Produces |
 |---|---|---|
 | `build_city.bat` | `pipeline/00_city_preparation.py` | the base simulation layers from OSM: `<City>_nodes/_edges/_nodesDual/_edgesDual/_barriers/_buildings/_POIs/_sight_lines2D.gpkg` |
+| `build_city_remote.bat` | the same, **on the server** (via SSH) | same outputs, written into the server checkout's `src/main/resources/<City>/` |
 | `build_census.bat` | `pipeline/01_census_istat.py` | **ISTAT (Italian cities) only**: reads raw `<City>_censusData_raw.gpkg` and writes enriched `<City>_censusData.gpkg` |
 | `build_lighting.bat` | `pipeline/build_lighting.py` | lighting from the lamp inventory (rich attributes or bare points) |
 
@@ -34,8 +35,7 @@ python pipeline/build_lighting.py      --city Torino
 ## City preparation (step 0)
 
 `00_city_preparation.py` is one parameterised, **resumable** pipeline built on the
-cityImage API (installed by `build_city.bat` from the sibling `../cityImage`
-checkout when present, falling back to PyPI). Stages — `network`, `districts`,
+cityImage API (installed from PyPI by `build_city.bat`). Stages — `network`, `districts`,
 `elevation`, `barriers`, `pois`, `buildings`, `sightlines`, `landmarks` — are checkpointed under
 `inputData/<City>/prep_staging/`; re-running resumes after the last completed stage
 (`--force` recomputes; `--stages` selects a subset, e.g. `--stages sightlines,landmarks`).
@@ -49,10 +49,16 @@ and EPSG **only on the first run** for a city: they are saved to
 Optional raw inputs in `inputData/<City>/` (also found in the resources folder),
 projected in the city CRS:
 
-- `<City>_detailedBuildings.gpkg` — an **official** building dataset. When present its
-  geometries **replace** the OSM footprints (authoritative footprints), and its own
+- `<City>_officialBuildings.gpkg` (legacy name `<City>_detailedBuildings.gpkg`, still
+  read) — an **official** building dataset. When present its geometries become the
+  **obstructions** (authoritative footprints, replacing the OSM ones), and its own
   `height`/`base` columns are used as-is. Land use / DMA are still borrowed from OSM by
   largest overlap (cityImage's land-use classifier is OSM-vocabulary-specific).
+- `<City>_studyArea.gpkg` — an optional polygon delimiting the **analysed** buildings
+  (those scored and shipped as `<City>_buildings.gpkg`). Their scores are still computed
+  against the full obstructions, so boundary buildings keep a complete neighbourhood.
+  Without it, `--analysis-radius <m>` keeps the buildings within that distance of the
+  obstructions' union centroid; with neither, every obstruction is analysed.
 - `<City>_buildingHeights.gpkg` — a dedicated **height** layer (polygons with a `height`
   field, `base` optional). Heights are joined onto the footprints by largest overlap
   (`assign_building_heights_from_other_gdf`). Use this to attach heights to OSM footprints
@@ -75,8 +81,12 @@ Output filenames and columns follow the Java readers exactly: `_sight_lines2D`,
 `_nodesDual`/`_edgesDual`, barrier kind in a `type` column, `district`/`gateway` ints on
 nodes, `deg` on dual edges.
 
-The buildings layer is `<City>_buildings.gpkg`: **all** footprints, carrying scalar
-`land_use` + `DMA` and the landmark scores `gScore_sc`/`lScore_sc` as optional columns.
+The buildings layer is `<City>_buildings.gpkg`: the **analysed** footprints, carrying
+scalar `land_use` + `DMA` and the landmark scores `gScore_sc`/`lScore_sc` as optional
+columns. The wider context set is written alongside as `<City>_obstructions.gpkg`. That
+obstructions layer is also cached in `inputData/<City>/` the first time it is built and
+**reused as-is** on later runs (skipping the OSM/official regeneration); delete it to
+force a rebuild.
 There is no separate landmarks file — landmarks are the runtime subset of buildings whose
 scores pass the `RouteChoicePars` thresholds.
 
@@ -86,8 +96,53 @@ use vocabulary the activity module classifies (`amenity`, `shop`, `leisure`, `to
 attraction weights for purpose-aware destination choice.
 
 It needs the heavier `pedsimcity-prep` Conda environment (`environment-prep.yml`):
-igraph (centrality), python-louvain (districts), pyvista/dask (3D sight lines).
-The sight-lines stage is the expensive one (can take hours on a large city).
+igraph (centrality), python-louvain (districts), dask (parallel 2D obstruction check).
+The sight-lines stage is the most expensive one, but two changes keep it tractable:
+
+- **Distance cap.** It only considers observer→target pairs within
+  `--max-sightline-distance` metres (default **2000**); longer sight lines are dominated
+  by rare, mostly-obstructed lines that accounted for the bulk of the old runtime, so the
+  cap gives a large speed-up with negligible effect on the visibility scores. Pass
+  `--max-sightline-distance 0` to disable the cap and consider all pairs (much slower).
+- **Closed-form 3D visibility.** Because buildings are vertical extrusions (flat roofs),
+  occlusion is computed analytically — a sight line is blocked when its plan projection
+  crosses a footprint and its height dips to/below that roof — instead of ray-tracing
+  triangulated meshes. This is exact for such buildings and much faster, and it means the
+  stage no longer needs `pyvista`/VTK.
+
+The stage prints per-step wall times and a progress bar as it runs. On a large dense city
+(e.g. Barcelona) expect it to run for a few hours; it is checkpointed, so it resumes.
+When it finishes, the temporary `sight_lines_tmp/` chunk folder (written by cityImage's
+`compute_3d_sight_lines`) is deleted automatically.
+
+### Running the preparation on the server
+
+`build_city_remote.bat` runs the *same* step-0 pipeline on the remote server instead of your
+laptop — worth it for the sight-lines stage, which wants the server's cores and RAM. It reads
+the SSH host / key / remote base directory from **`server.properties`** (the same file the Java
+remote-run uses; copy `server.properties.example` and fill it in), then over SSH it clones the
+checkout on first use (public repo, HTTPS — override the URL with a `server.repoUrl` key),
+`git pull`s the latest, and runs the pipeline in the `pedsimcity-prep` conda environment
+(created from `environment-prep.yml` on first use; cityImage installed from PyPI). It prompts
+for city / place / EPSG / stages / consolidation just like `build_city.bat`, and streams the
+log back live. The two helper scripts are `pipeline/remote_prep.ps1` (client side) and
+`pipeline/run_prep_remote.sh` (server side).
+
+Because the pipeline writes into the server checkout's `src/main/resources/<City>/`, the
+outputs are immediately usable by the Java simulation running on that same server — no transfer
+back. If instead you want them locally (to run the sim on your laptop or inspect the layers in
+QGIS), the launcher offers a final step that `scp`s the produced `src/main/resources/<City>/`
+back into your local checkout; say no to it when the sim runs on the server. Two prerequisites:
+
+- **The server pulls from git**, so any code change (this launcher included) must be committed
+  and pushed before the remote run can pick it up.
+- **Raw inputs are uploaded automatically.** Before running, the launcher `scp`s your whole
+  local `inputData/<City>/` up to the server checkout — so files git does not carry (gitignored
+  `*.tif` DTM/DEM rasters, entirely-gitignored city folders, LFS-only `.gpkg`) travel too. It
+  reports the folder size and asks first; an OSM-only city with no local folder skips the step.
+  Because inputs go over scp rather than git, the server does **not** need `git-lfs`. (The upload
+  includes any local `prep_staging/` checkpoints; delete them locally first if you want the
+  server to compute those stages fresh.)
 
 The `build_lighting*` scripts are thin **orchestrators**: they run the step scripts in
 order, stop on the first failure, and skip a step whose output already exists unless

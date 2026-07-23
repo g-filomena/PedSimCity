@@ -9,9 +9,13 @@ REM No py.exe. No user-specific hardcoded paths. Uses Conda + environment-prep.y
 REM
 REM Prompts for the resources folder name, then for a STAGE GROUP:
 REM   [1] everything
-REM   [2] base layers only (network, districts, barriers)  - fast, inspect in QGIS
-REM   [3] landmarks only (buildings, sightlines, landmarks) - heavy, run overnight
+REM   [2] base layers (buildings, network, districts, elevation, barriers, pois) - fast, inspect in QGIS
+REM   [3] landmarks (buildings, network, elevation, sightlines, landmarks) - heavy, run overnight
 REM   [4] custom stage list
+REM Buildings runs first (defines the network clip extent); stages execute in pipeline order, so a
+REM group only needs to include its prerequisites - already-checkpointed stages are skipped.
+REM After the stage choice it also asks whether to consolidate network nodes (merge nearby graph
+REM nodes in the network stage) and, when yes, the consolidation tolerance in metres.
 REM The OSM place query and EPSG are asked only on the FIRST run for a city; they are
 REM saved to <City>\prep_config.json and reused, so stage re-runs cannot mismatch them.
 REM Stages checkpoint under <City>\prep_staging\ - re-running resumes automatically.
@@ -20,7 +24,6 @@ set "ROOT=%~dp0"
 set "ENV_NAME=pedsimcity-prep"
 set "ENV_FILE=%ROOT%environment-prep.yml"
 set "PROJECT_CONDARC=%ROOT%.condarc"
-set "CITYIMAGE_LOCAL=%ROOT%..\cityImage"
 
 REM Keep Conda channel config local to this launcher (see build_census.bat).
 set "CONDARC=%PROJECT_CONDARC%"
@@ -75,6 +78,7 @@ if "%FOLDER_NAME%"=="" (
 REM Raw inputs are read from inputData\<City>; outputs land in src\main\resources\<City>.
 REM Place/EPSG: asked once per city, then read back from prep_config.json by the script.
 set "CITY_ARGS="
+set "CONSOLIDATE_ARGS="
 if exist "%ROOT%inputData\%FOLDER_NAME%\prep_config.json" (
     echo Using saved place/EPSG from "%ROOT%inputData\%FOLDER_NAME%\prep_config.json".
     goto :choose_stages
@@ -99,16 +103,18 @@ set CITY_ARGS=--place "%PLACE_NAME%" --epsg %EPSG_CODE%
 echo.
 echo Which stages?
 echo   [1] everything (default)
-echo   [2] base layers only: network, districts, elevation, barriers, pois   (fast - inspect in QGIS)
-echo   [3] landmarks only: elevation, buildings, sightlines, landmarks  (heavy - run overnight)
+echo   [2] base layers: buildings, network, districts, elevation, barriers, pois   (fast - inspect in QGIS)
+echo   [3] landmarks: buildings, network, elevation, sightlines, landmarks  (heavy - run overnight)
 echo   [4] custom stage list
+echo   (buildings runs first and defines the extent the network is clipped to; stages always run
+echo    in pipeline order, so a group just needs to include its prerequisites - already-done ones skip.)
 set /p STAGE_CHOICE=Choice [1]:
 set "STAGE_ARGS="
-if "%STAGE_CHOICE%"=="2" set "STAGE_ARGS=--stages network,districts,elevation,barriers,pois"
-if "%STAGE_CHOICE%"=="3" set "STAGE_ARGS=--stages elevation,buildings,sightlines,landmarks"
-if not "%STAGE_CHOICE%"=="4" goto :run_pipeline
+if "%STAGE_CHOICE%"=="2" set "STAGE_ARGS=--stages buildings,network,districts,elevation,barriers,pois"
+if "%STAGE_CHOICE%"=="3" set "STAGE_ARGS=--stages buildings,network,elevation,sightlines,landmarks"
+if not "%STAGE_CHOICE%"=="4" goto :consolidation
 
-set /p CUSTOM_STAGES=Enter stages ^(comma-separated: network,districts,elevation,barriers,pois,buildings,sightlines,landmarks^):
+set /p CUSTOM_STAGES=Enter stages ^(comma-separated: buildings,network,districts,elevation,barriers,pois,sightlines,landmarks^):
 if "%CUSTOM_STAGES%"=="" (
     echo No stages entered. Exiting.
     pause
@@ -116,11 +122,23 @@ if "%CUSTOM_STAGES%"=="" (
 )
 set "STAGE_ARGS=--stages %CUSTOM_STAGES%"
 
+:consolidation
+echo.
+echo Network node consolidation (merges nearby graph nodes; affects the network stage).
+set /p CONSOLIDATE=Consolidate network nodes? yes/no [yes]:
+if "%CONSOLIDATE%"=="" set "CONSOLIDATE=yes"
+set "CONSOLIDATE_ARGS=--consolidate-network %CONSOLIDATE%"
+if /I "%CONSOLIDATE%"=="no" goto :run_pipeline
+if /I "%CONSOLIDATE%"=="n" goto :run_pipeline
+set /p CONS_TOL=Consolidation tolerance in metres [15]:
+if "%CONS_TOL%"=="" set "CONS_TOL=15"
+set "CONSOLIDATE_ARGS=%CONSOLIDATE_ARGS% --consolidate-tolerance %CONS_TOL%"
+
 :run_pipeline
 echo Preparing city layers for: "%FOLDER_NAME%"
 echo (Stages are checkpointed under inputData\%FOLDER_NAME%\prep_staging\ - re-running resumes where it stopped.)
 
-"%CONDA_EXE%" run --no-capture-output -n "%ENV_NAME%" python "%ROOT%pipeline\00_city_preparation.py" --city "%FOLDER_NAME%" %CITY_ARGS% %STAGE_ARGS%
+"%CONDA_EXE%" run --no-capture-output -n "%ENV_NAME%" python "%ROOT%pipeline\00_city_preparation.py" --city "%FOLDER_NAME%" %CITY_ARGS% %STAGE_ARGS% %CONSOLIDATE_ARGS%
 set "EXITCODE=%ERRORLEVEL%"
 pause
 exit /b %EXITCODE%
@@ -155,10 +173,10 @@ exit /b 1
 :ensure_env
 "%CONDA_EXE%" env list | findstr /B /C:"%ENV_NAME% " >nul 2>nul
 if not errorlevel 1 (
-    echo Conda environment already exists: %ENV_NAME%
-    echo Updating Conda environment from environment-prep.yml...
-    "%CONDA_EXE%" env update -n "%ENV_NAME%" -f "%ENV_FILE%" --prune
-    exit /b %ERRORLEVEL%
+    echo Conda environment already exists: %ENV_NAME% ^(reusing as-is^)
+    echo   To rebuild it from environment-prep.yml, delete it first:
+    echo   "%CONDA_EXE%" env remove -n %ENV_NAME%
+    exit /b 0
 )
 
 echo Creating Conda environment from environment-prep.yml: %ENV_NAME%
@@ -174,12 +192,6 @@ if not errorlevel 1 (
 exit /b 1
 
 :install_cityimage
-REM Prefer the sibling cityImage checkout (kept aligned with PedSimCity); fall back to PyPI.
-if exist "%CITYIMAGE_LOCAL%\pyproject.toml" (
-    echo Installing cityImage from local checkout: "%CITYIMAGE_LOCAL%"
-    "%CONDA_EXE%" run --no-capture-output -n "%ENV_NAME%" python -m pip install -e "%CITYIMAGE_LOCAL%" --no-deps
-    exit /b %ERRORLEVEL%
-)
-echo Local cityImage checkout not found; installing cityImage from PyPI.
+echo Installing cityImage from PyPI.
 "%CONDA_EXE%" run --no-capture-output -n "%ENV_NAME%" python -m pip install cityImage
 exit /b %ERRORLEVEL%
