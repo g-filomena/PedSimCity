@@ -123,7 +123,9 @@ the SSH host / key / remote base directory from **`server.properties`** (the sam
 remote-run uses; copy `server.properties.example` and fill it in), then over SSH it clones the
 checkout on first use (public repo, HTTPS — override the URL with a `server.repoUrl` key),
 `git pull`s the latest, and runs the pipeline in the `pedsimcity-prep` conda environment
-(created from `environment-prep.yml` on first use; cityImage installed from PyPI). It prompts
+(created from `environment-prep.yml` on first use; cityImage installed from PyPI; on first use it
+also accepts the Anaconda default-channel Terms of Service so `conda env create` can proceed —
+packages still resolve from conda-forge). It prompts
 for city / place / EPSG / stages / consolidation just like `build_city.bat`, and streams the
 log back live. The two helper scripts are `pipeline/remote_prep.ps1` (client side) and
 `pipeline/run_prep_remote.sh` (server side).
@@ -136,13 +138,15 @@ back into your local checkout; say no to it when the sim runs on the server. Two
 
 - **The server pulls from git**, so any code change (this launcher included) must be committed
   and pushed before the remote run can pick it up.
-- **Raw inputs are uploaded automatically.** Before running, the launcher `scp`s your whole
-  local `inputData/<City>/` up to the server checkout — so files git does not carry (gitignored
-  `*.tif` DTM/DEM rasters, entirely-gitignored city folders, LFS-only `.gpkg`) travel too. It
-  reports the folder size and asks first; an OSM-only city with no local folder skips the step.
-  Because inputs go over scp rather than git, the server does **not** need `git-lfs`. (The upload
-  includes any local `prep_staging/` checkpoints; delete them locally first if you want the
-  server to compute those stages fresh.)
+- **Inputs are uploaded automatically, curated and incrementally.** Before running, the launcher
+  `scp`s only the files the pipeline reads — the `*_DTM/_DEM/_DSM` rasters, the
+  `officialBuildings` / `detailedBuildings` / `buildingHeights` / `studyArea` `.gpkg` layers, the
+  reused `_obstructions.gpkg` cache, and `prep_config.json` — skipping QGIS projects, PDFs, raw
+  source layers and `prep_staging/` checkpoints. Files already on the server with a matching size
+  are skipped, so re-runs send only what changed. It lists what it will upload and asks first; an
+  OSM-only city (no such files) skips the step. Because inputs travel over scp, not git, the
+  server needs no `git-lfs`. (Uploading `_obstructions.gpkg` makes the server *reuse* obstructions
+  instead of rebuilding them — delete that file locally or on the server to force a fresh build.)
 
 The `build_lighting*` scripts are thin **orchestrators**: they run the step scripts in
 order, stop on the first failure, and skip a step whose output already exists unless

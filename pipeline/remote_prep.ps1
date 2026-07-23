@@ -131,40 +131,90 @@ if ($code -ne 0) {
     exit $code
 }
 
-# --- phase 2: upload the whole local inputData\<City> (rasters, official layers, config) ---
-# scp treats a local "C:\..." as host:path, so we run it from the repo root with a colon-free
-# relative path. This carries the files git does not (gitignored rasters, LFS-only .gpkg, etc.).
+# --- phase 2: upload only the input files the pipeline actually reads -------
+# The inputData\<City> folder also holds QGIS projects, PDFs, raw source layers and
+# prep_staging/ checkpoints the pipeline never reads, so we curate to the documented input set
+# (rasters, official / height / study layers, the reused obstructions cache, prep_config.json)
+# and skip any file already on the server with a matching size. scp treats a local "C:\..." as
+# host:path, so uploads run from the repo root with colon-free relative paths.
 $localCity = Join-Path $RepoRoot "inputData\$city"
-if (Test-Path -LiteralPath $localCity) {
-    $bytes = (Get-ChildItem -LiteralPath $localCity -Recurse -File -Force |
-              Measure-Object -Property Length -Sum).Sum
-    $mb = [math]::Round(($bytes / 1MB), 1)
-    Write-Host ''
-    $up = Read-Host "Upload local inputData\$city ($mb MB) to the server? yes/no [yes]"
-    if ($up -eq '') { $up = 'yes' }
-    if ($up -notmatch '^(no|n)$') {
-        if ($sshExe -eq 'ssh') {
-            $scpExe = 'scp'
-        } else {
-            $scpExe = Join-Path (Split-Path $sshExe -Parent) 'scp.exe'
-        }
-        $scpArgs = @('-r')
-        if ($sshKey -ne '') { $scpArgs += @('-i', $sshKey) }
-        $scpArgs += "inputData/$city"
-        $scpArgs += "${serverHost}:$remoteDir/inputData/"
-        Write-Host ">> Uploading inputData/$city ..." -ForegroundColor Cyan
-        Push-Location $RepoRoot
-        try { & $scpExe @scpArgs } finally { Pop-Location }
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "scp upload failed with code $LASTEXITCODE." -ForegroundColor Red
-            exit $LASTEXITCODE
-        }
-    } else {
-        Write-Host '>> Skipping input upload.'
-    }
-} else {
+if (-not (Test-Path -LiteralPath $localCity)) {
     Write-Host ''
     Write-Host "No local inputData\$city folder - nothing to upload (OSM-only city)."
+} else {
+    # The exact set _find_raw / _find_raster / the obstructions cache look for in 00_city_preparation.py.
+    $patterns = @(
+        "${city}_DTM.*", "${city}_DEM.*", "${city}_DSM.*",
+        "${city}_officialBuildings.gpkg", "${city}_detailedBuildings.gpkg",
+        "${city}_buildingHeights.gpkg", "${city}_studyArea.gpkg",
+        "${city}_obstructions.gpkg", "prep_config.json"
+    )
+    $candidates = @()
+    foreach ($pat in $patterns) {
+        $candidates += Get-ChildItem -LiteralPath $localCity -Filter $pat -File -Force -ErrorAction SilentlyContinue
+    }
+    $candidates = @($candidates | Sort-Object -Property FullName -Unique)
+
+    if ($candidates.Count -eq 0) {
+        Write-Host ''
+        Write-Host "No pipeline input files found in inputData\$city - nothing to upload (OSM-only run)."
+    } else {
+        # Ask the server which inputs it already has (name + size) so unchanged ones are skipped.
+        $statCmd = "cd $remoteDirQ/inputData/$cityQ 2>/dev/null && for f in *; do [ -f `"`$f`" ] && stat -c '%s %n' `"`$f`"; done"
+        $sa = @() + $sshBase + $serverHost + $statCmd
+        $statOut = & $sshExe @sa 2>$null
+        $remoteSizes = @{}
+        foreach ($line in $statOut) {
+            if ($line -match '^\s*(\d+)\s+(.+?)\s*$') { $remoteSizes[$matches[2]] = [int64]$matches[1] }
+        }
+
+        $toUpload = @()
+        $skipped = 0
+        foreach ($f in $candidates) {
+            if ($remoteSizes.ContainsKey($f.Name) -and $remoteSizes[$f.Name] -eq $f.Length) {
+                $skipped++
+            } else {
+                $toUpload += $f
+            }
+        }
+
+        Write-Host ''
+        if ($skipped -gt 0) {
+            Write-Host "$skipped input file(s) already on the server with matching size - skipping."
+        }
+
+        if ($toUpload.Count -eq 0) {
+            Write-Host 'All pipeline inputs already present on the server. Nothing to upload.'
+        } else {
+            $upMb = [math]::Round(((($toUpload | Measure-Object -Property Length -Sum).Sum) / 1MB), 1)
+            Write-Host "To upload ($($toUpload.Count) file(s), $upMb MB):"
+            foreach ($f in $toUpload) {
+                Write-Host ("  {0}  ({1} MB)" -f $f.Name, [math]::Round($f.Length / 1MB, 1))
+            }
+            $up = Read-Host 'Upload these to the server? yes/no [yes]'
+            if ($up -eq '') { $up = 'yes' }
+            if ($up -notmatch '^(no|n)$') {
+                if ($sshExe -eq 'ssh') {
+                    $scpExe = 'scp'
+                } else {
+                    $scpExe = Join-Path (Split-Path $sshExe -Parent) 'scp.exe'
+                }
+                $scpArgs = @()
+                if ($sshKey -ne '') { $scpArgs += @('-i', $sshKey) }
+                foreach ($f in $toUpload) { $scpArgs += "inputData/$city/$($f.Name)" }
+                $scpArgs += "${serverHost}:$remoteDir/inputData/$city/"
+                Write-Host ">> Uploading $($toUpload.Count) file(s) ..." -ForegroundColor Cyan
+                Push-Location $RepoRoot
+                try { & $scpExe @scpArgs } finally { Pop-Location }
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Host "scp upload failed with code $LASTEXITCODE." -ForegroundColor Red
+                    exit $LASTEXITCODE
+                }
+            } else {
+                Write-Host '>> Skipping input upload.'
+            }
+        }
+    }
 }
 
 # --- phase 3: run the pipeline ---------------------------------------------

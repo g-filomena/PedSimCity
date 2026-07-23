@@ -47,6 +47,16 @@ if ! command -v conda >/dev/null 2>&1; then
 fi
 echo ">> Using conda: $(command -v conda)"
 
+# --- accept the Anaconda-channel Terms of Service (once) --------------------
+# Conda 24+ gates the default channels (pkgs/main, pkgs/r) behind a ToS acceptance, and
+# `conda env create` cannot override channels — so the gate fires on a fresh machine even though
+# our env is solved from conda-forge (environment-prep.yml pins conda-forge + nodefaults). Accept
+# it for those channels; idempotent and harmless. Guarded for older conda without the subcommand.
+if conda tos --help >/dev/null 2>&1; then
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main >/dev/null 2>&1 || true
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r    >/dev/null 2>&1 || true
+fi
+
 # --- ensure environment -----------------------------------------------------
 if conda env list | awk '{print $1}' | grep -qx "$ENV_NAME"; then
     echo ">> Conda environment already exists: $ENV_NAME (reusing as-is)"
