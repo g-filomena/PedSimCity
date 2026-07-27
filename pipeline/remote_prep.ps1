@@ -208,9 +208,13 @@ $pyArgs += @('--consolidate-network', $consolidate)
 if ($consTol -ne '') { $pyArgs += @('--consolidate-tolerance', $consTol) }
 $remoteArgs = ($pyArgs | ForEach-Object { BashQuote $_ }) -join ' '
 
-# --- phase 1: clone on first use, pull latest, ensure inputData/<City> exists ---
+# --- phase 1: clone on first use, pull latest, ensure inputData/<City> exists & is writable ---
+# chmod -R u+rwX heals a directory left non-writable by an earlier `scp -r` from Windows (scp can
+# translate the Windows ACL into a mode with no owner-write bit), which would block the detached
+# run from creating its log/pid files.
 $prepCmd = "if [ ! -d $remoteDirQ/.git ]; then echo '>> cloning repo' && git clone $repoUrlQ $remoteDirQ; fi && " +
-           "cd $remoteDirQ && echo '>> pulling repo' && git pull --ff-only && mkdir -p inputData/$cityQ"
+           "cd $remoteDirQ && echo '>> pulling repo' && git pull --ff-only && " +
+           "mkdir -p inputData/$cityQ && chmod -R u+rwX inputData/$cityQ"
 Write-Host ''
 Write-Host '>> Preparing server checkout ...'
 Invoke-Ssh $prepCmd
@@ -259,7 +263,15 @@ if (-not (Test-Path -LiteralPath $localCity)) {
         $toUpload = @()
         $skipped = 0
         foreach ($f in $candidates) {
-            if ($remoteSizes.ContainsKey($f.Name) -and $remoteSizes[$f.Name] -eq $f.Length) {
+            $onServer = $remoteSizes.ContainsKey($f.Name)
+            # prep_config.json is server-managed: the pipeline rewrites it (place/EPSG/method) on every
+            # run, so its bytes drift from the local copy after any server run. Don't nag or clobber it -
+            # upload only to SEED a server that has none; CLI --place/--epsg win over it anyway.
+            if ($f.Name -eq 'prep_config.json') {
+                if ($onServer) { $skipped++ } else { $toUpload += $f }
+                continue
+            }
+            if ($onServer -and $remoteSizes[$f.Name] -eq $f.Length) {
                 $skipped++
             } else {
                 $toUpload += $f
