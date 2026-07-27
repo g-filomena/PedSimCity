@@ -15,6 +15,13 @@ set -euo pipefail
 
 ENV_NAME="pedsimcity-prep"
 
+# When launched detached (build_city_remote.bat / remote_prep.ps1), the client is not attached to
+# our stdout, so it learns the outcome by reading this file. Record the exit code on any exit —
+# success or a set -e failure — so a client that reconnects after a disconnect can report it.
+if [ -n "${PREP_EXIT_FILE:-}" ]; then
+    trap 'ec=$?; echo "$ec" > "$PREP_EXIT_FILE" 2>/dev/null || true' EXIT
+fi
+
 # Run from the repo root (this script lives in pipeline/).
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"

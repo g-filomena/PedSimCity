@@ -126,9 +126,18 @@ checkout on first use (public repo, HTTPS — override the URL with a `server.re
 (created from `environment-prep.yml` on first use; cityImage installed from PyPI; on first use it
 also accepts the Anaconda default-channel Terms of Service so `conda env create` can proceed —
 packages still resolve from conda-forge). It prompts
-for city / place / EPSG / stages / consolidation just like `build_city.bat`, and streams the
-log back live. The two helper scripts are `pipeline/remote_prep.ps1` (client side) and
-`pipeline/run_prep_remote.sh` (server side).
+for city / place / EPSG / stages / consolidation just like `build_city.bat`. The two helper
+scripts are `pipeline/remote_prep.ps1` (client side) and `pipeline/run_prep_remote.sh` (server side).
+
+**The run is detached and survives disconnection.** The pipeline is started under `setsid` with its
+output redirected to a per-city log, so it is decoupled from the SSH connection: **hibernating the
+laptop or dropping the link does not kill it** — the run keeps going on the server. The launcher
+follows the log live; if you get disconnected, just **re-run `build_city_remote.bat` for the same
+city and it reconnects** to the still-running job (detected by its recorded PID) and resumes
+following. When the run finishes, the launcher reads its recorded exit code and — on success —
+offers the download step. This matters most for the sight-lines stage, which runs for hours and,
+if killed mid-way, restarts from scratch (earlier stages are checkpointed and skipped, but the
+sight-lines stage itself has no sub-checkpoint).
 
 Because the pipeline writes into the server checkout's `src/main/resources/<City>/`, the
 outputs are immediately usable by the Java simulation running on that same server — no transfer

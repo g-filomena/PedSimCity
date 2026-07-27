@@ -2,9 +2,13 @@
     Client-side launcher: run the city-preparation pipeline on the remote server.
 
     Reads the SSH host / key / remote base directory from server.properties (the same file the
-    Java remote-run uses), prompts for the city and stage options exactly like build_city.bat,
-    then SSHes into the server, pulls the repo, and runs pipeline/00_city_preparation.py there
-    inside the pedsimcity-prep conda environment. Output streams back live.
+    Java remote-run uses), prompts for the city and stage options like build_city.bat, then SSHes
+    into the server, pulls the repo, uploads the city's inputs, and runs the pipeline there in the
+    pedsimcity-prep conda environment.
+
+    The pipeline runs DETACHED on the server (setsid), so it survives the laptop hibernating or the
+    SSH connection dropping. The launcher follows the log live; if you get disconnected, the run
+    keeps going on the server and re-running the launcher for the same city RECONNECTS to it.
 
     Invoked by build_city_remote.bat (double-click), or directly:  powershell -File remote_prep.ps1
 #>
@@ -54,10 +58,115 @@ if ($serverHost -eq '') {
 # The pipeline lives in the core PedSimCity checkout (mirrors remoteProjectDir('PedSimCity')).
 if ($baseDir -ne '') { $remoteDir = "$baseDir/PedSimCity" } else { $remoteDir = 'PedSimCity' }
 
-# --- collect run parameters (mirrors build_city.bat) -----------------------
+# --- SSH helpers ------------------------------------------------------------
+# Single-quote a value for the remote bash shell (handles spaces in paths / the place name).
+function BashQuote([string]$s) { "'" + ($s -replace "'", "'\''") + "'" }
+
+$sshBase = @()
+if ($sshKey -ne '') { $sshBase += @('-i', $sshKey) }
+
+# Stream the server's output straight to the console (do NOT assign the result); read $LASTEXITCODE.
+function Invoke-Ssh([string]$cmd) {
+    $a = @() + $sshBase + $serverHost + $cmd
+    & $sshExe @a
+}
+# Capture the server's stdout lines (for small queries: status checks, file sizes).
+function Invoke-SshCapture([string]$cmd) {
+    $a = @() + $sshBase + $serverHost + $cmd
+    return (& $sshExe @a 2>$null)
+}
+
+function Get-ScpExe {
+    if ($sshExe -eq 'ssh') { return 'scp' }
+    return (Join-Path (Split-Path $sshExe -Parent) 'scp.exe')
+}
+
+# Download the produced resources back to the local checkout (prompted). Used after a run finishes.
+function Invoke-ResourceDownload {
+    Write-Host ''
+    $dl = Read-Host "Download the produced src\main\resources\$city to this machine? yes/no [yes]"
+    if ($dl -eq '') { $dl = 'yes' }
+    if ($dl -match '^(no|n)$') {
+        Write-Host '>> Skipping download. Outputs remain on the server.'
+        return
+    }
+    $scpExe = Get-ScpExe
+    New-Item -ItemType Directory -Force -Path (Join-Path $RepoRoot 'src\main\resources') | Out-Null
+    $dlArgs = @('-r')
+    if ($sshKey -ne '') { $dlArgs += @('-i', $sshKey) }
+    $dlArgs += "${serverHost}:$remoteDir/src/main/resources/$city"
+    $dlArgs += 'src/main/resources/'
+    Write-Host ">> Downloading src/main/resources/$city ..." -ForegroundColor Cyan
+    Push-Location $RepoRoot
+    try { & $scpExe @dlArgs } finally { Pop-Location }
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "scp download failed with code $LASTEXITCODE." -ForegroundColor Red
+        exit $LASTEXITCODE
+    }
+    Write-Host "Downloaded to src\main\resources\$city." -ForegroundColor Green
+}
+
+# After the attach/tail returns, read the recorded exit code and either download or report.
+function Complete-Run {
+    $exitOut  = Invoke-SshCapture "if [ -f $exitAbs ]; then echo EXIT:`$(cat $exitAbs); else echo STILLRUNNING; fi"
+    $exitLine = ($exitOut | Where-Object { $_ -match '^(EXIT:|STILLRUNNING)' } | Select-Object -First 1)
+    Write-Host ''
+    if ($exitLine -match '^EXIT:(-?\d+)') {
+        $pipeCode = [int]$matches[1]
+        if ($pipeCode -eq 0) {
+            Write-Host "Prep finished. Outputs are in $remoteDir/src/main/resources/$city on the server." -ForegroundColor Green
+            Invoke-ResourceDownload
+            exit 0
+        }
+        Write-Host "Remote pipeline failed (exit $pipeCode)." -ForegroundColor Red
+        Write-Host "Full log on the server: $remoteDir/inputData/$city/prep_remote.log"
+        exit $pipeCode
+    }
+    # No exit file yet -> the follow ended without the job finishing (we were disconnected).
+    Write-Host "Disconnected - but the run is still going on the server." -ForegroundColor Yellow
+    Write-Host "Re-run build_city_remote.bat for $city to reconnect and keep following it."
+    exit 0
+}
+
+# --- city + remote paths ----------------------------------------------------
 $city = Read-Host 'Enter city name (e.g. Torino)'
 if ($city -eq '') { Write-Host 'No city name entered. Exiting.'; exit 1 }
 
+$cityQ      = BashQuote $city
+$remoteDirQ = BashQuote $remoteDir
+$repoUrlQ   = BashQuote $repoUrl
+# Detached-run bookkeeping files (absolute, bash-quoted) kept per-city under inputData/<City>/.
+$logAbs    = BashQuote "$remoteDir/inputData/$city/prep_remote.log"
+$pidAbs    = BashQuote "$remoteDir/inputData/$city/prep_remote.pid"
+$exitAbs   = BashQuote "$remoteDir/inputData/$city/prep_remote.exit"
+$scriptAbs = BashQuote "$remoteDir/pipeline/run_prep_remote.sh"
+
+# Follow the log until the detached job's PID (bash var $P, set by each caller) dies. `tail --pid`
+# is unreliable with inotify - it can block after the log stops changing and never notice the PID
+# is gone - so run `tail -f` in the background and poll `kill -0` instead. No double quotes: Windows
+# PowerShell strips embedded " when passing an argument to ssh.exe.
+$follow = "tail -f $logAbs & TP=`$!; while kill -0 `$P 2>/dev/null; do sleep 2; done; sleep 1; kill `$TP 2>/dev/null"
+
+Write-Host ''
+Write-Host "[SERVER] $serverHost" -ForegroundColor Cyan
+
+# --- reconnect check: is a detached run already going for this city? --------
+# NB: no double quotes in remote command strings - Windows PowerShell strips embedded " when
+# handing an argument to ssh.exe. Single quotes survive; bash vars are numeric/paths so unquoted
+# is safe. ${P:-x} defaults to a non-numeric sentinel so `kill -0` cleanly fails when idle.
+$checkOut = Invoke-SshCapture "P=`$(cat $pidAbs 2>/dev/null); P=`${P:-x}; if kill -0 `$P 2>/dev/null; then echo RUNNING:`$P; else echo IDLE; fi"
+$isRunning = [bool]($checkOut | Where-Object { $_ -match '^RUNNING:' })
+
+if ($isRunning) {
+    Write-Host "A prep run for $city is already running on the server - reconnecting." -ForegroundColor Cyan
+    Write-Host '(Following the log; safe to disconnect again - the run continues.)'
+    Write-Host ''
+    Invoke-Ssh "P=`$(cat $pidAbs); echo '>> Reconnecting to running job. Following log:'; $follow"
+    Complete-Run
+}
+
+# =====================  fresh run  =====================
+# --- collect run parameters (mirrors build_city.bat) -----------------------
 Write-Host ''
 Write-Host 'OSM place query and EPSG are saved server-side in prep_config.json after the first run.'
 Write-Host 'Leave both blank to reuse the saved values; fill them in for a first-time city.'
@@ -97,46 +206,25 @@ if ($epsg  -ne '') { $pyArgs += @('--epsg', $epsg) }
 if ($stages -ne '') { $pyArgs += @('--stages', $stages) }
 $pyArgs += @('--consolidate-network', $consolidate)
 if ($consTol -ne '') { $pyArgs += @('--consolidate-tolerance', $consTol) }
-
-# Single-quote each argument for the remote bash shell (handles spaces in the place name).
-function BashQuote([string]$s) { "'" + ($s -replace "'", "'\''") + "'" }
 $remoteArgs = ($pyArgs | ForEach-Object { BashQuote $_ }) -join ' '
-
-$remoteDirQ = BashQuote $remoteDir
-$repoUrlQ   = BashQuote $repoUrl
-$cityQ      = BashQuote $city
-
-# One SSH invocation for a given remote command. Streams the server's output straight to the
-# console (do NOT capture it) and leaves the exit status in the automatic $LASTEXITCODE, which
-# the caller reads. Returning it from the function would swallow the streamed output into the
-# return value and corrupt the exit code.
-$sshBase = @()
-if ($sshKey -ne '') { $sshBase += @('-i', $sshKey) }
-function Invoke-Ssh([string]$cmd) {
-    $a = @() + $sshBase + $serverHost + $cmd
-    & $sshExe @a
-}
-
-Write-Host ''
-Write-Host "[SERVER] $serverHost" -ForegroundColor Cyan
 
 # --- phase 1: clone on first use, pull latest, ensure inputData/<City> exists ---
 $prepCmd = "if [ ! -d $remoteDirQ/.git ]; then echo '>> cloning repo' && git clone $repoUrlQ $remoteDirQ; fi && " +
            "cd $remoteDirQ && echo '>> pulling repo' && git pull --ff-only && mkdir -p inputData/$cityQ"
+Write-Host ''
 Write-Host '>> Preparing server checkout ...'
 Invoke-Ssh $prepCmd
-$code = $LASTEXITCODE
-if ($code -ne 0) {
-    Write-Host "Server checkout prep (clone/pull) failed with code $code." -ForegroundColor Red
-    exit $code
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Server checkout prep (clone/pull) failed with code $LASTEXITCODE." -ForegroundColor Red
+    exit $LASTEXITCODE
 }
 
 # --- phase 2: upload only the input files the pipeline actually reads -------
-# The inputData\<City> folder also holds QGIS projects, PDFs, raw source layers and
-# prep_staging/ checkpoints the pipeline never reads, so we curate to the documented input set
-# (rasters, official / height / study layers, the reused obstructions cache, prep_config.json)
-# and skip any file already on the server with a matching size. scp treats a local "C:\..." as
-# host:path, so uploads run from the repo root with colon-free relative paths.
+# The inputData\<City> folder also holds QGIS projects, PDFs, raw source layers and prep_staging/
+# checkpoints the pipeline never reads, so we curate to the documented input set (rasters,
+# official / height / study layers, the reused obstructions cache, prep_config.json) and skip any
+# file already on the server with a matching size. scp treats a local "C:\..." as host:path, so
+# uploads run from the repo root with colon-free relative paths.
 $localCity = Join-Path $RepoRoot "inputData\$city"
 if (-not (Test-Path -LiteralPath $localCity)) {
     Write-Host ''
@@ -160,9 +248,9 @@ if (-not (Test-Path -LiteralPath $localCity)) {
         Write-Host "No pipeline input files found in inputData\$city - nothing to upload (OSM-only run)."
     } else {
         # Ask the server which inputs it already has (name + size) so unchanged ones are skipped.
-        $statCmd = "cd $remoteDirQ/inputData/$cityQ 2>/dev/null && for f in *; do [ -f `"`$f`" ] && stat -c '%s %n' `"`$f`"; done"
-        $sa = @() + $sshBase + $serverHost + $statCmd
-        $statOut = & $sshExe @sa 2>$null
+        # find -printf avoids embedded double quotes (which PowerShell would strip); %f is the basename.
+        $statCmd = "cd $remoteDirQ/inputData/$cityQ 2>/dev/null && find . -maxdepth 1 -type f -printf '%s %f\n'"
+        $statOut = Invoke-SshCapture $statCmd
         $remoteSizes = @{}
         foreach ($line in $statOut) {
             if ($line -match '^\s*(\d+)\s+(.+?)\s*$') { $remoteSizes[$matches[2]] = [int64]$matches[1] }
@@ -194,11 +282,7 @@ if (-not (Test-Path -LiteralPath $localCity)) {
             $up = Read-Host 'Upload these to the server? yes/no [yes]'
             if ($up -eq '') { $up = 'yes' }
             if ($up -notmatch '^(no|n)$') {
-                if ($sshExe -eq 'ssh') {
-                    $scpExe = 'scp'
-                } else {
-                    $scpExe = Join-Path (Split-Path $sshExe -Parent) 'scp.exe'
-                }
+                $scpExe = Get-ScpExe
                 $scpArgs = @()
                 if ($sshKey -ne '') { $scpArgs += @('-i', $sshKey) }
                 foreach ($f in $toUpload) { $scpArgs += "inputData/$city/$($f.Name)" }
@@ -217,46 +301,19 @@ if (-not (Test-Path -LiteralPath $localCity)) {
     }
 }
 
-# --- phase 3: run the pipeline ---------------------------------------------
-$runCmd = "cd $remoteDirQ && bash pipeline/run_prep_remote.sh $remoteArgs"
+# --- phase 3: start the pipeline DETACHED, then follow its log --------------
+# setsid puts the run in its own session (no controlling terminal), redirecting all output to a log
+# file. That decouples it from this SSH connection, so hibernating the laptop or dropping the link
+# does NOT kill it. We record its PID and follow the log with `tail --pid`, which exits exactly when
+# the run finishes. run_prep_remote.sh writes its exit code to $exitAbs (via PREP_EXIT_FILE).
+$startCmd = ": > $logAbs; rm -f $exitAbs; " +
+            "setsid env PREP_EXIT_FILE=$exitAbs bash $scriptAbs $remoteArgs > $logAbs 2>&1 < /dev/null & " +
+            "P=`$!; echo `$P > $pidAbs; " +
+            "echo '>> Started detached. PID:' `$P; " +
+            "echo '>> Safe to hibernate/disconnect - the run continues on the server.'; " +
+            "echo '>> If disconnected, re-run build_city_remote.bat for this city to reconnect. Following log:'; " +
+            $follow
 Write-Host ''
-Write-Host "[CMD] $runCmd" -ForegroundColor DarkGray
-Write-Host ''
-Invoke-Ssh $runCmd
-$code = $LASTEXITCODE
-Write-Host ''
-if ($code -ne 0) {
-    Write-Host "Remote pipeline exited with code $code." -ForegroundColor Red
-    exit $code
-}
-Write-Host "Prep finished. Outputs are in $remoteDir/src/main/resources/$city on the server." -ForegroundColor Green
-
-# --- phase 4: download the produced resources back to the local checkout -----
-# Only needed if you run the simulation (or inspect the layers) locally; skip it when the sim
-# runs on the same server. Same colon-free trick: scp from the repo root into a relative dest.
-Write-Host ''
-$dl = Read-Host "Download the produced src\main\resources\$city to this machine? yes/no [yes]"
-if ($dl -eq '') { $dl = 'yes' }
-if ($dl -notmatch '^(no|n)$') {
-    if ($sshExe -eq 'ssh') {
-        $scpExe = 'scp'
-    } else {
-        $scpExe = Join-Path (Split-Path $sshExe -Parent) 'scp.exe'
-    }
-    New-Item -ItemType Directory -Force -Path (Join-Path $RepoRoot 'src\main\resources') | Out-Null
-    $dlArgs = @('-r')
-    if ($sshKey -ne '') { $dlArgs += @('-i', $sshKey) }
-    $dlArgs += "${serverHost}:$remoteDir/src/main/resources/$city"
-    $dlArgs += 'src/main/resources/'
-    Write-Host ">> Downloading src/main/resources/$city ..." -ForegroundColor Cyan
-    Push-Location $RepoRoot
-    try { & $scpExe @dlArgs } finally { Pop-Location }
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "scp download failed with code $LASTEXITCODE." -ForegroundColor Red
-        exit $LASTEXITCODE
-    }
-    Write-Host "Downloaded to src\main\resources\$city." -ForegroundColor Green
-} else {
-    Write-Host '>> Skipping download. Outputs remain on the server.'
-}
-exit 0
+Write-Host '>> Launching detached run ...' -ForegroundColor Cyan
+Invoke-Ssh $startCmd
+Complete-Run
