@@ -72,12 +72,14 @@ else
     conda env create -f "$ENV_FILE"
 fi
 
-# --- ensure cityImage (installed from PyPI, matching build_city.bat) --------
-if conda run --no-capture-output -n "$ENV_NAME" python -c "import cityImage" >/dev/null 2>&1; then
-    echo ">> cityImage already importable in $ENV_NAME"
+# --- ensure cityImage is current (from PyPI) --------------------------------
+# --upgrade (not install-if-missing) so a new cityImage release actually reaches the server on the
+# next run. Fast when already up to date. Set PREP_SKIP_CITYIMAGE_UPGRADE=1 to skip the PyPI check.
+if [ -n "${PREP_SKIP_CITYIMAGE_UPGRADE:-}" ]; then
+    echo ">> Skipping cityImage upgrade (PREP_SKIP_CITYIMAGE_UPGRADE set)"
 else
-    echo ">> Installing cityImage from PyPI into $ENV_NAME"
-    conda run --no-capture-output -n "$ENV_NAME" python -m pip install cityImage
+    echo ">> Ensuring latest cityImage from PyPI in $ENV_NAME"
+    conda run --no-capture-output -n "$ENV_NAME" python -m pip install --upgrade cityImage
 fi
 
 # --- run --------------------------------------------------------------------

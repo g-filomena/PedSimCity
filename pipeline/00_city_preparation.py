@@ -77,6 +77,7 @@ import logging
 import shutil
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 import geopandas as gpd
@@ -743,6 +744,29 @@ def stage_sightlines(args, stager: Stager) -> None:
         log.warning("sightlines: no visible sight lines found")
     stager.save("sight_lines", sight_lines)
 
+    # Persist a small completion record next to the checkpoint. The per-run console log is
+    # truncated each launch, so this is what proves - after the fact - that compute_3d_sight_lines
+    # returned and the merge/save completed (its presence + counts, not just the .gpkg existing).
+    meta = {
+        "created": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "wall_time_s": round(elapsed, 1),
+        "wall_time_h": round(elapsed / 3600, 3),
+        "n_sight_lines": int(len(sight_lines)),
+        "n_observers_in": int(len(nodes)),
+        "distinct_observers": (
+            int(sight_lines["nodeID"].nunique()) if "nodeID" in sight_lines.columns else None
+        ),
+        "n_targets": int(len(targets)),
+        "n_obstructions": int(len(obstructions)),
+        "max_sightline_distance_m": (
+            args.max_sightline_distance if args.max_sightline_distance > 0 else None
+        ),
+    }
+    meta_path = stager.path("sight_lines").with_suffix(".meta.json")
+    meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    log.info("sightlines: wrote completion record %s (%d sight lines)",
+             meta_path.name, len(sight_lines))
+
     # compute_3d_sight_lines writes per-chunk GeoPackages into ./sight_lines_tmp and merges
     # them into the returned frame, but never cleans up. The result is now finalised in the
     # stager, so the temporary chunks are dead weight — remove the folder.
@@ -814,7 +838,7 @@ def stage_landmarks(args, stager: Stager) -> None:
         "3dvis": 0.50, "fac": 0.30, "height": 0.20,
         "area": 0.30, "2dvis": 0.30, "neigh": 0.20, "road": 0.20,
     }
-    global_component_weights = {"vScore": 0.50, "sScore": 0.30, "cScore": 0.20, "pScore": 0.10}
+    global_component_weights = {"vScore": 0.45, "sScore": 0.25, "cScore": 0.10, "pScore": 0.20}
     local_index_weights = {
         "3dvis": 0.50, "fac": 0.30, "height": 0.20,
         "area": 0.40, "2dvis": 0.00, "neigh": 0.30, "road": 0.30,
