@@ -62,7 +62,10 @@ if ($baseDir -ne '') { $remoteDir = "$baseDir/PedSimCity" } else { $remoteDir = 
 # Single-quote a value for the remote bash shell (handles spaces in paths / the place name).
 function BashQuote([string]$s) { "'" + ($s -replace "'", "'\''") + "'" }
 
-$sshBase = @()
+# -n redirects ssh's stdin from null so it never reads the console. Without it each ssh call grabs
+# stdin and you have to press Enter to let it return, which desyncs the interactive Read-Host prompts
+# (you'd press Enter once for ssh, then again for the actual prompt). None of these commands need stdin.
+$sshBase = @('-n')
 if ($sshKey -ne '') { $sshBase += @('-i', $sshKey) }
 
 # Stream the server's output straight to the console (do NOT assign the result); read $LASTEXITCODE.
