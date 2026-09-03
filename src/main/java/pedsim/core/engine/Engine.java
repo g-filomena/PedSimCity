@@ -168,7 +168,9 @@ public class Engine {
             .updateStep(
                 (int) steps, simTime, state.agentsWalking.size(), state.agentsAtHome.size(), 0);
 
-        trajectoryRecorder.record((long) steps);
+        if (Pars.exportHtmlDashboard) {
+          trajectoryRecorder.record((long) steps);
+        }
 
         if (isNextDay(steps, currentDay)) {
           state.flowHandler.exportFlowsData(currentDay + 1);
@@ -211,8 +213,15 @@ public class Engine {
     TripRouteRecorder.saveToFile("test_trips.csv");
     TripDiagnostic.save("trip_diagnostic.csv");
 
+    // Module-specific plain-data exports (CSV / GeoPackage), independent of the HTML dashboard.
+    onJobExport(job, state, currentDay + 1, finalVolumesMap);
+
     // Generate the self-contained HTML dashboard and open it in the browser
-    generateAndOpenHtmlDashboard(job, state, currentDay, finalVolumesMap);
+    if (Pars.exportHtmlDashboard) {
+      generateAndOpenHtmlDashboard(job, state, currentDay, finalVolumesMap);
+    } else {
+      logger.info("[Engine] HTML dashboard export disabled (exportHtmlDashboard=false).");
+    }
   }
 
   private void generateAndOpenHtmlDashboard(
@@ -266,6 +275,20 @@ public class Engine {
   }
 
   protected void onJobFinished(int job, PedSimCity state, ScenarioConfig scenarioConfig) {
+    // no-op
+  }
+
+  /**
+   * Hook to write module-specific plain-data result files once a job has finished. No-op by default.
+   *
+   * @param job the job number just completed.
+   * @param state the simulation state, still populated.
+   * @param day the number of simulated days (1-based).
+   * @param volumes per-edge volumes snapshotted before the daily export cleared them, keyed edgeID
+   *     -> "&lt;agentType&gt;_&lt;hour&gt;" -> count.
+   */
+  protected void onJobExport(
+      int job, PedSimCity state, int day, java.util.Map<Integer, java.util.Map<String, Integer>> volumes) {
     // no-op
   }
 

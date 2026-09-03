@@ -147,6 +147,10 @@ public class CognitiveMap extends SharedCognitiveMap {
   /**
    * Builds the activity bone, which includes the agent's home and work nodes
    * along with edges in the known regions and from those nodes.
+   *
+   * <p>A null anchor is skipped rather than treated as an error: personas without a mandatory
+   * activity (retirees, flex adults) are deliberately given no work node by
+   * {@code ActivityPopulate.applyPersonaEmployment}, so their bone is built from home alone.
    */
   public void buildSimpleActivityBone() {
 
@@ -154,6 +158,7 @@ public class CognitiveMap extends SharedCognitiveMap {
     List<EdgeGraph> edges = new ArrayList<>();
 
     for (NodeGraph node : knownNodes) {
+      if (node == null) continue;
       int region = node.getRegionID();
       agentKnownRegions.add(region);
       Region r = PedSimCity.regionsMap.get(region);

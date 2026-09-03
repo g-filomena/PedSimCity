@@ -48,6 +48,16 @@ public class NightEngine extends ActivityEngine {
     }
   }
 
+  /** Writes the night run's plain-data files (hourly edge volumes + trips) for this job. */
+  @Override
+  protected void onJobExport(
+      int job,
+      PedSimCity state,
+      int day,
+      java.util.Map<Integer, java.util.Map<String, Integer>> volumes) {
+    NightDataExporter.export(job);
+  }
+
   @Override
   protected Engine createWorkerEngine() {
     return new NightEngine(stateFactory, baseSeed);

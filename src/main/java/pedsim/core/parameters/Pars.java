@@ -41,6 +41,13 @@ public class Pars {
 
   public static boolean isNight = false;
 
+  // Self-contained HTML dashboard export at the end of each job. It embeds every trip path, so its
+  // size grows with the trip count (~29 MB at 5.8k trips); switch it off with
+  // --exportHtmlDashboard=false for large runs, which also skips the trajectory snapshots that only
+  // feed it. The plain data exports (volumes CSV, routes GeoPackage, module data files) are
+  // unaffected.
+  public static boolean exportHtmlDashboard = true;
+
   static String[] primary = {"primary", "primary_link"};
   static String[] secondary = {"secondary", "secondary_link"};
   static String[] tertiary = {"tertiary", "tertiary_link", "unclassified"};
