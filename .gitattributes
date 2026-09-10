@@ -19,14 +19,19 @@
 *.sh text eol=lf
 # Binary artefacts/data.
 *.class binary
-*.jar binary
-*.pdf binary
+*.pdf  filter=lfs diff=lfs merge=lfs -text
 *.png binary
 *.jpg binary
 *.jpeg binary
 *.gif binary
+# Large binary data: stored via LFS. Extensions, never whole directories - a rule on
+# src/main/resources/** would sweep in .prj, .cpg and .csv, which are text and worth diffing.
 *.gpkg filter=lfs diff=lfs merge=lfs -text
-*.shp binary
-*.dbf binary
-*.shx binary
-*.zip binary
+*.shp  filter=lfs diff=lfs merge=lfs -text
+*.dbf  filter=lfs diff=lfs merge=lfs -text
+*.shx  filter=lfs diff=lfs merge=lfs -text
+*.zip  filter=lfs diff=lfs merge=lfs -text
+*.jar  filter=lfs diff=lfs merge=lfs -text
+*.tif  filter=lfs diff=lfs merge=lfs -text
+*.tiff filter=lfs diff=lfs merge=lfs -text
+*.xlsx filter=lfs diff=lfs merge=lfs -text
