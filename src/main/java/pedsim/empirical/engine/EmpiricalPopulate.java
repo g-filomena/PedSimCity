@@ -38,6 +38,7 @@ public class EmpiricalPopulate extends pedsim.core.engine.Populate {
 
   public void populateEmpiricalGroups(PedSimCityEmpirical state) {
     this.state = state;
+    seedFrom(state);
     this.network = PedSimCity.network;
     this.odMatrix.clear();
 
@@ -54,7 +55,7 @@ public class EmpiricalPopulate extends pedsim.core.engine.Populate {
 
   private void generateRandomODMatrix(int numberTrips) {
     for (int i = 0; i < numberTrips; i++) {
-      NodeGraph originNode = NodesLookup.randomNode(network);
+      NodeGraph originNode = NodesLookup.randomNode(network, random);
       NodeGraph destinationNode = randomDestination(originNode);
 
       odMatrix.add(new Pair<>(originNode, destinationNode));
@@ -83,7 +84,7 @@ public class EmpiricalPopulate extends pedsim.core.engine.Populate {
       NodeGraph destinationNode = safeRandomDestinationDMA(originNode, destinationDMA);
 
       if (originNode == null || destinationNode == null) {
-        originNode = NodesLookup.randomNode(network);
+        originNode = NodesLookup.randomNode(network, random);
         destinationNode = randomDestination(originNode);
       }
 
@@ -93,7 +94,7 @@ public class EmpiricalPopulate extends pedsim.core.engine.Populate {
 
   private NodeGraph safeRandomNodeDMA(String dmaType) {
     try {
-      return NodesLookup.randomNodeDMA(network, dmaType);
+      return NodesLookup.randomNodeDMA(network, dmaType, random);
     } catch (Exception e) {
       return null;
     }
@@ -115,7 +116,8 @@ public class EmpiricalPopulate extends pedsim.core.engine.Populate {
                 originNode,
                 RouteChoicePars.minTripDistance,
                 RouteChoicePars.maxTripDistance,
-                dmaType);
+                dmaType,
+                random);
         attempts++;
       }
 
@@ -127,7 +129,7 @@ public class EmpiricalPopulate extends pedsim.core.engine.Populate {
 
   private NodeGraph randomDestination(NodeGraph originNode) {
     if (originNode == null) {
-      return NodesLookup.randomNode(network);
+      return NodesLookup.randomNode(network, random);
     }
 
     NodeGraph destinationNode = null;
@@ -138,7 +140,8 @@ public class EmpiricalPopulate extends pedsim.core.engine.Populate {
               network,
               originNode,
               RouteChoicePars.minTripDistance,
-              RouteChoicePars.maxTripDistance);
+              RouteChoicePars.maxTripDistance,
+              random);
 
       int attempts = 0;
 
@@ -148,7 +151,8 @@ public class EmpiricalPopulate extends pedsim.core.engine.Populate {
                 network,
                 originNode,
                 RouteChoicePars.minTripDistance,
-                RouteChoicePars.maxTripDistance);
+                RouteChoicePars.maxTripDistance,
+                random);
         attempts++;
       }
 
@@ -157,7 +161,7 @@ public class EmpiricalPopulate extends pedsim.core.engine.Populate {
     }
 
     if (destinationNode == null) {
-      destinationNode = NodesLookup.randomNode(network);
+      destinationNode = NodesLookup.randomNode(network, random);
     }
 
     return destinationNode;

@@ -37,6 +37,7 @@ public class CityImagePopulate extends pedsim.core.engine.Populate {
 
   public void populateTests(PedSimCityImage state) {
     this.state = state;
+    seedFrom(state);
     this.network = PedSimCity.network;
     this.odMatrix.clear();
 
@@ -97,7 +98,7 @@ public class CityImagePopulate extends pedsim.core.engine.Populate {
     for (int i = 0; i < numberTrips; i++) {
       NodeGraph destinationNode =
           NodesLookup.randomNodeFromDistancesSet(
-              network, PedSimCity.junctions, originNode, TestPars.distances);
+              network, PedSimCity.junctions, originNode, TestPars.distances, random);
 
       if (destinationNode == null || destinationNode.gateway) {
         destinationNode = randomDestination(originNode);
@@ -117,10 +118,10 @@ public class CityImagePopulate extends pedsim.core.engine.Populate {
     }
 
     if (!PedSimCity.startingNodes.isEmpty()) {
-      return NodesLookup.randomNodeFromGeometries(network, PedSimCity.startingNodes);
+      return NodesLookup.randomNodeFromGeometries(network, PedSimCity.startingNodes, random);
     }
 
-    return NodesLookup.randomNode(network);
+    return NodesLookup.randomNode(network, random);
   }
 
   private void generateSubdivisionODmatrix(int numberTrips) {
@@ -135,10 +136,10 @@ public class CityImagePopulate extends pedsim.core.engine.Populate {
 
   private NodeGraph randomSubdivisionOrigin() {
     if (!PedSimCity.startingNodes.isEmpty()) {
-      return NodesLookup.randomNodeFromGeometries(network, PedSimCity.startingNodes);
+      return NodesLookup.randomNodeFromGeometries(network, PedSimCity.startingNodes, random);
     }
 
-    return NodesLookup.randomNode(network);
+    return NodesLookup.randomNode(network, random);
   }
 
   private void generateGenericODmatrix(int numberTrips) {
@@ -154,10 +155,10 @@ public class CityImagePopulate extends pedsim.core.engine.Populate {
 
   private NodeGraph randomGenericOrigin() {
     if (!PedSimCity.startingNodes.isEmpty()) {
-      return NodesLookup.randomNodeFromGeometries(network, PedSimCity.startingNodes);
+      return NodesLookup.randomNodeFromGeometries(network, PedSimCity.startingNodes, random);
     }
 
-    return NodesLookup.randomNode(network);
+    return NodesLookup.randomNode(network, random);
   }
 
   private NodeGraph randomDestination(NodeGraph originNode) {
@@ -170,19 +171,19 @@ public class CityImagePopulate extends pedsim.core.engine.Populate {
 
     NodeGraph destinationNode =
         NodesLookup.randomNodeBetweenDistanceInterval(
-            network, originNode, minimumDistance, maximumDistance);
+            network, originNode, minimumDistance, maximumDistance, random);
 
     int attempts = 0;
 
     while ((destinationNode == null || destinationNode.gateway) && attempts < 100) {
       destinationNode =
           NodesLookup.randomNodeBetweenDistanceInterval(
-              network, originNode, minimumDistance, maximumDistance);
+              network, originNode, minimumDistance, maximumDistance, random);
       attempts++;
     }
 
     if (destinationNode == null) {
-      destinationNode = NodesLookup.randomNode(network);
+      destinationNode = NodesLookup.randomNode(network, random);
     }
 
     return destinationNode;

@@ -43,7 +43,7 @@ public final class EmpiricalAgentProperties extends AgentProperties {
   private static final double MIN_SEVERING_BARRIERS = 1.00;
   private static final double MAX_SEVERING_BARRIERS = 2.00;
 
-  private final Random random = new Random();
+  private final Random random;
 
   public final EmpiricalGroup groupName;
   private final EmpiricalAgentsGroup group;
@@ -92,6 +92,7 @@ public final class EmpiricalAgentProperties extends AgentProperties {
     super();
     this.group = group;
     this.groupName = group.groupName;
+    this.random = agent.getRandom();
   }
 
   public void randomizeRouteChoiceParameters() {
