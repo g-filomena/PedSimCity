@@ -20,6 +20,7 @@ public class NightPopulate extends ActivityPopulate {
   @Override
   public void populate(PedSimCity state) {
     this.state = (PedSimCityNight) state;
+    seedFrom(state);
     if (this.state.getEnableLightABTesting()) {
       populateABTest();
     } else {

@@ -14,11 +14,12 @@ public class NightBehaviour {
   protected boolean increaseSpeedAtNight = false;
   protected boolean avoidParksWater;
 
-  protected Random random = new Random();
+  protected Random random;
 
   NightBehaviour(NightAgent agent, NightAgentMovement nightMovement) {
     this.agent = agent;
     this.nightMovement = nightMovement;
+    this.random = agent.getRandom();
   }
 
   /**

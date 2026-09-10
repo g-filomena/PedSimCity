@@ -98,6 +98,9 @@ public class NightAgent extends ActivityAgent {
     if (sameOriginDestination()) {
       return;
     }
+    // This override bypasses ActivityAgent.planTrip(), where the mode counter lives; without
+    // this the night module reported a mode split of all zeros against a full trip count.
+    pedsim.activity.engine.PedSimCityActivity.countTrip("WALK");
     planRoute();
     tripStartStep = state.schedule.getSteps();
     agentMovement = createMovement();
@@ -149,32 +152,29 @@ public class NightAgent extends ActivityAgent {
       return;
     }
 
-    double lowerLimit = distanceNextDestination * 0.90;
-    double upperLimit = distanceNextDestination * 1.10;
+    List<NodeGraph> candidates =
+        candidatesNearDistance(agentNetwork, distanceNextDestination, null);
 
-    for (int attempt = 0; destinationNode == null && attempt < 100; attempt++) {
-      List<NodeGraph> candidates =
-          NodesLookup.getNodesBetweenDistanceInterval(agentNetwork, originNode, lowerLimit, upperLimit);
-      if (candidates.isEmpty()) {
-        lowerLimit *= 0.90;
-        upperLimit *= 1.10;
-        continue;
+    // A park or waterside candidate is dropped from the choice set and another drawn from the same
+    // set. The previous version answered a rejection by widening the distance interval, which let a
+    // constraint that has nothing to do with distance push the destination further out.
+    while (destinationNode == null && !candidates.isEmpty()) {
+      destinationNode = selectWeightedDestination(candidates);
+      if (destinationNode == null) {
+        break;
       }
-
-      destinationNode = selectWeightedDestination(candidates, state.isDark);
-
       if (state.isDark
-          && destinationNode != null
           && destinationNode.getEdges().stream()
               .anyMatch(SharedCognitiveMap.getEdgesWithinParksOrAlongWater()::contains)) {
+        candidates.remove(destinationNode);
         destinationNode = null;
-        lowerLimit *= 0.90;
-        upperLimit *= 1.10;
       }
     }
 
     if (destinationNode == null) {
-      // No park/water-free destination found; accept any reachable node so the agent proceeds.
+      // Every candidate at this distance is on a park or waterside edge; accept any reachable node
+      // so the agent proceeds.
+      state.recordDestinationFallback();
       List<NodeGraph> nodes = agentNetwork.getNodes();
       destinationNode = nodes.get(random.nextInt(nodes.size()));
     }
