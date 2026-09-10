@@ -1,9 +1,8 @@
 package pedsim.activity.agents;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import pedsim.activity.engine.PedSimCityActivity;
 import pedsim.activity.parameters.ActivityPars;
@@ -30,8 +29,9 @@ import sim.graph.NodeGraph;
  *       OSM-tag-derived per-node attraction of the current purpose (see {@code PoiClassifier}),
  *       degrading to uniform selection when no tags are available — the census only shapes the
  *       population, never destinations;
- *   <li><b>Habitual places</b>: a small set of favourite destinations per purpose is revisited
- *       with high probability, so agents develop routine geographies;
+ *   <li><b>Habitual places</b>: a small set of favourite destinations per purpose is revisited,
+ *       with a probability that grows as the agent's map fills and a preference for the places it
+ *       already visits most, so agents develop routine geographies;
  *   <li><b>Multi-modal transit</b>: long-distance city trips (&gt; 800m) may switch to METRO, TRAM
  *       or BUS routing when the transit network is active.
  * </ul>
@@ -59,8 +59,11 @@ public class ActivityAgent extends Agent {
   /** Remaining discretionary stops of the current tour; {@code null} until first release. */
   protected DailyAgenda agenda;
 
-  /** Habitually revisited destinations per purpose. */
-  private final Map<ActivityPurpose, List<NodeGraph>> favouritePlaces =
+  /**
+   * Habitually revisited destinations per purpose, each with the number of visits it has had.
+   * Insertion-ordered so that iteration, and therefore the weighted draw over it, is reproducible.
+   */
+  private final Map<ActivityPurpose, LinkedHashMap<NodeGraph, Integer>> favouritePlaces =
       new EnumMap<>(ActivityPurpose.class);
 
   public ActivityAgent(PedSimCity state, boolean registerSpatial) {
@@ -148,8 +151,7 @@ public class ActivityAgent extends Agent {
       }
     }
 
-    int walkCount = PedSimCityActivity.tripsByMode.getOrDefault("WALK", 0);
-    PedSimCityActivity.tripsByMode.put("WALK", walkCount + 1);
+    PedSimCityActivity.countTrip("WALK");
   }
 
 
@@ -214,6 +216,21 @@ public class ActivityAgent extends Agent {
   // ----------------------------------------------------------------
   // Tour: agenda building and trip chaining
   // ----------------------------------------------------------------
+
+  /**
+   * How many legs this agent's tour is expected to walk if released now.
+   *
+   * <p>Read by the release manager so the metres budget is charged for the tour rather than for its
+   * first leg. It asks the same questions {@link #startWalkingAlone} will ask a moment later, that
+   * is whether the commute happens and what the agenda will hold, but answers them in expectation,
+   * since the agenda does not exist yet at release time.
+   *
+   * @return the expected number of walked legs, at least two
+   */
+  public double expectedTourLegs() {
+    boolean rainy = state instanceof PedSimCityActivity activityState && activityState.isRainyNow();
+    return DailyAgenda.expectedLegs(persona, shouldGoToWork(), rainy);
+  }
 
   /** Builds the tour agenda when the release manager sends this agent out. */
   @Override
@@ -318,10 +335,11 @@ public class ActivityAgent extends Agent {
 
   /**
    * Discretionary destination choice: resolves the trip's purpose (first agenda entry when this is
-   * the tour's first leg), then reuses a favourite place with high probability, otherwise samples
-   * a new destination — from a purpose-scaled distance band (errands close by, leisure further
-   * out) — and remembers it. The release-allocated base distance is restored afterwards so later
-   * legs of the tour scale from the same anchor.
+   * the tour's first leg), then either returns to a place the agent already knows or samples a new
+   * one at the released distance, and records the visit either way.
+   *
+   * <p>The purpose does not scale that distance. It used to; see the note in
+   * {@link ActivityPurpose} for why it no longer does.
    */
   @Override
   protected void defineRandomDestination() {
@@ -329,12 +347,7 @@ public class ActivityAgent extends Agent {
     if (tryHabitualDestination()) {
       return;
     }
-    double baseDistance = distanceNextDestination;
-    if (currentPurpose != null) {
-      distanceNextDestination = baseDistance * currentPurpose.getTripDistanceFactor();
-    }
     super.defineRandomDestination();
-    distanceNextDestination = baseDistance;
     rememberFavourite(currentPurpose, destinationNode);
   }
 
@@ -357,31 +370,128 @@ public class ActivityAgent extends Agent {
     if (currentPurpose == null || currentPurpose == ActivityPurpose.STROLL) {
       return false;
     }
-    if (random.nextDouble() >= ActivityPars.habitualDestinationProbability) {
+    if (random.nextDouble() >= returnProbability()) {
       return false;
     }
-    List<NodeGraph> favourites = favouritePlaces.get(currentPurpose);
+    Map<NodeGraph, Integer> favourites = favouritePlaces.get(currentPurpose);
     if (favourites == null || favourites.isEmpty()) {
       return false;
     }
-    NodeGraph pick = favourites.get(random.nextInt(favourites.size()));
-    if (originNode != null && pick.getID() == originNode.getID()) {
+    NodeGraph pick = preferentialReturn(favourites);
+    if (pick == null || (originNode != null && pick.getID() == originNode.getID())) {
       return false;
     }
     destinationNode = pick;
+    favourites.merge(pick, 1, Integer::sum);
     return true;
   }
 
+  /**
+   * Probability that this trip goes somewhere the agent already knows rather than to a new place.
+   *
+   * <p>Not a constant: Song et al. (2010) measure the complementary exploration probability on
+   * mobile-phone trajectories as {@code P_new = rho * S^-gamma}, where {@code S} is the number of
+   * distinct locations the individual has already visited. The exponent is a property of the
+   * person, not of the activity type, so {@code S} counts every remembered place across purposes,
+   * even though the return itself is confined to the current purpose's list. An agent that knows
+   * nowhere explores with certainty; one holding the full 25 familiar places of
+   * {@link ActivityPars#familiarLocationCapacity} returns about seven times in ten.
+   */
+  private double returnProbability() {
+    int distinctPlaces = 0;
+    for (Map<NodeGraph, Integer> places : favouritePlaces.values()) {
+      distinctPlaces += places.size();
+    }
+    if (distinctPlaces == 0) {
+      return 0.0;
+    }
+    return 1.0
+        - ActivityPars.explorationRho * Math.pow(distinctPlaces, -ActivityPars.explorationGamma);
+  }
+
+  /**
+   * Draws one of the purpose's favourite places with probability proportional to how often it has
+   * been visited. Song et al. call this preferential return, and show that picking uniformly
+   * instead - every known place equally likely - flattens the visitation frequencies and destroys
+   * the Zipf law they follow in the data.
+   */
+  private NodeGraph preferentialReturn(Map<NodeGraph, Integer> favourites) {
+    int totalVisits = 0;
+    for (int visits : favourites.values()) {
+      totalVisits += visits;
+    }
+    if (totalVisits <= 0) {
+      return null;
+    }
+    int draw = random.nextInt(totalVisits);
+    int cumulative = 0;
+    for (Map.Entry<NodeGraph, Integer> favourite : favourites.entrySet()) {
+      cumulative += favourite.getValue();
+      if (draw < cumulative) {
+        return favourite.getKey();
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Records a visit, admitting the place to the agent's familiar set if it is new.
+   *
+   * <p>The set has a fixed size across all purposes (see
+   * {@link ActivityPars#familiarLocationCapacity}) and turns over rather than filling up: when it
+   * is full, the least-visited place anywhere in it makes room for the new one. Without the
+   * turnover an agent stops learning the moment it is full, which is both wrong and self-
+   * reinforcing, since {@link #returnProbability()} reads the size of this set.
+   */
   private void rememberFavourite(ActivityPurpose purpose, NodeGraph node) {
     if (purpose == null || purpose == ActivityPurpose.STROLL || node == null) {
       return;
     }
-    List<NodeGraph> favourites =
-        favouritePlaces.computeIfAbsent(purpose, p -> new ArrayList<>());
-    if (favourites.contains(node) || favourites.size() >= ActivityPars.maxFavouritesPerPurpose) {
+    Map<NodeGraph, Integer> favourites =
+        favouritePlaces.computeIfAbsent(purpose, p -> new LinkedHashMap<>());
+    if (favourites.containsKey(node)) {
+      favourites.merge(node, 1, Integer::sum);
       return;
     }
-    favourites.add(node);
+    if (countFamiliarPlaces() >= ActivityPars.familiarLocationCapacity && !evictLeastVisited(node)) {
+      return;
+    }
+    favourites.put(node, 1);
+  }
+
+  /** How many distinct places the agent currently holds, across every purpose. */
+  private int countFamiliarPlaces() {
+    int total = 0;
+    for (Map<NodeGraph, Integer> places : favouritePlaces.values()) {
+      total += places.size();
+    }
+    return total;
+  }
+
+  /**
+   * Drops the least-visited familiar place to make room for {@code incoming}. Ties go to the one
+   * learned earliest, which the insertion-ordered maps make deterministic.
+   *
+   * @return whether a place was actually dropped
+   */
+  private boolean evictLeastVisited(NodeGraph incoming) {
+    Map<NodeGraph, Integer> leastVisitedIn = null;
+    NodeGraph leastVisited = null;
+    int fewestVisits = Integer.MAX_VALUE;
+    for (Map<NodeGraph, Integer> places : favouritePlaces.values()) {
+      for (Map.Entry<NodeGraph, Integer> place : places.entrySet()) {
+        if (!place.getKey().equals(incoming) && place.getValue() < fewestVisits) {
+          fewestVisits = place.getValue();
+          leastVisited = place.getKey();
+          leastVisitedIn = places;
+        }
+      }
+    }
+    if (leastVisited == null) {
+      return false;
+    }
+    leastVisitedIn.remove(leastVisited);
+    return true;
   }
 
   /**
@@ -391,7 +501,7 @@ public class ActivityAgent extends Agent {
    * population (home spawning, headcount, vulnerability).
    */
   @Override
-  protected double getPOIWeight(NodeGraph node, boolean isDark) {
+  protected double getPOIWeight(NodeGraph node) {
     if (currentPurpose == null || currentPurpose == ActivityPurpose.STROLL) {
       return 0.0;
     }

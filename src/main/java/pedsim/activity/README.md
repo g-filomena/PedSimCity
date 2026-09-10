@@ -56,15 +56,15 @@ Supporting types (all in `pedsim.activity`): `Persona`, `ActivityPurpose`, `Dail
    `ActivityPars.walkShare*`), **persona × hour affinities** favour commuters at the peaks and
    retirees midday (`Persona.releaseAffinity`), and seeded per-day **weather** scales the release
    budget on rainy days while thinning optional chained stops harder than commutes (`Weather`,
-   `ActivityPars.rain*`). All three run through core seams (`acceptTripDistance`,
+   `ActivityPars.rain*`). All three run through core seams (`tripAcceptanceProbability`,
    `releaseCandidateWeight`, `releaseBudgetMultiplier`) so core stays module-agnostic.
 4. **Destinations** — `ActivityAgent.getPOIWeight` weights candidates by the current purpose's
    per-node attraction, built by `PoiClassifier` from OSM-like use tags (`amenity`, `shop`,
-   `leisure`, `office`, `use`, …) on the buildings and POI layers, and each leg samples from a
-   **purpose-scaled distance band** (errands ×0.6 … leisure ×1.3 of the released distance). Per
-   purpose, agents keep a small set of **favourite places** revisited with
-   `ActivityPars.habitualDestinationProbability`. Without tags, choice is uniform — the census
-   plays no role in destination selection.
+   `leisure`, `office`, `use`, …) on the buildings and POI layers. The purpose does not scale the
+   distance: candidates are the nodes nearest the released distance, weighted by attraction and
+   corrected for the radial density of the choice set. Agents keep a **familiar set** of at most 25
+   places, revisited with a probability that grows as the set fills and drawn by visit frequency.
+   Without tags, choice is uniform — the census plays no role in destination selection.
 
 ## Data layers
 

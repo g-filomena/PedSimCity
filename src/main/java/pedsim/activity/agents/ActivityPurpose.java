@@ -20,33 +20,32 @@ import sim.util.geo.AttributeValue;
 public enum ActivityPurpose {
 
   /** Employment; destination is the agent's work node, duration handled by the persona. */
-  WORK(0.0, 24.0, 420, 0.20, 1.0),
+  WORK(0.0, 24.0, 420, 0.20),
 
   /** School / university attendance; destination is the agent's study node. */
-  EDUCATION(0.0, 24.0, 330, 0.20, 1.0),
+  EDUCATION(0.0, 24.0, 330, 0.20),
 
-  SHOPPING(8.0, 20.0, 35, 0.55, 0.8),
+  SHOPPING(8.0, 20.0, 35, 0.55),
 
   /** Personal business: bank, post office, pharmacy, GP… */
-  ERRANDS(8.0, 18.0, 20, 0.50, 0.6),
+  ERRANDS(8.0, 18.0, 20, 0.50),
 
   /** Restaurants, cafés, fast food. */
-  DINING(11.0, 23.0, 75, 0.40, 0.9),
+  DINING(11.0, 23.0, 75, 0.40),
 
   /** Pubs, bars, clubs, cinemas, theatres; open into the small hours. */
-  NIGHTLIFE(18.0, 2.0, 100, 0.45, 1.2),
+  NIGHTLIFE(18.0, 2.0, 100, 0.45),
 
   /** Parks, sport, culture, sights. */
-  LEISURE(7.0, 23.0, 60, 0.55, 1.3),
+  LEISURE(7.0, 23.0, 60, 0.55),
 
   /** A walk for its own sake; always available, uniform destination choice. */
-  STROLL(0.0, 24.0, 30, 0.40, 1.0);
+  STROLL(0.0, 24.0, 30, 0.40);
 
   private final double openHour;
   private final double closeHour;
   private final double meanStayMinutes;
   private final double logSigma;
-  private final double tripDistanceFactor;
 
   private static final double MIN_STAY_MINUTES = 5;
   private static final double MAX_STAY_MINUTES = 240;
@@ -55,22 +54,46 @@ public enum ActivityPurpose {
       double openHour,
       double closeHour,
       double meanStayMinutes,
-      double logSigma,
-      double tripDistanceFactor) {
+      double logSigma) {
     this.openHour = openHour;
     this.closeHour = closeHour;
     this.meanStayMinutes = meanStayMinutes;
     this.logSigma = logSigma;
-    this.tripDistanceFactor = tripDistanceFactor;
   }
 
-  /**
-   * Purpose-typical scaling of the released trip distance: errands are run close to home,
-   * nightlife and leisure justify longer walks. Applied to the distance band a discretionary
-   * destination is sampled from.
+  /*
+   * There is deliberately no purpose scaling of trip distance here.
+   *
+   * A `tripDistanceFactor` used to multiply the released distance before a destination was sought
+   * - errands close, leisure far. It was removed, for three reasons.
+   *
+   * The released distance is drawn from TripDistanceBands, which is the calibrated walking
+   * trip-length distribution. Multiplying each draw by a purpose factor moves that distribution
+   * unless the factors average exactly 1.0 over the purpose mix actually realised - and that mix
+   * shifts with the hour, the persona and the agenda, so it cannot be held there. The old factors
+   * averaged above 1.0 and inflated the aggregate past what the release budget had charged.
+   *
+   * The effect being modelled is small. Watson et al. (2021), 2017 NHTS, 54,034 walking trips,
+   * report walking distances as not significantly different by purpose; the difference appears in
+   * duration, and the whole spread across purposes is 1.15x. A multiplier that costs the aggregate
+   * more than it buys in realism is not worth keeping.
+   *
+   * If purpose should drive distance, it should select the distribution rather than scale a draw
+   * from the aggregate: a TripDistanceBands per purpose. That needs per-purpose walking
+   * trip-length distributions, which for Italy means the Audimob microdata.
+   *
+   * Purpose still decides which node is chosen (POI weighting), how long the agent stays, and when
+   * the activity is open at all.
    */
-  public double getTripDistanceFactor() {
-    return tripDistanceFactor;
+
+  /** Hour of day this activity opens. */
+  public double getOpenHour() {
+    return openHour;
+  }
+
+  /** Hour of day this activity closes; smaller than {@link #getOpenHour()} when it wraps midnight. */
+  public double getCloseHour() {
+    return closeHour;
   }
 
   /** Whether this activity can start at the given hour of day (window may wrap past midnight). */

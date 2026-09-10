@@ -11,17 +11,69 @@ package pedsim.activity.parameters;
 public class ActivityPars {
 
   // --- Persona mix (fractions of the sampled agent population; should sum to 1.0) ---
+  /**
+   * Whether departures are timed by the agenda system rather than by the tuned diurnal curve in
+   * {@code TimePars.computeTimeStepShare}.
+   *
+   * <p>On, the daily profile is a prediction built from mandatory start windows, opening hours and
+   * persona preferences, things set outside this model, so it can be wrong, and being wrong is
+   * informative. Off, the old curve is restored: useful for isolating the effect of this change,
+   * not as a fallback when the prediction disappoints.
+   */
+  public static boolean useAgendaDepartureProfile = true;
+
+  /**
+   * Share of workers who walk to work, and of students who walk to their place of study.
+   *
+   * <p>Measured, not fitted: ISTAT, <i>Spostamenti quotidiani e nuove forme di mobilita</i>, anno
+   * 2017, Figura 3: 12.0% of {@code occupati} and 27.9% of {@code scolari e studenti} reach work
+   * or school on foot (17.4% of all commuters; 14.8% among employed women).
+   *
+   * <p>These replace the walk-share logit for the commute leg specifically. The logit's implied
+   * figure was 59.4%, five times the observed one, which was enough on its own to make walking
+   * commutes cost more than the entire daily metres budget.
+   *
+   * <p>National figures. Turin has a metro, four tram lines and above-average car ownership, so
+   * the local value is plausibly lower still, but substituting a guess for a measurement would
+   * give back exactly what these numbers were fetched to remove.
+   */
+  public static double walkShareCommuteWorker = 0.120;
+
+  public static double walkShareCommuteStudent = 0.279;
+
   public static double workerShare = 0.50;
   public static double studentShare = 0.15;
   public static double retireeShare = 0.20;
   public static double flexShare = 0.15;
 
   // --- Habitual destination choice ---
-  /** Probability that a discretionary trip reuses one of the agent's favourite places. */
-  public static double habitualDestinationProbability = 0.70;
+  // Exploration vs preferential return, the two mechanisms Song, Koren, Wang & Barabasi (2010),
+  // Nature Physics 6:818-823, measure on mobile-phone trajectories. The chance that the next trip
+  // goes to a place never visited before decays with the number of places already known, as
+  // P_new = rho * S^-gamma; the complement returns to a known place, chosen in proportion to how
+  // often it has been visited. Both values are theirs: gamma = 0.21 +/- 0.02 fitted on the data,
+  // rho normally distributed across users with mean 0.6. They replace a flat 0.70 reuse
+  // probability that had no source, and they make the tendency to repeat a place something the
+  // agent acquires rather than something it is issued with.
+  /** Scale of the exploration probability. */
+  public static double explorationRho = 0.60;
 
-  /** How many favourite places an agent keeps per activity purpose. */
-  public static int maxFavouritesPerPurpose = 3;
+  /** Decay of the exploration probability in the number of places already known. */
+  public static double explorationGamma = 0.21;
+
+  /**
+   * How many familiar places an agent holds at once, across all purposes.
+   *
+   * <p>Alessandretti, Sapiezynski, Sekara, Lehmann & Baronchelli (2018), Nature Human Behaviour
+   * 2:485-491, follow about 40,000 individuals across four datasets and find that the number of
+   * familiar locations a person visits at any point is a conserved quantity of roughly 25: the set
+   * of places keeps turning over while its size does not grow. That is the capacity here, and it
+   * replaces three-per-purpose, a figure with no source that also happened to freeze an agent's
+   * geography permanently — once a purpose had three places, nothing new was ever recorded for it
+   * again, so an agent could go on exploring and never learn. When the capacity is full the
+   * least-visited place makes room, which is the turnover the paper measures.
+   */
+  public static int familiarLocationCapacity = 25;
 
   // --- Daily agenda ---
   /** Probability that a released non-working agent plans a second discretionary activity. */

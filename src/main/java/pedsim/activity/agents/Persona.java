@@ -56,6 +56,21 @@ public enum Persona {
     this.purposeWeights = purposeWeights;
   }
 
+  /** Earliest hour this persona's mandatory activity can start; NaN when it has none. */
+  public double getMandatoryStartEarliest() {
+    return mandatoryStartEarliest;
+  }
+
+  /** Latest hour this persona's mandatory activity can start; NaN when it has none. */
+  public double getMandatoryStartLatest() {
+    return mandatoryStartLatest;
+  }
+
+  /** This persona's preference weights over the discretionary purposes, in their fixed order. */
+  public double[] getPurposeWeights() {
+    return purposeWeights.clone();
+  }
+
   /** Base walking-speed multiplier for this persona (individual noise is added per agent). */
   public double getSpeedFactor() {
     return speedFactor;

@@ -64,6 +64,54 @@ public class DailyAgenda {
   }
 
   /**
+   * Expected number of discretionary stops {@link #build} would put on this agenda.
+   *
+   * <p>Deliberately kept beside {@code build}: the release manager charges the metres budget for a
+   * whole tour rather than a single leg, and it can only do that if it can predict the tour's size
+   * before the agenda exists. Any change to {@code build} has to be mirrored here, which is why the
+   * two sit together.
+   *
+   * @param persona the agent's persona (null means no chaining, so no stops)
+   * @param expectingWorkLeg whether the tour opens with the mandatory work/study trip
+   * @param rainy whether rain is thinning the optional stops
+   * @return the expected count, a real number rather than a draw
+   */
+  public static double expectedStops(Persona persona, boolean expectingWorkLeg, boolean rainy) {
+    if (persona == null) {
+      return 0.0;
+    }
+    double chainFactor = rainy ? ActivityPars.rainDiscretionaryMultiplier : 1.0;
+    if (expectingWorkLeg) {
+      double first = ActivityPars.postWorkActivityProbability * chainFactor;
+      return first * (1.0 + ActivityPars.secondPostWorkActivityProbability * chainFactor);
+    }
+    return 1.0 + ActivityPars.secondActivityProbability * chainFactor;
+  }
+
+  /**
+   * Expected number of walked legs the tour will produce.
+   *
+   * <p>A tour is home, then optionally work, then the stops, then home again, so the legs are the
+   * stops themselves plus the leg home, plus the commute leg when there is one. An agent with no
+   * persona still walks out and back, which is two.
+   *
+   * @param persona the agent's persona
+   * @param expectingWorkLeg whether the tour opens with the mandatory work/study trip
+   * @param rainy whether rain is thinning the optional stops
+   * @return the expected leg count, never below the two of a plain out-and-back
+   */
+  public static double expectedLegs(Persona persona, boolean expectingWorkLeg, boolean rainy) {
+    if (persona == null) {
+      return 2.0;
+    }
+    double legs = expectedStops(persona, expectingWorkLeg, rainy) + 1.0;
+    if (expectingWorkLeg) {
+      legs += 1.0;
+    }
+    return Math.max(2.0, legs);
+  }
+
+  /**
    * Removes and returns the next activity that is open at the given hour; drops the ones that have
    * closed in the meantime. Returns {@code null} when the agenda is exhausted (→ go home).
    */

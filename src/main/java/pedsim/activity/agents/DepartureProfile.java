@@ -1,0 +1,250 @@
+package pedsim.activity.agents;
+
+import java.time.DayOfWeek;
+import java.time.LocalDateTime;
+import pedsim.activity.parameters.ActivityPars;
+import pedsim.core.parameters.TimePars;
+
+/**
+ * When people leave home, derived from what they are leaving home to do.
+ *
+ * <p>This replaces {@link TimePars#computeTimeStepShare}, which spreads the day's metres budget
+ * over the day along a curve of tuned Gaussian peaks. That curve reproduces a plausible diurnal
+ * profile, but it contains no behaviour: its peak times and widths were chosen because the shape
+ * came out right, so a model carrying it cannot predict a diurnal profile — it is told one. The
+ * comparison against observed presence then compares an input with an observation.
+ *
+ * <p>Here the same share is built from things that are set outside this model:
+ *
+ * <ul>
+ *   <li><b>mandatory start windows</b> — when workers and students have to be somewhere
+ *       ({@link Persona}), and which personas attend on this day of the week;
+ *   <li><b>opening hours</b> — when each {@link ActivityPurpose} can be started at all, which come
+ *       from OSM tagging rather than from this model;
+ *   <li><b>persona preference weights</b> — what mix of purposes each persona pursues;
+ *   <li><b>the commute share</b> — how much of the day's travel is the one structural commute per
+ *       working agent, computed from the budget rather than chosen.
+ * </ul>
+ *
+ * <p>None of those is fitted to a diurnal observation, so the profile that comes out is a
+ * prediction. If it fits observed presence worse than the tuned curve did, that is a finding about
+ * the behavioural model and not a reason to reach for the curve again.
+ *
+ * <p>The result is still a population-level share rather than a per-agent appointment: agents do
+ * not hold departure times. What is agenda-derived is the aggregate timing, which is the part that
+ * is testable.
+ */
+public final class DepartureProfile {
+
+  /** Discretionary purposes, in the order of {@link Persona}'s preference-weight array. */
+  private static final ActivityPurpose[] DISCRETIONARY = {
+    ActivityPurpose.SHOPPING,
+    ActivityPurpose.ERRANDS,
+    ActivityPurpose.DINING,
+    ActivityPurpose.NIGHTLIFE,
+    ActivityPurpose.LEISURE,
+    ActivityPurpose.STROLL
+  };
+
+  /**
+   * Nobody sets out at 04:00 because a purpose is technically open. STROLL and NIGHTLIFE nominally
+   * span the small hours; this is the window within which departures are placed at all, so the
+   * overnight band stays thin without a peak being drawn there. A waking-hours bound, not a fitted
+   * one.
+   */
+  private static final double WAKING_FROM = 6.0;
+
+  private static final double WAKING_TO = 25.5; // 01:30 next day, for nightlife returns
+
+  private final double[] density; // per bin, integrating to 1.0 across the day
+  private final double binHours;
+
+  private DepartureProfile(double[] density, double binHours) {
+    this.density = density;
+    this.binHours = binHours;
+  }
+
+  /**
+   * Builds the profile for one day.
+   *
+   * @param day the day of week — workers and students do not attend at weekends, which shifts the
+   *        whole profile without any weekend-specific curve being written
+   * @param commuteShareOfTours the fraction of the day's tours that are the mandatory commute; see
+   *        {@link #commuteShareOfTours}
+   * @return the profile, a density over the day integrating to 1.0
+   */
+  public static DepartureProfile forDay(DayOfWeek day, double commuteShareOfTours) {
+    int bins = (int) Math.round(24.0 * 60.0 / TimePars.releaseAgentsEveryMinutes);
+    double binHours = 24.0 / bins;
+    double[] density = new double[bins];
+
+    double[] shares = {
+      ActivityPars.workerShare,
+      ActivityPars.studentShare,
+      ActivityPars.retireeShare,
+      ActivityPars.flexShare
+    };
+    Persona[] personas = {Persona.WORKER, Persona.STUDENT, Persona.RETIREE, Persona.FLEX};
+
+    for (int p = 0; p < personas.length; p++) {
+      Persona persona = personas[p];
+      double share = shares[p];
+      if (share <= 0.0) {
+        continue;
+      }
+      boolean commutes = persona.hasMandatoryActivity() && persona.worksOn(day);
+      double toCommute = commutes ? share * commuteShareOfTours : 0.0;
+      double toDiscretionary = share - toCommute;
+
+      if (toCommute > 0.0) {
+        spread(
+            density,
+            binHours,
+            persona.getMandatoryStartEarliest(),
+            persona.getMandatoryStartLatest(),
+            toCommute);
+      }
+      if (toDiscretionary > 0.0) {
+        addDiscretionary(density, binHours, persona, toDiscretionary);
+      }
+    }
+
+    normalise(density, binHours);
+    return new DepartureProfile(density, binHours);
+  }
+
+  /** Spreads a persona's discretionary mass across its purposes' opening windows. */
+  private static void addDiscretionary(
+      double[] density, double binHours, Persona persona, double mass) {
+    double[] weights = persona.getPurposeWeights();
+    double total = 0.0;
+    for (double w : weights) {
+      total += w;
+    }
+    if (total <= 0.0) {
+      spread(density, binHours, WAKING_FROM, WAKING_TO, mass);
+      return;
+    }
+    for (int i = 0; i < DISCRETIONARY.length && i < weights.length; i++) {
+      if (weights[i] <= 0.0) {
+        continue;
+      }
+      ActivityPurpose purpose = DISCRETIONARY[i];
+      double from = purpose.getOpenHour();
+      double to = purpose.getCloseHour();
+      if (to <= from) {
+        to += 24.0; // wraps midnight (nightlife)
+      }
+      // Departures happen when the activity can be started, inside waking hours.
+      from = Math.max(from, WAKING_FROM);
+      to = Math.min(to, WAKING_TO);
+      if (to <= from) {
+        continue;
+      }
+      spread(density, binHours, from, to, mass * weights[i] / total);
+    }
+  }
+
+  /** Adds {@code mass}, spread uniformly over {@code [from, to)} hours, into the bins. */
+  private static void spread(
+      double[] density, double binHours, double from, double to, double mass) {
+    if (!(to > from) || mass <= 0.0) {
+      return;
+    }
+    double perHour = mass / (to - from);
+    for (int b = 0; b < density.length; b++) {
+      double binFrom = b * binHours;
+      double binTo = binFrom + binHours;
+      // The window may run past midnight; the tail wraps into the early bins.
+      double overlap = overlap(binFrom, binTo, from, to) + overlap(binFrom + 24.0, binTo + 24.0, from, to);
+      if (overlap > 0.0) {
+        density[b] += perHour * overlap;
+      }
+    }
+  }
+
+  private static double overlap(double aFrom, double aTo, double bFrom, double bTo) {
+    return Math.max(0.0, Math.min(aTo, bTo) - Math.max(aFrom, bFrom));
+  }
+
+  /** Scales the density so its area over the day is exactly 1.0. */
+  private static void normalise(double[] density, double binHours) {
+    double area = 0.0;
+    for (double d : density) {
+      area += d;
+    }
+    if (area <= 0.0) {
+      java.util.Arrays.fill(density, 1.0 / (density.length * binHours));
+      return;
+    }
+    double scale = 1.0 / area;
+    for (int b = 0; b < density.length; b++) {
+      density[b] *= scale;
+    }
+  }
+
+  /**
+   * The share of the day's metres budget belonging to the release event at this time.
+   *
+   * <p>Same contract as {@link TimePars#computeTimeStepShare}: the values across a day's release
+   * events sum to 1.0, so the whole budget is spent and no more.
+   *
+   * @param time the moment of the release event
+   * @return the share, in {@code [0, 1]}
+   */
+  public double share(LocalDateTime time) {
+    double hour =
+        time.getHour() + time.getMinute() / 60.0 + time.getSecond() / 3600.0;
+    int bin = (int) Math.floor(hour / binHours);
+    if (bin < 0 || bin >= density.length) {
+      return 0.0;
+    }
+    return density[bin];
+  }
+
+  /**
+   * What fraction of a day's tours are the structural commute.
+   *
+   * <p>Each working agent commutes once on a working day — that is not a parameter, it is what
+   * "having a job" means. The rest of the day's tours are discretionary. So the split follows from
+   * how many tours the metres budget buys per agent: a budget that affords roughly one tour a
+   * person is nearly all commuting, one that affords three is mostly not.
+   *
+   * <p>Not every worker walks to work, so the commuting population is scaled by the observed
+   * walking mode share of that group ({@link ActivityPars#walkShareCommuteWorker}, from ISTAT).
+   * Without that scaling the commute demand is the whole working population and the profile
+   * becomes a pure commuting peak.
+   *
+   * <p>Saturating at 1.0 is a statement about the calibration rather than a clamp doing its job:
+   * it means walking commutes alone would spend the entire metres budget, leaving nothing for
+   * discretionary travel. If that happens, {@code metersPerDayPerPerson}, the persona shares and
+   * the walk-share filter are not consistent with one another, and the flat afternoon it produces
+   * is the symptom rather than the disease.
+   *
+   * @param day the day of week
+   * @param metersPerPersonPerDay the calibration anchor
+   * @param expectedTourMeters metres a typical tour walks
+   * @return the commute share, in {@code [0, 1]}
+   */
+  public static double commuteShareOfTours(
+      DayOfWeek day, double metersPerPersonPerDay, double expectedTourMeters) {
+    if (expectedTourMeters <= 0.0) {
+      return 0.0;
+    }
+    // Walking commuters, not commuters: the observed share of each group that goes on foot
+    // (ISTAT 2017). Workers and students differ by more than a factor of two, so they cannot
+    // share one figure.
+    double workingFraction = 0.0;
+    if (Persona.WORKER.worksOn(day)) {
+      workingFraction += ActivityPars.workerShare * ActivityPars.walkShareCommuteWorker;
+    }
+    if (Persona.STUDENT.worksOn(day)) {
+      workingFraction += ActivityPars.studentShare * ActivityPars.walkShareCommuteStudent;
+    }
+    double toursPerAgent = metersPerPersonPerDay / expectedTourMeters;
+    if (toursPerAgent <= 0.0) {
+      return 0.0;
+    }
+    return Math.min(1.0, workingFraction / toursPerAgent);
+  }
+}
