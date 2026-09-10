@@ -14,6 +14,7 @@ import pedsim.core.agents.Agent;
 import pedsim.core.cognition.cityimage.Barrier;
 import pedsim.core.cognition.cityimage.Gateway;
 import pedsim.core.cognition.cityimage.Region;
+import pedsim.core.parameters.TimePars;
 import sim.engine.SimState;
 import sim.engine.Stoppable;
 import sim.field.geo.VectorLayer;
@@ -188,12 +189,157 @@ public class PedSimCity extends SimState {
   }
 
   /**
-   * Whether a sampled trip distance (meters) is acceptable for release (see
-   * {@link AgentReleaseManager}); rejected draws are resampled. Modules may override — e.g. a
-   * walk-share filter that keeps most short trips and few long ones. Must be thread-safe.
+   * Metres of route planned today, summed over every leg of every agent.
+   *
+   * <p>The release budget is charged an estimate, a sampled trip distance times an expected leg
+   * count, because at release time neither the destination nor the route exists yet. The route
+   * appears one step later and its length is then known exactly: on Torino_simplified a leg walks
+   * about 1.75x what it was charged, because destination selection lands near, not on, the sampled
+   * radius and the network path between two points exceeds the distance between them.
+   *
+   * <p>This ledger measures that gap and nothing more. It is deliberately not fed back into the
+   * allocation: the charge covers a whole tour at once while its routes are planned over the
+   * following hours, so the measurement always lags the charge, and an allocation that grows when
+   * it sees less walking than it charged for is a positive feedback loop. Fixing the gap belongs
+   * at its source, in destination selection.
+   *
+   * <p>A {@link java.util.concurrent.atomic.DoubleAdder} because agents step concurrently.
    */
-  public boolean acceptTripDistance(double meters) {
-    return true;
+  private final java.util.concurrent.atomic.DoubleAdder plannedRouteMeters =
+      new java.util.concurrent.atomic.DoubleAdder();
+
+  /**
+   * Records a leg whose route has just been planned.
+   *
+   * @param meters the routed length, which is what will actually be walked
+   */
+  public void recordPlannedRoute(double meters) {
+    if (meters > 0.0 && Double.isFinite(meters)) {
+      plannedRouteMeters.add(meters);
+    }
+  }
+
+  /** Metres of route planned so far today. */
+  public double plannedRouteMeters() {
+    return plannedRouteMeters.sum();
+  }
+
+  /**
+   * Metres actually walked on the legs that finished today.
+   *
+   * <p>The planned ledger above counts a leg the moment its route is laid out. A tour still under
+   * way when the day ends has its last leg counted there in full and walked only in part, which
+   * biases any comparison of planned against charged in the same direction as the charge itself.
+   * Recording the walked length separately, at the point where the route is replaced by the edges
+   * the agent really covered, leaves the difference visible instead of buried.
+   */
+  private final java.util.concurrent.atomic.DoubleAdder walkedRouteMeters =
+      new java.util.concurrent.atomic.DoubleAdder();
+
+  /** Records a leg that has just finished, with the length actually covered. */
+  public void recordWalkedRoute(double meters) {
+    if (meters > 0.0 && Double.isFinite(meters)) {
+      walkedRouteMeters.add(meters);
+    }
+  }
+
+  /** Metres walked on legs completed so far today. */
+  public double walkedRouteMeters() {
+    return walkedRouteMeters.sum();
+  }
+
+  /**
+   * Times a destination search had to widen its distance band, and times it gave up and fell back
+   * to any node in the city.
+   *
+   * <p>Both used to happen silently. The band widens inside the lookup call, so a run could not
+   * say whether a leg came from the band it asked for or from one three times wider; and the
+   * fallback replaces the band with the whole network. Since leg length is the open question,
+   * these two counts are the difference between an answer and a guess.
+   */
+  private final java.util.concurrent.atomic.LongAdder destinationWidenings =
+      new java.util.concurrent.atomic.LongAdder();
+
+  private final java.util.concurrent.atomic.LongAdder destinationFallbacks =
+      new java.util.concurrent.atomic.LongAdder();
+
+  /** Records that a destination search widened its band the given number of times. */
+  public void recordDestinationWidening(int widenings) {
+    if (widenings > 0) {
+      destinationWidenings.add(widenings);
+    }
+  }
+
+  /** Records a destination search that exhausted its band and took any node instead. */
+  public void recordDestinationFallback() {
+    destinationFallbacks.increment();
+  }
+
+  /** Total band widenings so far today. */
+  public long destinationWidenings() {
+    return destinationWidenings.sum();
+  }
+
+  /** Total band fallbacks so far today. */
+  public long destinationFallbacks() {
+    return destinationFallbacks.sum();
+  }
+
+  /** Clears the day's ledgers and counters. */
+  public void resetPlannedRouteMeters() {
+    plannedRouteMeters.reset();
+    walkedRouteMeters.reset();
+    destinationWidenings.reset();
+    destinationFallbacks.reset();
+  }
+
+  /**
+   * Share of the day's metres budget belonging to the release event at this moment.
+   *
+   * <p>Core uses {@link TimePars#computeTimeStepShare}, a curve of tuned peaks. Modules that model
+   * why people leave home may override with a profile derived from that instead; see
+   * {@code DepartureProfile}. Whatever supplies it, the shares across a day's release events must
+   * sum to 1.0, or the day's budget is over- or under-spent.
+   *
+   * @param time the moment of the release event
+   * @return the share, in {@code [0, 1]}
+   */
+  public double departureShare(java.time.LocalDateTime time) {
+    return TimePars.computeTimeStepShare(time);
+  }
+
+  /**
+   * How many walked legs releasing this agent is expected to produce.
+   *
+   * <p>The release budget is a quantity of metres to be walked, so it has to be charged for
+   * everything the release causes, not for the first leg of it. A core agent walks out and comes
+   * back, which is two; activity-based modules chain a tour through several stops and override
+   * this. Charging one leg, as the manager did until this seam existed, under-spends the budget by
+   * whatever the tour multiplier is, and the model then walks that factor more than
+   * {@code metersPerDayPerPerson} says it should.
+   *
+   * <p>Called with a null agent to get the population-typical value, which is used to size the
+   * residual carried between release events. Must be thread-safe.
+   *
+   * @param agent the candidate being released, or null for the module-typical tour
+   * @return the expected number of legs, at least one
+   */
+  public double expectedTourLegs(Agent agent) {
+    return 2.0;
+  }
+
+  /**
+   * Probability that a sampled trip distance (metres) is kept for release; rejected draws are
+   * resampled (see {@link AgentReleaseManager}). Modules may override — e.g. a walk-share filter
+   * that keeps most short trips and few long ones.
+   *
+   * <p>A probability rather than a verdict, so that the draw itself happens in the release manager
+   * against its seeded generator. When the state made the draw it reached for a thread-local
+   * generator, and this filter decides which trips exist at all: an unseeded draw there put the
+   * whole run beyond reach of its own seed.
+   */
+  public double tripAcceptanceProbability(double meters) {
+    return 1.0;
   }
 
   /**

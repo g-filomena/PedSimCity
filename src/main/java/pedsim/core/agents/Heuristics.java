@@ -40,7 +40,9 @@ public final class Heuristics {
 
   public Heuristics(Agent agent) {
     this.ap = Objects.requireNonNull(Objects.requireNonNull(agent).getProperties());
-    this.random = new Random();
+    // The agent's own seeded generator: route choice is sampled per trip, so an unseeded one here
+    // put every routing decision of the run beyond replay.
+    this.random = agent.getRandom();
   }
 
   /**

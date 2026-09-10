@@ -212,8 +212,11 @@ public class Import {
       String resourceName = Pars.cityName + "/" + Pars.cityName + "_" + layerName + ".gpkg";
       URL fileUrl = CLASSLOADER.getResource(resourceName);
 
+      // Absent is the normal case for an optional layer: report it plainly. Throwing here made
+      // the catch below print a stack trace, which reads like a crash in the run log.
       if (fileUrl == null) {
-        throw new IllegalStateException("Resource not found: " + resourceName);
+        logger.info("Optional layer " + layerName + " not present (" + resourceName + ").");
+        return;
       }
 
       // clear() the layer itself: getGeometries() returns a defensive copy, so clearing that

@@ -109,15 +109,22 @@ public class TimePars {
   }
 
   /**
-   * Share of the daily walking budget released at this step, following a day-of-week-specific
-   * diurnal curve: the weekday curve has the commute peaks, Friday shifts volume into the night,
-   * and the weekend has no morning commute, a later flatter morning, and a larger night share.
+   * Share of the daily walking budget released at this release event, following a
+   * day-of-week-specific diurnal curve: the weekday curve has the commute peaks, Friday shifts
+   * volume into the night, and the weekend has no morning commute, a later flatter morning, and a
+   * larger night share.
+   *
+   * <p>The curve is a density over the day integrating to 1.0, so the share is its area over the
+   * interval between release events — {@link #releaseAgentsEveryMinutes}, NOT {@link
+   * #STEP_DURATION}. The two were equal while the step was 20 minutes; when the step went to 300 s
+   * the shares silently began summing to 0.25 over the day, so only a quarter of the daily budget
+   * was ever released.
    */
   public static double computeTimeStepShare(LocalDateTime currentTime) {
     LocalTime localTime = currentTime.toLocalTime();
     double timeInHours =
         localTime.getHour() + localTime.getMinute() / 60.0 + localTime.getSecond() / 3600.0;
-    double stepHours = STEP_DURATION / 3600.0;
+    double releaseIntervalHours = releaseAgentsEveryMinutes / 60.0;
 
     DayOfWeek day = currentTime.getDayOfWeek();
     boolean weekend = day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY;
@@ -169,9 +176,9 @@ public class TimePars {
       share += effectiveBackground / 24.0;
     }
 
-    // Multiply probability density by the step duration to get the area/share for
-    // this step
-    return share * stepHours;
+    // Density x the interval between release events = the area under the curve this release
+    // accounts for; summed over the day's releases this returns 1.0.
+    return share * releaseIntervalHours;
   }
 
   public static LocalDateTime getTime(double totalSteps) {

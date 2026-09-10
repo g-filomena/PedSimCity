@@ -206,6 +206,9 @@ public class AgentMovement {
    */
   public void updateData() {
     agent.getRoute().resetRoute(new ArrayList<>(edgesWalkedSoFar));
+    // The route now holds what was walked, not what was planned. Recording it here is what lets a
+    // day tell the two apart: a leg still under way when the day ends never reaches this line.
+    state.recordWalkedRoute(agent.getRoute().getLength());
     state.flowHandler.updateFlowsData(
         agent, agent.getRoute(), agent.getAgentScenario(), agent.getSimulationScenario());
     pedsim.core.engine.TripRouteRecorder.recordTrip(

@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import pedsim.core.applet.PedSimCityApplet;
+import pedsim.core.utilities.LoggerUtil;
 
 /**
  * Central manager for simulation parameters. - Reflection-based (no manual binding) - Works with
@@ -93,7 +94,10 @@ public class ParameterManager {
             "Unsupported type for field " + key + " in " + targetClass.getSimpleName());
       }
     } catch (NoSuchFieldException e) {
-      System.err.println("No field named " + key + " in " + targetClass.getSimpleName());
+      // Every key is offered to each parameter class in turn, so misses are the norm, not a
+      // problem: one hit is what matters. Reporting them on stderr buried every run start.
+      LoggerUtil.getLogger()
+          .fine("No field named " + key + " in " + targetClass.getSimpleName());
     } catch (Exception e) {
       System.err.println("Failed to set field " + key + ": " + e.getMessage());
     }

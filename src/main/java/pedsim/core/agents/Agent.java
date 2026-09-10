@@ -60,7 +60,20 @@ public class Agent implements Steppable {
 
   protected Route route;
   protected NodeGraph lastDestination;
-  protected Random random = new Random();
+  /**
+   * Per-agent RNG, seeded from the model's master seed and the order in which agents are built.
+   *
+   * <p>It used to be {@code new Random()}, seeded from the clock, which made a run unrepeatable
+   * whatever seed the model was given. One shared generator is not an option either: agents step
+   * concurrently, and a generator drawn from several threads gives a different sequence per
+   * interleaving. A generator per agent, seeded deterministically at construction, is repeatable
+   * under concurrency because each agent's draws no longer depend on what the others do.
+   */
+  protected Random random;
+
+  /** Construction order of agents, which is what makes the per-agent seeds deterministic. */
+  private static final java.util.concurrent.atomic.AtomicLong AGENT_SEED_SEQUENCE =
+      new java.util.concurrent.atomic.AtomicLong();
   protected AgentMovement agentMovement;
   protected double distanceNextDestination = 0.0;
 
@@ -83,10 +96,14 @@ public class Agent implements Steppable {
     this(state, true);
   }
 
-  public Agent() {}
+  public Agent() {
+    random = new Random(AGENT_SEED_SEQUENCE.getAndIncrement());
+  }
 
   public Agent(PedSimCity state, boolean registerSpatial) {
     this.state = state;
+    // Before the cognitive map, which draws from it.
+    random = new Random(state.seed() * 1_000_003L + AGENT_SEED_SEQUENCE.getAndIncrement());
     cognitiveMap = new CognitiveMap(this);
     initialiseAgentProperties();
     status = AgentStatus.WAITING;
@@ -214,32 +231,65 @@ public class Agent implements Steppable {
     }
   }
 
+  /** Where the doubling search starts. A metre is below the spacing of any street network. */
+  private static final double SEARCH_SEED_METRES = 1.0;
+
+  /** Doublings before the search gives up; 24 of them exceed the diameter of any city. */
+  private static final int MAX_SEARCH_DOUBLINGS = 24;
+
+  /**
+   * The nodes closest to a given distance from the origin, found by widening a search interval
+   * around it until something falls inside.
+   *
+   * <p>There is no band width here, and deliberately so. It used to be a fixed ±10% of the
+   * sampled distance, a number with no source and no observable counterpart: nothing measures how
+   * tolerant a person is about the length of the trip they had in mind. Worse, a fixed fraction
+   * means the choice set is wide where the network is dense and narrow where it is sparse, which
+   * is backwards. Starting at a metre and doubling until the set is non-empty returns the nodes
+   * nearest to the distance actually asked for, and lets the network decide how near that is. The
+   * two constants above are convergence controls: the answer is the same whatever they are, to
+   * within one doubling.
+   *
+   * @param network the graph to search
+   * @param distance the distance the trip was released for
+   * @param restrictTo nodes the agent must already know, or null for no restriction
+   * @return the candidates found, empty only if the search exhausted its doublings
+   */
+  protected List<NodeGraph> candidatesNearDistance(
+      Graph network, double distance, Set<NodeGraph> restrictTo) {
+    double tolerance = SEARCH_SEED_METRES;
+    for (int doublings = 0; doublings < MAX_SEARCH_DOUBLINGS; doublings++) {
+      List<NodeGraph> candidates =
+          NodesLookup.getNodesBetweenDistanceInterval(
+              network, originNode, Math.max(0.0, distance - tolerance), distance + tolerance);
+      if (restrictTo != null) {
+        candidates.retainAll(restrictTo);
+      }
+      if (!candidates.isEmpty()) {
+        state.recordDestinationWidening(doublings);
+        return candidates;
+      }
+      tolerance *= 2.0;
+    }
+    return new ArrayList<>();
+  }
+
   protected void defineRandomDestination() {
 
-    double lowerLimit = distanceNextDestination * 0.90;
-    double upperLimit = distanceNextDestination;
     Graph network = SharedCognitiveMap.getCommunityPrimalNetwork();
     Set<NodeGraph> knownNodes =
         new HashSet<>(
             GraphUtils.getNodesFromNodeIDs(
                 getCognitiveMap().getAgentKnownNodes(), PedSimCity.nodesMap));
-    List<NodeGraph> candidates = new ArrayList<>();
-    int maxIterations = 100;
-    int iterations = 0;
-    while (candidates.isEmpty() && iterations < maxIterations) {
-      candidates =
-          NodesLookup.getNodesBetweenDistanceInterval(network, originNode, lowerLimit, upperLimit);
-      candidates.retainAll(knownNodes);
-      lowerLimit = lowerLimit * 0.90;
-      upperLimit = upperLimit * 1.10;
-      iterations++;
-    }
+    List<NodeGraph> candidates =
+        candidatesNearDistance(network, distanceNextDestination, knownNodes);
     if (candidates.isEmpty()) {
+      state.recordDestinationFallback();
       List<NodeGraph> allNodes = network.getNodes();
       candidates = new ArrayList<>(allNodes);
     }
 
-    destinationNode = selectWeightedDestination(candidates, isDark());
+    destinationNode = selectWeightedDestination(candidates);
   }
 
   /**
@@ -251,53 +301,116 @@ public class Agent implements Steppable {
   }
 
   /**
-   * Selects a destination from a list of candidates weighted by POI counts.
-   *
-   * @param candidates List of potential destination nodes.
-   * @param isDark     Whether to use night weights (true) or day weights (false).
-   * @return The selected destination NodeGraph.
-   */
-  /**
    * Returns the POI-based selection weight for a candidate destination node.
    *
    * <p>Core agents have no destination data, so every node weighs 0.0 (uniform selection).
    * Modules override this to weight candidate nodes by their own attraction data.
    *
-   * @param node   The candidate destination node.
-   * @param isDark Whether the simulation currently considers it "Night".
+   * <p>There is deliberately no day/night argument. This used to take one, and no implementation
+   * ever read it: there is a single attraction table per purpose, and what changes after dark is
+   * which purposes are open, which {@link pedsim.activity.agents.ActivityPurpose} opening windows
+   * already decide. A second table of night attractions would need a source none of ours provides.
+   *
+   * @param node The candidate destination node.
    * @return The weight for that node (0.0 when no activity data is loaded).
    */
-  protected double getPOIWeight(NodeGraph node, boolean isDark) {
+  protected double getPOIWeight(NodeGraph node) {
     return 0.0;
   }
 
-  protected NodeGraph selectWeightedDestination(List<NodeGraph> candidates, boolean isDark) {
-    if (candidates == null || candidates.isEmpty()) return null;
-
-    double totalWeight = 0;
-    double[] weights = new double[candidates.size()];
-
-    for (int i = 0; i < candidates.size(); i++) {
-      weights[i] = getPOIWeight(candidates.get(i), isDark);
-      totalWeight += weights[i];
+  /**
+   * Picks a destination from the candidates in the distance band.
+   *
+   * <p>Two things decide it, and they are not the same thing. The band says how far the trip
+   * should be; the POI weights say what is worth walking to. Weighting by attraction alone
+   * conflates them, because the candidates are not spread evenly over the band: they come from an
+   * annulus, so their number grows with the radius, and a draw proportional to attraction inherits
+   * that growth. The realised radius then sits above the sampled distance even when every weight
+   * is equal, and further above it wherever the POIs happen to cluster.
+   *
+   * <p>So each candidate's weight is divided by the number of candidates sharing its radial shell.
+   * This is the standard correction for a sampled choice set: divide by the probability the
+   * protocol had of offering that alternative. Attraction still decides which node is chosen at a
+   * given distance; it no longer decides the distance. With uniform weights the radius is now flat
+   * across the band, which is what asking for {@code [0.9d, 1.1d]} was meant to mean.
+   *
+   * @param candidates the nodes in the band
+   * @return the chosen node, or null when there are none
+   */
+  protected NodeGraph selectWeightedDestination(List<NodeGraph> candidates) {
+    if (candidates == null || candidates.isEmpty()) {
+      return null;
     }
 
-    // No activity/POI data (every weight 0) → pick uniformly at random instead of always
-    // returning the first candidate (r would be 0 and 0 <= currentSum hits index 0).
+    double[] weights = new double[candidates.size()];
+    double totalPoi = 0.0;
+    for (int i = 0; i < candidates.size(); i++) {
+      weights[i] = getPOIWeight(candidates.get(i));
+      totalPoi += weights[i];
+    }
+    // No attraction data: every candidate is equally worth reaching, which is not the same as
+    // every candidate being equally likely to be offered. The shell correction below still applies.
+    if (totalPoi <= 0.0) {
+      java.util.Arrays.fill(weights, 1.0);
+    }
+
+    applyShellCorrection(candidates, weights);
+
+    double totalWeight = 0.0;
+    for (double weight : weights) {
+      totalWeight += weight;
+    }
     if (totalWeight <= 0.0) {
       return candidates.get(random.nextInt(candidates.size()));
     }
 
-    double r = random.nextDouble() * totalWeight;
-    double currentSum = 0;
+    double draw = random.nextDouble() * totalWeight;
+    double cumulative = 0.0;
     for (int i = 0; i < candidates.size(); i++) {
-      currentSum += weights[i];
-      if (r <= currentSum) {
+      cumulative += weights[i];
+      if (draw <= cumulative) {
         return candidates.get(i);
       }
     }
+    return candidates.get(candidates.size() - 1);
+  }
 
-    return candidates.get(random.nextInt(candidates.size())); // Fallback
+  /** Number of radial shells the band is split into for the correction above. */
+  private static final int RADIAL_SHELLS = 12;
+
+  /**
+   * Divides each weight by the number of candidates in the same radial shell, so that the choice
+   * set's own geometry stops leaking into the chosen distance. Does nothing without an origin, or
+   * when every candidate sits at the same radius.
+   */
+  private void applyShellCorrection(List<NodeGraph> candidates, double[] weights) {
+    if (originNode == null) {
+      return;
+    }
+    Coordinate origin = originNode.getCoordinate();
+    double[] radii = new double[candidates.size()];
+    double minRadius = Double.MAX_VALUE;
+    double maxRadius = 0.0;
+    for (int i = 0; i < candidates.size(); i++) {
+      radii[i] = origin.distance(candidates.get(i).getCoordinate());
+      minRadius = Math.min(minRadius, radii[i]);
+      maxRadius = Math.max(maxRadius, radii[i]);
+    }
+    double span = maxRadius - minRadius;
+    if (span <= 0.0) {
+      return;
+    }
+
+    int[] shellCounts = new int[RADIAL_SHELLS];
+    int[] shellOf = new int[candidates.size()];
+    for (int i = 0; i < candidates.size(); i++) {
+      int shell = (int) ((radii[i] - minRadius) / span * RADIAL_SHELLS);
+      shellOf[i] = Math.min(shell, RADIAL_SHELLS - 1);
+      shellCounts[shellOf[i]]++;
+    }
+    for (int i = 0; i < candidates.size(); i++) {
+      weights[i] /= shellCounts[shellOf[i]];
+    }
   }
 
   protected void handleReachedDestination() {
@@ -616,6 +729,19 @@ public class Agent implements Steppable {
    */
   public void setRoute(Route route) {
     this.route = route;
+    // Every leg passes through here: the base planner, the night module's lighting-aware one, and
+    // the chained legs of a tour, which call planRoute() directly and so never reach
+    // reinitializeMovementPath(). Hooking a higher-level method looks tidier but is fragile when
+    // subclasses bypass it; the right seam is the one that has to be crossed because it installs
+    // the state.
+    if (route != null && state != null) {
+      state.recordPlannedRoute(route.getLength());
+    }
+  }
+
+  /** This agent's seeded RNG. Collaborators must draw from it rather than from a global one. */
+  public Random getRandom() {
+    return random;
   }
 
   public void setHomeWorkLoctations(NodeGraph homeNode, NodeGraph workNode) {

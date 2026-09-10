@@ -14,7 +14,14 @@ public class Pars {
   public static String cityName = "Torino";
   public static int population = 1500000;
   public static double percentagePopulationAgent = 0.001;
-  public static double metersPerDayPerPerson = 4000; // 4k
+  // Metres walked on the street network per day, per resident. Estimated from travel-survey
+  // figures rather than tuned: 2.53 trips/day for the mobile population x 80.8% mobility rate
+  // x ~25% walking mode share in cities over 250k x ~1.0-1.6 km per walking trip lands at
+  // 600-1000 m/day; the upper end allows for the sub-5-minute walks travel surveys exclude.
+  // See RELEASE_BUDGET.md. The previous 4000 was undocumented and matches
+  // pedometer literature (~5,300 steps), which measures total ambulation including indoors,
+  // not trips on a street network.
+  public static double metersPerDayPerPerson = 1000;
   public static double metersPerDay;
   public static int numAgents;
 
@@ -65,6 +72,7 @@ public class Pars {
     recomputeAgentCount();
     setRoadTypeMap();
     RouteChoicePars.setMinMaxTripDistance();
+    TripDistanceBands.setDefaults();
   }
 
   /**

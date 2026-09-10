@@ -27,7 +27,17 @@ public class Populate {
   protected PedSimCity state;
   protected static final Logger logger = LoggerUtil.getLogger();
   protected final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory();
+  /**
+   * Populate-time generator. Seeded from the model's seed by {@link #seedFrom}, because home and
+   * work assignment decides where every agent lives and therefore how far it walks: left on the
+   * clock, as it was, no run could be replayed however carefully the agents themselves were seeded.
+   */
   protected Random random = new Random();
+
+  /** Seeds the populate-time generator from the model seed. Call before drawing anything. */
+  protected void seedFrom(PedSimCity state) {
+    random = new Random(state.seed() * 104729L);
+  }
 
   protected NodeGraph homeNode;
   protected NodeGraph workNode;
@@ -45,6 +55,7 @@ public class Populate {
   public void populate(PedSimCity state) {
 
     this.state = state;
+    seedFrom(state);
 
     // Step 1: Create agents in sequence (Fast with spatial index)
     int totalAgents = Pars.numAgents;
@@ -131,7 +142,8 @@ public class Populate {
       return null;
     }
     try {
-      return NodesLookup.randomNodeDMA(SharedCognitiveMap.getCommunityPrimalNetwork(), "live");
+      return NodesLookup.randomNodeDMA(
+          SharedCognitiveMap.getCommunityPrimalNetwork(), "live", random);
     } catch (Exception e) {
       return null;
     }
@@ -155,7 +167,8 @@ public class Populate {
                 homeNode,
                 RouteChoicePars.minTripDistance,
                 RouteChoicePars.maxTripDistance,
-                "work");
+                "work",
+                random);
 
         if (node != null) {
           return node;
@@ -183,7 +196,8 @@ public class Populate {
           SharedCognitiveMap.getCommunityPrimalNetwork(),
           homeNode,
           RouteChoicePars.minTripDistance,
-          RouteChoicePars.maxTripDistance);
+          RouteChoicePars.maxTripDistance,
+          random);
     } catch (Exception e) {
       return null;
     }

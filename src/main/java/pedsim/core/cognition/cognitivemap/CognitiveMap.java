@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -67,7 +66,7 @@ public class CognitiveMap extends SharedCognitiveMap {
             Math.max(
                 0.0,
                 LearningPars.MEAN_MEMORY_ROUTES
-                    + (ThreadLocalRandom.current().nextDouble() - 0.5) * 0.5));
+                    + (agent.getRandom().nextDouble() - 0.5) * 0.5));
   }
 
   public void formCognitiveMap() {
