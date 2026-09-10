@@ -11,7 +11,41 @@ for traceability._
 
 ---
 
-## July 2026 — latest
+## September 2026
+
+### Changed
+- **Destination choice no longer carries invented parameters.** The ±10% distance band
+  (`DESTINATION_BAND_TOLERANCE`) and the per-purpose distance multiplier
+  (`ActivityPurpose.tripDistanceFactor`) were removed rather than re-fitted: neither is an
+  observable quantity, and the multiplier moved the calibrated trip-length aggregate. Destinations
+  are now found by a search that doubles from one metre until it finds nodes.
+- **Candidate weighting corrected for the shape of its own choice set** — weights are divided by
+  the number of candidates in the same radial shell, so attraction decides which node at a given
+  distance rather than deciding the distance.
+- **Habitual destination reuse follows measured behaviour** — the exploration / preferential-return
+  law (Song et al. 2010) with a familiar-place capacity of 25 and turnover (Alessandretti et al.
+  2018), replacing a flat 0.70 probability and a uniform draw.
+- **Purpose-typed attraction dropped its unused day/night flag**; `expectedTourLegs` dropped its
+  unused `hour` parameter; `acceptTripDistance` became `tripAcceptanceProbability`.
+
+### Fixed
+- **Runs are reproducible from their seed.** Every generator that was `new Random()` or
+  `ThreadLocalRandom` in the simulation's own code is now seeded from the model seed — per agent,
+  per populate pass, per release manager. Home and work assignment still is not: it runs through
+  `NodesLookup`, which needs GeoMason-light 2.1.1.
+- **Walked metres are recorded separately from planned metres**, so tours truncated by the day
+  boundary no longer inflate the planned-versus-charged comparison.
+- **Band widening and any-node fallbacks are counted and logged per day**, instead of happening
+  silently inside the destination search.
+
+### Documentation
+- `OD_DISTANCE_FACTORS.md` — every mechanism that shapes the origin–destination distance, with its
+  status and source.
+- `references/` — the reports behind the calibration are stored in the repo rather than linked.
+
+---
+
+## July 2026
 
 ### Fixed
 - **Spatial indexing & trajectory recording** — corrected indexing/recording
