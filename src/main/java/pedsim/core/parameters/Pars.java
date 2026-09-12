@@ -25,6 +25,24 @@ public class Pars {
   public static double metersPerDay;
   public static int numAgents;
 
+  /**
+   * The run's base seed. Every generator in the simulation derives from it - per agent, per
+   * populate pass, per release manager - so this one number decides whether two runs are the same
+   * run.
+   *
+   * <p>It had no way of being set. {@code Engine(stateFactory)} seeded from
+   * {@code System.currentTimeMillis()} and there was no command-line parameter, so every headless
+   * run drew a different seed and no two runs could be compared. That quietly undid the seeding
+   * work: each generator was faithfully derived from a base seed that was itself the clock.
+   *
+   * <p>Fixed by default, because a model whose runs are not repeatable cannot be compared with
+   * itself, and every A/B in this project - route-choice models, parameter sweeps, the night
+   * module's light experiment - is a comparison of runs. Pass {@code --seed=-1} for a clock seed
+   * when independent replicates are wanted; job {@code n} uses {@code seed + n}, so a multi-job run
+   * already gives replicates from one base seed.
+   */
+  public static long seed = 20260912L;
+
   public static int jobs = 1;
   public static int durationDays = 7;
   public static int stepDelayMs = 100;
@@ -42,8 +60,6 @@ public class Pars {
   public static double moveRate;
 
   // for development/testing purposes only
-  public static boolean javaProject = false;
-  public static String localPath = System.getProperty("pedsimcity.localPath", "");
   public static boolean parallel = false;
 
   public static boolean isNight = false;
@@ -64,6 +80,11 @@ public class Pars {
   };
 
   public static HashMap<RoadType, String[]> roadTypes = new HashMap<>();
+
+  /** The seed to run with: the configured one, or a fresh clock seed when it is negative. */
+  public static long resolvedSeed() {
+    return seed >= 0 ? seed : System.currentTimeMillis();
+  }
 
   public static void setSimulationParameters() {
 

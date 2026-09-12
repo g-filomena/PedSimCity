@@ -1,7 +1,7 @@
 package pedsim.core.engine;
 
+import ec.util.MersenneTwisterFast;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -32,11 +32,11 @@ public class Populate {
    * work assignment decides where every agent lives and therefore how far it walks: left on the
    * clock, as it was, no run could be replayed however carefully the agents themselves were seeded.
    */
-  protected Random random = new Random();
+  protected MersenneTwisterFast random = new MersenneTwisterFast();
 
   /** Seeds the populate-time generator from the model seed. Call before drawing anything. */
   protected void seedFrom(PedSimCity state) {
-    random = new Random(state.seed() * 104729L);
+    random = new MersenneTwisterFast(state.seed() * 104729L);
   }
 
   protected NodeGraph homeNode;
@@ -78,7 +78,7 @@ public class Populate {
     logger.info(
         "Agent Routing Stats -> Spatial Jump Successes: "
             + spatialJumpSuccessCount.get()
-            + " | Instant Random Fallbacks: "
+            + " | Instant MersenneTwisterFast Fallbacks: "
             + randomFallbackCount.get());
     logger.info(state.agentsList.size() + " agents created");
   }
@@ -141,66 +141,41 @@ public class Populate {
     if (PedSimCity.buildings.isEmpty()) {
       return null;
     }
-    try {
-      return NodesLookup.randomNodeDMA(
-          SharedCognitiveMap.getCommunityPrimalNetwork(), "live", random);
-    } catch (Exception e) {
-      return null;
-    }
+    // No try/catch: the lookup returns null on an empty candidate set, it does not throw.
+    return NodesLookup.randomNodeDMA(
+        SharedCognitiveMap.getCommunityPrimalNetwork(), "live", random);
   }
 
+  /**
+   * A workplace, chosen among the work-tagged nodes of the whole city.
+   *
+   * <p>There is deliberately no distance interval. It used to be placed inside
+   * {@code [minTripDistance, maxTripDistance]} - the range meant for discretionary walking trips -
+   * which capped every commute in the model at 2,700 m. ISTAT 2017 puts 50.6% of Piedmont's
+   * commuters outside their own municipality, so the cap did not bound a detail: it deleted half
+   * the phenomenon, and left a model in which the only possible commute was a walkable one.
+   *
+   * <p>What stops a five-kilometre commute from being walked is no longer where the workplace is,
+   * but {@link pedsim.activity.agents.ActivityAgent#walksToWork} deciding it is not walked. The
+   * distance became a reason, instead of being prevented.
+   *
+   * <p>What is still missing is distance decay: workplaces are drawn with equal weight wherever
+   * they are, so commutes come out longer than they should. The proper form is an attraction term
+   * against an impedance term, which is the destination-choice model this is a step towards.
+   */
   protected NodeGraph selectWorkNodeWithDMA(boolean keepHomeNode) {
     // DMA attributes are only assigned when the landmarks/buildings layer is loaded.
-    // If it's empty, every node has dma="" and randomNodeBetweenDistanceIntervalDMA would spin
-    // forever.
+    // If it's empty, every node has dma="" and the lookup has nothing to filter on.
     if (PedSimCity.buildings.isEmpty()) {
       return null;
     }
-
-    int attempts = 0;
-
-    while (attempts < 20) {
-      try {
-        NodeGraph node =
-            NodesLookup.randomNodeBetweenDistanceIntervalDMA(
-                SharedCognitiveMap.getCommunityPrimalNetwork(),
-                homeNode,
-                RouteChoicePars.minTripDistance,
-                RouteChoicePars.maxTripDistance,
-                "work",
-                random);
-
-        if (node != null) {
-          return node;
-        }
-      } catch (Exception e) {
-        return null;
-      }
-
-      // When the home node is not fixed by data, retry with a different home node.
-      if (!keepHomeNode) {
-        NodeGraph replacementHome = selectHomeNodeWithDMA();
-        if (replacementHome != null) {
-          homeNode = replacementHome;
-        }
-      }
-
-      attempts++;
-    }
-    return null;
+    return NodesLookup.randomNodeDMA(
+        SharedCognitiveMap.getCommunityPrimalNetwork(), "work", random);
   }
 
+  /** Any node at all, for cities whose data carries no work tags. */
   protected NodeGraph selectWorkNodeWithDistanceFallback(NodeGraph homeNode) {
-    try {
-      return NodesLookup.randomNodeBetweenDistanceInterval(
-          SharedCognitiveMap.getCommunityPrimalNetwork(),
-          homeNode,
-          RouteChoicePars.minTripDistance,
-          RouteChoicePars.maxTripDistance,
-          random);
-    } catch (Exception e) {
-      return null;
-    }
+    return NodesLookup.randomNode(SharedCognitiveMap.getCommunityPrimalNetwork(), random);
   }
 
   protected NodeGraph selectRandomNode() {

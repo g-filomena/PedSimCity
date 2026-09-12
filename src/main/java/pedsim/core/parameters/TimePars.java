@@ -20,7 +20,6 @@ public class TimePars {
   public static LocalDate SIMULATION_START_DATE = LocalDate.of(2026, 6, 1);
   public static double MINUTE_TO_STEPS;
   public static double releaseAgentsEverySteps;
-  // public static static double hoursInSteps = 60 * minuteInSteps;
 
   // Calculate the total simulation time in seconds for a certain number of days
   public static double simulationDurationInSteps;

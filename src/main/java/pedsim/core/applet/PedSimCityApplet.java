@@ -290,7 +290,7 @@ public class PedSimCityApplet extends Frame {
   }
 
   protected Engine buildEngine() {
-    return new Engine(buildStateFactory());
+    return new Engine(buildStateFactory(), Pars.resolvedSeed());
   }
 
   /** Returns a {@link SimulationLauncher} configured for core (non-night) mode. */

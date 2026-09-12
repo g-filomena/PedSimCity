@@ -1,14 +1,18 @@
 package pedsim.core.website;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
-import org.locationtech.jts.geom.Geometry;
 import sim.field.geo.VectorLayer;
 import sim.io.geo.GeoJSONExporter;
 import sim.util.geo.MasonGeometry;
 
 /**
- * Utility class that converts a VectorLayer of road geometries into a
- * GeoJSON FeatureCollection string.
+ * Converts the road layer into a GeoJSON FeatureCollection for the dashboards.
+ *
+ * <p>The document itself is written by {@link GeoJSONExporter}; this class only decides what goes
+ * in each feature's {@code properties}. It used to assemble the JSON with a StringBuilder and its
+ * own geometry serialiser, which meant a second copy of the escaping and number formatting, and a
+ * geometry switch that handled lines and emitted an empty GeometryCollection for anything else.
  */
 public final class GeoJsonExporter {
 
@@ -26,13 +30,15 @@ public final class GeoJsonExporter {
   }
 
   /**
-   * Exports roads with their cumulative pedestrian {@code volume} and {@code edgeID} embedded
-   * in each feature's {@code properties} object. Used by {@link pedsim.core.website.HtmlExporter}
-   * to colour streets by traffic intensity in the self-contained HTML dashboard.
+   * Exports roads with their cumulative pedestrian {@code volume}, {@code edgeID} and
+   * {@code mean_lux} embedded in each feature's {@code properties} object. Used by
+   * {@link pedsim.core.website.HtmlExporter} to colour streets by traffic intensity in the
+   * self-contained HTML dashboard.
    *
-   * @param roads      The road VectorLayer from {@code PedSimCity.roads}.
+   * @param roads The road VectorLayer from {@code PedSimCity.roads}.
    * @param volumesMap Map of edgeID → (scenario → count). All scenarios are summed per edge.
-   * @return A GeoJSON FeatureCollection string with {@code edgeID} and {@code volume} properties.
+   * @return A GeoJSON FeatureCollection string with {@code edgeID}, {@code volume} and
+   *     {@code mean_lux} properties.
    */
   public static String exportRoadsWithVolumes(
       VectorLayer roads, Map<Integer, Map<String, Integer>> volumesMap) {
@@ -41,91 +47,40 @@ public final class GeoJsonExporter {
       return "{\"type\":\"FeatureCollection\",\"features\":[]}";
     }
 
-    StringBuilder sb = new StringBuilder();
-    sb.append("{\"type\":\"FeatureCollection\",\"features\":[");
+    // Features are written in layer order, so a positional fallback id stays stable across the
+    // pass, as it did when this walked the list itself.
+    int[] autoId = {0};
 
-    boolean first = true;
-    int autoId = 0;
-
-    for (Object obj : roads.getGeometries()) {
-      if (!(obj instanceof MasonGeometry mg)) continue;
-
-      Geometry geom = mg.getGeometry();
-      if (geom == null) continue;
-
-      // Retrieve the edgeID attribute; fall back to a sequential counter if absent
-      int edgeId;
-      try {
-        edgeId = mg.getIntegerAttribute("edgeID");
-      } catch (Exception e) {
-        edgeId = autoId;
-      }
-      autoId++;
-
-      // Sum all scenario volumes for this edge into one total
-      int totalVolume = 0;
-      if (volumesMap != null) {
-        Map<String, Integer> edgeVols = volumesMap.get(edgeId);
-        if (edgeVols != null) {
-          totalVolume = edgeVols.values().stream().mapToInt(Integer::intValue).sum();
-        }
-      }
-
-      double meanLux = 0.0;
-      if (mg.hasAttribute("mean_lux")) {
-        meanLux = mg.getDoubleAttribute("mean_lux");
-      }
-
-      if (!first) sb.append(',');
-      first = false;
-
-      sb.append("{\"type\":\"Feature\",\"geometry\":");
-      sb.append(geomToGeoJson(geom));
-      sb.append(",\"properties\":{\"edgeID\":")
-          .append(edgeId)
-          .append(",\"volume\":")
-          .append(totalVolume)
-          .append(",\"mean_lux\":")
-          .append(meanLux)
-          .append("}}");
-    }
-
-    sb.append("]}");
-    return sb.toString();
+    return GeoJSONExporter.toFeatureCollection(
+        roads, road -> roadProperties(road, volumesMap, autoId[0]++));
   }
 
-  // -------------------------------------------------------------------------
-  // Internal geometry → GeoJSON helpers
-  // -------------------------------------------------------------------------
+  private static Map<String, Object> roadProperties(
+      MasonGeometry road, Map<Integer, Map<String, Integer>> volumesMap, int positionalId) {
 
-  private static String geomToGeoJson(Geometry geom) {
-    return switch (geom.getGeometryType()) {
-      case "LineString" -> {
-        StringBuilder sb = new StringBuilder("{\"type\":\"LineString\",\"coordinates\":[");
-        var coords = geom.getCoordinates();
-        for (int i = 0; i < coords.length; i++) {
-          if (i > 0) sb.append(',');
-          sb.append('[').append(coords[i].x).append(',').append(coords[i].y).append(']');
-        }
-        sb.append("]}");
-        yield sb.toString();
+    Integer edgeID = road.getIntegerAttribute("edgeID");
+    int edgeId = edgeID != null ? edgeID : positionalId;
+
+    int totalVolume = 0;
+    if (volumesMap != null) {
+      Map<String, Integer> edgeVolumes = volumesMap.get(edgeId);
+      if (edgeVolumes != null) {
+        totalVolume = edgeVolumes.values().stream().mapToInt(Integer::intValue).sum();
       }
-      case "MultiLineString" -> {
-        StringBuilder sb = new StringBuilder("{\"type\":\"MultiLineString\",\"coordinates\":[");
-        for (int n = 0; n < geom.getNumGeometries(); n++) {
-          if (n > 0) sb.append(',');
-          sb.append('[');
-          var coords = geom.getGeometryN(n).getCoordinates();
-          for (int i = 0; i < coords.length; i++) {
-            if (i > 0) sb.append(',');
-            sb.append('[').append(coords[i].x).append(',').append(coords[i].y).append(']');
-          }
-          sb.append(']');
-        }
-        sb.append("]}");
-        yield sb.toString();
+    }
+
+    double meanLux = 0.0;
+    if (road.hasAttribute("mean_lux")) {
+      Double lux = road.getDoubleAttribute("mean_lux");
+      if (lux != null) {
+        meanLux = lux;
       }
-      default -> "{\"type\":\"GeometryCollection\",\"geometries\":[]}";
-    };
+    }
+
+    Map<String, Object> properties = new LinkedHashMap<>();
+    properties.put("edgeID", edgeId);
+    properties.put("volume", totalVolume);
+    properties.put("mean_lux", meanLux);
+    return properties;
   }
 }

@@ -7,7 +7,6 @@ package pedsim.core.parameters;
  */
 public class RouteChoicePars {
 
-  public static boolean usingDMA = false;
   public static boolean useGravityModel = true;
   public static boolean usePublicTransport = true;
   public static double thresholdTurn = 45;
@@ -22,10 +21,7 @@ public class RouteChoicePars {
   public static double minTripDistance = 700;
   public static double avgTripDistance = 1800;
   public static double maxTripDistance = 2500;
-  public static double maxTripsPerDay = 6;
 
-  public static Integer[] originsTmp = {};
-  public static Integer[] destinationsTmp = {};
   public static Integer[] cityCentreRegionsID = {};
   public static boolean includeTertiary = true;
 

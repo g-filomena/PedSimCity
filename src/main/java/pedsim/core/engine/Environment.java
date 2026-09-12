@@ -67,14 +67,16 @@ public class Environment {
    */
   private static void prepareGraph() {
 
-    List<MasonGeometry> geometries = PedSimCity.junctions.getGeometries();
-
-    for (final MasonGeometry nodeGeometry : geometries) {
-      // street junctions and betweenness centrality
-      final NodeGraph node = PedSimCity.network.findNode(nodeGeometry.geometry.getCoordinate());
+    // Walk the graph, not the junction layer. fromStreetJunctionsSegments has already given each
+    // node the imported junction geometry sitting at its coordinate, so the attributes are on the
+    // node and there is nothing to re-attach here. Iterating the nodes also means every node gets
+    // an id: a junction missing from the _nodes layer used to leave its node on the default id 0
+    // and overwrite whatever nodesMap already held there, while a junction with no segment made
+    // findNode return null and threw.
+    for (final NodeGraph node : PedSimCity.network.getNodes()) {
+      final MasonGeometry nodeGeometry = node.getMasonGeometry();
       node.dma = "";
       node.setID(nodeGeometry.getIntegerAttribute("nodeID"));
-      node.setMasonGeometry(nodeGeometry);
       setCentralityNode(nodeGeometry, node);
       PedSimCity.nodesMap.put(node.getID(), node);
     }
@@ -249,13 +251,12 @@ public class Environment {
    */
   private static void prepareDualGraph() {
 
-    List<MasonGeometry> centroids = PedSimCity.centroids.getGeometries();
     int missingPrimalEdgeCount = 0;
 
-    for (final MasonGeometry centroidGeometry : centroids) {
+    // As in prepareGraph: the dual nodes already carry the imported centroid geometries.
+    for (final NodeGraph centroid : PedSimCity.dualNetwork.getNodes()) {
+      final MasonGeometry centroidGeometry = centroid.getMasonGeometry();
       int edgeID = centroidGeometry.getIntegerAttribute("edgeID");
-      NodeGraph centroid =
-          PedSimCity.dualNetwork.findNode(centroidGeometry.geometry.getCoordinate());
       centroid.setID(edgeID);
 
       EdgeGraph primalEdge = PedSimCity.edgesMap.get(edgeID);

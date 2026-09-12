@@ -1,7 +1,7 @@
 package pedsim.core.agents;
 
+import ec.util.MersenneTwisterFast;
 import java.util.Objects;
-import java.util.Random;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.parameters.RouteChoicePars;
 import pedsim.core.utilities.StringEnum.LocalHeuristicMode;
@@ -31,7 +31,7 @@ public final class Heuristics {
   private double probabilityBarrierSubGoals;
 
   private final AgentProperties ap;
-  private final Random random;
+  private final MersenneTwisterFast random;
 
   private final double globalLandmarknessWeightDistance =
       RouteChoicePars.globalLandmarknessWeightDistanceCommunity;

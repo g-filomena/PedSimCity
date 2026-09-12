@@ -26,8 +26,17 @@ public class Engine {
     PedSimCity create(long seed, int job, ScenarioConfig scenarioConfig);
   }
 
+  /**
+   * Seeded from {@link Pars#resolvedSeed()}.
+   *
+   * <p>This used to be {@code System.currentTimeMillis()}, and it is the constructor every headless
+   * run reaches - {@code SimulationLauncher} goes through {@code module.createEngine()}, and all
+   * five modules build their engine here. So every headless run drew a fresh clock seed, no two
+   * runs could be compared, and the work that carefully derived every generator in the simulation
+   * from a base seed derived it from the clock.
+   */
   public Engine(StateFactory stateFactory) {
-    this(stateFactory, System.currentTimeMillis());
+    this(stateFactory, Pars.resolvedSeed());
   }
 
   public Engine(StateFactory stateFactory, long baseSeed) {
@@ -57,7 +66,14 @@ public class Engine {
           .setRoadsGeoJson(GeoJsonExporter.exportRoads(PedSimCity.roads));
 
       prepareEnvironment();
-      logger.info("Environment prepared. About to start simulation");
+      logger.info("Environment prepared. About to start simulation (base seed " + baseSeed + ")");
+
+      // Module hook: a diagnostic that needs the prepared city but no simulated days. Calibrating
+      // where workplaces go, for instance, depends on the census homes and the WORK tags and on
+      // nothing a simulated day produces - running one to find out costs minutes and adds noise.
+      if (runDiagnosticsInstead()) {
+        return;
+      }
 
       boolean runParallel = parallel && supportsParallel();
       if (parallel && !runParallel) {
@@ -106,6 +122,15 @@ public class Engine {
     Environment.prepare();
   }
 
+  /**
+   * Module hook: run a diagnostic against the prepared environment and skip the simulation.
+   *
+   * @return true when a diagnostic ran and no jobs should be executed
+   */
+  protected boolean runDiagnosticsInstead() {
+    return false;
+  }
+
   protected Engine createWorkerEngine() {
     return new Engine(stateFactory, baseSeed);
   }
@@ -132,7 +157,7 @@ public class Engine {
 
     onJobStarted(job, state, scenarioConfig);
 
-    double kmCurrentDay = calculateMetersCurrentDay();
+    double kmCurrentDay = calculateMetersCurrentDay(state);
     logger.info("---------- Beginning day Nr " + (currentDay + 1));
     AgentReleaseManager currentDayReleaseManager =
         new AgentReleaseManager(state, kmCurrentDay, currentDay + 1);
@@ -183,7 +208,7 @@ public class Engine {
             handleEndWeek(state, job, scenarioConfig);
           }
 
-          kmCurrentDay = calculateMetersCurrentDay();
+          kmCurrentDay = calculateMetersCurrentDay(state);
           logger.info("---------- Beginning day Nr " + (currentDay + 1));
           currentDayReleaseManager = new AgentReleaseManager(state, kmCurrentDay, currentDay + 1);
         }
@@ -314,7 +339,19 @@ public class Engine {
     return totalMinutes / (24 * 60);
   }
 
-  protected double calculateMetersCurrentDay() {
-    return Pars.metersPerDay * Utilities.fromDistribution(1.0, 0.10, null);
+  /**
+   * The day's metres budget, with its +/-10% day-to-day variation.
+   *
+   * <p>Drawn from the model's own generator. It used to call
+   * {@code Utilities.fromDistribution(1.0, 0.10, null)} - where the {@code null} is the
+   * <i>direction</i> argument, not a generator, so the three-argument overload drew from
+   * {@code ThreadLocalRandom}. That was the last unseeded draw in the simulation path, and it
+   * survived the September seeding work because it does not look like one. Two runs on the same
+   * seed produced identical trips and different release logs, which is how it surfaced: under
+   * count-based release this figure only reaches the log, but on the metres path it is the day's
+   * budget.
+   */
+  protected double calculateMetersCurrentDay(PedSimCity state) {
+    return Pars.metersPerDay * (state.random.nextGaussian() * 0.10 + 1.0);
   }
 }
