@@ -1,6 +1,6 @@
 package pedsim.night.agents;
 
-import java.util.Random;
+import ec.util.MersenneTwisterFast;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.Crowdness;
 import sim.graph.EdgeGraph;
@@ -14,7 +14,7 @@ public class NightBehaviour {
   protected boolean increaseSpeedAtNight = false;
   protected boolean avoidParksWater;
 
-  protected Random random;
+  protected MersenneTwisterFast random;
 
   NightBehaviour(NightAgent agent, NightAgentMovement nightMovement) {
     this.agent = agent;

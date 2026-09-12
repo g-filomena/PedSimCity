@@ -49,6 +49,10 @@ public class NightPopulate extends ActivityPopulate {
       normalTwin.setHomeWorkLoctations(vulnerableTwin.homeNode, vulnerableTwin.workNode);
       normalTwin.setVulnerable(false);
       normalTwin.initSensitivity();
+      // These two are built here rather than through defineHomeWorkLocations, so the commute mode
+      // has to be settled explicitly; without it both twins defaulted to walking their commute.
+      vulnerableTwin.decideCommuteMode();
+      normalTwin.decideCommuteMode();
 
       vulnerableTwin.abTestTwin = normalTwin;
       normalTwin.abTestTwin = vulnerableTwin;

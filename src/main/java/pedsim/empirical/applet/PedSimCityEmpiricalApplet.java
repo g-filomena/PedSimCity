@@ -85,7 +85,7 @@ public class PedSimCityEmpiricalApplet extends PedSimCityApplet {
 
   @Override
   protected Engine buildEngine() {
-    return new EmpiricalEngine(buildStateFactory());
+    return new EmpiricalEngine(buildStateFactory(), Pars.resolvedSeed());
   }
 
   @Override

@@ -135,55 +135,10 @@ public class PedSimCityNight extends PedSimCityActivity {
     pedsim.night.parameters.NightPars.crowdednessPercentile = crowdednessPercentile;
   }
 
-  /**
-   * With light A/B testing enabled, day 1 releases one vulnerable/non-vulnerable twin pair per
-   * release event (agents {@code 2i} and {@code 2i+1} for release event {@code i}, 72 pairs)
-   * instead of the standard meters-based release.
-   */
+  /** Night travel demand: the activity tier plus the A/B paired releases. */
   @Override
-  public int releaseAgentsOverride(double steps, int dayNumber) {
-    if (!pedsim.night.parameters.NightPars.enableLightABTesting || dayNumber != 1) {
-      return -1;
-    }
-
-    int pairIndex =
-        (int) Math.round(steps / pedsim.core.parameters.TimePars.releaseAgentsEverySteps) - 1;
-    if (pairIndex < 0 || pairIndex >= 72) {
-      return 0;
-    }
-
-    pedsim.night.agents.NightAgent vulnAgent = null;
-    pedsim.night.agents.NightAgent normalAgent = null;
-    for (pedsim.core.agents.Agent agent : agentsList) {
-      if (agent instanceof pedsim.night.agents.NightAgent nightAgent) {
-        if (nightAgent.agentID == pairIndex * 2) {
-          vulnAgent = nightAgent;
-        } else if (nightAgent.agentID == pairIndex * 2 + 1) {
-          normalAgent = nightAgent;
-        }
-      }
-    }
-    if (vulnAgent == null || normalAgent == null) {
-      return 0;
-    }
-
-    double tripDistance = pedsim.core.parameters.RouteChoicePars.avgTripDistance;
-    vulnAgent.setDistanceNextDestination(tripDistance);
-    normalAgent.setDistanceNextDestination(tripDistance);
-    vulnAgent.startWalkingAlone();
-    normalAgent.startWalkingAlone();
-
-    pedsim.core.utilities.LoggerUtil.getLogger()
-        .fine(
-            "A/B Testing: Released pair "
-                + pairIndex
-                + " (Agent "
-                + vulnAgent.agentID
-                + " & "
-                + normalAgent.agentID
-                + ") at step "
-                + steps);
-    return 2;
+  protected pedsim.core.engine.TravelDemand createTravelDemand() {
+    return new NightTravelDemand(this);
   }
 
   // ---------------------------------

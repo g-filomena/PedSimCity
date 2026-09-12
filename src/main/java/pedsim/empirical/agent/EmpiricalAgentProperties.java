@@ -1,10 +1,10 @@
 package pedsim.empirical.agent;
 
+import ec.util.MersenneTwisterFast;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import pedsim.core.agents.Agent;
 import pedsim.core.agents.AgentProperties;
 import pedsim.core.utilities.StringEnum.AgentBarrierType;
@@ -43,7 +43,7 @@ public final class EmpiricalAgentProperties extends AgentProperties {
   private static final double MIN_SEVERING_BARRIERS = 1.00;
   private static final double MAX_SEVERING_BARRIERS = 2.00;
 
-  private final Random random;
+  private final MersenneTwisterFast random;
 
   public final EmpiricalGroup groupName;
   private final EmpiricalAgentsGroup group;
