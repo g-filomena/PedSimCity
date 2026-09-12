@@ -318,6 +318,15 @@ def stage_network(args, stager: Stager) -> None:
         edges["lit"].astype(str).str.lower().isin(("yes", "true", "1", "24/7", "automatic"))
     ).astype(int)
 
+    # Re-declare the CRS before saving. The dual graph is handed args.crs explicitly because
+    # ci.dual_gdf takes it, but the primal frames pass through clean_network / consolidate_nodes
+    # and inherit whatever those preserve. Torino's shipped network was written with srs_id 99999
+    # ("Undefined SRS") while its dual carried 3003, and an undeclared CRS makes the GeoPackage
+    # unreadable to the simulation: the graph import fails and the run dies on an empty graph.
+    # Asserting it here costs nothing and does not depend on the library's behaviour.
+    nodes = nodes.set_crs(args.crs, allow_override=True)
+    edges = edges.set_crs(args.crs, allow_override=True)
+
     log.info("network: building the dual graph")
     nodes_dual, edges_dual = ci.dual_gdf(nodes, edges, args.crs)
     nodes_dual = nodes_dual.drop(columns=["intersecting"], errors="ignore")
@@ -875,26 +884,30 @@ def finalize(args, stager: Stager) -> None:
     out = args.resources_dir
     prefix = out / args.city_name
 
-    if not stager.path("nodes_network").exists():
-        log.warning("finalize: no network checkpoints yet; nothing to write "
-                    "(run the network stage first)")
-        return
+    # Every output below is written from its own checkpoint, so a run that staged a single
+    # stage writes that one layer and leaves the rest of the city untouched. Only the network
+    # block needs its checkpoint present; without it the city keeps the network files it
+    # already has. Returning early here instead made adding one layer to an already-built
+    # city impossible without re-running (and overwriting) the network.
+    if stager.path("nodes_network").exists():
+        nodes = stager.load("nodes_districts") if stager.path("nodes_districts").exists() \
+            else stager.load("nodes_network")
+        nodes = _with_z(nodes, stager)
+        edges = stager.load("edges_barriers") if stager.path("edges_barriers").exists() \
+            else stager.load("edges_network")
 
-    nodes = stager.load("nodes_districts") if stager.path("nodes_districts").exists() \
-        else stager.load("nodes_network")
-    nodes = _with_z(nodes, stager)
-    edges = stager.load("edges_barriers") if stager.path("edges_barriers").exists() \
-        else stager.load("edges_network")
+        nodes = nodes.drop(columns=["oldNodeIDs", "old_nodeIDs"], errors="ignore")
+        _stringify_list_columns(nodes).to_file(f"{prefix}_nodes.gpkg", driver="GPKG")
+        _stringify_list_columns(edges).to_file(f"{prefix}_edges.gpkg", driver="GPKG")
 
-    nodes = nodes.drop(columns=["oldNodeIDs", "old_nodeIDs"], errors="ignore")
-    _stringify_list_columns(nodes).to_file(f"{prefix}_nodes.gpkg", driver="GPKG")
-    _stringify_list_columns(edges).to_file(f"{prefix}_edges.gpkg", driver="GPKG")
-
-    if stager.path("nodesDual").exists() and stager.path("edgesDual").exists():
-        stager.load("nodesDual").pipe(_stringify_list_columns) \
-            .to_file(f"{prefix}_nodesDual.gpkg", driver="GPKG")
-        stager.load("edgesDual").pipe(_stringify_list_columns) \
-            .to_file(f"{prefix}_edgesDual.gpkg", driver="GPKG")
+        if stager.path("nodesDual").exists() and stager.path("edgesDual").exists():
+            stager.load("nodesDual").pipe(_stringify_list_columns) \
+                .to_file(f"{prefix}_nodesDual.gpkg", driver="GPKG")
+            stager.load("edgesDual").pipe(_stringify_list_columns) \
+                .to_file(f"{prefix}_edgesDual.gpkg", driver="GPKG")
+    else:
+        log.info("finalize: no network checkpoint staged; keeping the existing network files "
+                 "and writing only the layers staged in this run")
 
     if stager.path("barriers").exists():
         stager.load("barriers").pipe(_stringify_list_columns) \

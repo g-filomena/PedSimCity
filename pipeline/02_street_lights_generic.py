@@ -17,6 +17,7 @@ import argparse
 import geopandas as gpd
 import numpy as np
 
+import lighting
 import paths
 
 
@@ -25,7 +26,6 @@ ASSUMED_POWER_W = 100.0
 ASSUMED_HEIGHT_M = 9.0
 ASSUMED_EFFICACY_LM_W = 70.0
 ASSUMED_UTILIZATION = 0.4
-E_MIN_LUX = 5.0
 
 
 def to_points(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
@@ -72,17 +72,12 @@ def main() -> None:
     lamps["luminous_efficacy"] = ASSUMED_EFFICACY_LM_W
     lamps["utilization_factor"] = ASSUMED_UTILIZATION
     lamps["total_lumens"] = lamps["potenza_w_max"] * lamps["luminous_efficacy"]
-    lamps["downward_intensity_cd"] = (lamps["total_lumens"] * lamps["utilization_factor"]) / np.pi
-
-    intensity = lamps["downward_intensity_cd"]
-    height = lamps["altezza_palo_m"]
-    radius_term = np.power((intensity * height) / E_MIN_LUX, 2.0 / 3.0) - np.power(height, 2.0)
-    lamps["radius_m"] = np.sqrt(np.clip(radius_term, a_min=0.0, a_max=None))
-
-    lamps["radius"] = lamps["radius_m"]
-    # Luminous INTENSITY in candela. Illuminance is computed per 2 m
-    # sample point in step 03 (calculated_lux); this per-lamp value is intensity.
-    lamps["intensity_cd"] = lamps["downward_intensity_cd"]
+    # The only per-lamp quantity step 3 reads, along with the pole height. The radius columns this
+    # step used to emit were read by nothing: step 3 sums illuminance and so needs a negligible-
+    # contribution cutoff, not a per-lamp service-level reach. See pipeline/lighting.py.
+    lamps["downward_intensity_cd"] = lighting.downward_intensity_cd(
+        lamps["potenza_w_max"], lamps["luminous_efficacy"], lamps["utilization_factor"]
+    )
 
     if output_path.exists():
         output_path.unlink()

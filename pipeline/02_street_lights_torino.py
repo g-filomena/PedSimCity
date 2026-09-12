@@ -21,6 +21,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 
+import lighting
 import paths
 
 
@@ -29,7 +30,6 @@ DEFAULT_POWER_W = 100.0
 DEFAULT_HEIGHT_M = 9.0
 DEFAULT_EFFICACY_LM_W = 70.0
 DEFAULT_UTILIZATION = 0.4
-E_MIN_LUX = 5.0
 
 LUMINOUS_EFFICACY_MAP = {
     "LED / probabile LED": 120,
@@ -117,19 +117,12 @@ def main() -> None:
     else:
         punti["utilization_factor"] = DEFAULT_UTILIZATION
 
-    print("Calculating physics: lumens, intensity, radius...")
+    print("Calculating physics: lumens and downward intensity...")
     punti["total_lumens"] = punti["potenza_w_max"] * punti["luminous_efficacy"]
-    punti["downward_intensity_cd"] = (punti["total_lumens"] * punti["utilization_factor"]) / np.pi
-
-    intensity = punti["downward_intensity_cd"]
-    height = punti["altezza_palo_m"]
-    radius_term = np.power((intensity * height) / E_MIN_LUX, 2.0 / 3.0) - np.power(height, 2.0)
-    punti["radius_m"] = np.sqrt(np.clip(radius_term, a_min=0.0, a_max=None)).fillna(0.0)
-
-    punti["radius"] = punti["radius_m"]
-    # Luminous INTENSITY in candela. Illuminance is computed per 2 m
-    # sample point in step 03 (calculated_lux); this per-lamp value is intensity.
-    punti["intensity_cd"] = punti["downward_intensity_cd"]
+    # See the generic adapter: intensity and pole height are all step 3 reads.
+    punti["downward_intensity_cd"] = lighting.downward_intensity_cd(
+        punti["potenza_w_max"], punti["luminous_efficacy"], punti["utilization_factor"]
+    )
 
     print(f"Saving to {output_path}...")
     remove_existing(output_path)

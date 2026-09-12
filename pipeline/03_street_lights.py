@@ -22,12 +22,11 @@ import numpy as np
 from scipy.spatial import cKDTree
 from shapely.geometry import LineString
 
+import lighting
 import paths
 
 
 SAMPLE_SPACING_M = 2.0
-LAMP_SEARCH_RADIUS_M = 40.0
-UNLIT_LUX_THRESHOLD = 5.0
 
 
 def remove_existing(path: Path) -> None:
@@ -149,8 +148,16 @@ def compute_lux(points: gpd.GeoDataFrame, punti: gpd.GeoDataFrame, buildings: gp
     intensity = punti["downward_intensity_cd"].to_numpy(dtype="float64")
     heights = punti["altezza_palo_m"].to_numpy(dtype="float64")
 
+    # Derived, not chosen: the distance at which the strongest lamp in this inventory falls below
+    # lighting.NEGLIGIBLE_LUX. The flat 40 m this replaces was undocumented and happened to sit
+    # near the 0.05-0.1 lux contour of a typical 100 W lamp at 9 m - right by luck, and wrong for
+    # any city whose lamps are taller or brighter.
+    search_radius = lighting.summation_radius_m(intensity, heights)
+    print(f"  lamp search radius: {search_radius:.1f} m "
+          f"(where the strongest lamp reaches {lighting.NEGLIGIBLE_LUX} lux)")
+
     tree = cKDTree(lamp_coords)
-    nearby = tree.query_ball_point(pt_coords, LAMP_SEARCH_RADIUS_M)
+    nearby = tree.query_ball_point(pt_coords, search_radius)
 
     has_buildings = not buildings.empty
     if has_buildings:
@@ -172,9 +179,9 @@ def compute_lux(points: gpd.GeoDataFrame, punti: gpd.GeoDataFrame, buildings: gp
                 sight = LineString([(px, py), (lx, ly)])
                 blocked = any(b_geom[b].intersects(sight) for b in b_sindex.intersection(sight.bounds))
             if not blocked:
+                # d is the HORIZONTAL lamp-to-point distance; the tilt is already in the formula.
                 d = np.hypot(lx - px, ly - py)
-                h = heights[lamp_idx]
-                lux[i] += (intensity[lamp_idx] * h) / ((h**2 + d**2) ** 1.5)
+                lux[i] += lighting.illuminance_lux(intensity[lamp_idx], heights[lamp_idx], d)
     return lux
 
 
@@ -194,7 +201,7 @@ def main() -> None:
 
     print("Computing line-of-sight lux per sample point...")
     points["calculated_lux"] = compute_lux(points, punti, buildings)
-    points["is_unlit"] = points["calculated_lux"] < UNLIT_LUX_THRESHOLD
+    points["is_unlit"] = points["calculated_lux"] < lighting.MIN_LUX
 
     edge_stats = points.groupby("parent_edge_idx").agg(
         min_lux=("calculated_lux", "min"),

@@ -18,11 +18,13 @@ areas, would emit the same columns from different inputs):
 - vulnerability_pct   share of residents who are female, under 15, or 65+ (counted once each)
 - retiree_pct         share of the zone's ADULT (15+) residents aged 65+   (optional)
 - student_pct         share of the zone's ADULT (15+) residents aged 15-24 (optional)
+- worker_pct          share of the zone's ADULT (15+) residents employed, 15-64 (optional)
+- centroid_lat        latitude (WGS84) of the city centroid, same value on every zone
 
-The last two condition the activity model's persona mix on where agents live (elderly
-neighbourhoods spawn more retirees); they are emitted only when the raw census carries
-the ISTAT age bands (P14-P29) and the Java side falls back to global persona shares
-without them.
+The last three condition the activity model's persona mix on where agents live (elderly
+neighbourhoods spawn more retirees, employed neighbourhoods more workers); they are emitted
+only when the raw census carries the ISTAT age bands (P14-P29) / the employment count (P101),
+and the Java side falls back to global persona shares without them.
 
 The raw layer keeps the **original ISTAT field names** (``P*``, ``SEZ21_ID``,
 ``COD_TIPO_S`` …). The ISTAT-to-friendly translation lives in the sidecar workbook
@@ -74,6 +76,16 @@ ISTAT_UNDER15_COLS = ["P14", "P15", "P16"]   # 0-4, 5-9, 10-14
 ISTAT_STUDENT_AGE_COLS = ["P17", "P18"]      # 15-19, 20-24
 ISTAT_RETIREE_AGE_COLS = ["P27", "P28", "P29"]  # 65-69, 70-74, 75+
 
+# Employment. P101 is "Popolazione residente - totale occupati di 15-64 anni" (the workbook's own
+# definition); P102/P103 split it by sex. It settles the worker persona per zone, replacing a
+# global worker/flex ratio that had no source.
+#
+# There is no enrolment variable anywhere in the 2021 permanent-census section data - only
+# educational attainment (P87-P99) - so the student persona still comes from the 15-24 age band,
+# and the employed 15-24 appear in both. Persona.sample documents how the two are made disjoint
+# and which way the residue leans.
+ISTAT_EMPLOYED_COL = "P101"
+
 # Passthrough identifier columns copied into the enriched output. The keys are the ISTAT
 # field names in the raw layer; the values are the friendly names the final product uses.
 # This is the built-in fallback used when the metadata workbook is absent — the workbook,
@@ -100,8 +112,17 @@ def load_field_renames(city: str) -> dict[str, str]:
         print("no census metadata workbook: using built-in ISTAT->friendly identifier renames")
         return dict(FALLBACK_RENAMES)
 
+    try:
+        sheets = pd.read_excel(meta, sheet_name=None, engine="openpyxl")
+    except ImportError:
+        # The docstring promises the workbook is optional. It was not: without openpyxl this
+        # raised and took the whole step with it, which is how a machine with a slightly older
+        # conda env could not rebuild a census at all.
+        print("openpyxl not installed: using built-in ISTAT->friendly identifier renames")
+        return dict(FALLBACK_RENAMES)
+
     renames: dict[str, str] = {}
-    for _, df in pd.read_excel(meta, sheet_name=None, engine="openpyxl").items():
+    for _, df in sheets.items():
         if df.empty or "EnglishFieldName" not in df.columns:
             continue
         istat_col = df.columns[0]  # italianFieldName / NOME CAMPO
@@ -195,8 +216,31 @@ def main() -> None:
             (_col_sum(ISTAT_STUDENT_AGE_COLS) / adults_safe).fillna(0.0).clip(0.0, 1.0)
         )
         print("age structure found (P14-P29): per-zone retiree_pct / student_pct emitted")
+
+        # Workers from the census rather than from a residual: the share of the zone's adults who
+        # are employed. Same denominator as the two above, so the four persona shares live on one
+        # scale and flex is what is left over.
+        if ISTAT_EMPLOYED_COL in gdf.columns:
+            employed = pd.to_numeric(gdf[ISTAT_EMPLOYED_COL], errors="coerce").fillna(0.0)
+            gdf["worker_pct"] = (employed / adults_safe).fillna(0.0).clip(0.0, 1.0)
+            print(f"employment found ({ISTAT_EMPLOYED_COL}): per-zone worker_pct emitted")
+        else:
+            print(
+                f"no employment column ({ISTAT_EMPLOYED_COL}): worker/flex split stays global "
+                "in the model"
+            )
     else:
         print("no full age structure (P14-P29): persona shares stay global in the model")
+
+    # Where the city is, in degrees. The simulation's seasonal daylight model needs a latitude and
+    # had a hardcoded 53.4 (Liverpool) applied to every city - an 8-degree error on Turin, which
+    # moves midsummer sunset by the better part of an hour. That matters most to the night module,
+    # whose entire subject is what happens after dark. Taken from the data rather than a table:
+    # the centroid of the census sections, reprojected to WGS84.
+    centroid = gdf.geometry.union_all().centroid
+    lat = gpd.GeoSeries([centroid], crs=gdf.crs).to_crs(4326).iloc[0].y
+    gdf["centroid_lat"] = float(lat)
+    print(f"city centroid latitude (WGS84): {lat:.4f}")
 
     gdf = gdf.reset_index(drop=True)
 
@@ -222,6 +266,8 @@ def main() -> None:
         "vulnerability_pct",
         "retiree_pct",
         "student_pct",
+        "worker_pct",
+        "centroid_lat",
         "geometry",
     ]
     keep = [c for c in keep if c in gdf.columns]
