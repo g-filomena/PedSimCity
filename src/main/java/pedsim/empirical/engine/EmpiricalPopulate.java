@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import org.javatuples.Pair;
 import pedsim.core.engine.PedSimCity;
+import pedsim.core.engine.NetworkCircuity;
 import pedsim.core.parameters.Pars;
 import pedsim.empirical.agent.EmpiricalAgent;
 import pedsim.empirical.agent.EmpiricalAgentsGroup;
@@ -113,8 +114,8 @@ public class EmpiricalPopulate extends pedsim.core.engine.Populate {
             NodesLookup.randomNodeBetweenDistanceIntervalDMA(
                 network,
                 originNode,
-                Pars.minTripDistance,
-                Pars.maxTripDistance,
+                NetworkCircuity.straightLineFor(Pars.minRouteLength),
+                NetworkCircuity.straightLineFor(Pars.maxRouteLength),
                 dmaType,
                 random);
         attempts++;
@@ -138,8 +139,8 @@ public class EmpiricalPopulate extends pedsim.core.engine.Populate {
           NodesLookup.randomNodeBetweenDistanceInterval(
               network,
               originNode,
-              Pars.minTripDistance,
-              Pars.maxTripDistance,
+              NetworkCircuity.straightLineFor(Pars.minRouteLength),
+              NetworkCircuity.straightLineFor(Pars.maxRouteLength),
               random);
 
       int attempts = 0;
@@ -149,8 +150,8 @@ public class EmpiricalPopulate extends pedsim.core.engine.Populate {
             NodesLookup.randomNodeBetweenDistanceInterval(
                 network,
                 originNode,
-                Pars.minTripDistance,
-                Pars.maxTripDistance,
+                NetworkCircuity.straightLineFor(Pars.minRouteLength),
+                NetworkCircuity.straightLineFor(Pars.maxRouteLength),
                 random);
         attempts++;
       }
