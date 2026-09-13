@@ -20,15 +20,10 @@ import pedsim.core.utilities.LoggerUtil;
 /**
  * Sends agents out to walk: the departures a day's travel demand says are due now.
  *
- * <p>There is one release mechanism. It used to be two - a count of departures, or a metres budget
- * spread over the day and spent trip by trip - and the metres budget was the model's original
- * mechanism, answering with one number how many people go out, how far they walk and where they end
- * up. Every module now states how much travel its population makes as a count, and the metres fall
- * out of where those people choose to go; {@code Pars.metersPerDayPerPerson} is what a finished run
- * is checked against rather than what it is arranged to hit. The budget survived in core alone,
- * unreachable from any module, carrying with it a trip-distance parameter, a residual balance, a
- * trip-acceptance filter and a trip-chain multiplier - four seams on {@link TravelDemand} that no
- * implementation needed. It was removed on 13 Sep 2026.
+ * <p>There is one release mechanism, for every module: a count of departures. Each module states
+ * how much travel its population makes as a number of departures per person per day, spread over the
+ * day by {@link TravelDemand#departureShare}, and the metres fall out of where those people choose
+ * to go. No distance is consulted here, and no budget is spent.
  */
 public class AgentReleaseManager implements AutoCloseable {
 
@@ -108,10 +103,8 @@ public class AgentReleaseManager implements AutoCloseable {
   /**
    * Sends out the agents whose scheduled departure falls in this release event.
    *
-   * <p>No weighting, no budget, no filter. This used to be the same lottery as everything else: a
-   * worker commuted if the draw happened to reach it inside its start window, and a commute
-   * <i>share</i> was then computed and handed to the departure profile so the day could be shaped
-   * as though the lottery had obliged. Having a job means going to it; what is left to chance is
+   * <p>No weighting, no budget, no filter: these agents are at home and it is time to go. Having a
+   * job means going to it, so a commute is generated rather than drawn; what is left to chance is
    * the discretionary travel around it.
    *
    * @return the number of agents released
@@ -169,14 +162,10 @@ public class AgentReleaseManager implements AutoCloseable {
         && released.size() < candidates.size()
         && attempts < maxAttempts) {
       attempts++;
-      // Uniform among the agents at home. Until this, candidates were sorted by metres walked so
-      // far and drawn with a pow(u, 1.5) bias towards the least-walked, which is an equaliser: it
-      // pushed every agent towards the same cumulative distance, so the population held no
-      // frequent pedestrians and no non-walkers. Real walking is concentrated, and nothing
-      // measured says by how much, so the mechanism is removed rather than replaced by a guess -
-      // a uniform draw leaves the per-agent trip count binomial, which is the no-information
-      // baseline, where the sort held the variance below even that. A measured propensity, when
-      // the Audimob microdata make one possible, belongs in releaseCandidateWeight below.
+      // Uniform among the agents at home, which leaves the per-agent trip count binomial - the
+      // no-information baseline. Real walking is concentrated on fewer people than that, but nothing
+      // measured says by how much; a propensity, once the data support one, belongs in
+      // releaseCandidateWeight below rather than in a bias applied here.
       Agent candidate = candidates.get(random.nextInt(candidates.size()));
       if (released.contains(candidate)) {
         continue;
@@ -197,10 +186,8 @@ public class AgentReleaseManager implements AutoCloseable {
   /**
    * Logs how many agents are walking and how far the population has walked today.
    *
-   * <p>The walked figure used to be printed against an expected one - the metres allocated so far
-   * by the budget. There is no expectation now: the day's metres are what the day's destinations
-   * turn out to be, and the figure to compare them against is {@code metersPerDayPerPerson}, once,
-   * at the end of a run, not hour by hour against a budget the model no longer keeps.
+   * <p>Reported rather than compared: the day's metres are whatever the day's destinations turn out
+   * to be, so there is no hourly expectation to print them against.
    */
   private void logWalkingAgents() {
     logger.info(

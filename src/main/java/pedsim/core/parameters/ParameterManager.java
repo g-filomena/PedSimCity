@@ -16,11 +16,8 @@ public class ParameterManager {
   // Apply values into static parameter classes
   // ------------------------------------------------------------
 
-  // apply(Map<String, TextField>, Class) and applyAll(...) lived here, writing parameters out of AWT
-  // text fields. They went with the GUI, and so did collectParameters(PedSimCityApplet, ...) - core's
-  // parameter code taking the GUI class as a parameter type, which was backwards regardless of AWT.
-  // Parameters now arrive from exactly two places, both of which leave a record a run can be
-  // reproduced from: the running module's per-city file and the command line.
+  // Parameters reach the model from exactly two places, both of which leave a record a run can be
+  // reproduced from: the running module's per-city file, and the command line.
 
   /** Apply a parameter map (CLI style) to multiple target classes. */
   @SafeVarargs
@@ -39,8 +36,7 @@ public class ParameterManager {
    * @deprecated Prefer {@link #initFromArgs(String[], Class[])} with the running module's
    *     {@code parameterClasses()}. This overload reaches {@code Pars}, {@code TimePars} and
    *     {@code RouteChoicePars} and nothing else, so a module parameter passed on the command line
-   *     is accepted without complaint and ignored unless that module's {@code applyParameters}
-   *     happens to name it. That is how {@code --useDestinationChoice=true} was silently dropped.
+   *     is accepted without complaint and then ignored.
    */
   @Deprecated
   public static Map<String, String> initFromArgs(String[] args) {
@@ -67,12 +63,10 @@ public class ParameterManager {
       Pars.durationDays = Integer.parseInt(params.get("days"));
     }
     Pars.recomputeAgentCount();
-    // Asking for a circuity factor means you want that factor. NetworkCircuity measures into the
-    // same field on every run and consults only measureNetworkCircuity, so without this the value
-    // just handed in is silently overwritten at startup - the opposite of what NetworkCircuity
-    // documents. An explicit measureNetworkCircuity on the same command line still wins. This sits
-    // here rather than in a module's applyParameters because both fields are core's: every module
-    // measures circuity, so no module owns the switch.
+    // Asking for a circuity factor means asking for that factor: NetworkCircuity measures into the
+    // same field and consults only measureNetworkCircuity, so supplying one without the other would
+    // have the measurement overwrite it at startup. An explicit measureNetworkCircuity on the same
+    // command line still wins.
     if (params.containsKey("networkCircuityFactor") && !params.containsKey("measureNetworkCircuity")) {
       Pars.measureNetworkCircuity = false;
     }

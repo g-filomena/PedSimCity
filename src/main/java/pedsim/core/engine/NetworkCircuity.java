@@ -15,10 +15,10 @@ import sim.routing.Route;
  * How much longer walking somewhere is than the straight line to it, measured on the city at hand.
  *
  * <p>The destination utility charges a cost per metre walked, and what it has to work with is the
- * straight line between two nodes. The gap between the two is this network's circuity, and it was
- * a number typed into the parameters - measured once, on one city, and silently wrong for the next
- * one. It is a property of the street layout, so the model measures it, from the streets it has
- * just loaded.
+ * straight line between two nodes. The gap between the two is this network's circuity. It is a
+ * property of the street layout rather than of behaviour, so the model measures it from the streets
+ * it has just loaded rather than taking a configured figure that would be right for one city and
+ * wrong for the next.
  *
  * <p>Sampled rather than exhaustive: a few hundred pairs settle a mean ratio well enough, and the
  * pairs are drawn from the distances people actually walk, because circuity is not constant across
@@ -106,16 +106,13 @@ public final class NetworkCircuity {
   /**
    * The straight-line distance whose route is expected to be {@code routeMetres} long on foot.
    *
-   * <p>A division, and the only place in the model that performs it. Node lookup works in Euclidean
-   * distance - {@code NodesLookup.getNodesBetweenDistanceInterval} and
+   * <p>A division, and the single place in the model that performs it. Node lookup works in
+   * Euclidean distance - {@code NodesLookup.getNodesBetweenDistanceInterval} and
    * {@code randomNodeBetweenDistanceInterval} both take a straight-line interval - while
    * {@link Pars#minRouteLength} and {@link Pars#maxRouteLength} are stated in walked metres. Passing
-   * one where the other is expected is silent: the run completes and every route is too long by the
-   * city's circuity, which is 29% on Torino and 54% on Melbourne.
-   *
-   * <p>It sits here rather than at the call sites because it was got wrong at the call sites: core
-   * divided and the two OD-generating modules did not, so a single shared field meant two different
-   * quantities depending on who read it.
+   * one where the other is expected fails quietly: the run completes and every route is too long by
+   * the city's circuity, which is 29% on Torino and 54% on Melbourne. Call this rather than dividing
+   * at the call site, so that every caller means the same thing by a length.
    *
    * @param routeMetres the desired walked length of the route, in metres
    * @return the straight-line distance to search for, in metres

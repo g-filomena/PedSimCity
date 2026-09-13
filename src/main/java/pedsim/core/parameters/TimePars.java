@@ -115,9 +115,9 @@ public class TimePars {
    *
    * <p>The curve is a density over the day integrating to 1.0, so the share is its area over the
    * interval between release events — {@link #releaseAgentsEveryMinutes}, NOT {@link
-   * #STEP_DURATION}. The two were equal while the step was 20 minutes; when the step went to 300 s
-   * the shares silently began summing to 0.25 over the day, so only a quarter of the daily budget
-   * was ever released.
+   * #STEP_DURATION}. Integrating over the wrong one scales the whole day by their ratio without any
+   * error to show for it: the shares stop summing to 1.0 and that fraction of the day's departures
+   * is never released.
    */
   public static double computeTimeStepShare(LocalDateTime currentTime) {
     LocalTime localTime = currentTime.toLocalTime();

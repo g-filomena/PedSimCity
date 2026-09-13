@@ -13,10 +13,9 @@ import java.util.concurrent.atomic.LongAdder;
  * it reached 21x on a one-day run when it was tried. Where a measured gap is real, it is closed at
  * its source, not by feeding it back here.
  *
- * <p>Pulled off {@code PedSimCity} because it is not simulation state: it is what an observer wrote
- * down while watching. The state class answered questions about travel demand and questions about
- * its own measurements through the same interface, which is how the departure profile came to read
- * a calibration anchor.
+ * <p>Separate from {@code PedSimCity} because it is not simulation state: it is what an observer
+ * wrote down while watching. Keeping the two apart is what stops a measurement being read as though
+ * it were an input.
  *
  * <p>Adders rather than counters because agents step concurrently when {@code Pars.parallel} is set.
  */
@@ -41,12 +40,9 @@ public class RunLedger {
   /**
    * Lengths offered to the two ledgers above that could not be counted: zero, negative, NaN.
    *
-   * <p>The guard that rejects them is right - a ledger of metres should not accumulate a NaN - but
-   * it was silent, and that is how a whole run came to report having planned and walked nothing.
-   * Every route reported zero length for as long as {@code Route.getLength()} was unassigned, and
-   * the totals stayed at nought day after day without anything saying why. A rejected length is
-   * now counted and printed with the totals, so the next time the two disagree the summary says
-   * so.
+   * <p>A ledger of metres should not accumulate a NaN, so these are rejected - but a ledger that
+   * discards input has to say so, or a run whose routes all measure zero reports having planned and
+   * walked nothing with no indication why. The count is printed alongside the totals.
    */
   private final LongAdder unusableRouteLengths = new LongAdder();
 
@@ -54,7 +50,7 @@ public class RunLedger {
    * Times a destination search had to widen its distance band, and times it gave up and took any
    * node in the city.
    *
-   * <p>Both used to happen silently. The band widens inside the lookup call, so a run could not say
+   * <p>Both are counted because they happen inside the lookup call, so a run could not otherwise say
    * whether a leg came from the band it asked for or from one three times wider, and the fallback
    * replaces the band with the whole network. Since leg length is the open question, these two
    * counts are the difference between an answer and a guess.

@@ -12,10 +12,7 @@ import pedsim.core.parameters.TimePars;
  * departs and when beyond a rate and a curve, and no mode split, so every journey is walked.
  * Modules that model why people travel replace these; see {@code ActivityTravelDemand}.
  *
- * <p>This used to fall back on a metres budget instead, which made core the only part of the model
- * with a trip-distance parameter and gave {@code metersPerDayPerPerson} two jobs at once - a budget
- * here, a statistic to check a finished run against everywhere else. Core now releases the way
- * every module does.
+ * <p>Releases are sized by a count of departures, the same mechanism every module uses.
  */
 public class BaselineTravelDemand implements TravelDemand {
 

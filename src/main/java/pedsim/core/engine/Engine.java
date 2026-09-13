@@ -29,11 +29,10 @@ public class Engine {
   /**
    * Seeded from {@link Pars#resolvedSeed()}.
    *
-   * <p>This used to be {@code System.currentTimeMillis()}, and it is the constructor every headless
-   * run reaches - {@code SimulationLauncher} goes through {@code module.createEngine()}, and all
-   * five modules build their engine here. So every headless run drew a fresh clock seed, no two
-   * runs could be compared, and the work that carefully derived every generator in the simulation
-   * from a base seed derived it from the clock.
+   * <p>This is the constructor every headless run reaches: {@code SimulationLauncher} goes through
+   * {@code module.createEngine()}, and every module builds its engine here. Seeding it from anything
+   * other than {@link Pars#resolvedSeed()} puts the whole run beyond reach of its configured seed,
+   * however carefully the generators below derive from it.
    */
   public Engine(StateFactory stateFactory) {
     this(stateFactory, Pars.resolvedSeed());

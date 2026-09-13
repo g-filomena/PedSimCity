@@ -66,11 +66,10 @@ public class Agent implements Steppable {
    * Per-agent RNG, seeded by {@link PedSimCity#nextAgentSeed()} from the model's seed and the
    * order in which this simulation built its agents.
    *
-   * <p>It used to be {@code new java.util.Random()}, seeded from the clock, which made a run unrepeatable
-   * whatever seed the model was given. One shared generator is not an option either: agents step
-   * concurrently, and a generator drawn from several threads gives a different sequence per
-   * interleaving. A generator per agent, seeded deterministically at construction, is repeatable
-   * under concurrency because each agent's draws no longer depend on what the others do.
+   * <p>One generator per agent rather than one shared: agents step concurrently, and a generator
+   * drawn from several threads yields a different sequence for every interleaving. Seeding each
+   * agent deterministically at construction keeps a run repeatable under concurrency, because an
+   * agent's draws do not depend on what the other agents do.
    */
   protected MersenneTwisterFast random;
 
@@ -257,11 +256,12 @@ public class Agent implements Steppable {
    * The nodes closest to a given distance from the origin, found by widening a search interval
    * around it until it holds enough candidates to choose between.
    *
-   * <p>There is no band width here, and deliberately so. It used to be a fixed +/-10% of the
-   * distance, a number with no source and no observable counterpart: nothing measures how tolerant
-   * a person is about the length of the trip they had in mind. Worse, a fixed fraction makes the
-   * choice set wide where the network is dense and narrow where it is sparse, which is backwards.
-   * Doubling from a metre until the set is big enough lets the network set the tolerance instead.
+   * <p>The interval has no fixed width, by design. A fixed fraction of the distance would need a
+   * tolerance figure that nothing measures - how particular a person is about the length of the trip
+   * they had in mind - and it would make the choice set wide where the network is dense and narrow
+   * where it is sparse, which is the wrong way round. Doubling from a metre until the set is big
+   * enough lets the network set the tolerance: a tight interval in a dense centre, a wider one in a
+   * sparse periphery.
    *
    * @param network the graph to search
    * @param distance the straight-line radius to search around
@@ -294,20 +294,10 @@ public class Agent implements Steppable {
   /**
    * Somewhere the agent knows, at about as far as it tends to walk.
    *
-   * <p>The trip length is drawn here rather than handed in. It used to arrive through a
-   * {@code setDistanceNextDestination} call from the release manager, which drew it from a band of
-   * metres while spending a daily budget; the budget is gone, and with it the only writer, so for a
-   * while nothing set a length at all and this method searched around zero - every trip to a node
-   * within a few tens of metres of home. An agent that needs to know how far it is going should ask
-   * rather than wait to be told.
-   *
-   * <p>Uniform over {@code [minRouteLength, maxRouteLength]}. The lognormal the old distance bands
-   * used is gone with them: it carried a shape parameter with no more source than the range itself,
-   * and a uniform draw over a bounded range piles no mass on the bounds either, which was the defect
-   * the lognormal was introduced to fix.
-   *
-   * <p>Those two are <i>walked</i> metres and the node search works in straight lines, so the draw
-   * goes through {@link NetworkCircuity#straightLineFor(double)} first.
+   * <p>The agent draws its own trip length, uniformly over
+   * {@code [Pars.minRouteLength, Pars.maxRouteLength]}. Those are <i>walked</i> metres and the node
+   * search works in straight lines, so the draw goes through
+   * {@link NetworkCircuity#straightLineFor(double)} before the search.
    *
    * <p>Restricted to what the agent knows. A module that models location choice overrides this
    * entirely (see {@code ActivityAgent.chooseDestination}) and reaches here only with
@@ -348,10 +338,10 @@ public class Agent implements Steppable {
    * <p>Core agents have no destination data, so every node weighs 0.0 (uniform selection).
    * Modules override this to weight candidate nodes by their own attraction data.
    *
-   * <p>There is deliberately no day/night argument. This used to take one, and no implementation
-   * ever read it: there is a single attraction table per purpose, and what changes after dark is
-   * which purposes are open, which {@link pedsim.activity.agents.ActivityPurpose} opening windows
-   * already decide. A second table of night attractions would need a source none of ours provides.
+   * <p>There is deliberately no day/night argument: there is one attraction table per purpose, and
+   * what changes after dark is which purposes are open, which
+   * {@code pedsim.activity.agents.ActivityPurpose}'s opening windows already decide. A separate
+   * table of night-time attractions would need a source none of the bundled data provides.
    *
    * @param node The candidate destination node.
    * @return The weight for that node (0.0 when no activity data is loaded).
@@ -373,7 +363,7 @@ public class Agent implements Steppable {
    * <p>So each candidate's weight is divided by the number of candidates sharing its radial shell.
    * This is the standard correction for a sampled choice set: divide by the probability the protocol
    * had of offering that alternative. Attraction still decides which node is chosen at a given
-   * distance; it no longer decides the distance.
+   * distance, and not the distance itself.
    *
    * @param candidates the nodes in the band
    * @return the chosen node, or null when there are none
@@ -583,12 +573,30 @@ public class Agent implements Steppable {
    * Plans the route for the agent.
    */
   protected void planRoute() {
-    // Initialise and store the agent's heuristics so that other components
-    // (e.g. landmark-based navigation) can safely access them via getHeuristics().
-    heuristics = new Heuristics(this);
-    heuristics.defineHeuristic(false);
+    initialiseHeuristics(false);
     RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
     setRoute(planner.definePath());
+  }
+
+  /**
+   * Builds this agent's route-choice heuristics <b>and stores them</b>, so that the routing code can
+   * reach them through {@link #getHeuristics()}.
+   *
+   * <p>Storing is the part that gets forgotten. {@code Dijkstra.computeTentativeCost} and
+   * {@code computeTentativeCostDual} call {@code agent.getHeuristics().getGlobalLandmarkWeight(...)}
+   * unguarded, so an agent that has heuristics but never assigned them throws a
+   * {@code NullPointerException} the moment a landmark-weighted cost is evaluated — and only then,
+   * which is why it stayed hidden. Every subclass that overrides {@link #planRoute()} must call this:
+   * {@code EmpiricalAgent} and {@code CityImageAgent} did not, and {@code NightAgent} built a
+   * {@code Heuristics} without keeping it. Empirical failed outright once it had a headless entry
+   * point; city-image survived only because the two models usually run, road distance and angular
+   * change, never consult landmarkness.
+   *
+   * @param nightTime whether to define the heuristics for after dark
+   */
+  protected void initialiseHeuristics(boolean nightTime) {
+    heuristics = new Heuristics(this);
+    heuristics.defineHeuristic(nightTime);
   }
 
   /**
@@ -608,6 +616,10 @@ public class Agent implements Steppable {
     state.agentsList.remove(this);
     killAgent.stop();
     if (state.agentsList.isEmpty()) {
+      // Nothing left to index, and while it stayed scheduled the schedule never emptied - which is
+      // what kept the OD modules' `while (schedule.step(state))` running after every agent had
+      // finished. See PedSimCity.stopSpatialIndexUpdater.
+      state.stopSpatialIndexUpdater();
       state.finish();
     }
   }

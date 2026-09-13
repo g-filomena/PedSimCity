@@ -10,9 +10,8 @@ import sim.util.geo.MasonGeometry;
  * Converts the road layer into a GeoJSON FeatureCollection for the dashboards.
  *
  * <p>The document itself is written by {@link GeoJSONExporter}; this class only decides what goes
- * in each feature's {@code properties}. It used to assemble the JSON with a StringBuilder and its
- * own geometry serialiser, which meant a second copy of the escaping and number formatting, and a
- * geometry switch that handled lines and emitted an empty GeometryCollection for anything else.
+ * in each feature's {@code properties}. Keep it that way: assembling the JSON here would duplicate
+ * that class's escaping, number formatting and geometry handling.
  */
 public final class GeoJsonExporter {
 

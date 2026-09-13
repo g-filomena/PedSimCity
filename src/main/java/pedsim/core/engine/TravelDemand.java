@@ -35,10 +35,9 @@ public interface TravelDemand {
    * Agents that must set out at this moment, whatever chance says.
    *
    * <p>Travel divides in two: departures already decided, and departures drawn. Going to work is
-   * not a draw: an agent with a job, who walks to it, goes on every working day, and the only open
-   * question is when. Everything else is a draw. Merging the two into one lottery is what forced a
-   * commute <i>share</i> to be computed and handed to the departure profile - the model had to be
-   * told how often chance would produce the commutes it was certain to have.
+   * not a draw - an agent with a job, who walks to it, goes on every working day, and the only open
+   * question is when - while everything else is. Keeping the two apart lets the model generate the
+   * commutes it is certain to have rather than being told how often chance should produce them.
    *
    * <p>Returned agents are released unconditionally: no persona affinity, no budget, no filter.
    * They are at home and it is time to go.
@@ -97,13 +96,9 @@ public interface TravelDemand {
    * Probability that a journey of this length is made on foot rather than some other way.
    *
    * <p>Mode choice, asked where a journey already has a length - a commute between a known home and
-   * a known workplace, for instance. Three neighbours of this method went with the metres budget on
-   * 13 Sep 2026: {@code expectedTripChainLegs}, which charged the budget for a whole trip chain;
-   * {@code measuredLegMetres}, for the case where a module knew its mean leg and did not want a
-   * length drawn; and {@code tripAcceptanceProbability}, a rejection filter on drawn lengths. The
-   * last of those looked like this one and was not - it asked whether a <i>length</i> was plausible,
-   * where this asks how a <i>journey</i> is made, and the two being adjacent is how disabling a
-   * legacy filter once silently walked every commute in the model.
+   * a known workplace, for instance. It answers how a <i>journey</i> is made, which is a different
+   * question from whether a given <i>length</i> is plausible; nothing in the model filters trips by
+   * length.
    */
   double walkProbability(double meters);
 

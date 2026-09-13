@@ -17,37 +17,30 @@ public class Pars {
   public static int numAgents;
 
   /**
-   * How often one person sets off from home on an average day, when nothing is known about who
-   * they are.
+   * How often one person sets off from home on an average day, when nothing is known about who they
+   * are.
    *
-   * <p>Unsourced, and deliberately so: it exists so that the core skeleton runs, not as a claim
-   * about anybody's travel. Core models no reason for a person to leave the house, so there is no
-   * quantity here to be right about - a module that does model one states its own count and this is
-   * never read.
+   * <p>Read only when the running module supplies no travel demand of its own. Core models no reason
+   * for a person to leave the house, so this figure is a placeholder that lets the skeleton run
+   * rather than a claim about anybody's travel: it carries no source and is not something to
+   * calibrate against. A module that models activity states its own count and this is never read.
    */
   public static double departuresPerPersonPerDay = 0.25;
 
   /**
-   * Desired length of the route between the origin and the destination, in **walked metres**.
+   * Range the desired route length is drawn from, in <b>walked</b> metres.
    *
-   * <p>Walked, not straight-line, and the distinction is the whole point of the name. A route is
-   * what an agent walks on the network; the straight line between its endpoints is shorter by the
-   * network's circuity, which on the bundled cities runs from 1.17 (Barcelona) to 1.54 (Melbourne).
-   * Anything that picks a destination works in straight lines - {@code NodesLookup} takes a
-   * Euclidean interval - so a caller must convert with
-   * {@link pedsim.core.engine.NetworkCircuity#straightLineFor(double)} before searching, never pass
-   * these figures through raw.
+   * <p>Applies wherever a destination is picked by distance rather than by an activity model's
+   * utility: {@link pedsim.core.agents.Agent#defineRandomDestination()}, and the origin-destination
+   * generators of the cityImage and empirical modules.
    *
-   * <p>That is not hypothetical. These were briefly handed straight to
-   * {@code NodesLookup.randomNodeBetweenDistanceInterval} by the cityImage and empirical modules
-   * while core divided by the circuity first, so one field meant walked metres in one place and
-   * straight-line metres in another - on Torino, a nominal 900-2700 m band generating routes of
-   * 1163-3488 m.
+   * <p><b>Convert before searching.</b> These are lengths of a walked route; node lookup works in
+   * straight lines ({@code NodesLookup} takes a Euclidean interval). Pass them through
+   * {@link pedsim.core.engine.NetworkCircuity#straightLineFor(double)} first, never raw. The gap is
+   * the network's circuity, 1.17 to 1.54 across the bundled cities, and passing a walked length as a
+   * Euclidean one produces routes that much too long with no error to show for it.
    *
-   * <p>Set directly. They used to be derived by a {@code setMinMaxTripDistance()} that took an
-   * {@code avgTripDistance} and multiplied it by 0.5 and 1.5 - two invented factors that also
-   * overwrote whatever had been configured, which is how a declared 700/2500 came to run as
-   * 900/2700 with nothing in the source saying so.
+   * <p>Both are set directly; nothing derives one from the other.
    */
   public static double minRouteLength = 900;
 
@@ -67,16 +60,11 @@ public class Pars {
    * populate pass, per release manager - so this one number decides whether two runs are the same
    * run.
    *
-   * <p>It had no way of being set. {@code Engine(stateFactory)} seeded from
-   * {@code System.currentTimeMillis()} and there was no command-line parameter, so every headless
-   * run drew a different seed and no two runs could be compared. That quietly undid the seeding
-   * work: each generator was faithfully derived from a base seed that was itself the clock.
-   *
-   * <p>Fixed by default, because a model whose runs are not repeatable cannot be compared with
-   * itself, and every A/B in this project - route-choice models, parameter sweeps, the night
-   * module's light experiment - is a comparison of runs. Pass {@code --seed=-1} for a clock seed
-   * when independent replicates are wanted; job {@code n} uses {@code seed + n}, so a multi-job run
-   * already gives replicates from one base seed.
+   * <p>Fixed by default, so that two runs of the same configuration are the same run: every A/B in
+   * this project - route-choice models, parameter sweeps, the night module's light experiment - is a
+   * comparison of runs. Pass {@code --seed=-1} for a clock seed when independent replicates are
+   * wanted; job {@code n} uses {@code seed + n}, so a multi-job run already gives replicates from one
+   * base seed.
    */
   public static long seed = 20260912L;
 
@@ -88,14 +76,13 @@ public class Pars {
    * How far the known-space skeleton reaches beyond each of an agent's anchors, in metres of
    * network distance.
    *
-   * <p>It was called {@code homeWorkRadius} while home and work were the only anchors the code
-   * could imagine. {@link pedsim.core.agents.Agent#cognitiveAnchors()} now lets a module say what
-   * anchors its people actually have - a retiree has no workplace - so the radius is about anchors,
-   * not about employment. The comment above it said "Euclidean Distance between Origin and
-   * Destination", which it has never been: the walk out from each anchor in
-   * {@code CognitiveMap.buildActivityBone()} accumulates edge lengths.
+   * <p>Network distance, not Euclidean: {@code CognitiveMap.buildActivityBone()} accumulates edge
+   * lengths walking out from each anchor. The anchors themselves come from
+   * {@link pedsim.core.agents.Agent#cognitiveAnchors()}, which a module overrides to say what places
+   * its people know - a retiree has no workplace - so this radius is about anchors rather than about
+   * employment.
    *
-   * <p>The 600 m itself has no source behind it.
+   * <p>The 600 m has no source behind it.
    */
   public static double anchorRadius = 600;
 
@@ -147,12 +134,6 @@ public class Pars {
    * Recomputes the sampled agent count from {@code population * percentagePopulationAgent}. Call
    * after changing {@code population} at runtime — e.g. when a module derives it from its own city
    * data.
-   *
-   * <p>It also used to set {@code metersPerDay}, the day's release budget, from a
-   * {@code metersPerDayPerPerson}. Nothing spends a metres budget any more, and that figure had no
-   * reader left at all once the budget went - it was a comment with a {@code double} around it. The
-   * derivation it belongs to is in RELEASE_BUDGET.md, which is where a run's walked metres should be
-   * compared against it.
    */
   public static void recomputeAgentCount() {
     numAgents = (int) (population * percentagePopulationAgent);

@@ -9,17 +9,18 @@ lighting, vulnerability or learning — those live in the modules that extend co
 
 | Package | Responsibility |
 |---|---|
-| `engine` | `PedSimCity` (simulation state, GIS layers, scheduling), `Engine` (job loop, day/agent-release, flow & cognitive-map export), `Import` (graph/landmark/barrier GPKG loading), `Environment` (graph/buildings/gateways/dual-graph/barriers/regions preparation), `Populate` (agent creation + home/work assignment), `FlowHandler`, `ScenarioConfig`, `SimulationModule`, `SimulationLauncher`, recorders/exporters |
-| `agents` | `Agent` (trip planning, movement lifecycle), `AgentMovement`, `AgentProperties`, `Heuristics`, `OdAgent`, `BarrierPreference` |
+| `engine` | `PedSimCity` (simulation state, GIS layers, scheduling), `Engine` (job loop, day/agent-release, flow & cognitive-map export), `Import` (graph/landmark/barrier GPKG loading), `Environment` (graph/buildings/gateways/dual-graph/barriers/regions preparation), `Populate` (agent creation + home/work assignment), `TravelDemand` + `BaselineTravelDemand` (release policy), `RunLedger` (per-day measurement), `FlowHandler`, `ScenarioConfig`, `SimulationModule`, `SimulationLauncher`, recorders/exporters |
+| `agents` | `Agent` (trip planning, movement lifecycle), `AgentMovement`, `AgentProperties`, `Heuristics`, `OdAgent` |
 | `cognition.cognitivemap` | `CognitiveMap`, `SharedCognitiveMap` (the community/primal network) |
 | `cognition.cityimage` | `Barrier`, `Gateway`, `Region` (the city-image elements) |
 | `cognition.metrics` | `Landmarkness`, `LandmarkIntegration`, `BarrierIntegration`, `Complexity` |
 | `cognition.network` | `NetworkBuilder` |
 | `routing` | `RoutePlanner`, navigation `elements/*`, `pathfinder/*`, `pathfinding/*` (Dijkstra variants) |
-| `parameters` | `Pars`, `RouteChoicePars`, `PopulationPars`, `TimePars`, `LearningPars` |
+| `parameters` | `Pars`, `RouteChoicePars`, `TimePars`, `ParameterManager`, `CityConfig` |
 | `utilities` | `RouteData`, `StringEnum`, `LoggerUtil` |
 | `website` | `SimulationRestApi`, `GeoJsonExporter`, `HtmlExporter` (dashboard) |
-| `applet` | Swing GUI + REST launcher (`PedSimCityApplet`, `SimulationViewer`, panels) |
+| `launcher` | `ModuleLauncher`, `CoreLauncher` — entry points, no GUI |
+| `server` | `RemoteLauncher`, `ServerConfig`, `ServerProjectConfig` (run over SSH) |
 
 ## The extension pattern
 
@@ -54,7 +55,7 @@ Core is not run on its own; you run a module. The default Maven profile bundles 
 
 ```bash
 mvn compile exec:java@night-website     # REST + browser dashboard
-mvn compile exec:java                    # GUI (PedSimCityApplet)
+mvn compile exec:java                    # headless (CoreLauncher)
 ```
 
 `Pars.cityName` defaults to `Torino`. Any city works provided its network/landmark/barrier GPKG

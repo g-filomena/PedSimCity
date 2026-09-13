@@ -47,11 +47,11 @@ public class RoadDistancePathFinder extends PathFinder {
   /**
    * The same search again, over the whole network rather than the streets the agent knows.
    *
-   * <p>An individualised agent whose known network cannot connect its origin to its destination
-   * used to get an empty sequence, which {@code fillRoute} turns into a two-node route with no
-   * edges and a length of zero - a pedestrian who reaches its destination without walking. Walking
-   * unknown streets is what a person does when the ones they know do not get them there, so the
-   * search widens rather than the trip being lost, and the widening is counted on the day ledger.
+   * <p>When an individualised agent's known network cannot connect its origin to its destination,
+   * the search widens rather than the trip being lost: walking unknown streets is what a person does
+   * when the ones they know do not get them there. Without it the empty sequence becomes a two-node
+   * route with no edges and a length of zero - a pedestrian who reaches its destination without
+   * walking. Each widening is counted on the day ledger.
    *
    * <p>The route it finds is one the agent could not have planned from its own knowledge, so the
    * length it plans against should carry a far larger error than a known route's. The model does

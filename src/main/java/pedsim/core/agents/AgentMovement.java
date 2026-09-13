@@ -51,6 +51,16 @@ public class AgentMovement {
   public void initialisePath(Route route) {
 
     indexOnSequence = 0;
+    // A new path is a new trip, so what has been walked starts empty. It did not: an agent that
+    // keeps one AgentMovement across several trips - which is every OdAgent, and so every cityImage
+    // and empirical agent - accumulated the edges of all its previous trips here. Two consequences,
+    // and the second is worse than the first. updateData() copies this list at the end of every
+    // trip, so the allocation grew quadratically and an eight-model subdivision run exhausted the
+    // heap on a few dozen trips. And it assigns the accumulated list back to the agent's route, so
+    // updateFlowsData re-counted every earlier trip's edges into the current one: the per-edge
+    // volumes this module exists to compare were cumulative, not per trip. Core and activity agents
+    // never saw it because reinitializeMovementPath() builds a fresh movement handler per trip.
+    edgesWalkedSoFar.clear();
     if (route == null || route.directedEdgesSequence == null || route.directedEdgesSequence.isEmpty()) {
       this.directedEdgesSequence = new ArrayList<>();
       if (agent.destinationNode != null && agent.destinationNode.getCoordinate() != null) {

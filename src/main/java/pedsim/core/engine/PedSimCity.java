@@ -86,11 +86,6 @@ public class PedSimCity extends SimState {
    */
   private static final ThreadLocal<PedSimCity> THREAD_STATE = new ThreadLocal<>();
 
-  // A static `currentInstance` sat here, the last-constructed state, kept for one reader:
-  // SimulationViewer, which ran on the Swing EDT and could not use the ThreadLocal. The viewer went
-  // with the AWT GUI and took this with it - a mutable static shared across simulation threads,
-  // whose only correct use was by something outside them.
-
   /** Returns the {@link PedSimCity} instance belonging to the calling simulation thread. */
   public static PedSimCity currentForThread() {
     return THREAD_STATE.get();
@@ -218,6 +213,16 @@ public class PedSimCity extends SimState {
    * Starts moving agents in the simulation. This method schedules agents for repeated movement
    * updates and sets up the spatial index for agents.
    */
+  /**
+   * Keeps the spatial-index updater stoppable, so a simulation whose agents have all finished can
+   * actually empty its schedule.
+   *
+   * <p>It must be stoppable because a module's engine may end its job when the schedule empties —
+   * the cityImage and empirical engines loop on {@code while (state.schedule.step(state))} — and a
+   * steppable that never stops keeps that condition true after the last agent has gone.
+   */
+  private Stoppable spatialIndexUpdater;
+
   protected void startMovingAgents() {
     for (Agent agent : agentsList) {
       Stoppable stop = schedule.scheduleRepeating(agent);
@@ -225,8 +230,20 @@ public class PedSimCity extends SimState {
     }
     // A single end-of-step index refresh covers the whole layer; scheduling it per agent would
     // rebuild the quadtree N times every step.
-    schedule.scheduleRepeating(agents.scheduleSpatialIndexUpdater(), Integer.MAX_VALUE, 1.0);
+    spatialIndexUpdater =
+        schedule.scheduleRepeating(agents.scheduleSpatialIndexUpdater(), Integer.MAX_VALUE, 1.0);
     agents.setMBR(MBR);
+  }
+
+  /**
+   * Stops the spatial-index refresh. Called when the last agent has gone: there is nothing left to
+   * index, and leaving it scheduled is what stopped a schedule-driven job from ever ending.
+   */
+  public void stopSpatialIndexUpdater() {
+    if (spatialIndexUpdater != null) {
+      spatialIndexUpdater.stop();
+      spatialIndexUpdater = null;
+    }
   }
 
   public Set<Agent> getAgentsList() {

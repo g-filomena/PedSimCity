@@ -34,9 +34,7 @@ public class CognitiveMap extends SharedCognitiveMap {
 
   /**
    * Mean of the spatial ability an agent is given, which is then spread half a point either way.
-   * It arrived here as {@code LearningPars.MEAN_MEMORY_ROUTES}, a learning-module parameter, but
-   * nothing in the learning module read it and what it seeds is a trait every agent has, learning
-   * or not. Same value, named for what it does, and core no longer reaches into a module.
+   * A trait every agent has, learning module or not, which is why it lives in core.
    */
   private static final double MEAN_SPATIAL_ABILITY = 0.75;
 
@@ -194,8 +192,8 @@ public class CognitiveMap extends SharedCognitiveMap {
       if (node == null) continue;
       int region = node.getRegionID();
       agentKnownRegions.add(region);
-      // Per anchor, not accumulated across them: the list used to be declared outside this loop,
-      // so the home anchor's edges were re-collected and re-converted on the work iteration.
+      // Declared per anchor, not outside the loop: accumulating across anchors would re-collect and
+      // re-convert every earlier anchor's edges on each iteration.
       List<EdgeGraph> edges = new ArrayList<>();
       Region r = PedSimCity.regionsMap.get(region);
       if (r != null) edges.addAll(r.edges);

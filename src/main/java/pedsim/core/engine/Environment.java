@@ -74,10 +74,10 @@ public class Environment {
 
     // Walk the graph, not the junction layer. fromStreetJunctionsSegments has already given each
     // node the imported junction geometry sitting at its coordinate, so the attributes are on the
-    // node and there is nothing to re-attach here. Iterating the nodes also means every node gets
-    // an id: a junction missing from the _nodes layer used to leave its node on the default id 0
-    // and overwrite whatever nodesMap already held there, while a junction with no segment made
-    // findNode return null and threw.
+    // node and there is nothing to re-attach here. Iterating the nodes also guarantees every node an
+    // id: walking the junction layer instead leaves a node missing from the _nodes layer on the
+    // default id 0, where it overwrites whatever nodesMap already holds, and a junction with no
+    // segment makes findNode return null.
     for (final NodeGraph node : PedSimCity.network.getNodes()) {
       final MasonGeometry nodeGeometry = node.getMasonGeometry();
       node.dma = "";

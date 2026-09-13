@@ -180,23 +180,17 @@ public class Populate {
   /**
    * A workplace, chosen among the work-tagged nodes of the whole city.
    *
-   * <p>There is deliberately no distance interval. It used to be placed inside
-   * {@code [minTripDistance, maxTripDistance]} - the range meant for discretionary walking trips -
-   * which capped every commute in the model at 2,700 m. ISTAT 2017 puts 50.6% of Piedmont's
-   * commuters outside their own municipality, so the cap did not bound a detail: it deleted half
-   * the phenomenon, and left a model in which the only possible commute was a walkable one.
-   *
-   * <p>What stops a five-kilometre commute from being walked is no longer where the workplace is,
-   * but {@link pedsim.activity.agents.ActivityAgent#walksToWork} deciding it is not walked. The
-   * distance became a reason, instead of being prevented.
+   * <p>There is deliberately no distance interval, and none should be added. Bounding the workplace
+   * by the discretionary walking range would cap every commute in the model at that range, while
+   * ISTAT 2017 puts 50.6% of Piedmont's commuters outside their own municipality - half the
+   * phenomenon. What stops a five-kilometre commute from being walked is
+   * {@link pedsim.activity.agents.ActivityAgent#walksToWork} deciding it is not: distance is a
+   * reason, not a prevention.
    *
    * <p>What is still missing is distance decay: workplaces are drawn with equal weight wherever
    * they are, so commutes come out longer than they should. The proper form is an attraction term
    * against an impedance term, which is the destination-choice model this is a step towards.
    *
-   * <p>It used to take a {@code keepHomeNode} flag that no line of the body read. The activity
-   * module passed {@code hasUsableCensusZones()} to it, under a comment saying a census-drawn home
-   * would then stay fixed - an intention the parameter never carried out anywhere.
    */
   protected NodeGraph selectWorkNodeWithDMA() {
     // DMA attributes are only assigned when the landmarks/buildings layer is loaded.
@@ -211,11 +205,9 @@ public class Populate {
   /**
    * Any node at all: the end of every ladder, for a city whose data cannot say more.
    *
-   * <p>There used to be a rung above this one called {@code selectWorkNodeWithDistanceFallback},
-   * whose name promised a distance and whose body was a uniform random node - this method, without
-   * the counter. Because it could not fail, the counted rung below it never ran, and
-   * {@link #randomFallbackCount} - logged at the end of every populate as "Instant
-   * MersenneTwisterFast Fallbacks" - reported 0 on every run the model has ever done.
+   * <p>Every use is counted in {@link #randomFallbackCount} and reported at the end of the populate
+   * pass, so a city whose data placed nobody says so. Any rung added above this one must be able to
+   * fail, or this one stops being reached and the count stops meaning anything.
    */
   protected NodeGraph selectRandomNode() {
     List<NodeGraph> nodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
