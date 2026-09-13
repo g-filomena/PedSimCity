@@ -1,4 +1,4 @@
-package pedsim.core.applet;
+package pedsim.core.server;
 
 import java.io.IOException;
 import java.io.InputStream;

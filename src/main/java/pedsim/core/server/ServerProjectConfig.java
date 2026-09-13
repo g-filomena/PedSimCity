@@ -1,4 +1,4 @@
-package pedsim.core.applet;
+package pedsim.core.server;
 
 public class ServerProjectConfig {
 

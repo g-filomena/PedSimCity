@@ -28,6 +28,18 @@ public final class NightSimulationModule implements SimulationModule {
     return "night";
   }
 
+  /** Night is an activity-tier module, so the activity parameters are in scope as well. */
+  @Override
+  public Class<?>[] parameterClasses() {
+    return new Class<?>[] {
+      pedsim.core.parameters.Pars.class,
+      pedsim.core.parameters.TimePars.class,
+      pedsim.core.parameters.RouteChoicePars.class,
+      pedsim.activity.parameters.ActivityPars.class,
+      pedsim.night.parameters.NightPars.class
+    };
+  }
+
   @Override
   public void applyMode() {
     Pars.isNight = true;
@@ -66,7 +78,14 @@ public final class NightSimulationModule implements SimulationModule {
 
   @Override
   public void applyParameters(Map<String, Object> params) {
-    if (params.containsKey("enableAB")) {
+    // The field, the applet checkbox and the dashboard's own instructions all say
+    // "enableLightABTesting"; the command line accepted only "enableAB", and a module parameter
+    // that is not picked up here is ignored in silence. The full name is canonical now, with the
+    // short one kept as an alias so existing scripts and saved configs keep working.
+    if (params.containsKey("enableLightABTesting")) {
+      NightPars.enableLightABTesting =
+          Boolean.parseBoolean(params.get("enableLightABTesting").toString());
+    } else if (params.containsKey("enableAB")) {
       NightPars.enableLightABTesting = Boolean.parseBoolean(params.get("enableAB").toString());
     }
     if (params.containsKey("abTestPairs")) {
@@ -102,7 +121,7 @@ public final class NightSimulationModule implements SimulationModule {
   @Override
   public Map<String, Object> extraState() {
         return Map.of(
-            "enableAB", NightPars.enableLightABTesting,
+            "enableLightABTesting", NightPars.enableLightABTesting,
             "abTestPairs", NightPars.abTestPairs,
             "crowdednessPercentile", NightPars.crowdednessPercentile,
             "directionalLuxStatistic", NightPars.directionalLuxStatistic.toString(),
@@ -113,7 +132,7 @@ public final class NightSimulationModule implements SimulationModule {
   @Override
   public Map<String, Object> parameterSchema() {
         return Map.of(
-            "enableAB", "boolean",
+            "enableLightABTesting", "boolean",
             "abTestPairs", "int",
             "crowdednessPercentile", "double",
             "directionalLuxStatistic", "enum:MIN|MEAN",

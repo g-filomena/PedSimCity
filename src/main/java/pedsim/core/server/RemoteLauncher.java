@@ -1,4 +1,4 @@
-package pedsim.core.applet;
+package pedsim.core.server;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -11,7 +11,7 @@ import pedsim.core.utilities.LoggerUtil;
 /**
  * Handles launching and stopping the simulation on a remote server via SSH.
  */
-public class ServerLauncherApplet {
+public class RemoteLauncher {
 
   // --- SSH / remote env config (defaults from server.properties; override via setters) ---
   private String sshPath = ServerConfig.sshExecutable();
@@ -28,7 +28,7 @@ public class ServerLauncherApplet {
 
   private String lastPid = null;
 
-  public ServerLauncherApplet(ServerProjectConfig projectConfig) {
+  public RemoteLauncher(ServerProjectConfig projectConfig) {
     this.projectDir = projectConfig.getProjectDir();
     this.mainClass = projectConfig.getMainClass();
   }
@@ -100,12 +100,20 @@ public class ServerLauncherApplet {
   // Public API
   // -------------------------
 
-  /** Run simulation remotely via SSH */
-  public void runOnServer(PedSimCityApplet applet) {
-    String fullArgs = ParameterManager.collectParametersForServerRun(applet);
+  /**
+   * Runs a simulation remotely over SSH.
+   *
+   * <p>Took a {@code PedSimCityApplet} until the AWT GUI was removed: it read the run's parameters
+   * out of the panel's text fields and wrote progress back into the panel's log area. It now takes
+   * the argument string directly and logs like everything else, which also means a remote run is
+   * reproducible from what is written down rather than from what was typed into a window.
+   *
+   * @param fullArgs the command line to run on the server, e.g. {@code --headless --cityName=Torino}
+   */
+  public void runOnServer(String fullArgs) {
     String remoteCmd = buildRemoteCommand(fullArgs);
 
-    applet.appendLog("[SERVER][CMD] " + remoteCmd);
+    LoggerUtil.getLogger().info("[SERVER][CMD] " + remoteCmd);
 
     try {
       ProcessBuilder pb = sshCommand(remoteCmd);
@@ -120,9 +128,9 @@ public class ServerLauncherApplet {
                   while ((line = reader.readLine()) != null) {
                     if (line.matches("\\d+")) {
                       lastPid = line.trim();
-                      applet.appendLog("[SERVER] PID: " + lastPid);
+                      LoggerUtil.getLogger().info("[SERVER] PID: " + lastPid);
                     } else {
-                      applet.appendLog("[SERVER] " + line);
+                      LoggerUtil.getLogger().info("[SERVER] " + line);
                     }
                   }
                 } catch (Exception ex) {
@@ -133,25 +141,24 @@ public class ServerLauncherApplet {
 
     } catch (IOException e) {
       LoggerUtil.getLogger().severe("SSH Error: " + e.getMessage());
-      applet.appendLog("SSH Error: " + e.getMessage());
     }
   }
 
-  /** Stop remote simulation (by PID if known, otherwise by mainClass) */
-  public void stopOnServer(PedSimCityApplet applet) {
+  /**
+   * Stops the remote simulation, by PID when one was captured and otherwise by main class.
+   *
+   * <p>The {@code pkill -f} fallback matches on the main class name, which also appears in the ssh
+   * command line that carries it. Killing on a pattern that matches your own invocation kills the
+   * shell running it - collect the PIDs in one call and kill them in the next.
+   */
+  public void stopOnServer() {
     String killCmd = lastPid != null ? "kill " + lastPid : "pkill -f " + mainClass;
     try {
-      ProcessBuilder pb = sshCommand(killCmd);
-      pb.start();
-      applet.appendLog("[SERVER] Sent kill command (" + killCmd + ")");
+      sshCommand(killCmd).start();
+      LoggerUtil.getLogger().info("[SERVER] Sent kill command (" + killCmd + ")");
     } catch (IOException e) {
-      applet.appendLog("SSH Error: " + e.getMessage());
+      LoggerUtil.getLogger().severe("SSH Error: " + e.getMessage());
     }
-  }
-
-  /** Open the server configuration dialog */
-  public void openConfigPanel() {
-    new ServerConfigPanel(this);
   }
 
   // -------------------------

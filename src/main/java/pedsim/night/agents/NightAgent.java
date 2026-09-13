@@ -1,9 +1,12 @@
 package pedsim.night.agents;
 
+import java.util.ArrayList;
 import java.util.List;
 import pedsim.activity.agents.ActivityAgent;
+import pedsim.activity.parameters.ActivityPars;
 import pedsim.core.agents.Heuristics;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
+import pedsim.core.engine.PedSimCity;
 import pedsim.core.utilities.StringEnum.Vulnerable;
 import pedsim.night.engine.PedSimCityNight;
 import pedsim.night.routing.pathfinder.RoadDistancePathFinder;
@@ -11,6 +14,7 @@ import sim.engine.SimState;
 import sim.graph.Graph;
 import sim.graph.NodeGraph;
 import sim.graph.NodesLookup;
+import sim.graph.GraphUtils;
 
 /**
  * Pedestrian agent for the night module. Inherits the 24h activity pattern (time-of-day destination
@@ -26,9 +30,9 @@ public class NightAgent extends ActivityAgent {
   private final Graph agentNetwork;
 
   public double lightSensitivityThreshold;
-  // Per-trip lighting metric: mean over edges that actually had a measured mean_lux.
-  public double accumulatedMeasuredLux = 0.0;
-  public int edgesWithMeasuredLux = 0;
+  // Per-trip lighting metric: illuminance integrated over the metres walked, dark metres included.
+  public double accumulatedLuxMetres = 0.0;
+  public double metresWalkedForLux = 0.0;
   public int edgesWalked = 0;
 
   public NightAgent(PedSimCityNight state) {
@@ -49,7 +53,7 @@ public class NightAgent extends ActivityAgent {
     if (isVulnerable()) {
       double min = state.getMinVulnerableLightSensitivity();
       double max = state.getMaxVulnerableLightSensitivity();
-      this.lightSensitivityThreshold = min + state.random.nextDouble() * (max - min);
+      this.lightSensitivityThreshold = min + random.nextDouble() * (max - min);
     } else {
       this.lightSensitivityThreshold = state.getNonVulnerableLightSensitivity();
     }
@@ -136,8 +140,8 @@ public class NightAgent extends ActivityAgent {
   }
 
   /**
-   * Selects a random destination within a distance band around the origin. When dark, nodes on
-   * park/water edges are avoided. Bounded to a fixed number of attempts; if none is found the agent
+   * Selects a destination from the places the agent knows. When dark, nodes on park/water edges
+   * are avoided. Bounded to a fixed number of attempts; if none is found the agent
    * falls back to any reachable node so it can never stall. The trip purpose is resolved first, so
    * the candidate weighting (via {@code getPOIWeight}) is purpose-aware; habitual-place reuse is
    * intentionally skipped — the park/water avoidance must stay free to reject any candidate.
@@ -152,8 +156,26 @@ public class NightAgent extends ActivityAgent {
       return;
     }
 
+    // An A/B twin chooses by utility whichever way useDestinationChoice is set. The experiment's
+    // manipulated variable is vulnerability, so the destination mechanism has to be held fixed for
+    // the pair to be controlled - and pinning it to the model's real one is what let the twins'
+    // shared trip *length* go. That length was drawn from a band of metres and was the last such
+    // draw anywhere in the activity tier, which is the tier that is not meant to have one.
+    if (abTestTwin != null || ActivityPars.useDestinationChoice) {
+      chooseDestinationAvoidingParksAfterDark();
+      return;
+    }
+
+    // Everywhere this agent knows. Night agents are not individualised - their known edges are a
+    // preference signal rather than a statement about what is reachable - so this narrows what
+    // they would choose, not what they could reach.
     List<NodeGraph> candidates =
-        candidatesNearDistance(agentNetwork, distanceNextDestination, null);
+        new ArrayList<>(
+            GraphUtils.getNodesFromNodeIDs(
+                getCognitiveMap().getAgentKnownNodes(), PedSimCity.nodesMap));
+    if (candidates.isEmpty()) {
+      candidates = new ArrayList<>(agentNetwork.getNodes());
+    }
 
     // A park or waterside candidate is dropped from the choice set and another drawn from the same
     // set. The previous version answered a rejection by widening the distance interval, which let a
@@ -172,11 +194,45 @@ public class NightAgent extends ActivityAgent {
     }
 
     if (destinationNode == null) {
-      // Every candidate at this distance is on a park or waterside edge; accept any reachable node
+      // Every known candidate is on a park or waterside edge; accept any reachable node
       // so the agent proceeds.
-      state.recordDestinationFallback();
-      List<NodeGraph> nodes = agentNetwork.getNodes();
-      destinationNode = nodes.get(random.nextInt(nodes.size()));
+      state.ledger().recordDestinationFallback();
+      destinationNode = NodesLookup.randomNode(agentNetwork, random);
+    }
+  }
+
+  /**
+   * Destination choice as a choice, with the night module's one extra condition kept.
+   *
+   * <p>After dark a candidate on a park or waterside edge is refused, and another is drawn. The
+   * refusal is applied after the choice rather than folded into the utility on purpose: avoiding
+   * those edges is not a preference being traded off against attraction and distance, it is a
+   * constraint, and writing it as a large negative weight would let a bright enough destination buy
+   * its way past it.
+   *
+   * <p><b>This applies to every night agent, not only vulnerable ones</b>, and so does not match
+   * {@code DijkstraRoadDistanceNight}, where the same park/water avoidance is applied to vulnerable
+   * agents only. The two are deliberately different decisions: declining to spend an evening in an
+   * unlit park is a general one, while declining to walk past one on the way somewhere else is a
+   * vulnerability response. Neither site is an oversight in the other; they share a rule and not a
+   * gate. Changing either changes what the A/B experiment's one manipulated variable means.
+   */
+  private void chooseDestinationAvoidingParksAfterDark() {
+    for (int attempt = 0; attempt < 20; attempt++) {
+      chooseDestination();
+      if (destinationNode == null) {
+        break;
+      }
+      if (!state.isDark
+          || destinationNode.getEdges().stream()
+              .noneMatch(SharedCognitiveMap.getEdgesWithinParksOrAlongWater()::contains)) {
+        return;
+      }
+      destinationNode = null;
+    }
+    if (destinationNode == null) {
+      state.ledger().recordDestinationFallback();
+      destinationNode = NodesLookup.randomNode(agentNetwork, random);
     }
   }
 
@@ -195,14 +251,19 @@ public class NightAgent extends ActivityAgent {
   }
 
   /**
-   * Mean illuminance experienced on the just-completed trip, over lit edges only: measured
-   * {@code mean_lux} where available, else the nominal {@code litEdgeNominalLux} for edges known lit
-   * only via the binary flag, divided by the count of such edges. {@code NaN} until the trip contains
-   * at least one lit edge (fully-dark edges are excluded).
+   * Mean illuminance experienced on the just-completed trip, over every metre walked.
+   *
+   * <p>Two things were wrong with the figure this replaces. It averaged over lit edges only, so it
+   * could not fall: a darker route did not lower the number, it removed edges from the denominator,
+   * and a trip through unlit streets came out as bright as one along a boulevard. And it weighted
+   * every edge equally, so a 20 m alley counted as much as a 200 m avenue.
+   *
+   * <p>Now dark metres count, at the illuminance they actually have, and each edge counts for its
+   * length. {@code NaN} only when nothing was walked.
    */
   @Override
   public double getTripMeanLux() {
-    return edgesWithMeasuredLux > 0 ? accumulatedMeasuredLux / edgesWithMeasuredLux : Double.NaN;
+    return metresWalkedForLux > 0.0 ? accumulatedLuxMetres / metresWalkedForLux : Double.NaN;
   }
 
   @Override

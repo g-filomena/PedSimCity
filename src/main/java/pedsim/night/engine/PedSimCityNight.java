@@ -1,17 +1,11 @@
 package pedsim.night.engine;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import org.javatuples.Pair;
-import org.locationtech.jts.linearref.LengthIndexedLine;
-import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.activity.engine.PedSimCityActivity;
 import pedsim.core.engine.ScenarioConfig;
 import sim.field.geo.VectorLayer;
-import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
 
 /**
@@ -40,29 +34,6 @@ public class PedSimCityNight extends PedSimCityActivity {
   public static long luxKey(int fromId, int toId) {
     return ((long) fromId << 32) | (toId & 0xFFFFFFFFL);
   }
-
-  public static final Map<DirectedEdge, LengthIndexedLine> indexedEdgeCache =
-      new ConcurrentHashMap<>();
-
-  public static final Set<EdgeGraph> edges = ConcurrentHashMap.newKeySet();
-
-  private static final int MAX_ROUTE_CACHE_SIZE = 5000;
-
-  private static <K, V> Map<K, V> createBoundedCache() {
-    return java.util.Collections.synchronizedMap(
-        new java.util.LinkedHashMap<K, V>(MAX_ROUTE_CACHE_SIZE + 1, .75F, true) {
-          @Override
-          protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
-            return size() > MAX_ROUTE_CACHE_SIZE;
-          }
-        });
-  }
-
-  // cached alternative routes for night movement
-  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> altRoutesVulnerable =
-      createBoundedCache();
-  public static Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> altRoutesNonVulnerable =
-      createBoundedCache();
 
   /**
    * Constructs a new instance of the PedSimCity simulation environment.
@@ -144,10 +115,7 @@ public class PedSimCityNight extends PedSimCityActivity {
   // ---------------------------------
 
   public static void clearNightStaticData() {
-    indexedEdgeCache.clear();
-    edges.clear();
-    altRoutesVulnerable.clear();
-    altRoutesNonVulnerable.clear();
+    pedsim.night.agents.NightAgentMovement.clearCachedNetworkSets();
     directionalLuxMap.clear();
     // clear() the layer itself: getGeometries() returns a defensive copy, so clearing that
     // copy would leave the layer (and its spatial index) populated across re-initialisations.

@@ -5,7 +5,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.javatuples.Pair;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
@@ -92,8 +91,8 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
 
     // Reset the per-trip lux accumulators (they live on the agent and persist across trips).
     NightAgent nightAgent = (NightAgent) agent;
-    nightAgent.accumulatedMeasuredLux = 0.0;
-    nightAgent.edgesWithMeasuredLux = 0;
+    nightAgent.accumulatedLuxMetres = 0.0;
+    nightAgent.metresWalkedForLux = 0.0;
     nightAgent.edgesWalked = 0;
 
     indexOnSequence = 0;
@@ -160,24 +159,27 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
   }
 
   /**
-   * Records lighting exposure for the edge actually walked: {@code edgesWalked} for every edge, and
-   * the illuminance for lit edges — the measured {@code mean_lux} where it exists, otherwise the
-   * nominal {@link NightPars#litEdgeNominalLux} for edges known lit only via the binary lit flag.
-   * Fully-dark edges (no data, not binary-lit) do not contribute to the average.
+   * Records lighting exposure for the edge actually walked, integrated over its length: the
+   * measured {@code mean_lux} where it exists, the nominal {@link NightPars#litEdgeNominalLux} for
+   * edges known lit only via the binary flag, and zero for edges that are neither. Dark metres
+   * count, which is what lets the per-trip figure fall on a dark route.
    */
   private void recordLightingMetric(EdgeGraph edge) {
     NightAgent nightAgent = (NightAgent) agent;
     nightAgent.edgesWalked++;
 
     var meanLuxAttr = edge.attributes.get("mean_lux");
+    double lux;
     if (meanLuxAttr != null) {
-      nightAgent.accumulatedMeasuredLux += meanLuxAttr.getDouble();
-      nightAgent.edgesWithMeasuredLux++;
+      lux = meanLuxAttr.getDouble();
     } else if (SharedCognitiveMap.getLitEdges().contains(edge)) {
-      // Lit only via the binary flag (no continuous mean_lux): credit the nominal lit value.
-      nightAgent.accumulatedMeasuredLux += NightPars.litEdgeNominalLux;
-      nightAgent.edgesWithMeasuredLux++;
+      lux = NightPars.litEdgeNominalLux;
+    } else {
+      lux = 0.0;
     }
+    double metres = edge.getLength();
+    nightAgent.accumulatedLuxMetres += lux * metres;
+    nightAgent.metresWalkedForLux += metres;
   }
 
   /** Moves the agent along the current path. */
@@ -247,11 +249,6 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
     final NodeGraph routeOrigin = (NodeGraph) currentDirectedEdge.getFromNode();
     agent.spookLocations.add(routeOrigin.getCoordinate());
 
-    final Map<Pair<NodeGraph, NodeGraph>, List<DirectedEdge>> cache =
-        (agent.isVulnerableBoolean() || nightBehaviour.avoidParksWater)
-            ? PedSimCityNight.altRoutesVulnerable
-            : PedSimCityNight.altRoutesNonVulnerable;
-
     defineEdgesToAvoid();
     final Set<Integer> edgeIDsToAvoid = new HashSet<>(GraphUtils.getEdgeIDs(edgesToAvoid));
     final Astar aStar = new Astar();
@@ -267,17 +264,17 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
         continue;
       }
 
-      final Pair<NodeGraph, NodeGraph> routeKey = Pair.with(routeOrigin, reentryNode);
+      // No cache. Bypasses used to be shared across agents under a (origin, reentry) key, but the
+      // route depends on far more than that pair: the avoid-set is built per agent from its known
+      // edges, the edge it is fleeing and its destination. Agents were therefore handed each
+      // other's routes - including across the vulnerable/non-vulnerable split, since a
+      // non-vulnerable agent avoiding parks read the vulnerable map. A key wide enough to be
+      // correct would have to carry the destination and the current edge, which vary per trip, so
+      // it would almost never hit.
       List<DirectedEdge> bypassEdges = null;
-
-      if (cache.containsKey(routeKey)) {
-        bypassEdges = new ArrayList<>(cache.get(routeKey));
-      } else {
-        final Route bypass = aStar.astarRoute(routeOrigin, reentryNode, network, edgeIDsToAvoid);
-        if (isValidRoute(bypass)) {
-          bypassEdges = new ArrayList<>(bypass.directedEdgesSequence);
-          cache.put(routeKey, new ArrayList<>(bypassEdges));
-        }
+      final Route bypass = aStar.astarRoute(routeOrigin, reentryNode, network, edgeIDsToAvoid);
+      if (isValidRoute(bypass)) {
+        bypassEdges = new ArrayList<>(bypass.directedEdgesSequence);
       }
 
       if (bypassEdges != null) {
@@ -329,21 +326,51 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
     agent.updateAgentPosition(currentNode.getCoordinate());
   }
 
-  /** Defines the set of edges the agent should avoid during rerouting. */
+  /**
+   * Every city edge outside the community-known network: the fixed half of a vulnerable agent's
+   * avoid-set. Built once per network rather than per reroute, where it meant copying all 44,278
+   * Torino edges into a fresh HashSet each time an agent was spooked. Invalidated by
+   * {@link PedSimCityNight#clearNightStaticData()}.
+   */
+  private static volatile Set<EdgeGraph> edgesOutsideCommunityKnown;
+
+  private static Set<EdgeGraph> edgesOutsideCommunityKnown() {
+    Set<EdgeGraph> cached = edgesOutsideCommunityKnown;
+    if (cached == null) {
+      cached = new HashSet<>(SharedCognitiveMap.getCommunityPrimalNetwork().getEdges());
+      cached.removeAll(SharedCognitiveMap.getCommunityKnownEdges());
+      edgesOutsideCommunityKnown = cached;
+    }
+    return cached;
+  }
+
+  /** Drops the cached network set, so a re-imported network is not answered from the old one. */
+  public static void clearCachedNetworkSets() {
+    edgesOutsideCommunityKnown = null;
+  }
+
+  /**
+   * Defines the set of edges the agent should avoid during rerouting.
+   *
+   * <p>The two branches are exclusive, which the previous shape hid: a vulnerable agent's set began
+   * with the current edge and the non-lit edges, then had <em>every</em> edge in the city added to
+   * it, which subsumed both. So for a vulnerable agent neither line had any effect, and in
+   * particular <b>the problematic edge being bypassed was not itself avoided</b> unless it happened
+   * to fall outside both the community-known and the agent-known networks. That behaviour is
+   * preserved exactly here; it is written out rather than left as an accident of ordering, and
+   * whether a vulnerable agent should avoid the edge it is fleeing is a question worth asking.
+   */
   private void defineEdgesToAvoid() {
     edgesToAvoid.clear();
-    edgesToAvoid.add(currentEdge);
-    edgesToAvoid.addAll(SharedCognitiveMap.getEdgesNonLitNonCommunityKnown());
 
     if (agent.isVulnerableBoolean()) {
-      edgesToAvoid.addAll(SharedCognitiveMap.getCommunityPrimalNetwork().getEdges());
-      edgesToAvoid.removeAll(SharedCognitiveMap.getCommunityKnownEdges());
-
-      Set<EdgeGraph> knownEdges =
-          new HashSet<>(
-              GraphUtils.getEdgesFromEdgeIDs(
-                  agent.getCognitiveMap().getAgentKnownEdges(), PedSimCity.edgesMap));
-      edgesToAvoid.removeAll(knownEdges);
+      edgesToAvoid.addAll(edgesOutsideCommunityKnown());
+      edgesToAvoid.removeAll(
+          GraphUtils.getEdgesFromEdgeIDs(
+              agent.getCognitiveMap().getAgentKnownEdges(), PedSimCity.edgesMap));
+    } else {
+      edgesToAvoid.add(currentEdge);
+      edgesToAvoid.addAll(SharedCognitiveMap.getEdgesNonLitNonCommunityKnown());
     }
 
     if (agent.isVulnerableBoolean() || nightBehaviour.avoidParksWater) {
@@ -379,16 +406,6 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
    */
   private boolean hasRemainingOriginalRoute() {
     return originalRouteIndex + 1 < originalEdgesSequence.size();
-  }
-
-  /**
-   * Checks if the edge is known by the agent.
-   *
-   * @param edge the edge to check
-   * @return true if the edge is known by the agent
-   */
-  protected boolean isEdgeKnown(EdgeGraph edge) {
-    return agent.getCognitiveMap().isEdgeKnown(edge);
   }
 
   /**

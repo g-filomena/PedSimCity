@@ -46,7 +46,7 @@ public class NightPopulate extends ActivityPopulate {
 
       NightAgent normalTwin = new NightAgent(this.state, false);
       normalTwin.agentID = currentAgentID++;
-      normalTwin.setHomeWorkLoctations(vulnerableTwin.homeNode, vulnerableTwin.workNode);
+      normalTwin.setHomeAndWorkplace(vulnerableTwin.homeNode, vulnerableTwin.workNode);
       normalTwin.setVulnerable(false);
       normalTwin.initSensitivity();
       // These two are built here rather than through defineHomeWorkLocations, so the commute mode
