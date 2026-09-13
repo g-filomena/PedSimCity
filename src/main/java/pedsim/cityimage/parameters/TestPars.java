@@ -26,6 +26,19 @@ public final class TestPars extends Pars {
 
   public static int numberTripsPerAgent = 2;
 
+  // The OD length range lives on Pars: minTripDistance / maxTripDistance, derived from
+  // avgTripDistance. It is shared with core's destination draw and with the empirical module on
+  // purpose - all three are asking one question, how long a synthetic walking trip is in this city,
+  // and all three had the same value. Separate copies would recreate the shadowed-static trap that
+  // RouteChoicePars.{usingDMA, maxTripsPerDay, originsTmp, destinationsTmp} already were against
+  // this class, made worse here because TestPars extends Pars: a minODdistance field would sit
+  // beside an inherited minTripDistance holding the same number under another name.
+  //
+  // What must NOT come back is the commute reading this range. That is what capped every commute in
+  // the model at 2,700 m - a discretionary walking range sizing a journey that is not discretionary.
+  // The commute has its own distance model: ActivityPars.workplaceDistanceDecay for where the
+  // workplace goes, and ActivityAgent.walksToWork for whether it is walked.
+
   public static boolean testingLandmarks = false;
   public static boolean testingSubdivisions = false;
   public static boolean testingModels = false;

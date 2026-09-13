@@ -1,13 +1,11 @@
 package pedsim.cityimage.engine;
 
-import java.awt.EventQueue;
-import java.awt.GraphicsEnvironment;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
-import pedsim.cityimage.applet.PedSimCityImageApplet;
 import pedsim.cityimage.parameters.TestPars;
+import pedsim.core.parameters.Pars;
 import pedsim.core.agents.Agent;
 import pedsim.core.engine.Engine;
 import pedsim.core.engine.Import;
@@ -41,7 +39,27 @@ public class CityImageEngine extends Engine {
   protected void clearStaticData() {
     super.clearStaticData();
     TestPars.distances.clear();
-    PedSimCityImage.indexedEdgeCache.clear();
+  }
+
+  /**
+   * Restores the agent count after {@code Pars.setSimulationParameters()} has overwritten it.
+   *
+   * <p>This module runs one agent per route-choice model over a shared OD matrix, so its agent count
+   * is the number of models being compared. {@code setSimulationParameters()} calls
+   * {@code recomputeAgentCount()}, which replaces that with
+   * {@code population * percentagePopulationAgent}. The empirical engine already had this hook for
+   * the same reason; city-image did not, so whatever {@code TestPars.defineMode()} worked out was
+   * discarded.
+   *
+   * <p>Only the count. The mode itself is resolved in {@code CityImageSimulationModule.applyMode()},
+   * before the command-line overrides are re-applied — putting {@code defineMode()} here instead
+   * made it run <i>after</i> the command line and silently reset {@code numberTripsPerAgent} to the
+   * mode's own default, which is how {@code --numberTripsPerAgent=8} became 2,000 and ran out of
+   * heap.
+   */
+  @Override
+  protected void afterSetParameters() {
+    Pars.numAgents = TestPars.routeChoiceModels.length;
   }
 
   @Override
@@ -100,14 +118,9 @@ public class CityImageEngine extends Engine {
 
     int total = totalRemainingTrips.addAndGet(currentRemaining - previousValue);
 
-    if (GraphicsEnvironment.isHeadless()) {
-      return;
-    }
-
-    EventQueue.invokeLater(
-        () -> {
-          PedSimCityImageApplet.setRemainingTripsCount(total);
-          PedSimCityImageApplet.updateRemainingTripsLabel(true);
-        });
+    // Pushed onto the AWT event queue and into a label on PedSimCityImageApplet until the GUI was
+    // removed, behind a GraphicsEnvironment.isHeadless() guard that made it a no-op on exactly the
+    // runs anyone watches. It goes to the log instead, where a headless run can see it.
+    LOGGER.fine("[cityImage] job " + job + ": " + total + " trips remaining across all jobs");
   }
 }

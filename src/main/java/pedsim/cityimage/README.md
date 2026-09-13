@@ -27,7 +27,7 @@ one `CityImageAgent` per route-choice model so each walks the identical OD set.
 
 | Mode | OD generation |
 |---|---|
-| generic | random origins from `startingNodes`, destinations in `[minTripDistance, maxTripDistance]` |
+| generic | random origins from `startingNodes`, destinations in `[TestPars.minODdistance, maxODdistance]` (900–2700 m) |
 | landmarks | single origin, 255 destinations from a fixed distance set |
 | subdivisions | origins from starting nodes, destinations in 1000–3000 m |
 | specific OD | manual origin/destination node-ID pairs (`originsTmp` / `destinationsTmp`) |
@@ -42,7 +42,7 @@ build):
 
 ```bash
 mvn -Pcityimage-empirical compile
-mvn -Pcityimage-empirical compile exec:java -Dexec.mainClass=pedsim.cityimage.applet.PedSimCityImageApplet
+mvn -Pcityimage-empirical compile exec:java -Dexec.mainClass=pedsim.cityimage.launcher.CityImageLauncher
 ```
 
 ## Notes
