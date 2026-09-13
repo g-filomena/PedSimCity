@@ -1,5 +1,6 @@
 package pedsim.core.engine;
 
+import ec.util.MersenneTwisterFast;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -7,67 +8,62 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
 import java.util.logging.Logger;
 import pedsim.core.agents.Agent;
-import pedsim.core.parameters.RouteChoicePars;
+import pedsim.core.parameters.Pars;
 import pedsim.core.parameters.TimePars;
-import pedsim.core.parameters.TripDistanceBands;
 import pedsim.core.utilities.LoggerUtil;
 
 /**
- * The AgentReleaseManager class handles the release of agents for the
- * pedestrian simulation, distributing the total expected walking distance for
- * agents during a given time period.
+ * Sends agents out to walk: the departures a day's travel demand says are due now.
+ *
+ * <p>There is one release mechanism. It used to be two - a count of departures, or a metres budget
+ * spread over the day and spent trip by trip - and the metres budget was the model's original
+ * mechanism, answering with one number how many people go out, how far they walk and where they end
+ * up. Every module now states how much travel its population makes as a count, and the metres fall
+ * out of where those people choose to go; {@code Pars.metersPerDayPerPerson} is what a finished run
+ * is checked against rather than what it is arranged to hit. The budget survived in core alone,
+ * unreachable from any module, carrying with it a trip-distance parameter, a residual balance, a
+ * trip-acceptance filter and a trip-chain multiplier - four seams on {@link TravelDemand} that no
+ * implementation needed. It was removed on 13 Sep 2026.
  */
 public class AgentReleaseManager implements AutoCloseable {
 
   protected static final Logger logger = LoggerUtil.getLogger();
   protected LocalDateTime currentTime;
   /** Seeded from the model's seed and the day, so a release schedule is repeatable. */
-  protected Random random;
+  protected MersenneTwisterFast random;
 
   protected PedSimCity state;
-  protected double metersToWalkCurrentDay;
-  protected double expectedMetersWalkedSoFarToday;
+
+  /**
+   * Who goes out, when, and by what mode. Resolved once: the release manager is built per day, and
+   * the demand object caches a departure profile that is itself rebuilt per day.
+   */
+  protected final TravelDemand demand;
+
+  /** Measurement only: what the population has walked so far today, for the log. */
   protected double metersWalkedSoFarToday;
   private final int dayNumber;
   private String logFilePath;
   private PrintWriter logWriter = null;
 
   /**
-   * Running balance of metres carried between release events. Sizing a release by
-   * {@code budget / mean} discarded the fractional remainder every time and, once the walk-share
-   * filter reshaped the draws, spent meters the count had not been derived from. Carrying the
-   * balance instead makes the day's total exact by construction, whatever the trip distribution
-   * and filter do to the realised mean.
-   */
-  private double residualMeters = 0.0;
-
-  /** Metres actually committed by the last release, for the log. */
-  private double lastSpentMeters = 0.0;
-
-  /**
    * Constructor for AgentReleaseManager.
    *
-   * @param state                  the PedSimCity instance representing the
-   *                               simulation state.
-   * @param metersToWalkCurrentDay the current expected walking distance for the
-   *                               day (in meters).
-   * @param dayNumber              the current simulated day number.
+   * @param state     the PedSimCity instance representing the simulation state.
+   * @param dayNumber the current simulated day number.
    */
-  public AgentReleaseManager(PedSimCity state, Double metersToWalkCurrentDay, int dayNumber) {
+  public AgentReleaseManager(PedSimCity state, int dayNumber) {
     this.state = state;
-    this.metersToWalkCurrentDay = metersToWalkCurrentDay;
+    this.demand = state.travelDemand();
     this.dayNumber = dayNumber;
-    random = new Random(state.seed() * 7919L + dayNumber);
+    random = new MersenneTwisterFast(state.seed() * 7919L + dayNumber);
     resetMetersWalkedSoFar();
-    state.resetPlannedRouteMeters();
-    expectedMetersWalkedSoFarToday = 0.0;
+    state.ledger().reset();
     metersWalkedSoFarToday = 0.0;
     initLogFile();
   }
@@ -83,171 +79,137 @@ public class AgentReleaseManager implements AutoCloseable {
     currentTime = TimePars.getTime(steps);
 
     // Module hook: a module may take over this release event entirely (e.g. paired releases for
-    // an A/B experiment); the standard meters-based release is then skipped.
-    int overrideReleased = state.releaseAgentsOverride(steps, dayNumber);
+    // an A/B experiment); the standard release is then skipped.
+    int overrideReleased = demand.releaseAgentsOverride(steps, dayNumber);
     if (overrideReleased >= 0) {
       if (overrideReleased > 0) {
-        double meters = RouteChoicePars.avgTripDistance * overrideReleased;
-        logRelease(steps, meters, meters, overrideReleased);
+        logRelease(steps, overrideReleased);
       }
       return;
     }
 
     metersWalkedSoFarToday = computeMetersWalkedSoFar();
-    double metersToAllocate =
-        metersToWalkCurrentDay
-            * state.departureShare(currentTime)
-            * state.releaseBudgetMultiplier(currentTime);
 
-    int agentsReleased = 0;
-    lastSpentMeters = 0.0;
-    if (metersToAllocate > 0) {
-      agentsReleased = releaseAgentsMeters(metersToAllocate);
+    // Scheduled departures first. People with somewhere they have to be are not a matter of
+    // chance, and the unscheduled count below has already had their travel subtracted.
+    int agentsReleased = releaseScheduled();
+    double departuresPerPerson = demand.unscheduledDeparturesPerPerson(currentTime);
+    if (departuresPerPerson > 0.0) {
+      agentsReleased += releaseAgentsByCount(departuresPerPerson);
     }
 
-    logRelease(steps, metersToAllocate, lastSpentMeters, agentsReleased);
+    logRelease(steps, agentsReleased);
 
     if (currentTime.getMinute() == 0) {
       logWalkingAgents();
     }
-
-    expectedMetersWalkedSoFarToday += metersToAllocate;
   }
 
   /**
-   * Releases agents to spend the allocated metres, drawing them one at a time and subtracting each
-   * sampled trip from the budget until it is exhausted. Sizing the release this way rather than as
-   * {@code metres / avgTripDistance} keeps the budget honoured whatever the trip-distance
-   * distribution is, and drops the {@code Math.max(1, ...)} floor the count-first version needed:
-   * that floor released one agent at every event regardless of the diurnal curve, injecting a
-   * constant 72 agents a day into the hours where the curve asks for almost none.
+   * Sends out the agents whose scheduled departure falls in this release event.
    *
-   * @param metersToAllocate the metres allocated to this release event.
-   * @return the number of agents released.
+   * <p>No weighting, no budget, no filter. This used to be the same lottery as everything else: a
+   * worker commuted if the draw happened to reach it inside its start window, and a commute
+   * <i>share</i> was then computed and handed to the departure profile so the day could be shaped
+   * as though the lottery had obliged. Having a job means going to it; what is left to chance is
+   * the discretionary travel around it.
+   *
+   * @return the number of agents released
    */
-  private int releaseAgentsMeters(double metersToAllocate) {
+  private int releaseScheduled() {
+    int released = 0;
+    for (Agent agent : demand.scheduledDepartures(currentTime)) {
+      agent.startWalkingAlone();
+      released++;
+    }
+    return released;
+  }
 
-    double budget = metersToAllocate + residualMeters;
+  /** Fractional part of a release event's agent count, carried to the next event. */
+  private double residualAgents = 0.0;
+
+  /**
+   * Releases the agents the day's activity pattern says should set off now.
+   *
+   * <p>The count is the population's daily departures spread over the day by the departure share.
+   * Fractions are carried rather than rounded away: a share that asks for 0.4 agents at every one
+   * of seventy-two events is asking for twenty-nine agents over the day, not zero.
+   *
+   * <p>Nothing here consults a distance. How far these people walk is settled where they choose
+   * where to go, and the day's metres are an outcome to be compared against
+   * {@code metersPerDayPerPerson} rather than a budget arranged to match it.
+   *
+   * @param departuresPerPerson unscheduled departures one person makes on an average day
+   * @return the number of agents released
+   */
+  private int releaseAgentsByCount(double departuresPerPerson) {
+    double wanted =
+        Pars.numAgents
+                * departuresPerPerson
+                * demand.departureShare(currentTime)
+                * demand.releaseBudgetMultiplier(currentTime)
+            + residualAgents;
+    int toRelease = (int) Math.floor(wanted);
+    residualAgents = wanted - toRelease;
+    if (toRelease <= 0) {
+      return 0;
+    }
 
     List<Agent> candidates = new ArrayList<>(state.agentsAtHome);
     if (candidates.isEmpty()) {
-      lastSpentMeters = 0.0;
-      residualMeters =
-          capResidual(budget, RouteChoicePars.maxTripDistance * state.expectedTourLegs(null));
       return 0;
     }
-    candidates.sort(Comparator.comparingDouble(Agent::getTotalMetersWalked));
 
     int hour = currentTime != null ? currentTime.getHour() : 0;
-    TripDistanceBands.Band band = TripDistanceBands.bandFor(hour);
-
     Set<Agent> released = new HashSet<>();
     int attempts = 0;
     int maxAttempts = Math.max(100, candidates.size() * 20);
 
-    while (budget > 0 && released.size() < candidates.size() && attempts < maxAttempts) {
+    while (released.size() < toRelease
+        && released.size() < candidates.size()
+        && attempts < maxAttempts) {
       attempts++;
-
-      // Weighted towards agents that have walked least, then gated by the module's persona x hour
-      // affinity.
-      int weightedIndex = (int) (Math.pow(random.nextDouble(), 1.5) * candidates.size());
-      Agent candidate = candidates.get(weightedIndex);
+      // Uniform among the agents at home. Until this, candidates were sorted by metres walked so
+      // far and drawn with a pow(u, 1.5) bias towards the least-walked, which is an equaliser: it
+      // pushed every agent towards the same cumulative distance, so the population held no
+      // frequent pedestrians and no non-walkers. Real walking is concentrated, and nothing
+      // measured says by how much, so the mechanism is removed rather than replaced by a guess -
+      // a uniform draw leaves the per-agent trip count binomial, which is the no-information
+      // baseline, where the sort held the variance below even that. A measured propensity, when
+      // the Audimob microdata make one possible, belongs in releaseCandidateWeight below.
+      Agent candidate = candidates.get(random.nextInt(candidates.size()));
       if (released.contains(candidate)) {
         continue;
       }
-      double weight = state.releaseCandidateWeight(candidate, hour);
+      double weight = demand.releaseCandidateWeight(candidate, hour);
       if (weight < 1.0 && random.nextDouble() >= weight) {
         continue;
       }
-
-      double meters = sampleTripMeters(band);
-      candidate.setDistanceNextDestination(meters);
       released.add(candidate);
-      // The sampled distance drives where this agent goes, so it stays the leg length. The budget
-      // is charged for the whole tour the release sets in motion: the agent walks out, chains
-      // through its agenda and walks home, and every one of those metres is walked on the network
-      // that metersPerDayPerPerson is meant to account for.
-      budget -= meters * state.expectedTourLegs(candidate);
     }
-
-    lastSpentMeters = metersToAllocate + residualMeters - budget;
-    // One tour's worth, for the same reason: the residual exists so an event too poor to afford
-    // the next release hands its metres to the following one, and the unit being afforded is a
-    // tour.
-    residualMeters =
-        capResidual(budget, TripDistanceBands.max(band) * state.expectedTourLegs(null));
 
     for (Agent agent : released) {
       agent.startWalkingAlone();
     }
-
     return released.size();
   }
 
   /**
-   * Bounds the running balance. An overshoot is negative and at most one trip by construction, so it
-   * carries in full and the next event pays it back. Unspent metres carry only up to one trip's
-   * worth: when the persona gate starves a release there is no deferred walking demand to represent,
-   * and an uncapped balance would accumulate through the quiet hours and discharge as a spike when
-   * the gate reopens.
+   * Logs how many agents are walking and how far the population has walked today.
    *
-   * @param balance the metres left over from this release event.
-   * @param oneTrip the band's maximum trip distance.
-   */
-  private double capResidual(double balance, double oneTrip) {
-    return balance > oneTrip ? oneTrip : balance;
-  }
-
-  /**
-   * Logs the current walking agent statistics, including the number of agents
-   * walking, expected versus walked kilometres.
+   * <p>The walked figure used to be printed against an expected one - the metres allocated so far
+   * by the budget. There is no expectation now: the day's metres are what the day's destinations
+   * turn out to be, and the figure to compare them against is {@code metersPerDayPerPerson}, once,
+   * at the end of a run, not hour by hour against a budget the model no longer keeps.
    */
   private void logWalkingAgents() {
     logger.info(
         String.format(
-            "TIME: %02d:%02d | Agents walking: %d | Expected Km walked till this time: %.1f vs KM"
-                + " Walked today: %.1f",
+            "TIME: %02d:%02d | Agents walking: %d | KM walked today: %.1f",
             currentTime.getHour(),
             currentTime.getMinute(),
             state.agentsWalking.size(),
-            expectedMetersWalkedSoFarToday / 1000,
             metersWalkedSoFarToday / 1000));
-  }
-
-  // private int determineNrAgentsToRelease(int expectedPedestrians, Set<Agent>
-  // agentsWalking) {
-  //
-  // double timeStepWeight = computeTimeStepWeight(); // Adjusted based on the
-  // time of day
-  // // Ensure the result is non-negative
-  // return Math.max((int) (expectedPedestrians / timeStepWeight) -
-  // agentsWalking.size(), 0);
-  // }
-  //
-  // private int calculateActivePedestrians() {
-  // if (isPeakHours())
-  // return (int) (TimePars.peakPercentage * Pars.numAgents);
-  // else if (isOffPeakHours())
-  // return (int) (TimePars.offPeakPercentage * Pars.numAgents);
-  // else
-  // return (int) (TimePars.nightPercentage * Pars.numAgents);
-  // }
-
-  /**
-   * Draws a trip distance for the band, resampling a bounded number of times while the module's
-   * {@link PedSimCity#tripAcceptanceProbability} filter (e.g. a walk-share logit) rejects the draw; the
-   * last draw stands if the filter keeps rejecting. The budget is spent against whatever comes out,
-   * so a filter that biases the realised mean no longer desynchronises it from the release size.
-   */
-  private double sampleTripMeters(TripDistanceBands.Band band) {
-    double metersToWalk = TripDistanceBands.sample(band, random.nextDouble());
-    for (int attempt = 0; attempt < 20; attempt++) {
-      if (random.nextDouble() < state.tripAcceptanceProbability(metersToWalk)) {
-        return metersToWalk;
-      }
-      metersToWalk = TripDistanceBands.sample(band, random.nextDouble());
-    }
-    return metersToWalk;
   }
 
   /**
@@ -279,7 +241,7 @@ public class AgentReleaseManager implements AutoCloseable {
       logFilePath = "outputs/agent_release_day_" + dayNumber + ".csv";
 
       logWriter = new PrintWriter(new BufferedWriter(new FileWriter(logFilePath, false)));
-      logWriter.println("step,datetime,meters_to_allocate,meters_spent,agents_released");
+      logWriter.println("step,datetime,agents_released");
       logWriter.flush();
 
       if (logWriter.checkError()) {
@@ -291,15 +253,12 @@ public class AgentReleaseManager implements AutoCloseable {
     }
   }
 
-  private void logRelease(
-      double step, double metersToAllocate, double metersAdjusted, int agentsReleased) {
+  private void logRelease(double step, int agentsReleased) {
     if (logWriter == null) {
       return;
     }
 
-    logWriter.printf(
-        "%f,%s,%.4f,%.4f,%d%n",
-        step, currentTime, metersToAllocate, metersAdjusted, agentsReleased);
+    logWriter.printf("%f,%s,%d%n", step, currentTime, agentsReleased);
 
     logWriter.flush();
 
@@ -312,13 +271,26 @@ public class AgentReleaseManager implements AutoCloseable {
   public void close() {
     logger.info(
         String.format(
-            "Day %d: planned %.0f m, walked %.0f m on completed legs, %d band widenings, "
-                + "%d fallbacks to any node",
+            "Day %d: planned %.0f m, walked %.0f m on completed legs "
+                + "(%d route lengths unusable), %d band widenings, "
+                + "%d fallbacks to any node, %d/%d angular routes served as shortest path "
+                + "(%d no dual path, %d trimmed away, %d with an unknown dual endpoint); "
+                + "%d routes found only beyond the agent's known network (%d angular); "
+                + "%d known networks left in pieces",
             dayNumber,
-            state.plannedRouteMeters(),
-            state.walkedRouteMeters(),
-            state.destinationWidenings(),
-            state.destinationFallbacks()));
+            state.ledger().plannedRouteMeters(),
+            state.ledger().walkedRouteMeters(),
+            state.ledger().unusableRouteLengths(),
+            state.ledger().destinationWidenings(),
+            state.ledger().destinationFallbacks(),
+            state.ledger().angularFallbacks(),
+            state.ledger().angularAttempts(),
+            state.ledger().angularNoDualPath(),
+            state.ledger().angularTrimmedAway(),
+            state.ledger().angularEndpointUnknown(),
+            state.ledger().fullNetworkEscalations(),
+            state.ledger().fullNetworkEscalationsAngular(),
+            sim.graph.Islands.incompleteMerges()));
     if (logWriter != null) {
       logWriter.flush();
       logWriter.close();

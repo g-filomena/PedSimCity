@@ -11,12 +11,13 @@ import java.util.Map;
  * and are registered with {@link pedsim.core.website.SimulationRestApi#registerModule} so the REST
  * layer can route {@code POST /api/start { "module": "night" }} requests to the right engine.
  *
- * <p>Extension points for future modules:
- *
- * <ul>
- *   <li>{@code cityImage} — {@code CityImageSimulationModule} in {@code pedsim.cityimage.engine}
- *   <li>{@code empirical} — {@code EmpiricalSimulationModule} in {@code pedsim.empirical.engine}
- * </ul>
+ * <p>Implemented by activity, night, learning and social. <b>cityImage and empirical do not
+ * implement it</b>, and no {@code CityImageSimulationModule} or {@code EmpiricalSimulationModule}
+ * has ever existed — this javadoc used to name both as though they did. Those two override
+ * {@link Engine#executeJob} outright, never construct an {@link AgentReleaseManager}, and launch
+ * from their own applets, so they reach neither the REST module registry nor the per-city
+ * configuration file. Giving them a module is the work that would put them on the same footing;
+ * until then, changes made through this interface do not reach them.
  */
 public interface SimulationModule {
 
@@ -33,6 +34,53 @@ public interface SimulationModule {
    */
   default boolean isConcreteRunnable() {
     return true;
+  }
+
+  /**
+   * Every parameter class a run of this module may have values written into: core's, plus the
+   * module's own.
+   *
+   * <p>One list, consulted by everything that writes parameters — the command line
+   * ({@link pedsim.core.parameters.ParameterManager#initFromArgs}) and the per-city configuration
+   * file ({@code activity.parameters.CityConfig}, via {@link #loadCityConfig}). There used to be no list:
+   * {@code initFromArgs}
+   * named {@code Pars}, {@code TimePars} and {@code RouteChoicePars} inline and nothing else, so
+   * every {@code ActivityPars} and {@code NightPars} key had to be picked up a second time in
+   * {@link #applyParameters}, by hand, or be dropped in silence. {@code --useDestinationChoice=true}
+   * was dropped that way, and an afternoon of comparison runs turned out to be two runs of the same
+   * code. A second writer reading a second list would have reproduced it exactly.
+   *
+   * <p>Core cannot name a module's class, so the module supplies it here rather than core importing
+   * it.
+   *
+   * @return the parameter classes, core's first
+   */
+  default Class<?>[] parameterClasses() {
+    return new Class<?>[] {
+      pedsim.core.parameters.Pars.class,
+      pedsim.core.parameters.TimePars.class,
+      pedsim.core.parameters.RouteChoicePars.class
+    };
+  }
+
+  /**
+   * Reads whatever per-city configuration this module has for {@code cityName}, before the command
+   * line is applied so a sweep still overrides it.
+   *
+   * <p>Core does nothing here, and that is the point. Core is the machinery - graph, routing,
+   * cognitive map, movement, the day loop - and has no behaviour to configure. A "city
+   * configuration" is a set of behavioural facts (how often people walk to work, what the population
+   * is made of, how far they will go for a given attraction), which is a model's idea and not the
+   * engine's, so the reader belongs to the module: see {@code activity.parameters.CityConfig}.
+   *
+   * <p>This seam exists because the reader was briefly in {@code core.parameters}, called directly
+   * from {@link SimulationLauncher} - the engine reaching for a behavioural concern. Core offers the
+   * hook; the module decides whether it has anything to read.
+   *
+   * @param cityName the city being loaded
+   */
+  default void loadCityConfig(String cityName) {
+    // Core has no behaviour to configure.
   }
 
   /**

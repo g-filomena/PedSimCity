@@ -1,18 +1,20 @@
 package pedsim.core.agents;
 
+import ec.util.MersenneTwisterFast;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.javatuples.Pair;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
+import pedsim.core.parameters.Pars;
 import pedsim.core.cognition.cognitivemap.CognitiveMap;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
+import pedsim.core.engine.NetworkCircuity;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.parameters.TimePars;
 import pedsim.core.routing.RoutePlanner;
@@ -61,21 +63,20 @@ public class Agent implements Steppable {
   protected Route route;
   protected NodeGraph lastDestination;
   /**
-   * Per-agent RNG, seeded from the model's master seed and the order in which agents are built.
+   * Per-agent RNG, seeded by {@link PedSimCity#nextAgentSeed()} from the model's seed and the
+   * order in which this simulation built its agents.
    *
-   * <p>It used to be {@code new Random()}, seeded from the clock, which made a run unrepeatable
+   * <p>It used to be {@code new java.util.Random()}, seeded from the clock, which made a run unrepeatable
    * whatever seed the model was given. One shared generator is not an option either: agents step
    * concurrently, and a generator drawn from several threads gives a different sequence per
    * interleaving. A generator per agent, seeded deterministically at construction, is repeatable
    * under concurrency because each agent's draws no longer depend on what the others do.
    */
-  protected Random random;
+  protected MersenneTwisterFast random;
 
-  /** Construction order of agents, which is what makes the per-agent seeds deterministic. */
-  private static final java.util.concurrent.atomic.AtomicLong AGENT_SEED_SEQUENCE =
-      new java.util.concurrent.atomic.AtomicLong();
+  /** Seed for an agent built without a simulation; fixed, so even that path is repeatable. */
+  private static final long DETACHED_AGENT_SEED = 0L;
   protected AgentMovement agentMovement;
-  protected double distanceNextDestination = 0.0;
 
   private int tripsDone = 0;
   public double metersWalkedTot = 0.0;
@@ -84,7 +85,6 @@ public class Agent implements Steppable {
   public List<Coordinate> spookLocations = new ArrayList<>();
 
   private Heuristics heuristics;
-  protected boolean hasWorkedToday = false;
 
   /**
    * Constructor Function. Creates a new agent with the specified agent
@@ -97,13 +97,13 @@ public class Agent implements Steppable {
   }
 
   public Agent() {
-    random = new Random(AGENT_SEED_SEQUENCE.getAndIncrement());
+    random = new MersenneTwisterFast(DETACHED_AGENT_SEED);
   }
 
   public Agent(PedSimCity state, boolean registerSpatial) {
     this.state = state;
     // Before the cognitive map, which draws from it.
-    random = new Random(state.seed() * 1_000_003L + AGENT_SEED_SEQUENCE.getAndIncrement());
+    random = new MersenneTwisterFast(state.nextAgentSeed());
     cognitiveMap = new CognitiveMap(this);
     initialiseAgentProperties();
     status = AgentStatus.WAITING;
@@ -160,16 +160,17 @@ public class Agent implements Steppable {
     }
   }
 
-  protected synchronized void planTrip() {
+  /**
+   * Not synchronised: the lock would be on the agent itself, and MASON never steps one agent from
+   * two threads, so it guarded nothing. It also read as though concurrent planning were a case the
+   * model handled, which it is not - {@code NightAgent} had already dropped the modifier.
+   */
+  protected void planTrip() {
     defineOrigin();
     if (isGoingHome()) {
       destinationNode = homeNode;
     } else {
-      if (shouldGoToWork()) {
-        destinationNode = workNode;
-      } else {
-        defineRandomDestination();
-      }
+      defineOutboundDestination();
     }
     // safety check
     if (destinationNode.getID() == (originNode.getID())) {
@@ -188,12 +189,14 @@ public class Agent implements Steppable {
   }
 
   /**
-   * Whether the next non-home trip should target the work node. Core: a work node exists, the
-   * agent has not worked today and it is daytime. Activity-based modules refine this with persona
-   * work-start windows and day-of-week.
+   * Where an agent goes when it is not going home.
+   *
+   * <p>A bare agent has nothing it has to do, so it goes somewhere it knows. Subclasses that model
+   * a reason to leave the house — a workplace to reach, an agenda to work through — decide here
+   * whether this particular trip has one, and defer to this when it does not.
    */
-  protected boolean shouldGoToWork() {
-    return workNode != null && !hasWorkedToday && !isDark();
+  protected void defineOutboundDestination() {
+    defineRandomDestination();
   }
 
   /**
@@ -238,26 +241,37 @@ public class Agent implements Steppable {
   private static final int MAX_SEARCH_DOUBLINGS = 24;
 
   /**
-   * The nodes closest to a given distance from the origin, found by widening a search interval
-   * around it until something falls inside.
+   * Number of candidates the search aims for before it stops widening.
    *
-   * <p>There is no band width here, and deliberately so. It used to be a fixed ±10% of the
-   * sampled distance, a number with no source and no observable counterpart: nothing measures how
-   * tolerant a person is about the length of the trip they had in mind. Worse, a fixed fraction
-   * means the choice set is wide where the network is dense and narrow where it is sparse, which
-   * is backwards. Starting at a metre and doubling until the set is non-empty returns the nodes
-   * nearest to the distance actually asked for, and lets the network decide how near that is. The
-   * two constants above are convergence controls: the answer is the same whatever they are, to
-   * within one doubling.
+   * <p>Stopping at the first non-empty interval is not enough. On Torino's 31,401 nodes over
+   * 208 km2 - 151 nodes/km2 - a +/-1 m interval at a 1,445 m radius holds about three nodes.
+   * Distance would then be honoured almost exactly and nothing else would decide anything:
+   * purpose-typed attraction, which the activity module is built on, would be choosing between
+   * three nodes, and the radial-shell correction in {@link #selectWeightedDestination} would be
+   * dividing every weight by one. Asking for thirty reaches roughly +/-11 m at that density -
+   * still tight on distance, and enough of a choice set for attraction to mean something.
+   */
+  private static final int TARGET_DESTINATION_CANDIDATES = 30;
+
+  /**
+   * The nodes closest to a given distance from the origin, found by widening a search interval
+   * around it until it holds enough candidates to choose between.
+   *
+   * <p>There is no band width here, and deliberately so. It used to be a fixed +/-10% of the
+   * distance, a number with no source and no observable counterpart: nothing measures how tolerant
+   * a person is about the length of the trip they had in mind. Worse, a fixed fraction makes the
+   * choice set wide where the network is dense and narrow where it is sparse, which is backwards.
+   * Doubling from a metre until the set is big enough lets the network set the tolerance instead.
    *
    * @param network the graph to search
-   * @param distance the distance the trip was released for
+   * @param distance the straight-line radius to search around
    * @param restrictTo nodes the agent must already know, or null for no restriction
-   * @return the candidates found, empty only if the search exhausted its doublings
+   * @return the best candidate set found; empty only when the graph offers nothing at all
    */
   protected List<NodeGraph> candidatesNearDistance(
       Graph network, double distance, Set<NodeGraph> restrictTo) {
     double tolerance = SEARCH_SEED_METRES;
+    List<NodeGraph> widest = new ArrayList<>();
     for (int doublings = 0; doublings < MAX_SEARCH_DOUBLINGS; doublings++) {
       List<NodeGraph> candidates =
           NodesLookup.getNodesBetweenDistanceInterval(
@@ -265,15 +279,40 @@ public class Agent implements Steppable {
       if (restrictTo != null) {
         candidates.retainAll(restrictTo);
       }
-      if (!candidates.isEmpty()) {
-        state.recordDestinationWidening(doublings);
+      if (candidates.size() >= TARGET_DESTINATION_CANDIDATES) {
+        state.ledger().recordDestinationWidening(doublings);
         return candidates;
       }
+      // Keep the widest set seen: if the graph never offers thirty, this is the answer.
+      widest = candidates;
       tolerance *= 2.0;
     }
-    return new ArrayList<>();
+    state.ledger().recordDestinationWidening(MAX_SEARCH_DOUBLINGS);
+    return widest;
   }
 
+  /**
+   * Somewhere the agent knows, at about as far as it tends to walk.
+   *
+   * <p>The trip length is drawn here rather than handed in. It used to arrive through a
+   * {@code setDistanceNextDestination} call from the release manager, which drew it from a band of
+   * metres while spending a daily budget; the budget is gone, and with it the only writer, so for a
+   * while nothing set a length at all and this method searched around zero - every trip to a node
+   * within a few tens of metres of home. An agent that needs to know how far it is going should ask
+   * rather than wait to be told.
+   *
+   * <p>Uniform over {@code [minRouteLength, maxRouteLength]}. The lognormal the old distance bands
+   * used is gone with them: it carried a shape parameter with no more source than the range itself,
+   * and a uniform draw over a bounded range piles no mass on the bounds either, which was the defect
+   * the lognormal was introduced to fix.
+   *
+   * <p>Those two are <i>walked</i> metres and the node search works in straight lines, so the draw
+   * goes through {@link NetworkCircuity#straightLineFor(double)} first.
+   *
+   * <p>Restricted to what the agent knows. A module that models location choice overrides this
+   * entirely (see {@code ActivityAgent.chooseDestination}) and reaches here only with
+   * {@code useDestinationChoice} off.
+   */
   protected void defineRandomDestination() {
 
     Graph network = SharedCognitiveMap.getCommunityPrimalNetwork();
@@ -281,12 +320,15 @@ public class Agent implements Steppable {
         new HashSet<>(
             GraphUtils.getNodesFromNodeIDs(
                 getCognitiveMap().getAgentKnownNodes(), PedSimCity.nodesMap));
+
+    double routeMetres =
+        Pars.minRouteLength + random.nextDouble() * (Pars.maxRouteLength - Pars.minRouteLength);
+
     List<NodeGraph> candidates =
-        candidatesNearDistance(network, distanceNextDestination, knownNodes);
+        candidatesNearDistance(network, NetworkCircuity.straightLineFor(routeMetres), knownNodes);
     if (candidates.isEmpty()) {
-      state.recordDestinationFallback();
-      List<NodeGraph> allNodes = network.getNodes();
-      candidates = new ArrayList<>(allNodes);
+      state.ledger().recordDestinationFallback();
+      candidates = new ArrayList<>(network.getNodes());
     }
 
     destinationNode = selectWeightedDestination(candidates);
@@ -321,18 +363,17 @@ public class Agent implements Steppable {
   /**
    * Picks a destination from the candidates in the distance band.
    *
-   * <p>Two things decide it, and they are not the same thing. The band says how far the trip
-   * should be; the POI weights say what is worth walking to. Weighting by attraction alone
-   * conflates them, because the candidates are not spread evenly over the band: they come from an
-   * annulus, so their number grows with the radius, and a draw proportional to attraction inherits
-   * that growth. The realised radius then sits above the sampled distance even when every weight
-   * is equal, and further above it wherever the POIs happen to cluster.
+   * <p>Two things decide it, and they are not the same thing. The band says how far the trip should
+   * be; the POI weights say what is worth walking to. Weighting by attraction alone conflates them,
+   * because the candidates are not spread evenly over the band: they come from an annulus, so their
+   * number grows with the radius, and a draw proportional to attraction inherits that growth. The
+   * realised radius then sits above the drawn distance even when every weight is equal, and further
+   * above it wherever the POIs happen to cluster.
    *
    * <p>So each candidate's weight is divided by the number of candidates sharing its radial shell.
-   * This is the standard correction for a sampled choice set: divide by the probability the
-   * protocol had of offering that alternative. Attraction still decides which node is chosen at a
-   * given distance; it no longer decides the distance. With uniform weights the radius is now flat
-   * across the band, which is what asking for {@code [0.9d, 1.1d]} was meant to mean.
+   * This is the standard correction for a sampled choice set: divide by the probability the protocol
+   * had of offering that alternative. Attraction still decides which node is chosen at a given
+   * distance; it no longer decides the distance.
    *
    * @param candidates the nodes in the band
    * @return the chosen node, or null when there are none
@@ -454,11 +495,8 @@ public class Agent implements Steppable {
   /**
    * Handles the agent's status when it reaches its solo destination.
    */
-  private void handleReachedSoloDestination() {
+  protected void handleReachedSoloDestination() {
     status = AgentStatus.AT_DESTINATION;
-    if (lastDestination != null && lastDestination.equals(workNode)) {
-      hasWorkedToday = true;
-    }
     calculateTimeAtDestination(state.schedule.getSteps());
   }
 
@@ -467,25 +505,20 @@ public class Agent implements Steppable {
    */
   protected void handleReachedHome() {
     status = AgentStatus.WAITING;
-    hasWorkedToday = false; // Reset for the next day
     pedsim.core.engine.SimulationStateStore.getInstance().removeAgent(this.agentID);
   }
 
   /**
-   * Calculates the time the agent will stay at its destination.
+   * How long the agent stays where it has just arrived.
+   *
+   * <p>Fifteen minutes to two hours, uniformly. The range is not sourced; it is what a stop looks
+   * like when nothing is known about what the stop is for. Subclasses that know the purpose —
+   * {@code ActivityAgent} has the persona's stay distributions — answer from that instead.
    *
    * @param steps the current simulation step.
    */
   protected void calculateTimeAtDestination(long steps) {
-    int randomMinutes;
-    if (lastDestination != null && lastDestination.equals(workNode)) {
-      // Work stay: 6 to 9 hours (360 to 540 minutes)
-      randomMinutes = 360 + random.nextInt(181);
-    } else {
-      // POI/Social stay: 15 to 120 minutes (original logic)
-      randomMinutes = 15 + random.nextInt(106);
-    }
-
+    int randomMinutes = 15 + random.nextInt(106);
     timeAtDestination = (randomMinutes * TimePars.MINUTE_TO_STEPS) + steps;
   }
 
@@ -669,14 +702,6 @@ public class Agent implements Steppable {
     return metersWalkedDay;
   }
 
-  /**
-   * Sets the distance to the next destination for the agent.
-   *
-   * @param distanceNextDestination The distance to the next destination.
-   */
-  public void setDistanceNextDestination(double distanceNextDestination) {
-    this.distanceNextDestination = distanceNextDestination;
-  }
 
   /**
    * Gets the simulation state of the agent.
@@ -730,21 +755,21 @@ public class Agent implements Steppable {
   public void setRoute(Route route) {
     this.route = route;
     // Every leg passes through here: the base planner, the night module's lighting-aware one, and
-    // the chained legs of a tour, which call planRoute() directly and so never reach
+    // the chained legs of a trip chain, which call planRoute() directly and so never reach
     // reinitializeMovementPath(). Hooking a higher-level method looks tidier but is fragile when
     // subclasses bypass it; the right seam is the one that has to be crossed because it installs
     // the state.
     if (route != null && state != null) {
-      state.recordPlannedRoute(route.getLength());
+      state.ledger().recordPlannedRoute(route.getLength());
     }
   }
 
   /** This agent's seeded RNG. Collaborators must draw from it rather than from a global one. */
-  public Random getRandom() {
+  public MersenneTwisterFast getRandom() {
     return random;
   }
 
-  public void setHomeWorkLoctations(NodeGraph homeNode, NodeGraph workNode) {
+  public void setHomeAndWorkplace(NodeGraph homeNode, NodeGraph workNode) {
     this.homeNode = homeNode;
     this.workNode = workNode;
   }
@@ -754,6 +779,31 @@ public class Agent implements Steppable {
    *
    * @return The home node for the agent.
    */
+  /**
+   * The places this agent's known space is built around.
+   *
+   * <p>The cognitive map's activity bone is the skeleton of the space someone knows: their anchors,
+   * the regions around them, and the paths between. Core knows of two anchors, home and the
+   * workplace, and that was long the literal shape of the code - which quietly assumed everyone has
+   * a workplace. A retiree does not, and was left with a bone built around home alone: a known
+   * world one neighbourhood wide, by accident rather than by decision.
+   *
+   * <p>Modules override this to say what anchors their people actually have. Whoever overrides it
+   * should put home first: the connectivity paths are traced from the first anchor to the others.
+   *
+   * @return the anchors, never null and never containing null
+   */
+  public List<NodeGraph> cognitiveAnchors() {
+    List<NodeGraph> anchors = new ArrayList<>(2);
+    if (homeNode != null) {
+      anchors.add(homeNode);
+    }
+    if (workNode != null) {
+      anchors.add(workNode);
+    }
+    return anchors;
+  }
+
   public NodeGraph getHome() {
     return homeNode;
   }

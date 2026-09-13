@@ -81,7 +81,17 @@ public final class SimulationLauncher {
    * internally; this method only needs to set mode flags and CLI parameters first.
    */
   public void headlessRun(String[] args) throws Exception {
-    Map<String, String> argsMap = ParameterManager.initFromArgs(args);
+    // Order matters and is the whole contract: the city file states the city, the command line
+    // overrides it, and anything derived is computed after both (Pars.setSimulationParameters, from
+    // Engine.runJobs). Reading cityName out of the raw args first is what lets the file be found
+    // before any parameter has been applied.
+    Map<String, String> rawArgs = ParameterManager.parseArgs(args);
+    if (rawArgs.containsKey("cityName")) {
+      Pars.cityName = rawArgs.get("cityName");
+    }
+    module.loadCityConfig(Pars.cityName);
+
+    Map<String, String> argsMap = ParameterManager.initFromArgs(args, module.parameterClasses());
     module.applyParameters(new java.util.HashMap<>(argsMap));
     applyMode();
     module.createEngine().runJobs(module.scenarioConfig(), Pars.parallel);

@@ -157,10 +157,8 @@ public class Engine {
 
     onJobStarted(job, state, scenarioConfig);
 
-    double kmCurrentDay = calculateMetersCurrentDay(state);
     logger.info("---------- Beginning day Nr " + (currentDay + 1));
-    AgentReleaseManager currentDayReleaseManager =
-        new AgentReleaseManager(state, kmCurrentDay, currentDay + 1);
+    AgentReleaseManager currentDayReleaseManager = new AgentReleaseManager(state, currentDay + 1);
 
     java.util.Map<Integer, java.util.Map<String, Integer>> finalVolumesMap =
         new java.util.HashMap<>();
@@ -208,9 +206,8 @@ public class Engine {
             handleEndWeek(state, job, scenarioConfig);
           }
 
-          kmCurrentDay = calculateMetersCurrentDay(state);
           logger.info("---------- Beginning day Nr " + (currentDay + 1));
-          currentDayReleaseManager = new AgentReleaseManager(state, kmCurrentDay, currentDay + 1);
+          currentDayReleaseManager = new AgentReleaseManager(state, currentDay + 1);
         }
 
         if (steps >= nextAgentRelease) {
@@ -339,19 +336,4 @@ public class Engine {
     return totalMinutes / (24 * 60);
   }
 
-  /**
-   * The day's metres budget, with its +/-10% day-to-day variation.
-   *
-   * <p>Drawn from the model's own generator. It used to call
-   * {@code Utilities.fromDistribution(1.0, 0.10, null)} - where the {@code null} is the
-   * <i>direction</i> argument, not a generator, so the three-argument overload drew from
-   * {@code ThreadLocalRandom}. That was the last unseeded draw in the simulation path, and it
-   * survived the September seeding work because it does not look like one. Two runs on the same
-   * seed produced identical trips and different release logs, which is how it surfaced: under
-   * count-based release this figure only reaches the log, but on the metres path it is the day's
-   * budget.
-   */
-  protected double calculateMetersCurrentDay(PedSimCity state) {
-    return Pars.metersPerDay * (state.random.nextGaussian() * 0.10 + 1.0);
-  }
 }

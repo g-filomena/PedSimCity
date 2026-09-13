@@ -3,6 +3,7 @@ package pedsim.core.engine;
 import ec.util.MersenneTwisterFast;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -42,8 +43,14 @@ public class Populate {
   protected NodeGraph homeNode;
   protected NodeGraph workNode;
 
-  // Counters to test Spatial Jump vs Fallback performance
-  public static AtomicInteger spatialJumpSuccessCount = new AtomicInteger(0);
+  /**
+   * Agents whose workplace no dataset could place, and which therefore sit on a node drawn
+   * uniformly from the whole city.
+   *
+   * <p>It sat beside a {@code spatialJumpSuccessCount} that nothing ever incremented, and both
+   * were logged together as "Agent Routing Stats" - a line reporting two numbers, one of which was
+   * structurally zero and the other unreachable.
+   */
   public static AtomicInteger randomFallbackCount = new AtomicInteger(0);
 
   /**
@@ -76,10 +83,7 @@ public class Populate {
     }
 
     logger.info(
-        "Agent Routing Stats -> Spatial Jump Successes: "
-            + spatialJumpSuccessCount.get()
-            + " | Instant MersenneTwisterFast Fallbacks: "
-            + randomFallbackCount.get());
+        randomFallbackCount.get() + " workplaces drawn uniformly, no dataset having placed them");
     logger.info(state.agentsList.size() + " agents created");
   }
 
@@ -103,36 +107,63 @@ public class Populate {
 
     assignHomeNode();
     assignWorkNode();
-    agent.setHomeWorkLoctations(homeNode, workNode);
+    agent.setHomeAndWorkplace(homeNode, workNode);
   }
 
   /**
-   * Assigns a home node. Core: DMA selection where available, otherwise uniform random.
-   * Data-driven modules override this to draw from residence-weighted zones first.
+   * Assigns a home node: the best-informed way of placing one that yields a node, else a uniform
+   * draw over the network.
    */
   protected void assignHomeNode() {
-    if (homeNode == null) homeNode = selectHomeNodeWithDMA();
-    // When no DMA data is available, distribute uniformly across all network nodes.
+    homeNode = firstNodeFrom(residenceLadder());
+    // When nothing better could place a home, distribute uniformly across all network nodes.
     if (homeNode == null) homeNode = selectRandomNode();
   }
 
   /**
-   * Assigns a work node. Core: DMA selection, then distance-interval fallback, then uniform random.
-   * Data-driven modules override this to draw from workplace-weighted nodes first.
+   * Ordered ways of choosing where someone lives, best-informed first. Core knows one: the DMA
+   * tags on the buildings layer. Modules prepend their own data and inherit what follows.
+   */
+  protected List<Supplier<NodeGraph>> residenceLadder() {
+    return List.of(this::selectHomeNodeWithDMA);
+  }
+
+  /**
+   * Assigns a work node: the best-informed way of placing one that yields a node, else a uniform
+   * draw over the network.
    */
   protected void assignWorkNode() {
     if (homeNode == null) return;
 
-    if (workNode == null) workNode = selectWorkNodeWithDMA(false);
-
-    if (workNode == null) workNode = selectWorkNodeWithDistanceFallback(homeNode);
-
+    workNode = firstNodeFrom(workplaceLadder());
     if (workNode == null) {
       workNode = selectRandomNode();
-      if (workNode != null) {
-        randomFallbackCount.incrementAndGet();
+      randomFallbackCount.incrementAndGet();
+    }
+  }
+
+  /**
+   * Ordered ways of choosing a workplace, best-informed first. Core knows one: the DMA tags on the
+   * buildings layer. Modules prepend their own data and inherit what follows.
+   *
+   * <p>This is the seam, rather than {@link #assignWorkNode()}, because a module overriding the
+   * assignment restated the whole ladder to add one rung to the front of it - and the two copies
+   * then drifted. The uniform draw that ends the ladder, and the counter that records it, exist
+   * once.
+   */
+  protected List<Supplier<NodeGraph>> workplaceLadder() {
+    return List.of(this::selectWorkNodeWithDMA);
+  }
+
+  /** The first rung of a ladder that yields a node, or null when none of them does. */
+  protected NodeGraph firstNodeFrom(List<Supplier<NodeGraph>> ladder) {
+    for (Supplier<NodeGraph> rung : ladder) {
+      NodeGraph node = rung.get();
+      if (node != null) {
+        return node;
       }
     }
+    return null;
   }
 
   protected NodeGraph selectHomeNodeWithDMA() {
@@ -162,8 +193,12 @@ public class Populate {
    * <p>What is still missing is distance decay: workplaces are drawn with equal weight wherever
    * they are, so commutes come out longer than they should. The proper form is an attraction term
    * against an impedance term, which is the destination-choice model this is a step towards.
+   *
+   * <p>It used to take a {@code keepHomeNode} flag that no line of the body read. The activity
+   * module passed {@code hasUsableCensusZones()} to it, under a comment saying a census-drawn home
+   * would then stay fixed - an intention the parameter never carried out anywhere.
    */
-  protected NodeGraph selectWorkNodeWithDMA(boolean keepHomeNode) {
+  protected NodeGraph selectWorkNodeWithDMA() {
     // DMA attributes are only assigned when the landmarks/buildings layer is loaded.
     // If it's empty, every node has dma="" and the lookup has nothing to filter on.
     if (PedSimCity.buildings.isEmpty()) {
@@ -173,11 +208,15 @@ public class Populate {
         SharedCognitiveMap.getCommunityPrimalNetwork(), "work", random);
   }
 
-  /** Any node at all, for cities whose data carries no work tags. */
-  protected NodeGraph selectWorkNodeWithDistanceFallback(NodeGraph homeNode) {
-    return NodesLookup.randomNode(SharedCognitiveMap.getCommunityPrimalNetwork(), random);
-  }
-
+  /**
+   * Any node at all: the end of every ladder, for a city whose data cannot say more.
+   *
+   * <p>There used to be a rung above this one called {@code selectWorkNodeWithDistanceFallback},
+   * whose name promised a distance and whose body was a uniform random node - this method, without
+   * the counter. Because it could not fail, the counted rung below it never ran, and
+   * {@link #randomFallbackCount} - logged at the end of every populate as "Instant
+   * MersenneTwisterFast Fallbacks" - reported 0 on every run the model has ever done.
+   */
   protected NodeGraph selectRandomNode() {
     List<NodeGraph> nodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
     return nodes.get(random.nextInt(nodes.size()));

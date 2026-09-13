@@ -2,6 +2,7 @@ package pedsim.core.cognition.cognitivemap;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -16,7 +17,6 @@ import pedsim.core.agents.Agent;
 import pedsim.core.cognition.cityimage.Region;
 import pedsim.core.cognition.network.NetworkBuilder;
 import pedsim.core.engine.PedSimCity;
-import pedsim.core.parameters.LearningPars;
 import pedsim.core.parameters.Pars;
 import pedsim.core.parameters.RouteChoicePars;
 import sim.graph.EdgeGraph;
@@ -31,6 +31,14 @@ import sim.routing.Astar;
  * designed for further developments.
  */
 public class CognitiveMap extends SharedCognitiveMap {
+
+  /**
+   * Mean of the spatial ability an agent is given, which is then spread half a point either way.
+   * It arrived here as {@code LearningPars.MEAN_MEMORY_ROUTES}, a learning-module parameter, but
+   * nothing in the learning module read it and what it seeds is a trait every agent has, learning
+   * or not. Same value, named for what it does, and core no longer reaches into a module.
+   */
+  private static final double MEAN_SPATIAL_ABILITY = 0.75;
 
   Geometry activityBone;
 
@@ -65,7 +73,7 @@ public class CognitiveMap extends SharedCognitiveMap {
             1.0,
             Math.max(
                 0.0,
-                LearningPars.MEAN_MEMORY_ROUTES
+                MEAN_SPATIAL_ABILITY
                     + (agent.getRandom().nextDouble() - 0.5) * 0.5));
   }
 
@@ -82,7 +90,10 @@ public class CognitiveMap extends SharedCognitiveMap {
 
   private void buildActivityBone() {
 
-    NodeGraph[] knownNodes = {agent.getHome(), agent.getWork()};
+    List<NodeGraph> knownNodes = agent.cognitiveAnchors();
+    if (knownNodes.isEmpty()) {
+      return;
+    }
 
     Set<NodeGraph> activityBoneNodesTmp = new HashSet<>();
     Queue<NodeGraph> queue = new LinkedList<>();
@@ -97,8 +108,9 @@ public class CognitiveMap extends SharedCognitiveMap {
     }
 
     Map<NodeGraph, Double> distanceMap = new HashMap<>();
-    distanceMap.put(agent.getHome(), 0.0);
-    distanceMap.put(agent.getWork(), 0.0);
+    for (NodeGraph anchor : knownNodes) {
+      distanceMap.put(anchor, 0.0);
+    }
 
     // Step 1: Collect nearby nodes with cumulative distance tracking
     while (!queue.isEmpty()) {
@@ -109,7 +121,7 @@ public class CognitiveMap extends SharedCognitiveMap {
         NodeGraph neighborNode = edge.getOtherNode(currentNode);
         double newDistance = currentDistance + edge.getLength(); // Cumulative distance
 
-        if (!activityBoneNodesTmp.contains(neighborNode) && newDistance <= Pars.homeWorkRadius) {
+        if (!activityBoneNodesTmp.contains(neighborNode) && newDistance <= Pars.anchorRadius) {
           activityBoneNodesTmp.add(neighborNode);
           queue.add(neighborNode);
           distanceMap.put(neighborNode, newDistance); // Store cumulative distance
@@ -117,17 +129,18 @@ public class CognitiveMap extends SharedCognitiveMap {
       }
     }
 
-    // Step 2: Ensure path connectivity (shortest path between home and work)
+    // Step 2: connectivity. The bone is not a set of islands: the streets between the anchors are
+    // part of what someone knows, so a path is traced from the first anchor to each of the others.
     Astar astar = new Astar();
-    List<NodeGraph> shortestPath =
-        astar.astarRoute(
-                agent.getHome(),
-                agent.getWork(),
-                SharedCognitiveMap.getCommunityPrimalNetwork(),
-                null)
-            .nodesSequence;
-    if (!shortestPath.isEmpty()) {
-      activityBoneNodesTmp.addAll(shortestPath);
+    NodeGraph origin = knownNodes.get(0);
+    for (int i = 1; i < knownNodes.size(); i++) {
+      List<NodeGraph> shortestPath =
+          astar.astarRoute(
+                  origin, knownNodes.get(i), SharedCognitiveMap.getCommunityPrimalNetwork(), null)
+              .nodesSequence;
+      if (!shortestPath.isEmpty()) {
+        activityBoneNodesTmp.addAll(shortestPath);
+      }
     }
 
     if (RouteChoicePars.cityCentreRegionsID.length > 0) {
@@ -147,19 +160,43 @@ public class CognitiveMap extends SharedCognitiveMap {
    * Builds the activity bone, which includes the agent's home and work nodes
    * along with edges in the known regions and from those nodes.
    *
+   * <p>The cheap alternative to {@link #formCognitiveMap()}: home and work regions plus the edges
+   * incident on those two nodes, and nothing else. No {@link NetworkBuilder}, no {@link Islands}
+   * decomposition, no A* between the anchors — which is why the night module, the only caller,
+   * does a day with thousands of agents in the time the full build takes for hundreds.
+   *
    * <p>A null anchor is skipped rather than treated as an error: personas without a mandatory
    * activity (retirees, flex adults) are deliberately given no work node by
    * {@code ActivityPopulate.applyPersonaEmployment}, so their bone is built from home alone.
+   *
+   * <p><b>It fills {@code agentKnownEdges} and deliberately leaves {@code agentKnownNodes}
+   * empty</b>, so {@link #getNodesInKnownNetwork()} returns nothing for an agent built this way.
+   * That is safe only because this method leaves {@link #individualised} {@code false}: the flag
+   * is what {@code Dijkstra.initialisePrimal} consults before confining its search to the known
+   * subgraph, so such an agent routes over the full community network and the empty node set is
+   * never asked for. The known edges are a <i>preference</i> signal here — what {@code
+   * NightBehaviour} scores for comfort and what a vulnerable agent avoids — not a statement about
+   * what is reachable.
+   *
+   * <p><b>The trap:</b> anything that turns {@code individualised} on for an agent whose bone was
+   * built here, or any route through {@code Agent.defineRandomDestination()} — which filters its
+   * candidate set by {@code getAgentKnownNodes()} — gets an empty set and silently degrades:
+   * Dijkstra to an empty subgraph, destination choice to {@code recordDestinationFallback()} on
+   * every trip. {@code NightAgent} avoids the second by overriding the method and passing {@code
+   * null} for the restriction. If a simple-bone agent ever needs either, populate {@code
+   * agentKnownNodes} here first — the nodes are already to hand.
    */
   public void buildSimpleActivityBone() {
 
     NodeGraph[] knownNodes = {agent.getHome(), agent.getWork()};
-    List<EdgeGraph> edges = new ArrayList<>();
 
     for (NodeGraph node : knownNodes) {
       if (node == null) continue;
       int region = node.getRegionID();
       agentKnownRegions.add(region);
+      // Per anchor, not accumulated across them: the list used to be declared outside this loop,
+      // so the home anchor's edges were re-collected and re-converted on the work iteration.
+      List<EdgeGraph> edges = new ArrayList<>();
       Region r = PedSimCity.regionsMap.get(region);
       if (r != null) edges.addAll(r.edges);
       edges.addAll(node.getEdges());
@@ -208,7 +245,12 @@ public class CognitiveMap extends SharedCognitiveMap {
   public void deriveOtherKnownRegions() {
 
     Islands islands = new Islands(SharedCognitiveMap.getCommunityPrimalNetwork());
-    List<Integer> potentiallyKnownRegions = new ArrayList<>();
+
+    // A set, not a list. This collected a region id per known *node*, so a region the agent knows
+    // five hundred nodes of was queued five hundred times - and the loop below ran a full island
+    // decomposition for every one of them. LinkedHashSet rather than HashSet so the order stays
+    // fixed from run to run, which matters for a model that is meant to replay from its seed.
+    Set<Integer> potentiallyKnownRegions = new LinkedHashSet<>();
 
     for (int nodeID : agentKnownNodes) {
       NodeGraph node = PedSimCity.nodesMap.get(nodeID);
@@ -218,14 +260,24 @@ public class CognitiveMap extends SharedCognitiveMap {
       }
       potentiallyKnownRegions.add(regionID);
     }
+    if (potentiallyKnownRegions.isEmpty()) {
+      return;
+    }
+
+    // One pass over the known network, bucketed by region, instead of re-filtering the whole of it
+    // once per region.
+    Map<Integer, Set<EdgeGraph>> edgesByRegion = new HashMap<>();
+    for (EdgeGraph edge : getEdgesInKnownNetwork()) {
+      if (potentiallyKnownRegions.contains(edge.getRegionID())) {
+        edgesByRegion.computeIfAbsent(edge.getRegionID(), unused -> new HashSet<>()).add(edge);
+      }
+    }
 
     for (int regionID : potentiallyKnownRegions) {
-      Set<EdgeGraph> regionEdges =
-          new HashSet<>(
-              getEdgesInKnownNetwork().stream()
-                  .filter(edge -> edge.getRegionID() == regionID)
-                  .collect(Collectors.toList()));
-
+      Set<EdgeGraph> regionEdges = edgesByRegion.get(regionID);
+      if (regionEdges == null || regionEdges.isEmpty()) {
+        continue;
+      }
       if (islands.findDisconnectedIslands(regionEdges).size() == 1) {
         agentKnownRegions.add(regionID);
       }

@@ -135,6 +135,31 @@ public final class SimulationStateStore {
     activeModule.set(module);
   }
 
+  /**
+   * One boolean from the active module's {@link SimulationModule#extraState()}, or {@code false}
+   * when there is no active module, it publishes no such key, or the value is not a boolean.
+   *
+   * <p>For core code that has to branch on something only a module knows. The alternative in use
+   * before this was {@code Class.forName("pedsim.night.parameters.NightPars")} inside
+   * {@code HtmlExporter} — core naming a module by string, so the compiler could not see the
+   * coupling, and renaming the field would have made the dashboard quietly report no A/B test
+   * forever. A module already declares what it wants core to see; core should ask.
+   *
+   * @param key the key the module publishes
+   */
+  public boolean moduleFlag(String key) {
+    SimulationModule active = activeModule.get();
+    if (active == null) {
+      return false;
+    }
+    try {
+      return active.extraState().get(key) instanceof Boolean flag && flag;
+    } catch (Exception e) {
+      logger.warning("extraState() threw while reading " + key + ": " + e.getMessage());
+      return false;
+    }
+  }
+
   /** Resets all transient state for a new run. Does not clear the active module. */
   public void reset() {
     currentStep = 0;

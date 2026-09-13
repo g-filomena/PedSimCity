@@ -60,6 +60,11 @@ public class Environment {
     }
 
     SharedCognitiveMap.setCommunityCognitiveMap();
+
+    // After the community network exists, because that is what is measured. Core needs the factor
+    // as much as any module does: it converts a trip length stated in walked metres into the
+    // straight-line radius a node search works in.
+    NetworkCircuity.measureInto(SharedCognitiveMap.getCommunityPrimalNetwork());
   }
 
   /**

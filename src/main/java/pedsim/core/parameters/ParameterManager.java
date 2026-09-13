@@ -1,11 +1,9 @@
 package pedsim.core.parameters;
 
-import java.awt.TextField;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import pedsim.core.applet.PedSimCityApplet;
 import pedsim.core.utilities.LoggerUtil;
 
 /**
@@ -18,17 +16,11 @@ public class ParameterManager {
   // Apply values into static parameter classes
   // ------------------------------------------------------------
 
-  /** Apply values from panel fields into a target parameter class. */
-  public static void apply(Map<String, TextField> panelFields, Class<?> targetClass) {
-    for (Map.Entry<String, TextField> entry : panelFields.entrySet())
-      setFieldValue(targetClass, entry.getKey(), entry.getValue().getText().trim());
-  }
-
-  /** Apply multiple maps (e.g. doubles, booleans) to a class. */
-  @SafeVarargs
-  public static void applyAll(Class<?> targetClass, Map<String, TextField>... fieldMaps) {
-    for (Map<String, TextField> map : fieldMaps) apply(map, targetClass);
-  }
+  // apply(Map<String, TextField>, Class) and applyAll(...) lived here, writing parameters out of AWT
+  // text fields. They went with the GUI, and so did collectParameters(PedSimCityApplet, ...) - core's
+  // parameter code taking the GUI class as a parameter type, which was backwards regardless of AWT.
+  // Parameters now arrive from exactly two places, both of which leave a record a run can be
+  // reproduced from: the running module's per-city file and the command line.
 
   /** Apply a parameter map (CLI style) to multiple target classes. */
   @SafeVarargs
@@ -42,12 +34,29 @@ public class ParameterManager {
   // ------------------------------------------------------------
 
   /**
-   * Parse CLI args and apply them to all parameter classes. Usable for both local CLI runs and
-   * server/headless runs.
+   * Parse CLI args and apply them to core's parameter classes only.
+   *
+   * @deprecated Prefer {@link #initFromArgs(String[], Class[])} with the running module's
+   *     {@code parameterClasses()}. This overload reaches {@code Pars}, {@code TimePars} and
+   *     {@code RouteChoicePars} and nothing else, so a module parameter passed on the command line
+   *     is accepted without complaint and ignored unless that module's {@code applyParameters}
+   *     happens to name it. That is how {@code --useDestinationChoice=true} was silently dropped.
    */
+  @Deprecated
   public static Map<String, String> initFromArgs(String[] args) {
+    return initFromArgs(
+        args, new Class<?>[] {Pars.class, TimePars.class, RouteChoicePars.class});
+  }
+
+  /**
+   * Parse CLI args and apply them to every parameter class the running module declares.
+   *
+   * @param args the raw command line
+   * @param targets every class a value may be written into, core's first
+   */
+  public static Map<String, String> initFromArgs(String[] args, Class<?>[] targets) {
     Map<String, String> params = parseArgs(args);
-    applyParams(params, Pars.class, TimePars.class, RouteChoicePars.class);
+    applyParams(params, targets);
     if (params.containsKey("percentage")) {
       Pars.percentagePopulationAgent = Double.parseDouble(params.get("percentage"));
     }
@@ -58,6 +67,15 @@ public class ParameterManager {
       Pars.durationDays = Integer.parseInt(params.get("days"));
     }
     Pars.recomputeAgentCount();
+    // Asking for a circuity factor means you want that factor. NetworkCircuity measures into the
+    // same field on every run and consults only measureNetworkCircuity, so without this the value
+    // just handed in is silently overwritten at startup - the opposite of what NetworkCircuity
+    // documents. An explicit measureNetworkCircuity on the same command line still wins. This sits
+    // here rather than in a module's applyParameters because both fields are core's: every module
+    // measures circuity, so no module owns the switch.
+    if (params.containsKey("networkCircuityFactor") && !params.containsKey("measureNetworkCircuity")) {
+      Pars.measureNetworkCircuity = false;
+    }
     return params;
   }
 
@@ -153,54 +171,6 @@ public class ParameterManager {
       sb.append(" ");
     }
     return sb.toString().trim();
-  }
-
-  // ------------------------------------------------------------
-  // From Applet
-  // ------------------------------------------------------------
-
-  /**
-   * Collect parameters from an Applet into CLI string.
-   *
-   * @param headless if true, forces "--headless"
-   */
-  public static String collectParameters(PedSimCityApplet applet, boolean headless) {
-    if (applet.getCityName() != null) setFieldValue(Pars.class, "cityName", applet.getCityName());
-    if (applet.getDays() != null) setFieldValue(Pars.class, "durationDays", applet.getDays());
-    if (applet.getPopulation() != null)
-      setFieldValue(Pars.class, "population", applet.getPopulation());
-    if (applet.getPercentage() != null)
-      setFieldValue(Pars.class, "percentagePopulationAgent", applet.getPercentage());
-    if (applet.getJobs() != null) setFieldValue(Pars.class, "jobs", applet.getJobs());
-
-    if (applet.getOtherParsPanel() != null)
-      applyAll(
-          Pars.class,
-          applet.getOtherParsPanel().doubleFields,
-          applet.getOtherParsPanel().booleanFields);
-
-    if (applet.getRoutePanel() != null)
-      applyAll(
-          RouteChoicePars.class,
-          applet.getRoutePanel().doubleFields,
-          applet.getRoutePanel().booleanFields);
-
-    Map<String, String> params = exportParams(Pars.class, TimePars.class, RouteChoicePars.class);
-    if (headless) params.put("headless", "true");
-
-    return toArgString(params);
-  }
-
-  /** Wrapper: collect parameters for local (non-headless) runs. */
-  public static String collectParameters(PedSimCityApplet applet) {
-    return collectParameters(applet, false);
-  }
-
-  /**
-   * Wrapper: collect parameters specifically for server runs (forces headless).
-   */
-  public static String collectParametersForServerRun(PedSimCityApplet applet) {
-    return collectParameters(applet, true);
   }
 
   // ------------------------------------------------------------

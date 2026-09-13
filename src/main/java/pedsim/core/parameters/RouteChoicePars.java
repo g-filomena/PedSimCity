@@ -17,11 +17,6 @@ public class RouteChoicePars {
   public static double defaultProbabilityDistanceMinimisation = 0.5;
   public static double defaultProbabilityAngularMinimisation = 0.5;
 
-  // Distance between Origin and Destination
-  public static double minTripDistance = 700;
-  public static double avgTripDistance = 1800;
-  public static double maxTripDistance = 2500;
-
   public static Integer[] cityCentreRegionsID = {};
   public static boolean includeTertiary = true;
 
@@ -50,9 +45,4 @@ public class RouteChoicePars {
 
   // Region-based navigation Threshold - meters
   public static double regionNavActivationThreshold = 500;
-
-  public static void setMinMaxTripDistance() {
-    minTripDistance = avgTripDistance * 0.50;
-    maxTripDistance = avgTripDistance * 1.50;
-  }
 }

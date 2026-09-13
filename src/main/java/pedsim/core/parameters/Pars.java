@@ -14,16 +14,53 @@ public class Pars {
   public static String cityName = "Torino";
   public static int population = 1500000;
   public static double percentagePopulationAgent = 0.001;
-  // Metres walked on the street network per day, per resident. Estimated from travel-survey
-  // figures rather than tuned: 2.53 trips/day for the mobile population x 80.8% mobility rate
-  // x ~25% walking mode share in cities over 250k x ~1.0-1.6 km per walking trip lands at
-  // 600-1000 m/day; the upper end allows for the sub-5-minute walks travel surveys exclude.
-  // See RELEASE_BUDGET.md. The previous 4000 was undocumented and matches
-  // pedometer literature (~5,300 steps), which measures total ambulation including indoors,
-  // not trips on a street network.
-  public static double metersPerDayPerPerson = 1000;
-  public static double metersPerDay;
   public static int numAgents;
+
+  /**
+   * How often one person sets off from home on an average day, when nothing is known about who
+   * they are.
+   *
+   * <p>Unsourced, and deliberately so: it exists so that the core skeleton runs, not as a claim
+   * about anybody's travel. Core models no reason for a person to leave the house, so there is no
+   * quantity here to be right about - a module that does model one states its own count and this is
+   * never read.
+   */
+  public static double departuresPerPersonPerDay = 0.25;
+
+  /**
+   * Desired length of the route between the origin and the destination, in **walked metres**.
+   *
+   * <p>Walked, not straight-line, and the distinction is the whole point of the name. A route is
+   * what an agent walks on the network; the straight line between its endpoints is shorter by the
+   * network's circuity, which on the bundled cities runs from 1.17 (Barcelona) to 1.54 (Melbourne).
+   * Anything that picks a destination works in straight lines - {@code NodesLookup} takes a
+   * Euclidean interval - so a caller must convert with
+   * {@link pedsim.core.engine.NetworkCircuity#straightLineFor(double)} before searching, never pass
+   * these figures through raw.
+   *
+   * <p>That is not hypothetical. These were briefly handed straight to
+   * {@code NodesLookup.randomNodeBetweenDistanceInterval} by the cityImage and empirical modules
+   * while core divided by the circuity first, so one field meant walked metres in one place and
+   * straight-line metres in another - on Torino, a nominal 900-2700 m band generating routes of
+   * 1163-3488 m.
+   *
+   * <p>Set directly. They used to be derived by a {@code setMinMaxTripDistance()} that took an
+   * {@code avgTripDistance} and multiplied it by 0.5 and 1.5 - two invented factors that also
+   * overwrote whatever had been configured, which is how a declared 700/2500 came to run as
+   * 900/2700 with nothing in the source saying so.
+   */
+  public static double minRouteLength = 900;
+
+  public static double maxRouteLength = 2700;
+
+  public static double networkCircuityFactor = 1.23;
+
+  /**
+   * Whether to measure {@link #networkCircuityFactor} from the city being loaded rather than use
+   * the fallback. Passing {@code networkCircuityFactor} on the command line implies false; see
+   * {@link ParameterManager#initFromArgs}.
+   */
+  public static boolean measureNetworkCircuity = true;
 
   /**
    * The run's base seed. Every generator in the simulation derives from it - per agent, per
@@ -47,8 +84,20 @@ public class Pars {
   public static int durationDays = 7;
   public static int stepDelayMs = 100;
 
-  // Euclidean Distance between Origin and Destination
-  public static double homeWorkRadius = 600;
+  /**
+   * How far the known-space skeleton reaches beyond each of an agent's anchors, in metres of
+   * network distance.
+   *
+   * <p>It was called {@code homeWorkRadius} while home and work were the only anchors the code
+   * could imagine. {@link pedsim.core.agents.Agent#cognitiveAnchors()} now lets a module say what
+   * anchors its people actually have - a retiree has no workplace - so the radius is about anchors,
+   * not about employment. The comment above it said "Euclidean Distance between Origin and
+   * Destination", which it has never been: the walk out from each anchor in
+   * {@code CognitiveMap.buildActivityBone()} accumulates edge lengths.
+   *
+   * <p>The 600 m itself has no source behind it.
+   */
+  public static double anchorRadius = 600;
 
   // Average pedestrian speed 1.42 m/s; moveRate (metres walked per step) is derived from
   // TimePars.STEP_DURATION in setSimulationParameters(), so changing the step size rescales
@@ -92,18 +141,21 @@ public class Pars {
     moveRate = TimePars.STEP_DURATION * pedestrianSpeed;
     recomputeAgentCount();
     setRoadTypeMap();
-    RouteChoicePars.setMinMaxTripDistance();
-    TripDistanceBands.setDefaults();
   }
 
   /**
-   * Recomputes the sampled agent count (and derived daily distance) from {@code population *
-   * percentagePopulationAgent}. Call after changing {@code population} at runtime — e.g. when a
-   * module derives it from its own city data.
+   * Recomputes the sampled agent count from {@code population * percentagePopulationAgent}. Call
+   * after changing {@code population} at runtime — e.g. when a module derives it from its own city
+   * data.
+   *
+   * <p>It also used to set {@code metersPerDay}, the day's release budget, from a
+   * {@code metersPerDayPerPerson}. Nothing spends a metres budget any more, and that figure had no
+   * reader left at all once the budget went - it was a comment with a {@code double} around it. The
+   * derivation it belongs to is in RELEASE_BUDGET.md, which is where a run's walked metres should be
+   * compared against it.
    */
   public static void recomputeAgentCount() {
     numAgents = (int) (population * percentagePopulationAgent);
-    metersPerDay = metersPerDayPerPerson * numAgents;
   }
 
   private static void setRoadTypeMap() {
