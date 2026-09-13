@@ -4,28 +4,9 @@ Split out of `/TODO.md` on 13 September 2026. This module walks a shared origin-
 with one agent group per survey-derived cluster (`Muenster_clusters.csv`), so the groups differ in the
 route-choice preferences the clusters describe.
 
-It got a `SimulationModule` and a real headless entry point on 13 Sep. Before that its applet opened a
-window and nothing else, and the only display-less route was a `main` on the state class that took the
-city as a bare positional argument with no parameter handling at all.
-
----
-
-## Read this before trusting any earlier result
-
-**Per-edge volumes produced before 13 September 2026 are wrong**, for the same reason as cityImage:
-`AgentMovement.initialisePath()` never cleared `edgesWalkedSoFar`, and an `OdAgent` reuses one movement
-handler across all its trips, so each trip re-counted every earlier one. See `../cityimage/TODO.md`.
-
-Also fixed the same day, and both would have bitten this module first:
-
-- **It exported nothing.** `EmpiricalEngine` overrides `executeJob` and never reached core's export.
-- **`getHeuristics()` was null**, because `EmpiricalAgent.planRoute()` overrode core's and dropped the
-  heuristics initialisation. This module threw on it outright as soon as it had a headless entry to be
-  run from — its clusters use landmark-weighted models, which dereference it.
-
-And from an earlier session: **any comparison of a region- or landmark-based *distance* model made
-since March 2026 is void** — `roadDistanceSequence` returned the last leg rather than the whole
-sequence. This module reaches that path through `EmpiricalAgentProperties`.
+> **Output from before 13 September 2026 is wrong**, for the same reasons as cityImage: per-edge
+> volumes were cumulative rather than per trip, and the module exported nothing. It also had no
+> headless entry point at all before that date. Details in `bug_changelog.md`.
 
 ---
 

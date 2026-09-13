@@ -42,8 +42,14 @@ build):
 
 ```bash
 mvn -Pcityimage-empirical compile
-mvn -Pcityimage-empirical compile exec:java -Dexec.mainClass=pedsim.cityimage.launcher.CityImageLauncher
+mvn -Pcityimage-empirical compile exec:java \
+  -Dexec.mainClass=pedsim.cityimage.launcher.CityImageLauncher \
+  -Dexec.args="--headless --cityName=Muenster --jobs=1 --stringMode='Testing Urban Subdivisions'"
 ```
+
+`--stringMode` selects the test design; `--numberTripsPerAgent` and `--jobs` override that design's
+own defaults. **"Testing Landmarks", the default design, needs `<City>_distances.csv`, which no
+bundled city ships** — see `TODO.md` beside this file.
 
 ## Notes
 

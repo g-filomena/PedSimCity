@@ -4,33 +4,11 @@ Split out of `/TODO.md` on 13 September 2026. This module compares route-choice 
 synthetic origin-destination matrix: one agent per model, the same ODs, so the models differ in
 nothing but how they choose a route.
 
-It got a `SimulationModule` on 13 Sep, which made its parameters reachable from the command line for
-the first time. Fixing that turned up four defects; all are fixed, and **the second one invalidates
-earlier output**.
-
----
-
-## Read this before trusting any earlier result
-
-**Per-edge volumes produced before 13 September 2026 are wrong.**
-`AgentMovement.initialisePath()` never cleared `edgesWalkedSoFar`, and an `OdAgent` keeps one movement
-handler across all its trips. Trip *n* therefore reported the edges of trips 1…*n*, and
-`updateFlowsData` re-counted every earlier trip into the current one — the volumes were **cumulative
-rather than per trip**. Core and activity agents were unaffected, because they build a fresh handler
-per trip.
-
-Two more that shaped what came out:
-
-- **The module exported nothing.** `CityImageEngine` overrides `executeJob` and so never reached the
-  export core's `Engine` performs, so a run compared the models and discarded the comparison.
-- **`getHeuristics()` returned null for any agent overriding `planRoute()`.** `CityImageAgent` did.
-  It survived only because road distance and angular change never consult landmarkness; any
-  landmark-weighted model would have thrown.
-
-And, from an earlier session: **any comparison of a region- or landmark-based *distance* model made
-since March 2026 is void** — `roadDistanceSequence` called `fillRoute()`, which reads
-`partialSequence`, the last leg only, so the route was the walk from the final gateway to the
-destination and nothing before it.
+> **Output from before 13 September 2026 is wrong.** Per-edge volumes were cumulative rather than per
+> trip: `edgesWalkedSoFar` accumulated across an agent's trips, so each trip re-counted every earlier
+> one. The module also exported nothing at all, and any region- or landmark-based *distance*
+> comparison since March 2026 compared a whole route against a last-leg stub. Details in
+> `bug_changelog.md`.
 
 ---
 

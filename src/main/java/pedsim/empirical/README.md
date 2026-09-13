@@ -40,15 +40,19 @@ clock; demand is an OD matrix, not a daily schedule.
 ## Running
 
 Build with the `cityimage-empirical` profile (empirical builds alongside `cityimage`;
-**not** in the default build). `PedSimCityEmpirical` has a `main` entry point:
+**not** in the default build):
 
 ```bash
 mvn -Pcityimage-empirical compile
 mvn -Pcityimage-empirical compile exec:java \
-  -Dexec.mainClass=pedsim.empirical.engine.PedSimCityEmpirical -Dexec.args="Torino"
+  -Dexec.mainClass=pedsim.empirical.launcher.EmpiricalLauncher \
+  -Dexec.args="--headless --cityName=Muenster --jobs=1"
 ```
 
-(The first argument overrides `Pars.cityName`.)
+Defaults to Muenster, 301 agents and 10 jobs — the study the cluster data comes from — wherever the
+command line is silent. `--website` serves the browser dashboard instead of running.
+
+Open items: `TODO.md` beside this file.
 
 ## Notes
 

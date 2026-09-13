@@ -109,3 +109,7 @@ Module-specific REST parameters handled by `NightSimulationModule`:
 | `directionalLuxStatistic` | `MIN` \| `MEAN` | default `MIN` |
 | `nonVulnerableLightSensitivity` | double | `NightPars.nonVulnerableLightSensitivity` |
 | `useGravityModel` | boolean | `RouteChoicePars.useGravityModel` |
+
+## Open items
+
+See `TODO.md` beside this file.
