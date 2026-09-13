@@ -186,16 +186,13 @@ public class ActivityAgent extends CommuterAgent {
    * walks their commute or does not, and re-rolling it each morning would make it a coin flip
    * rather than a property of that person and that journey.
    *
-   * <p>It is decided by <em>how far the commute is</em>, through the same walk-share curve that
-   * used to sit at release time rejecting sampled distances. That is where it belongs: distance
-   * does not decide whether a journey happens, it decides how the journey is made. A five-kilometre
-   * commute is not impossible, it is not walked.
+   * <p>It is decided by <em>how far the commute is</em>, through the walk-share curve. Distance does
+   * not decide whether a journey happens, it decides how the journey is made: a five-kilometre
+   * commute is not impossible, it is simply not walked.
    *
-   * <p>Nothing gated this at all before, so every worker walked the whole way to work, while
-   * {@code DepartureProfile} was already sizing the day as if 12% did. ISTAT 2017 gives 12.0% of
-   * the employed and 27.9% of students as the walking share of commuting; those are now a
-   * <em>prediction to check</em> rather than a rate imposed on the agents - the model produces its
-   * own share, and a bad match is a finding about the curve.
+   * <p>The population share this produces is a <em>prediction to check</em> rather than a rate
+   * imposed on the agents. {@code ActivityTravelDemand.prepare} logs it against the ISTAT figures
+   * once per simulated day; a poor match is a finding about the curve, not a number to adjust.
    *
    * <p>The commuters who do not walk are, for the moment, absent from the street: their access and
    * egress walks around transit stops are real pedestrian metres this model does not yet produce.
@@ -259,11 +256,9 @@ public class ActivityAgent extends CommuterAgent {
    * Draws this agent's departure time for today's mandatory activity, or establishes that it has
    * none.
    *
-   * <p>Having a job means going to it. The release manager used to decide that by lottery - a
-   * worker commuted only if it happened to be drawn during its start window - and a parameter was
-   * then computed to tell the departure profile how often chance had obliged. Here the commute is
-   * generated from what the agent is, and the only question left to chance is which discretionary
-   * trips happen on top.
+   * <p>Having a job means going to it: the commute is generated from what the agent is - it has a
+   * workplace, it walks there, and its persona attends today - rather than drawn. The only question
+   * left to chance is which discretionary trips happen on top.
    *
    * <p>The minute is drawn uniformly inside the persona's mandatory start window. That window is
    * read as a departure window rather than an arrival window, which is the convention the profile
@@ -506,11 +501,11 @@ public class ActivityAgent extends CommuterAgent {
    * Home, the mandatory activity when there is one, and otherwise the places this persona actually
    * goes.
    *
-   * <p>An agent with no workplace used to be left with a bone around home alone. What replaces the
-   * missing anchor is drawn from what the persona is: for its two strongest discretionary purposes,
-   * a plausible destination for each, taken with the same choice the agent would make on the day
-   * rather than the single most attractive node. A retiree's known world becomes home, the shops it
-   * would use, the errands it would run - which is what an activity space is.
+   * <p>An agent with no workplace anchors instead on what its persona does: a plausible destination
+   * for each of its two strongest discretionary purposes, chosen the way the agent would choose on
+   * the day rather than taken as the single most attractive node. A retiree's known world is then
+   * home, the shops it would use and the errands it would run - which is what an activity space
+   * is.
    *
    * <p>Falls back to home alone when the city carries no attraction data, since then there is
    * nothing to anchor on and nothing to invent.

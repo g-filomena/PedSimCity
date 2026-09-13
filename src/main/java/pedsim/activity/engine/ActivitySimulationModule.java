@@ -72,10 +72,9 @@ public final class ActivitySimulationModule implements SimulationModule {
       pedsim.core.parameters.RouteChoicePars.useGravityModel =
           Boolean.parseBoolean(params.get("useGravityModel").toString());
     }
-    // The activity module's own parameters. Core applies command-line overrides to Pars, TimePars
-    // and RouteChoicePars only, so anything in ActivityPars has to be picked up here or it is
-    // silently ignored - which is exactly what happened to useDestinationChoice, quietly turning
-    // every comparison run into two runs of the same code.
+    // The activity module's own parameters. A key not handled here, and whose class is not listed in
+    // parameterClasses(), is accepted on the command line and then ignored with nothing in the output
+    // to say so.
     if (params.containsKey("useDestinationChoice")) {
       pedsim.activity.parameters.ActivityPars.useDestinationChoice =
           Boolean.parseBoolean(params.get("useDestinationChoice").toString());

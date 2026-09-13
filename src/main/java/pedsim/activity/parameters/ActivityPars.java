@@ -61,10 +61,9 @@ public class ActivityPars {
    * Distance decay on workplace choice: a WORK-tagged node's attraction is divided by
    * {@code max(10, d)^this} when {@code RouteChoicePars.useGravityModel} is set.
    *
-   * <p><b>Uncalibrated, and currently wrong.</b> It was a bare local constant commented "a standard
-   * gravity model decay parameter". With {@link #workplaceMinDistanceMetres} it concentrates
-   * workplaces just past the floor, at a distance nearly everyone walks, and the model then walks
-   * 47% of work commutes against the 16.3% ISTAT measures for Turin.
+   * <p>Fitted together with {@link #workplaceMinDistanceMetres} and the commute curves. Set it too
+   * high and workplaces concentrate just past the floor, at a distance nearly everyone walks, which
+   * pushes the walked commute share far above what ISTAT measures.
    *
    * <p>What it has to reproduce is in {@code COMMUTE_DISTANCE.md}: the walked share above, and the
    * four-band distribution of walked commute lengths. The share and the shape are one target -
@@ -141,11 +140,10 @@ public class ActivityPars {
    * Closest a workplace may be assigned, in metres.
    *
    * <p>No source. It exists because a {@code 1/d^2} decay with no floor gives the nearest tagged
-   * node almost all the mass and everyone works next door. It was written as
-   * {@code RouteChoicePars.minTripDistance * 0.6} - the discretionary walking range - which is the
-   * conceptual error that produced the 2,700 m commute cap: a commute is not a discretionary trip
-   * and has no business being sized by one. Stated in metres here so it is visibly a number
-   * somebody chose, and calibrated together with {@link #workplaceDistanceDecay}.
+   * node almost all the mass and everyone works next door. Stated in metres so that it is visibly a
+   * number somebody chose, and calibrated together with {@link #workplaceDistanceDecay}. Do not
+   * derive it from the discretionary trip range: a commute is not a discretionary trip and sizing
+   * one by the other is what caps commutes at a walkable distance.
    */
   public static double workplaceMinDistanceMetres = 0.0;
 
@@ -203,10 +201,9 @@ public class ActivityPars {
    * <p>This is a count of <i>legs</i>, which is what the survey counts, and it is the only figure
    * here the survey gives directly. What the model does with it is subtract the legs its structural
    * commutes will walk today and buy the remainder as discretionary chains, dividing by the chain
-   * length {@code DailyAgenda.expectedLegs} computes rather than by a constant. It replaced
-   * {@code tripChainsPerPersonPerDay = 0.21}, which was this figure with a chain length of 2.4
-   * already divided into it - so changing an agenda probability silently changed how many trips the
-   * population made, while the survey figure it came from stayed put.
+   * length {@code DailyAgenda.expectedLegs} computes rather than by a constant. Keep the two
+   * separate: folding a chain length into this figure would make an agenda probability change how
+   * many trips the population makes, while the survey number it came from stayed put.
    *
    * <p>Worth noting what it predicts. At about 1,734 m a leg, 0.51 legs a day comes to roughly
    * 885 m walked per resident per day - inside the 600-1,000 m that
@@ -229,9 +226,9 @@ public class ActivityPars {
   /**
    * How far out the choice set reaches, in metres.
    *
-   * <p>It was described here as bounding the work rather than the behaviour, on the grounds that
-   * anything beyond it has a utility far below the near candidates. **Measured, that is not true at
-   * 3,000 m.** Full Torino, 1,693 agents, one day, the same fixed seed, varying only this:
+   * <p>It bounds the behaviour as well as the work: at 3,000 m it truncates the trip-length
+   * distribution rather than merely saving computation. Full Torino, 1,693 agents, one day, the same
+   * fixed seed, varying only this:
    *
    * <pre>
    *   1,500 m   715 trips   mean leg 1,103 m

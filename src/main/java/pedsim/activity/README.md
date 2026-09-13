@@ -8,7 +8,7 @@ those modules share: a census-driven **population** (homes, headcount), an OSM-t
 Activity is not census/lighting-agnostic like core, but it is *neutral* about perception and safety:
 it has no vulnerability and no street-lighting behaviour. A plain activity run models people who
 live in residence-weighted census zones and follow **personas** (worker / student / retiree / flex)
-through home-based **tours**: a mandatory work/study leg on weekdays (inside a persona start
+through home-based **trip chains**: a mandatory work/study leg on weekdays (inside a persona start
 window), chained with discretionary stops typed by **activity purpose** (shopping, errands, dining,
 nightlife, leisure, stroll) whose destinations are drawn from **OSM-tag-derived POI attraction**
 and revisited habitually, with purpose-specific stay durations and opening hours, under a
@@ -46,7 +46,7 @@ Supporting types (all in `pedsim.activity`): `Persona`, `ActivityPurpose`, `Dail
    age-structure shares (`retiree_pct`/`student_pct`; global `ActivityPars` shares otherwise):
    retirees/flex adults have no work node, students are re-targeted to education-tagged nodes when
    available, and walking speed varies by persona (±10% individual noise).
-3. **Tours** — on release, the agent builds a `DailyAgenda`: the mandatory work/study leg is decided
+3. **Trip chains** — on release, the agent builds a `DailyAgenda`: the mandatory work/study leg is decided
    by the persona's weekday + start-window rule (`shouldGoToWork`), and discretionary stops are
    sampled from the persona's purpose mix restricted to each purpose's opening hours. After each
    stay (persona-specific at work, purpose-specific lognormal elsewhere) the agent **chains**
@@ -121,12 +121,11 @@ engine's `clearStaticData()` (activity's is cleared for you by `ActivityEngine`)
 
 Activity is both the shared foundation for the routine modules *and* a runnable plain-activity model
 in its own right. It compiles in every module profile (it is never excluded) and is launched via
-`PedSimCityActivityApplet`, mirroring night:
+`ActivityLauncher`, mirroring night:
 
 ```bash
 mvn compile exec:java@activity-website   # REST API + browser dashboard
-mvn compile exec:java@activity           # GUI (PedSimCityActivityApplet)
-mvn compile exec:java@activity -Dexec.args="--headless"   # headless
+mvn compile exec:java@activity           # headless (ActivityLauncher)
 ```
 
 Start a run via REST once the server is up:

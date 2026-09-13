@@ -17,10 +17,8 @@ import pedsim.core.parameters.TimePars;
  * Travel demand for the activity tier: a count of trip chains, a departure profile built from what
  * people have to do, a persona affinity, weather, and a walk-share mode split.
  *
- * <p>Everything here used to be an override on {@link PedSimCityActivity}, next to the census
- * layers and the transit summary. It is gathered so that the questions the release manager asks
- * have one home, and so that the next change to any of them is visibly a change to travel demand
- * rather than to the simulation state.
+ * <p>Gathered here rather than on the simulation state so that the questions the release manager
+ * asks have one home, and a change to any of them is visibly a change to travel demand.
  */
 public class ActivityTravelDemand extends BaselineTravelDemand {
 
@@ -139,10 +137,9 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
             time.toLocalDate(), mandatoryLegs, budgetLegs, discretionaryChainsPerPerson,
             legsPerChain));
 
-    // The walked commute share is now something this model produces rather than something it is
-    // given, so it can be compared with the figure it used to be handed. A large gap means the
-    // walk-share curve (English, pooled over all purposes) is wrong for commuting in Turin, which
-    // is the question the ISTAT numbers are here to ask.
+    // The walked commute share is produced by the model, not given to it, so it can be logged
+    // against the observed figure. A large gap is a statement about the walk-share curve, or about
+    // where the model is putting workplaces — not a number to adjust.
     if (workersWithJob > 0 || studentsWithPlace > 0) {
       LOGGER.info(
           String.format(
@@ -265,11 +262,9 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
    * Probability that a commute of this length is walked. Fitted to ISTAT; the curve is a logit, and
    * there is one per purpose because the observed shares differ by more than a factor of two.
    *
-   * <p>This is the model's only mode choice, and it is not optional. It used to sit beside a
-   * release-time trip-acceptance filter ({@code useWalkShareFilter}) that answered a different
-   * question, and wiring the commute split to that switch meant disabling a legacy filter silently
-   * walked every commute in the model, putting the walked share back to 47% against an observed
-   * 16.3%. The filter went with the metres budget; this curve stays.
+   * <p>This is the model's only mode choice, and it is not optional: with it disabled every commute
+   * in the model would be walked. It answers how a journey is made, which is a different question
+   * from whether a given trip length is plausible - nothing filters trips by length.
    *
    * @param student whether this is a journey to a place of study
    */

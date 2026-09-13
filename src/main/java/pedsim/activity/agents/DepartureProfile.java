@@ -70,14 +70,12 @@ public final class DepartureProfile {
   /**
    * Builds the discretionary departure profile.
    *
-   * <p>No day-of-week parameter, and that is the point. The profile used to carry the commute as a
-   * lump of mass spread over the mandatory start windows, so the weekend differed because a share
-   * was computed to be zero. Commutes are now generated per agent from whether that agent has a job
-   * and walks to it, which leaves this curve describing discretionary travel only - and a
-   * discretionary day looks the same on a Tuesday as on a Saturday, as far as anything in this
-   * model knows. The weekend difference falls out of workers not commuting, not out of a second
-   * curve. If observed presence says Saturday afternoons differ in shape as well as in volume,
-   * that is a finding this profile can now be wrong about.
+   * <p>No day-of-week parameter, by design. This curve describes discretionary travel only -
+   * commutes are generated per agent from whether that agent has a job and walks to it - and a
+   * discretionary day looks the same on a Tuesday as on a Saturday, as far as anything in this model
+   * knows. The weekend difference falls out of workers not commuting rather than out of a second
+   * curve. If observed presence shows Saturday afternoons differing in shape as well as in volume,
+   * that is a finding this profile can be wrong about.
    *
    * @param personaShares the realised mix of the sampled population, in WORKER, STUDENT, RETIREE,
    *     FLEX order - the census-conditioned mix the agents actually got, not the global constants

@@ -62,9 +62,8 @@ import pedsim.core.utilities.LoggerUtil;
  * <h2>It says what it did</h2>
  *
  * Every key is reported: applied, refused as a run switch, or unplaced because no parameter class
- * has a field of that name. A configuration file that fails quietly is the defect that swallowed
- * {@code --useDestinationChoice} wearing different clothes, and the whole point of this class is to
- * have one writer rather than two.
+ * has a field of that name. Nothing is applied without being reported: a misspelled key is a
+ * warning, not a silent default.
  */
 public final class CityConfig {
 
@@ -101,8 +100,7 @@ public final class CityConfig {
   /**
    * Loads and applies {@code <City>/<City>.properties}, if the city has one.
    *
-   * <p>A missing file is not an error: a city without one runs on the Java defaults, which is how
-   * every city ran until now.
+   * <p>A missing file is not an error: a city without one runs on the built-in defaults.
    *
    * @param cityName the city whose resource folder to look in
    * @param targets every parameter class this run may write into, from

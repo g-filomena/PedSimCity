@@ -75,12 +75,11 @@ public class ActivityEnvironment extends Environment {
       PedSimCityActivity.censusZones.add(zone);
     }
 
-    // Where the city is. The seasonal daylight model needs a latitude, and it had a single
-    // hardcoded default - 53.4, Liverpool - applied to every city. On Turin that is 8.3 degrees
-    // out, which moves midsummer sunset by the better part of an hour and shifts every boundary
-    // the night module is built on. The census layer now carries the centroid latitude of the city
-    // it describes; a city whose census predates the column keeps the parameter, with a warning,
-    // because silently simulating Turin's darkness at Liverpool's latitude is what this replaces.
+    // Where the city is. The seasonal daylight model needs a latitude, and the census layer carries
+    // the centroid latitude of the city it describes. A city whose census lacks the column falls back
+    // to the ActivityPars default, with a warning: the fallback is one place, and simulating a city's
+    // darkness at another city's latitude moves every day/night boundary the night module rests on -
+    // eight degrees of latitude is most of an hour of midsummer sunset.
     if (!Double.isNaN(cityLatitude)) {
       ActivityPars.latitudeDegrees = cityLatitude;
       logger.info(String.format("city latitude from census: %.4f degrees", cityLatitude));

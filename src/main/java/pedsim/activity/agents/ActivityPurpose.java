@@ -64,25 +64,20 @@ public enum ActivityPurpose {
   /*
    * There is deliberately no purpose scaling of trip distance here.
    *
-   * A `tripDistanceFactor` used to multiply the released distance before a destination was sought
-   * - errands close, leisure far. It was removed, for three reasons.
+   * A leg is as long as the walk to the place the agent chose, and purpose does not scale it, for
+   * two reasons.
    *
-   * There is no released distance left to scale. A trip length used to be drawn at release time
-   * from a band of metres and charged against a budget; both went with the metres budget, and a leg
-   * is now simply as long as the walk to the place the agent chose. Even while the draw existed,
-   * multiplying it by a purpose factor moved the whole distribution unless the factors averaged
-   * exactly 1.0 over the purpose mix actually realised - a mix that shifts with the hour, the
-   * persona and the agenda, so it could not be held there. The old factors averaged above 1.0 and
-   * inflated the aggregate past what had been charged.
+   * The effect is small. Watson et al. (2021), 2017 NHTS, 54,034 walking trips, report walking
+   * distances as not significantly different by purpose; the difference appears in duration, and the
+   * whole spread across purposes is 1.15x.
    *
-   * The effect being modelled is small. Watson et al. (2021), 2017 NHTS, 54,034 walking trips,
-   * report walking distances as not significantly different by purpose; the difference appears in
-   * duration, and the whole spread across purposes is 1.15x. A multiplier that costs the aggregate
-   * more than it buys in realism is not worth keeping.
-   *
-   * If purpose should drive distance, it should select the distribution rather than scale a draw
-   * from the aggregate: a TripDistanceBands per purpose. That needs per-purpose walking
-   * trip-length distributions, which for Italy means the Audimob microdata.
+   * And a multiplier on a chosen distance is the wrong shape for it. Scaling each trip moves the
+   * aggregate distribution unless the factors average exactly 1.0 over the purpose mix realised on
+   * the day - a mix that shifts with the hour, the persona and the agenda, so it cannot be held
+   * there. If purpose should drive distance, it belongs in destination choice, where purpose already
+   * selects the attraction table: a per-purpose impedance coefficient rather than a multiplier. That
+   * needs per-purpose walking trip-length distributions, which for Italy means the Audimob
+   * microdata.
    *
    * Purpose still decides which node is chosen (POI weighting), how long the agent stays, and when
    * the activity is open at all.
