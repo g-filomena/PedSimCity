@@ -264,12 +264,11 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
         continue;
       }
 
-      // No cache. Bypasses used to be shared across agents under a (origin, reentry) key, but the
-      // route depends on far more than that pair: the avoid-set is built per agent from its known
-      // edges, the edge it is fleeing and its destination. Agents were therefore handed each
-      // other's routes - including across the vulnerable/non-vulnerable split, since a
-      // non-vulnerable agent avoiding parks read the vulnerable map. A key wide enough to be
-      // correct would have to carry the destination and the current edge, which vary per trip, so
+      // No cache, and a (origin, reentry) key is not enough to add one: the route depends on the
+      // agent's own avoid-set, built from its known edges, the edge it is fleeing and its
+      // destination. Sharing on that key hands agents each other's routes, across the
+      // vulnerable/non-vulnerable split included. A key wide enough to be correct carries the
+      // destination and the current edge, which vary per trip, so
       // it would almost never hit.
       List<DirectedEdge> bypassEdges = null;
       final Route bypass = aStar.astarRoute(routeOrigin, reentryNode, network, edgeIDsToAvoid);
@@ -386,10 +385,9 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
    * Checks whether the agent may attempt a situated reroute.
    *
    * <p>
-   * This no longer gates on whether the agent is still on its original route: a
-   * local bypass may be attempted any number of times. The remaining constraints
-   * are purely structural — there is nothing to bypass into if the current edge
-   * leads straight to the destination, on the very first edge, or when no
+   * A local bypass may be attempted any number of times; this does not gate on whether the agent is
+   * still on its original route. The constraints are purely structural — there is nothing to bypass
+   * into if the current edge leads straight to the destination, on the very first edge, or when no
    * original route remains ahead to rejoin.
    *
    * @return true if the agent can reroute; false otherwise

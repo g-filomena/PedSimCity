@@ -123,7 +123,7 @@ public class NightAgent extends ActivityAgent {
    */
   @Override
   protected void planRoute() {
-    new Heuristics(this).defineHeuristic(true);
+    initialiseHeuristics(true);
     RoadDistancePathFinder pathFinder = new RoadDistancePathFinder();
     setRoute(
         state.isDark

@@ -5,8 +5,8 @@ import pedsim.core.launcher.ModuleLauncher;
 /**
  * Entry point for the night module.
  *
- * <p>Delegates to {@link ModuleLauncher}; see that class for why launching no longer lives on a
- * {@code java.awt.Frame}.
+ * <p>Parses no arguments of its own: {@link ModuleLauncher} handles the command line and starts the
+ * run. Pass {@code --website} to serve the browser dashboard instead of running directly.
  */
 public final class NightLauncher {
 

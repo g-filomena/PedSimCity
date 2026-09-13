@@ -634,8 +634,8 @@
             </div>
 
             <div class="form-group">
-              <label class="field-label" for="maxTripDistance">Max Trip Distance (m)</label>
-              <input type="number" id="maxTripDistance" value="3000" step="100" min="500"/>
+              <label class="field-label" for="maxRouteLength">Max Route Length (walked m)</label>
+              <input type="number" id="maxRouteLength" value="2700" step="100" min="500"/>
             </div>
 
             <div class="toggle-row">
@@ -755,7 +755,7 @@
         nightStartHour:        parseInt(document.getElementById('nightStartHour').value),
         dayStartHour:          parseInt(document.getElementById('dayStartHour').value),
         vulnerableRatio:       parseFloat(document.getElementById('vulnerableRatio').value),
-        maxTripDistance:       parseInt(document.getElementById('maxTripDistance').value),
+        maxRouteLength:        parseInt(document.getElementById('maxRouteLength').value),
         enableABTest:          document.getElementById('enableABTest').checked,
         useCensusVulnerability:document.getElementById('useCensusVulnerability').checked,
         randomSeed:            parseInt(document.getElementById('randomSeed').value),
