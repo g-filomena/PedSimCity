@@ -6,6 +6,7 @@ import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.index.strtree.STRtree;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
+import pedsim.activity.parameters.ActivityPars;
 import pedsim.core.engine.Environment;
 import pedsim.core.parameters.Pars;
 import sim.graph.NodeGraph;
@@ -34,9 +35,9 @@ public class ActivityEnvironment extends Environment {
   private static final double[] CLAIM_RADII = {50.0, 100.0, 200.0, 400.0};
 
   /**
-   * Runs the core infrastructure preparation, then builds the census-zone model, the
-   * purpose-attraction weights from OSM-like use tags (independent of census availability), and
-   * loads the transit stops.
+   * Runs the core infrastructure preparation - which now includes measuring the network's
+   * circuity - then builds the census-zone model, the purpose-attraction weights from OSM-like use
+   * tags (independent of census availability), and loads the transit stops.
    */
   public static void prepare() {
     Environment.prepare();
@@ -54,6 +55,7 @@ public class ActivityEnvironment extends Environment {
 
     int withNodes = 0;
     double totalResidents = 0.0;
+    double cityLatitude = Double.NaN;
     for (MasonGeometry geom : PedSimCityActivity.censusLayer.getGeometries()) {
       if (geom.getGeometry() == null) continue;
 
@@ -61,12 +63,32 @@ public class ActivityEnvironment extends Environment {
       zone.residence = zoneValue(geom, "residence_pct");
       zone.retireeShare = zoneValueOrNaN(geom, "retiree_pct");
       zone.studentShare = zoneValueOrNaN(geom, "student_pct");
+      zone.workerShare = zoneValueOrNaN(geom, "worker_pct");
+      if (Double.isNaN(cityLatitude)) {
+        cityLatitude = zoneValueOrNaN(geom, "centroid_lat");
+      }
       totalResidents += zoneValue(geom, "residents");
 
       zone.nodes.addAll(claimNodes(geom.getGeometry(), nodeIndex));
       if (!zone.nodes.isEmpty()) withNodes++;
 
       PedSimCityActivity.censusZones.add(zone);
+    }
+
+    // Where the city is. The seasonal daylight model needs a latitude, and it had a single
+    // hardcoded default - 53.4, Liverpool - applied to every city. On Turin that is 8.3 degrees
+    // out, which moves midsummer sunset by the better part of an hour and shifts every boundary
+    // the night module is built on. The census layer now carries the centroid latitude of the city
+    // it describes; a city whose census predates the column keeps the parameter, with a warning,
+    // because silently simulating Turin's darkness at Liverpool's latitude is what this replaces.
+    if (!Double.isNaN(cityLatitude)) {
+      ActivityPars.latitudeDegrees = cityLatitude;
+      logger.info(String.format("city latitude from census: %.4f degrees", cityLatitude));
+    } else {
+      logger.warning(
+          "census carries no centroid_lat: seasonal daylight uses ActivityPars.latitudeDegrees = "
+              + ActivityPars.latitudeDegrees
+              + ", which is only right for the city it was set for. Re-run 01_census_istat.py.");
     }
 
     // When the census carries absolute resident counts (P1), the sampling fraction applies to the

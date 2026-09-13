@@ -1,7 +1,10 @@
 package pedsim.activity.agents;
 
+import ec.util.MersenneTwisterFast;
 import java.time.DayOfWeek;
-import java.util.Random;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import pedsim.activity.parameters.ActivityPars;
 
 /**
@@ -71,6 +74,30 @@ public enum Persona {
     return purposeWeights.clone();
   }
 
+  /**
+   * The purposes this persona weights most heavily, strongest first.
+   *
+   * <p>Used to anchor the cognitive map of someone with no workplace on the places they would
+   * actually go, rather than leaving them with a known world one neighbourhood wide.
+   *
+   * @param count how many to return
+   * @return up to {@code count} purposes, strongest first
+   */
+  public List<ActivityPurpose> strongestPurposes(int count) {
+    Integer[] order = new Integer[DISCRETIONARY.length];
+    for (int i = 0; i < order.length; i++) {
+      order[i] = i;
+    }
+    Arrays.sort(order, (a, b) -> Double.compare(purposeWeights[b], purposeWeights[a]));
+    List<ActivityPurpose> strongest = new ArrayList<>(count);
+    for (int i = 0; i < Math.min(count, order.length); i++) {
+      if (purposeWeights[order[i]] > 0.0) {
+        strongest.add(DISCRETIONARY[order[i]]);
+      }
+    }
+    return strongest;
+  }
+
   /** Base walking-speed multiplier for this persona (individual noise is added per agent). */
   public double getSpeedFactor() {
     return speedFactor;
@@ -99,7 +126,7 @@ public enum Persona {
   }
 
   /** Stay duration (minutes) at the mandatory activity: uniform within the persona's range. */
-  public int sampleMandatoryStayMinutes(Random random) {
+  public int sampleMandatoryStayMinutes(MersenneTwisterFast random) {
     if (!hasMandatoryActivity()) {
       return 0;
     }
@@ -112,7 +139,7 @@ public enum Persona {
    * whose opening window contains the given hour. Falls back to {@link ActivityPurpose#STROLL}
    * (always open) when nothing else is available.
    */
-  public ActivityPurpose sampleDiscretionaryPurpose(double hourOfDay, Random random) {
+  public ActivityPurpose sampleDiscretionaryPurpose(double hourOfDay, MersenneTwisterFast random) {
     double total = 0.0;
     for (int i = 0; i < DISCRETIONARY.length; i++) {
       if (DISCRETIONARY[i].isOpenAt(hourOfDay)) {
@@ -173,17 +200,36 @@ public enum Persona {
   }
 
   /** Samples a persona according to the global shares configured in {@link ActivityPars}. */
-  public static Persona sample(Random random) {
-    return sample(random, Double.NaN, Double.NaN);
+  public static Persona sample(MersenneTwisterFast random) {
+    return sample(random, Double.NaN, Double.NaN, Double.NaN);
   }
 
   /**
-   * Samples a persona conditioned on the home zone's age structure: the zone's retiree and
-   * student shares replace the global ones, and the remaining probability mass is split between
-   * worker and flex in their global ratio. {@code NaN} shares fall back to the global values, so
-   * cities without age-structured census data keep the global mix.
+   * Samples a persona conditioned on the home zone's census structure.
+   *
+   * <p>Three of the four shares are read off the census: retirees from the 65+ age band, students
+   * from the 15-24 band, workers from ISTAT P101, the residents aged 15-64 in employment. Flex is
+   * what is left, which is what flex means here - the 15-64 who are neither employed nor of
+   * student age. It replaces a global 77/23 worker-to-flex ratio that had no source and was
+   * applied identically to every zone, so who has a job was the one persona fact the census was
+   * not allowed to settle.
+   *
+   * <p>One overlap survives, and it is bounded. P101 counts the employed 15-24, who are already
+   * counted here as students, so taking it whole borrows them from flex rather than from student.
+   * The 2021 permanent census publishes no enrolment variable at section level - only educational
+   * attainment - so there is no per-zone figure for the employed 15-24 to subtract. The error is
+   * at most the youth employment rate times the 15-24 share, a couple of points of the adult
+   * population, and it moves people between two personas that both lack a commute.
+   *
+   * <p>{@code NaN} shares fall back to the global {@link ActivityPars} values one by one, so a
+   * census carrying age bands but no employment keeps the old worker/flex ratio and nothing else
+   * changes.
    */
-  public static Persona sample(Random random, double zoneRetireeShare, double zoneStudentShare) {
+  public static Persona sample(
+      MersenneTwisterFast random,
+      double zoneRetireeShare,
+      double zoneStudentShare,
+      double zoneWorkerShare) {
     double retiree =
         Double.isNaN(zoneRetireeShare)
             ? ActivityPars.retireeShare
@@ -194,11 +240,18 @@ public enum Persona {
             : Math.min(1.0, Math.max(0.0, zoneStudentShare));
 
     double residual = Math.max(0.0, 1.0 - retiree - student);
-    double workerFlexTotal = ActivityPars.workerShare + ActivityPars.flexShare;
-    double worker =
-        workerFlexTotal > 0.0
-            ? residual * ActivityPars.workerShare / workerFlexTotal
-            : residual / 2.0;
+    double worker;
+    if (Double.isNaN(zoneWorkerShare)) {
+      double workerFlexTotal = ActivityPars.workerShare + ActivityPars.flexShare;
+      worker =
+          workerFlexTotal > 0.0
+              ? residual * ActivityPars.workerShare / workerFlexTotal
+              : residual / 2.0;
+    } else {
+      // Capped at the residual: the employed of student age are already counted as students, and
+      // a zone whose employment share exceeds what is left cannot have more workers than adults.
+      worker = Math.min(residual, Math.max(0.0, zoneWorkerShare));
+    }
     double flex = residual - worker;
 
     double total = worker + student + retiree + flex;

@@ -4,9 +4,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import pedsim.activity.agents.ActivityAgent;
 import pedsim.activity.agents.ActivityPurpose;
 import pedsim.activity.agents.Persona;
+import pedsim.activity.agents.WorkplaceChoice;
 import pedsim.activity.parameters.ActivityPars;
 import pedsim.core.agents.Agent;
 import pedsim.core.engine.PedSimCity;
@@ -56,7 +58,8 @@ public class ActivityPopulate extends Populate {
    * Assigns home/work, then samples the persona — conditioned on the home zone's age structure
    * when the census provides it — and applies its employment status: personas without a mandatory
    * activity get no work node (no daily commute); students are re-targeted to an education-tagged
-   * node when the city provides them. Runs for every activity-based agent, including night agents
+   * node when the city provides them. Finally it settles whether that commute is walked at all, from
+   * how far it turned out to be. Runs for every activity-based agent, including night agents
    * (their populate goes through this method too).
    */
   @Override
@@ -66,13 +69,16 @@ public class ActivityPopulate extends Populate {
     if (agent instanceof ActivityAgent activityAgent) {
       activityAgent.setPersona(samplePersona());
       applyPersonaEmployment(activityAgent);
+      // Last, because it reads the workplace the line above may have just replaced.
+      activityAgent.decideCommuteMode();
     }
   }
 
-  /** Persona draw: zone-conditioned when enabled and the home zone carries age shares. */
+  /** Persona draw: zone-conditioned when enabled and the home zone carries census shares. */
   private Persona samplePersona() {
     if (ActivityPars.useCensusPersonas && homeZone != null) {
-      return Persona.sample(random, homeZone.retireeShare, homeZone.studentShare);
+      return Persona.sample(
+          random, homeZone.retireeShare, homeZone.studentShare, homeZone.workerShare);
     }
     return Persona.sample(random);
   }
@@ -84,86 +90,67 @@ public class ActivityPopulate extends Populate {
     }
     if (!persona.hasMandatoryActivity()) {
       // Retirees / flex adults have no daily commute; all their trips are discretionary.
-      agent.setHomeWorkLoctations(agent.getHome(), null);
+      agent.setHomeAndWorkplace(agent.getHome(), null);
       return;
     }
     if (persona == Persona.STUDENT) {
       NodeGraph studyNode = sampleEducationNode(agent.getHome());
       if (studyNode != null) {
-        agent.setHomeWorkLoctations(agent.getHome(), studyNode);
+        agent.setHomeAndWorkplace(agent.getHome(), studyNode);
       }
     }
   }
 
   /**
-   * Weighted draw among education-tagged nodes within the trip-distance band of home, or
-   * {@code null} when the city has no education tags (the workplace assignment then stands in).
+   * Weighted draw among education-tagged nodes, with the same gravity decay as the workplace draw,
+   * or {@code null} when the city has no education tags (the workplace assignment then stands in).
+   *
+   * <p>Uncapped for the same reason as the workplace: a school out of walking range is a school
+   * reached some other way, not a school the student does not attend. The decay replaces the cap —
+   * without it, removing the bound would scatter students across the whole city by attraction
+   * alone.
    */
   private NodeGraph sampleEducationNode(NodeGraph homeNode) {
-    Map<NodeGraph, Double> education =
-        PedSimCityActivity.nodesPurposeWeight.get(ActivityPurpose.EDUCATION);
-    if (education == null || education.isEmpty() || homeNode == null) {
-      return null;
-    }
-
-    List<NodeGraph> candidates = new ArrayList<>();
-    List<Double> weights = new ArrayList<>();
-    double totalWeight = 0.0;
-    for (Map.Entry<NodeGraph, Double> entry : education.entrySet()) {
-      double distance = GraphUtils.nodesDistance(homeNode, entry.getKey());
-      if (distance >= RouteChoicePars.minTripDistance * 0.5
-          && distance <= RouteChoicePars.maxTripDistance) {
-        candidates.add(entry.getKey());
-        weights.add(entry.getValue());
-        totalWeight += entry.getValue();
-      }
-    }
-    if (candidates.isEmpty() || totalWeight <= 0.0) {
-      return null;
-    }
-
-    double r = random.nextDouble() * totalWeight;
-    double cumulative = 0.0;
-    for (int i = 0; i < candidates.size(); i++) {
-      cumulative += weights.get(i);
-      if (r <= cumulative) {
-        return candidates.get(i);
-      }
-    }
-    return candidates.get(candidates.size() - 1);
+    return WorkplaceChoice.draw(
+        homeNode,
+        PedSimCityActivity.nodesPurposeWeight.get(ActivityPurpose.EDUCATION),
+        ActivityPars.educationDistanceDecay,
+        ActivityPars.workplaceMinDistanceMetres,
+        random);
   }
 
+  /** Census zones first, then core's ladder. The uniform draw that ends it is core's. */
   @Override
-  protected void assignHomeNode() {
-    if (hasUsableCensusZones()) {
-      CensusZone zone = sampleResidentialZone();
-      homeNode = randomNodeIn(zone);
-      if (homeNode != null) {
-        homeZone = zone; // remembered so the persona can be conditioned on the home zone
-      } else {
-        // DMA fallback only when census data was attempted but zone lookup returned no node.
-        homeNode = selectHomeNodeWithDMA();
-      }
-    }
-    // When no census data is available, distribute uniformly across all network nodes.
-    if (homeNode == null) homeNode = selectRandomNode();
+  protected List<Supplier<NodeGraph>> residenceLadder() {
+    List<Supplier<NodeGraph>> ladder = new ArrayList<>();
+    ladder.add(this::selectHomeNodeFromCensus);
+    // DMA only when census data was attempted and its zone lookup returned no node - so a city
+    // with no census zones at all goes straight to the uniform draw, skipping the DMA rung core
+    // would have used. That is how this has always behaved; it is not obviously what is wanted.
+    ladder.add(() -> hasUsableCensusZones() ? selectHomeNodeWithDMA() : null);
+    return ladder;
   }
 
-  @Override
-  protected void assignWorkNode() {
-    if (homeNode == null) return;
-
-    workNode = selectWorkNodeFromPurposeWeights(homeNode);
-
-    // When the home node came from the census it stays fixed (true = keep home).
-    if (workNode == null) workNode = selectWorkNodeWithDMA(hasUsableCensusZones());
-
-    if (workNode == null) workNode = selectWorkNodeWithDistanceFallback(homeNode);
-
-    if (workNode == null) {
-      workNode = selectRandomNode();
-      if (workNode != null) randomFallbackCount.incrementAndGet();
+  /** A residence-weighted census zone, then a node inside it. Null when the census cannot say. */
+  private NodeGraph selectHomeNodeFromCensus() {
+    if (!hasUsableCensusZones()) {
+      return null;
     }
+    CensusZone zone = sampleResidentialZone();
+    NodeGraph node = randomNodeIn(zone);
+    if (node != null) {
+      homeZone = zone; // remembered so the persona can be conditioned on the home zone
+    }
+    return node;
+  }
+
+  /** OSM purpose weights first, then core's ladder. The uniform draw that ends it is core's. */
+  @Override
+  protected List<Supplier<NodeGraph>> workplaceLadder() {
+    List<Supplier<NodeGraph>> ladder = new ArrayList<>();
+    ladder.add(() -> selectWorkNodeFromPurposeWeights(homeNode));
+    ladder.addAll(super.workplaceLadder());
+    return ladder;
   }
 
   /** Builds the cumulative residence-weight table over the residential zones (residence &gt; 0). */
@@ -203,46 +190,24 @@ public class ActivityPopulate extends Populate {
 
   /**
    * Weighted draw among WORK-tagged nodes (offices, commercial, industrial… from the OSM-tag
-   * purpose weights) within the trip-distance band of home, with gravity decay when
-   * {@link RouteChoicePars#useGravityModel} is set. Returns {@code null} when the city carries no
-   * work tags — the DMA / distance fallbacks then stand in.
+   * purpose weights), with gravity decay when {@link RouteChoicePars#useGravityModel} is set.
+   * Returns {@code null} when the city carries no work tags — the DMA / distance fallbacks then
+   * stand in.
+   *
+   * <p>There is no upper bound on the commute. A workplace is where it is; what decides whether
+   * that commute appears in this model is {@link
+   * pedsim.activity.agents.ActivityAgent#decideCommuteMode()}, and a commute too long to walk
+   * should surface as the walk to a transit stop rather than as a workplace the city never
+   * assigned. The old cap placed every workplace inside the discretionary trip range, which made
+   * the long commute — and therefore the pedestrian volume around stations — impossible to
+   * represent at all.
    */
   private NodeGraph selectWorkNodeFromPurposeWeights(NodeGraph homeNode) {
-    Map<NodeGraph, Double> work =
-        PedSimCityActivity.nodesPurposeWeight.get(ActivityPurpose.WORK);
-    if (work == null || work.isEmpty()) return null;
-
-    // Beta = 2.0 is a standard gravity model decay parameter
-    final double BETA = 2.0;
-
-    List<NodeGraph> candidates = new ArrayList<>();
-    List<Double> weights = new ArrayList<>();
-    double totalWeight = 0.0;
-    for (Map.Entry<NodeGraph, Double> entry : work.entrySet()) {
-      double distance = GraphUtils.nodesDistance(homeNode, entry.getKey());
-      if (distance < RouteChoicePars.minTripDistance * 0.6
-          || distance > RouteChoicePars.maxTripDistance) {
-        continue;
-      }
-      double weight = entry.getValue();
-      if (RouteChoicePars.useGravityModel) {
-        weight /= Math.pow(Math.max(10.0, distance), BETA);
-      }
-      candidates.add(entry.getKey());
-      weights.add(weight);
-      totalWeight += weight;
-    }
-    if (candidates.isEmpty() || totalWeight <= 0.0) return null;
-
-    double r = random.nextDouble() * totalWeight;
-    double cumulative = 0.0;
-    for (int i = 0; i < candidates.size(); i++) {
-      cumulative += weights.get(i);
-      if (r <= cumulative) {
-        spatialJumpSuccessCount.incrementAndGet();
-        return candidates.get(i);
-      }
-    }
-    return candidates.get(candidates.size() - 1);
+    return WorkplaceChoice.draw(
+        homeNode,
+        PedSimCityActivity.nodesPurposeWeight.get(ActivityPurpose.WORK),
+        ActivityPars.workplaceDistanceDecay,
+        ActivityPars.workplaceMinDistanceMetres,
+        random);
   }
 }

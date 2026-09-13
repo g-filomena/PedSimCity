@@ -1,6 +1,5 @@
 package pedsim.activity.engine;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -8,17 +7,12 @@ import java.util.List;
 import java.util.Map;
 import pedsim.activity.agents.ActivityAgent;
 import pedsim.activity.agents.ActivityPurpose;
-import pedsim.activity.agents.DailyAgenda;
-import pedsim.activity.agents.DepartureProfile;
-import pedsim.activity.agents.Persona;
-import pedsim.activity.parameters.ActivityPars;
 import pedsim.core.agents.Agent;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.parameters.Pars;
 import pedsim.core.parameters.RouteChoicePars;
 import pedsim.core.parameters.TimePars;
-import pedsim.core.parameters.TripDistanceBands;
 import pedsim.transit.TransitStop;
 import pedsim.transit.TransitVehicle;
 import sim.field.geo.VectorLayer;
@@ -156,132 +150,10 @@ public class PedSimCityActivity extends PedSimCity {
         TimePars.getTime(schedule.getSteps()).toLocalDate(), seed());
   }
 
-  /** Rainy days suppress the walking volume: fewer releases per time step. */
+  /** Travel demand for the activity tier; see {@link ActivityTravelDemand}. */
   @Override
-  public double releaseBudgetMultiplier(LocalDateTime time) {
-    if (!ActivityPars.useWeather) {
-      return 1.0;
-    }
-    return Weather.isRainy(time.toLocalDate(), seed()) ? ActivityPars.rainReleaseMultiplier : 1.0;
-  }
-
-  /**
-   * Persona × hour release affinity: commuter personas are favoured at the morning/evening peaks,
-   * retirees at midday (see {@link pedsim.activity.agents.Persona#releaseAffinity}).
-   */
-  @Override
-  public double releaseCandidateWeight(Agent agent, int hour) {
-    if (!ActivityPars.usePersonaReleaseWeights
-        || !(agent instanceof ActivityAgent activityAgent)
-        || activityAgent.getPersona() == null) {
-      return 1.0;
-    }
-    return activityAgent.getPersona().releaseAffinity(hour);
-  }
-
-  /** Rebuilt when the simulated day changes; the profile depends on the day of week. */
-  private DepartureProfile departureProfile;
-
-  private java.time.LocalDate departureProfileDay;
-
-  /**
-   * Departures timed by the agenda system: mandatory start windows, opening hours and persona
-   * preferences, instead of the tuned peaks of {@code TimePars.computeTimeStepShare}.
-   *
-   * <p>Rebuilt once per simulated day, because which personas attend a mandatory activity depends
-   * on the day of week; the weekend profile then falls out of the personas not working, rather
-   * than out of a second hand-shaped curve.
-   */
-  @Override
-  public double departureShare(java.time.LocalDateTime time) {
-    if (!ActivityPars.useAgendaDepartureProfile) {
-      return super.departureShare(time);
-    }
-    java.time.LocalDate day = time.toLocalDate();
-    if (departureProfile == null || !day.equals(departureProfileDay)) {
-      double expectedTourMeters =
-          DailyAgenda.expectedLegs(Persona.FLEX, false, isRainyNow())
-              * expectedWalkedLegMeters(TripDistanceBands.bandFor(12));
-      double commuteShare =
-          DepartureProfile.commuteShareOfTours(
-              day.getDayOfWeek(), Pars.metersPerDayPerPerson, expectedTourMeters);
-      departureProfile = DepartureProfile.forDay(day.getDayOfWeek(), commuteShare);
-      departureProfileDay = day;
-    }
-    return departureProfile.share(time);
-  }
-
-  /**
-   * Tour length in legs: home, then optionally work, then the agenda's stops, then home. Delegates
-   * to the agent so the expectation is computed from the same persona, commute test and weather
-   * that {@link pedsim.activity.agents.DailyAgenda#build} will use when the agenda is actually
-   * built.
-   */
-  @Override
-  public double expectedTourLegs(Agent agent) {
-    if (agent instanceof ActivityAgent activityAgent) {
-      return activityAgent.expectedTourLegs();
-    }
-    // No agent in hand: the typical tour, used only to size the carried residual. Non-commuting
-    // because most releases across the day are discretionary.
-    return DailyAgenda.expectedLegs(null, false, isRainyNow())
-        + ActivityPars.secondActivityProbability;
-  }
-
-  /**
-   * Walk-share filter: logit acceptance of sampled trip distances, so most short trips are walked
-   * and few long ones are — the released trip-length mix follows observed walking mode shares.
-   */
-  @Override
-  public double tripAcceptanceProbability(double meters) {
-    return walkShareProbability(meters);
-  }
-
-  /**
-   * Probability that a trip of this length is walked rather than made some other way.
-   *
-   * <p>Separated from the draw so it can be integrated: the expected
-   * length of a leg the model actually walks is not the mean of the distance band, because this
-   * filter removes the long tail of it. Anything reasoning about how far a tour goes has to
-   * integrate against this rather than use the band mean.
-   *
-   * @param meters the sampled trip distance
-   * @return the acceptance probability, in {@code [0, 1]}
-   */
-  public static double walkShareProbability(double meters) {
-    if (!ActivityPars.useWalkShareFilter) {
-      return 1.0;
-    }
-    return 1.0
-        / (1.0
-            + Math.exp(
-                ActivityPars.walkShareSteepness
-                    * (meters - ActivityPars.walkShareHalfDistance)));
-  }
-
-  /**
-   * Mean length of a leg the model actually walks, integrating the distance band against the
-   * walk-share filter.
-   *
-   * <p>Quadrature over the band's inverse CDF: {@code TripDistanceBands.sample} maps a uniform
-   * draw to a distance, so evaluating it on a regular grid of quantiles and weighting each by its
-   * acceptance probability gives {@code E[d | walked]} without sampling.
-   *
-   * @param band the trip-distance band in force
-   * @return the expected walked leg length in metres
-   */
-  public static double expectedWalkedLegMeters(TripDistanceBands.Band band) {
-    int steps = 200;
-    double weighted = 0.0;
-    double weight = 0.0;
-    for (int i = 0; i < steps; i++) {
-      double u = (i + 0.5) / steps;
-      double d = TripDistanceBands.sample(band, u);
-      double accept = walkShareProbability(d);
-      weighted += d * accept;
-      weight += accept;
-    }
-    return weight > 0.0 ? weighted / weight : RouteChoicePars.avgTripDistance;
+  protected pedsim.core.engine.TravelDemand createTravelDemand() {
+    return new ActivityTravelDemand(this);
   }
 
   /** Clears all static data structures to allow for a clean simulation restart. */

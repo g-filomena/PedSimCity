@@ -3,26 +3,31 @@ package pedsim.activity.agents;
 import java.time.LocalDateTime;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import pedsim.activity.engine.PedSimCityActivity;
+import pedsim.activity.engine.Daylight;
 import pedsim.activity.parameters.ActivityPars;
-import pedsim.core.agents.Agent;
 import pedsim.core.engine.PedSimCity;
+import pedsim.core.parameters.Pars;
 import pedsim.core.parameters.TimePars;
 import pedsim.core.utilities.StringEnum;
 import pedsim.core.utilities.StringEnum.AgentStatus;
 import pedsim.transit.TransitStop;
+import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import sim.engine.SimState;
+import sim.graph.Graph;
 import sim.graph.NodeGraph;
+import sim.graph.NodesLookup;
 
 /**
  * Pedestrian agent for the activity-based model. Follows a 24h activity pattern organised as
- * home-based tours:
+ * home-based trip chains:
  *
  * <ul>
  *   <li><b>Persona</b> (worker / student / retiree / flex) decides whether, when and for how long
  *       the agent attends a mandatory activity, and its walking speed;
- *   <li><b>Daily agenda</b>: on release the agent plans a small tour of discretionary activities
+ *   <li><b>Daily agenda</b>: on release the agent plans a small trip chain of discretionary activities
  *       (purpose-typed); after each stay it chains directly to the next stop instead of returning
  *       home first, and goes home when the agenda is exhausted;
  *   <li><b>Purpose-typed destinations</b>: discretionary destinations are weighted by the
@@ -38,7 +43,7 @@ import sim.graph.NodeGraph;
  *
  * <p>No vulnerability or lighting behaviour — those belong to the night module.
  */
-public class ActivityAgent extends Agent {
+public class ActivityAgent extends CommuterAgent {
 
   private static final long serialVersionUID = 1L;
 
@@ -56,7 +61,7 @@ public class ActivityAgent extends Agent {
   /** Purpose of the current discretionary trip; {@code null} on work and home legs. */
   protected ActivityPurpose currentPurpose;
 
-  /** Remaining discretionary stops of the current tour; {@code null} until first release. */
+  /** Remaining discretionary stops of the current trip chain; {@code null} until first release. */
   protected DailyAgenda agenda;
 
   /**
@@ -98,7 +103,7 @@ public class ActivityAgent extends Agent {
   }
 
   @Override
-  protected synchronized void planTrip() {
+  protected void planTrip() {
     super.planTrip();
 
     if (reachedDestination.get() || destinationNode == null || originNode == null) {
@@ -131,7 +136,7 @@ public class ActivityAgent extends Agent {
               splitProbability = 0.30; // 30% Bus capture rate across urban bus network
             }
 
-            if (sharedMode != null && state.random.nextDouble() < splitProbability) {
+            if (sharedMode != null && random.nextDouble() < splitProbability) {
               // Agent chooses transit -> Execute Leg 1 (Walk to boarding station)
               ultimateDestinationNode = destinationNode;
               boardingStop = bStop;
@@ -174,10 +179,136 @@ public class ActivityAgent extends Agent {
   // Persona
   // ----------------------------------------------------------------
 
+  /**
+   * Whether this agent is one of the people who walk their commute.
+   *
+   * <p>Decided once, when home and workplace are both known, and fixed thereafter: someone either
+   * walks their commute or does not, and re-rolling it each morning would make it a coin flip
+   * rather than a property of that person and that journey.
+   *
+   * <p>It is decided by <em>how far the commute is</em>, through the same walk-share curve that
+   * used to sit at release time rejecting sampled distances. That is where it belongs: distance
+   * does not decide whether a journey happens, it decides how the journey is made. A five-kilometre
+   * commute is not impossible, it is not walked.
+   *
+   * <p>Nothing gated this at all before, so every worker walked the whole way to work, while
+   * {@code DepartureProfile} was already sizing the day as if 12% did. ISTAT 2017 gives 12.0% of
+   * the employed and 27.9% of students as the walking share of commuting; those are now a
+   * <em>prediction to check</em> rather than a rate imposed on the agents - the model produces its
+   * own share, and a bad match is a finding about the curve.
+   *
+   * <p>The commuters who do not walk are, for the moment, absent from the street: their access and
+   * egress walks around transit stops are real pedestrian metres this model does not yet produce.
+   */
+  protected boolean walksToWork = true;
+
   /** Assigns the persona and derives the individual walking speed (±10% personal noise). */
   public void setPersona(Persona persona) {
     this.persona = persona;
     this.speedFactor = persona.getSpeedFactor() * (0.90 + 0.20 * random.nextDouble());
+  }
+
+  /**
+   * Settles whether this agent's commute is walked, from the distance between home and workplace.
+   * Call once both are assigned; agents with no workplace never commute anyway.
+   */
+  public void decideCommuteMode() {
+    if (homeNode == null || workNode == null) {
+      walksToWork = false;
+      return;
+    }
+    // Scaled to walked metres, like the distance term in DestinationChoice: the curve was fitted
+    // to NTS0308 trip lengths, which are reported journey distances, so feeding it a straight line
+    // asks it the wrong question and keeps commutes the factor of the network's circuity too
+    // short - which is to say it walks far more of them than anyone walks.
+    double commuteMetres =
+        homeNode.getCoordinate().distance(workNode.getCoordinate())
+            * Pars.networkCircuityFactor;
+    boolean student = persona == Persona.STUDENT;
+    walksToWork =
+        random.nextDouble() < state.travelDemand().commuteWalkProbability(commuteMetres, student);
+  }
+
+  /**
+   * Estimated metres walked on this agent's commute: the straight line home to workplace, scaled by
+   * the network's measured circuity. The same estimate {@code decideCommuteMode} asks the
+   * walk-share curve about, and the only one available before the route exists.
+   */
+  public double commuteMetres() {
+    if (homeNode == null || workNode == null) {
+      return 0.0;
+    }
+    return homeNode.getCoordinate().distance(workNode.getCoordinate())
+        * Pars.networkCircuityFactor;
+  }
+
+  /** Whether this agent has a workplace or place of study at all. */
+  public boolean hasWorkplace() {
+    return workNode != null;
+  }
+
+  /** Whether this agent walks its commute; false when it would use some other mode. */
+  public boolean walksToWork() {
+    return walksToWork;
+  }
+
+  /** Minute of the day this agent sets out for its mandatory activity; -1 when it has none today. */
+  protected int mandatoryDepartureMinute = -1;
+
+  /**
+   * Draws this agent's departure time for today's mandatory activity, or establishes that it has
+   * none.
+   *
+   * <p>Having a job means going to it. The release manager used to decide that by lottery - a
+   * worker commuted only if it happened to be drawn during its start window - and a parameter was
+   * then computed to tell the departure profile how often chance had obliged. Here the commute is
+   * generated from what the agent is, and the only question left to chance is which discretionary
+   * trips happen on top.
+   *
+   * <p>The minute is drawn uniformly inside the persona's mandatory start window. That window is
+   * read as a departure window rather than an arrival window, which is the convention the profile
+   * it replaces already used; making it an arrival window means subtracting a travel time that is
+   * not known until the route exists.
+   *
+   * <p>It must ask exactly what {@link #shouldGoToWork()} will ask when the agent is actually
+   * released, or the day's leg budget is charged for a commute chain that then does not happen.
+   * Darkness is the condition that catches this out: {@code shouldGoToWork} refuses to set off in
+   * the dark, so a winter morning departure drawn here would be released, decline to commute, and
+   * take a discretionary trip the budget never bought. In June at Turin's latitude the two agree
+   * and nothing shows; in December they would not, which is precisely when it would be missed.
+   *
+   * @param day the day being prepared
+   * @return whether this agent has a walked mandatory trip today
+   */
+  public boolean planMandatoryDeparture(java.time.LocalDate day) {
+    mandatoryDepartureMinute = -1;
+    if (persona == null
+        || workNode == null
+        || !walksToWork
+        || !persona.hasMandatoryActivity()
+        || !persona.worksOn(day.getDayOfWeek())) {
+      return false;
+    }
+    int from = (int) Math.round(persona.getMandatoryStartEarliest() * 60.0);
+    int to = (int) Math.round(persona.getMandatoryStartLatest() * 60.0);
+    int minute = to > from ? from + random.nextInt(to - from) : from;
+    if (darkAt(day.atStartOfDay().plusMinutes(minute))) {
+      return false;
+    }
+    mandatoryDepartureMinute = minute;
+    return true;
+  }
+
+  /** Darkness at a future moment, by the same rule {@code ActivityEngine.onStepUpdate} applies. */
+  private static boolean darkAt(LocalDateTime time) {
+    return ActivityPars.useSeasonalDaylight
+        ? Daylight.isDark(time)
+        : TimePars.isNight(time.toLocalTime());
+  }
+
+  /** Minute of the day this agent departs for its mandatory activity, or -1. */
+  public int mandatoryDepartureMinute() {
+    return mandatoryDepartureMinute;
   }
 
   public Persona getPersona() {
@@ -202,7 +333,7 @@ public class ActivityAgent extends Agent {
    */
   @Override
   protected boolean shouldGoToWork() {
-    if (workNode == null || hasWorkedToday || isDark()) {
+    if (workNode == null || hasWorkedToday || isDark() || !walksToWork) {
       return false;
     }
     if (persona == null) {
@@ -214,25 +345,10 @@ public class ActivityAgent extends Agent {
   }
 
   // ----------------------------------------------------------------
-  // Tour: agenda building and trip chaining
+  // Trip chain: agenda building and trip chaining
   // ----------------------------------------------------------------
 
-  /**
-   * How many legs this agent's tour is expected to walk if released now.
-   *
-   * <p>Read by the release manager so the metres budget is charged for the tour rather than for its
-   * first leg. It asks the same questions {@link #startWalkingAlone} will ask a moment later, that
-   * is whether the commute happens and what the agenda will hold, but answers them in expectation,
-   * since the agenda does not exist yet at release time.
-   *
-   * @return the expected number of walked legs, at least two
-   */
-  public double expectedTourLegs() {
-    boolean rainy = state instanceof PedSimCityActivity activityState && activityState.isRainyNow();
-    return DailyAgenda.expectedLegs(persona, shouldGoToWork(), rainy);
-  }
-
-  /** Builds the tour agenda when the release manager sends this agent out. */
+  /** Builds the trip chain agenda when the release manager sends this agent out. */
   @Override
   public void startWalkingAlone() {
     if (persona != null) {
@@ -304,7 +420,7 @@ public class ActivityAgent extends Agent {
     return true;
   }
 
-  /** The tour is over: drop the agenda so the next release starts fresh. */
+  /** The trip chain is over: drop the agenda so the next release starts fresh. */
   @Override
   protected void handleReachedHome() {
     agenda = null;
@@ -335,7 +451,7 @@ public class ActivityAgent extends Agent {
 
   /**
    * Discretionary destination choice: resolves the trip's purpose (first agenda entry when this is
-   * the tour's first leg), then either returns to a place the agent already knows or samples a new
+   * the trip chain's first leg), then either returns to a place the agent already knows or samples a new
    * one at the released distance, and records the visit either way.
    *
    * <p>The purpose does not scale that distance. It used to; see the note in
@@ -344,6 +460,11 @@ public class ActivityAgent extends Agent {
   @Override
   protected void defineRandomDestination() {
     ensureCurrentPurpose();
+    if (ActivityPars.useDestinationChoice) {
+      chooseDestination();
+      rememberFavourite(currentPurpose, destinationNode);
+      return;
+    }
     if (tryHabitualDestination()) {
       return;
     }
@@ -352,10 +473,74 @@ public class ActivityAgent extends Agent {
   }
 
   /**
-   * Resolves the purpose of the tour's first discretionary leg from the agenda. Chained legs get
+   * Resolves the purpose of the trip chain's first discretionary leg from the agenda. Chained legs get
    * their purpose in {@link #goHome()}; agents without persona/agenda keep {@code null} (uniform
    * destination weighting).
    */
+  /**
+   * Picks a destination from the opportunities around the agent, weighing attraction against
+   * distance and habit in one utility. No sampled length is consulted: how far the trip turns out
+   * to be is a consequence of the choice, not a target it was made to hit.
+   *
+   * <p>The choice set is everything within {@link ActivityPars#choiceSetRadiusMetres}, which bounds
+   * the work rather than the behaviour - beyond it the impedance term has already made the utility
+   * negligible.
+   */
+  protected void chooseDestination() {
+    Graph network = SharedCognitiveMap.getCommunityPrimalNetwork();
+    List<NodeGraph> candidates =
+        NodesLookup.getNodesBetweenDistanceInterval(
+            network, originNode, 0.0, ActivityPars.choiceSetRadiusMetres);
+    Map<NodeGraph, Double> attraction =
+        currentPurpose == null ? null : PedSimCityActivity.nodesPurposeWeight.get(currentPurpose);
+    destinationNode =
+        DestinationChoice.choose(
+            candidates, originNode, attraction, favouritePlaces.get(currentPurpose), random);
+    if (destinationNode == null) {
+      state.ledger().recordDestinationFallback();
+      destinationNode = NodesLookup.randomNode(network, random);
+    }
+  }
+
+  /**
+   * Home, the mandatory activity when there is one, and otherwise the places this persona actually
+   * goes.
+   *
+   * <p>An agent with no workplace used to be left with a bone around home alone. What replaces the
+   * missing anchor is drawn from what the persona is: for its two strongest discretionary purposes,
+   * a plausible destination for each, taken with the same choice the agent would make on the day
+   * rather than the single most attractive node. A retiree's known world becomes home, the shops it
+   * would use, the errands it would run - which is what an activity space is.
+   *
+   * <p>Falls back to home alone when the city carries no attraction data, since then there is
+   * nothing to anchor on and nothing to invent.
+   */
+  @Override
+  public List<NodeGraph> cognitiveAnchors() {
+    List<NodeGraph> anchors = super.cognitiveAnchors();
+    if (persona == null || workNode != null || homeNode == null) {
+      return anchors;
+    }
+    Graph network = SharedCognitiveMap.getCommunityPrimalNetwork();
+    List<NodeGraph> nearby =
+        NodesLookup.getNodesBetweenDistanceInterval(
+            network, homeNode, 0.0, ActivityPars.choiceSetRadiusMetres);
+    if (nearby.isEmpty()) {
+      return anchors;
+    }
+    for (ActivityPurpose purpose : persona.strongestPurposes(2)) {
+      Map<NodeGraph, Double> attraction = PedSimCityActivity.nodesPurposeWeight.get(purpose);
+      if (attraction == null || attraction.isEmpty()) {
+        continue;
+      }
+      NodeGraph anchor = DestinationChoice.choose(nearby, homeNode, attraction, null, random);
+      if (anchor != null && !anchors.contains(anchor)) {
+        anchors.add(anchor);
+      }
+    }
+    return anchors;
+  }
+
   protected void ensureCurrentPurpose() {
     if (currentPurpose == null && agenda != null && persona != null) {
       currentPurpose = agenda.pollOpenActivity(hourOf(now()));

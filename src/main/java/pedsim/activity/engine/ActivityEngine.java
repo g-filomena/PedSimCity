@@ -34,6 +34,16 @@ public class ActivityEngine extends Engine {
   }
 
   @Override
+  protected boolean runDiagnosticsInstead() {
+    if (!pedsim.activity.parameters.ActivityPars.calibrateCommute) {
+      return false;
+    }
+    CommuteCalibration.run(
+        pedsim.activity.parameters.ActivityPars.calibrationHomes, baseSeed);
+    return true;
+  }
+
+  @Override
   protected void clearStaticData() {
     super.clearStaticData();
     PedSimCityActivity.clearStaticData();

@@ -25,7 +25,7 @@ public final class Weather {
     }
     // One uniform draw per (seed, day). The key is finalised with SplitMix64 because raw
     // sequential keys (consecutive days) produce heavily correlated first draws in
-    // java.util.Random — hashing first makes the per-day coin flips independent.
+    // a linear generator — hashing first makes the per-day coin flips independent.
     double draw = uniform(seed * 31L + date.toEpochDay());
     return draw < ActivityPars.rainyDayProbability;
   }

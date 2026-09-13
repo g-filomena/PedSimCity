@@ -1,6 +1,5 @@
 package pedsim.activity.agents;
 
-import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import pedsim.activity.parameters.ActivityPars;
 import pedsim.core.parameters.TimePars;
@@ -22,9 +21,13 @@ import pedsim.core.parameters.TimePars;
  *   <li><b>opening hours</b> — when each {@link ActivityPurpose} can be started at all, which come
  *       from OSM tagging rather than from this model;
  *   <li><b>persona preference weights</b> — what mix of purposes each persona pursues;
- *   <li><b>the commute share</b> — how much of the day's travel is the one structural commute per
- *       working agent, computed from the budget rather than chosen.
+ *   <li><b>the realised persona mix</b> — census-conditioned per home zone, so a city of retirees
+ *       gets a midday profile without anything being said about midday.
  * </ul>
+ *
+ * <p>Commutes are not here. They are generated per agent from whether that agent has a job and
+ * walks to it (see {@code ActivityAgent.planMandatoryDeparture}); this curve times the
+ * discretionary travel that happens around them.
  *
  * <p>None of those is fitted to a diurnal observation, so the profile that comes out is a
  * prediction. If it fits observed presence worse than the tuned curve did, that is a finding about
@@ -65,47 +68,31 @@ public final class DepartureProfile {
   }
 
   /**
-   * Builds the profile for one day.
+   * Builds the discretionary departure profile.
    *
-   * @param day the day of week — workers and students do not attend at weekends, which shifts the
-   *        whole profile without any weekend-specific curve being written
-   * @param commuteShareOfTours the fraction of the day's tours that are the mandatory commute; see
-   *        {@link #commuteShareOfTours}
+   * <p>No day-of-week parameter, and that is the point. The profile used to carry the commute as a
+   * lump of mass spread over the mandatory start windows, so the weekend differed because a share
+   * was computed to be zero. Commutes are now generated per agent from whether that agent has a job
+   * and walks to it, which leaves this curve describing discretionary travel only - and a
+   * discretionary day looks the same on a Tuesday as on a Saturday, as far as anything in this
+   * model knows. The weekend difference falls out of workers not commuting, not out of a second
+   * curve. If observed presence says Saturday afternoons differ in shape as well as in volume,
+   * that is a finding this profile can now be wrong about.
+   *
+   * @param personaShares the realised mix of the sampled population, in WORKER, STUDENT, RETIREE,
+   *     FLEX order - the census-conditioned mix the agents actually got, not the global constants
    * @return the profile, a density over the day integrating to 1.0
    */
-  public static DepartureProfile forDay(DayOfWeek day, double commuteShareOfTours) {
+  public static DepartureProfile discretionary(double[] personaShares) {
     int bins = (int) Math.round(24.0 * 60.0 / TimePars.releaseAgentsEveryMinutes);
     double binHours = 24.0 / bins;
     double[] density = new double[bins];
 
-    double[] shares = {
-      ActivityPars.workerShare,
-      ActivityPars.studentShare,
-      ActivityPars.retireeShare,
-      ActivityPars.flexShare
-    };
     Persona[] personas = {Persona.WORKER, Persona.STUDENT, Persona.RETIREE, Persona.FLEX};
-
     for (int p = 0; p < personas.length; p++) {
-      Persona persona = personas[p];
-      double share = shares[p];
-      if (share <= 0.0) {
-        continue;
-      }
-      boolean commutes = persona.hasMandatoryActivity() && persona.worksOn(day);
-      double toCommute = commutes ? share * commuteShareOfTours : 0.0;
-      double toDiscretionary = share - toCommute;
-
-      if (toCommute > 0.0) {
-        spread(
-            density,
-            binHours,
-            persona.getMandatoryStartEarliest(),
-            persona.getMandatoryStartLatest(),
-            toCommute);
-      }
-      if (toDiscretionary > 0.0) {
-        addDiscretionary(density, binHours, persona, toDiscretionary);
+      double share = personaShares != null && p < personaShares.length ? personaShares[p] : 0.0;
+      if (share > 0.0) {
+        addDiscretionary(density, binHours, personas[p], share);
       }
     }
 
@@ -202,49 +189,4 @@ public final class DepartureProfile {
     return density[bin];
   }
 
-  /**
-   * What fraction of a day's tours are the structural commute.
-   *
-   * <p>Each working agent commutes once on a working day — that is not a parameter, it is what
-   * "having a job" means. The rest of the day's tours are discretionary. So the split follows from
-   * how many tours the metres budget buys per agent: a budget that affords roughly one tour a
-   * person is nearly all commuting, one that affords three is mostly not.
-   *
-   * <p>Not every worker walks to work, so the commuting population is scaled by the observed
-   * walking mode share of that group ({@link ActivityPars#walkShareCommuteWorker}, from ISTAT).
-   * Without that scaling the commute demand is the whole working population and the profile
-   * becomes a pure commuting peak.
-   *
-   * <p>Saturating at 1.0 is a statement about the calibration rather than a clamp doing its job:
-   * it means walking commutes alone would spend the entire metres budget, leaving nothing for
-   * discretionary travel. If that happens, {@code metersPerDayPerPerson}, the persona shares and
-   * the walk-share filter are not consistent with one another, and the flat afternoon it produces
-   * is the symptom rather than the disease.
-   *
-   * @param day the day of week
-   * @param metersPerPersonPerDay the calibration anchor
-   * @param expectedTourMeters metres a typical tour walks
-   * @return the commute share, in {@code [0, 1]}
-   */
-  public static double commuteShareOfTours(
-      DayOfWeek day, double metersPerPersonPerDay, double expectedTourMeters) {
-    if (expectedTourMeters <= 0.0) {
-      return 0.0;
-    }
-    // Walking commuters, not commuters: the observed share of each group that goes on foot
-    // (ISTAT 2017). Workers and students differ by more than a factor of two, so they cannot
-    // share one figure.
-    double workingFraction = 0.0;
-    if (Persona.WORKER.worksOn(day)) {
-      workingFraction += ActivityPars.workerShare * ActivityPars.walkShareCommuteWorker;
-    }
-    if (Persona.STUDENT.worksOn(day)) {
-      workingFraction += ActivityPars.studentShare * ActivityPars.walkShareCommuteStudent;
-    }
-    double toursPerAgent = metersPerPersonPerDay / expectedTourMeters;
-    if (toursPerAgent <= 0.0) {
-      return 0.0;
-    }
-    return Math.min(1.0, workingFraction / toursPerAgent);
-  }
 }

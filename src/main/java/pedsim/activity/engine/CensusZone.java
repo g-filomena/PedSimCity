@@ -26,10 +26,11 @@ public class CensusZone {
 
   public double residence; // share of total city residents (0 for non-residential zones)
 
-  // Age-structure shares of the zone's adult residents (NaN when the census lacks them);
+  // Census shares of the zone's adult (15+) residents (NaN when the census lacks the column);
   // used to condition persona sampling on the home zone.
   public double retireeShare = Double.NaN; // residents aged 65+
   public double studentShare = Double.NaN; // residents aged 15-24
+  public double workerShare = Double.NaN; // residents employed, 15-64 (ISTAT P101)
 
   public CensusZone(MasonGeometry geometry) {
     this.geometry = geometry;

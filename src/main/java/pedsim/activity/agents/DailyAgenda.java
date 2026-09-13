@@ -1,18 +1,18 @@
 package pedsim.activity.agents;
 
+import ec.util.MersenneTwisterFast;
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.Random;
 import pedsim.activity.parameters.ActivityPars;
 
 /**
- * The queue of discretionary activities an agent intends to carry out on the current tour. Built
- * when the agent is released; consumed one purpose at a time as the tour chains from stop to stop
+ * The queue of discretionary activities an agent intends to carry out on the current trip chain. Built
+ * when the agent is released; consumed one purpose at a time as the trip chain chains from stop to stop
  * (home → [work] → activity → activity → home).
  *
  * <p>The agenda holds only discretionary purposes — the mandatory work/study leg is decided by
  * {@code ActivityAgent.shouldGoToWork()} — so a worker's agenda naturally becomes the post-work
- * chain (commute, then shopping on the way home), while a non-worker's agenda is the whole tour.
+ * chain (commute, then shopping on the way home), while a non-worker's agenda is the whole trip chain.
  *
  * <p>Purposes are validated against their opening window when *popped*, not when built: an activity
  * sampled at release time may have closed by the time the agent gets to it (e.g. errands planned
@@ -25,18 +25,18 @@ public class DailyAgenda {
   private DailyAgenda() {}
 
   /**
-   * Builds the tour agenda for an agent released now.
+   * Builds the trip chain agenda for an agent released now.
    *
    * @param persona the agent's persona (null → single discretionary stop, no chaining)
    * @param hourOfDay the release hour (0–24)
-   * @param expectingWorkLeg whether the first leg of this tour will be the mandatory work/study
+   * @param expectingWorkLeg whether the first leg of this trip chain will be the mandatory work/study
    *        trip — the agenda then only holds optional post-work activities
    * @param random the agent's RNG
    * @param rainy whether the current day is rainy — rain thins the optional chained stops
    *        ({@link ActivityPars#rainDiscretionaryMultiplier}) while commutes still happen
    */
   public static DailyAgenda build(
-      Persona persona, double hourOfDay, boolean expectingWorkLeg, Random random, boolean rainy) {
+      Persona persona, double hourOfDay, boolean expectingWorkLeg, MersenneTwisterFast random, boolean rainy) {
     DailyAgenda agenda = new DailyAgenda();
     if (persona == null) {
       return agenda; // destination chosen per trip, no chaining
@@ -67,12 +67,12 @@ public class DailyAgenda {
    * Expected number of discretionary stops {@link #build} would put on this agenda.
    *
    * <p>Deliberately kept beside {@code build}: the release manager charges the metres budget for a
-   * whole tour rather than a single leg, and it can only do that if it can predict the tour's size
+   * whole trip chain rather than a single leg, and it can only do that if it can predict the trip chain's size
    * before the agenda exists. Any change to {@code build} has to be mirrored here, which is why the
    * two sit together.
    *
    * @param persona the agent's persona (null means no chaining, so no stops)
-   * @param expectingWorkLeg whether the tour opens with the mandatory work/study trip
+   * @param expectingWorkLeg whether the trip chain opens with the mandatory work/study trip
    * @param rainy whether rain is thinning the optional stops
    * @return the expected count, a real number rather than a draw
    */
@@ -89,14 +89,14 @@ public class DailyAgenda {
   }
 
   /**
-   * Expected number of walked legs the tour will produce.
+   * Expected number of walked legs the trip chain will produce.
    *
-   * <p>A tour is home, then optionally work, then the stops, then home again, so the legs are the
+   * <p>A trip chain is home, then optionally work, then the stops, then home again, so the legs are the
    * stops themselves plus the leg home, plus the commute leg when there is one. An agent with no
    * persona still walks out and back, which is two.
    *
    * @param persona the agent's persona
-   * @param expectingWorkLeg whether the tour opens with the mandatory work/study trip
+   * @param expectingWorkLeg whether the trip chain opens with the mandatory work/study trip
    * @param rainy whether rain is thinning the optional stops
    * @return the expected leg count, never below the two of a plain out-and-back
    */
