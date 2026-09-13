@@ -25,6 +25,12 @@ import sim.graph.NodeGraph;
  * <p>Both constrained attempts apply only to vulnerable agents; for non-vulnerable agents the
  * filter is a no-op and night avoidance is left to situated navigation.
  *
+ * <p><b>Deliberately narrower than the destination rule.</b>
+ * {@code NightAgent.chooseDestinationAvoidingParksAfterDark} refuses a park or waterside
+ * destination for every night agent after dark, while the avoidance here gates on vulnerability.
+ * Walking past a dark park and choosing to spend the evening in one are different decisions, so
+ * they share a rule and not a gate. See that method for the other half of the reasoning.
+ *
  * ## Possible to do - add agents filter out zero light edges but add look up table so when they
  * arrive at a node and the start of an edge is dark they reroute
  */
@@ -43,7 +49,14 @@ public class DijkstraRoadDistanceNight extends DijkstraRoadDistance {
    * which yields the target node, the undirected edge and the directed edge in one object — no
    * {@code getEdgeBetween}/{@code getDirectedEdgeBetween} map lookups are needed. The cost noise
    * comes from the job's own seeded RNG (see {@code Dijkstra.drawFromDistribution}) instead of the
-   * shared static Random in GeoMason.
+   * shared static generator in GeoMason.
+   *
+   * <p>Barrier preferences do not apply at night. The parent asks {@code costPerceptionError},
+   * which raises the cost of edges along barriers the agent dislikes and lowers it along ones it
+   * likes; this draws a plain perception error instead, so a night agent's aversion to severing
+   * barriers and preference for natural ones are absent from its routing. Whether that is right is
+   * undecided - it has never been stated either way - but the omission is deliberate here rather
+   * than an oversight in the override.
    *
    * @param currentNode the current node in the primal graph
    */
