@@ -27,6 +27,7 @@ public final class EmpiricalAgent extends OdAgent {
 
   @Override
   protected void planRoute() {
+    initialiseHeuristics(false);
     RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
     route = planner.definePath();
   }

@@ -13,22 +13,17 @@ import pedsim.empirical.parameters.EmpiricalPars;
 /**
  * The empirical ABM module: agents drawn from the survey-derived route-choice clusters.
  *
- * <p>Written 13 Sep 2026, for the same reasons as {@code CityImageSimulationModule} — see that class
- * for what implementing no {@link SimulationModule} cost. Empirical's version of the problem was the
- * sharper one: it had no headless entry point at all. Its applet opened a window and nothing else,
- * and the only way to run it without a display was a {@code main} on the state class that took the
- * city as a bare positional argument and reached no parameter handling whatsoever.
+ * <p>Walks a shared origin-destination matrix with one agent group per survey-derived cluster, so
+ * the groups differ in the route-choice preferences the clusters describe.
  *
- * <p>Its defaults are Muenster, 301 agents, 10 jobs, because that is the study the cluster data
- * comes from ({@code Muenster_clusters.csv}). They are applied only where the command line has not
- * spoken, which is why they live in {@link #applyParameters} rather than in
- * {@link #applyMode}: {@code applyMode} runs after the arguments and would overwrite them.
- * {@code EmpiricalPars.applyDefaults()} did exactly that — it set {@code Pars.cityName} to Muenster
- * unconditionally, so a {@code --cityName} on the command line was ignored.
+ * <p>Defaults to Muenster, 301 agents and 10 jobs, the study the cluster data comes from
+ * ({@code Muenster_clusters.csv}). Those defaults are applied in {@link #applyParameters} and only
+ * where the command line is silent, because {@link #applyMode} runs after the arguments and would
+ * override them.
  *
- * <p>It reads no per-city configuration file: {@link #loadCityConfig} stays core's no-op, because
- * those files configure the activity model's behaviour and this module has none. What stands in for
- * them here is the cluster CSV, which carries the same kind of survey-derived quantity per group —
+ * <p>Reads no per-city configuration file — {@link #loadCityConfig} stays core's no-op — because
+ * those files configure the activity model's behaviour and this module has none. The cluster CSV
+ * plays the equivalent role here, carrying a survey-derived route-choice profile per group:
  * {@code usingElements_mean}, {@code onlyDistance_mean}, {@code regions_mean} and the rest.
  */
 public final class EmpiricalSimulationModule implements SimulationModule {

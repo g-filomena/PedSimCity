@@ -53,6 +53,10 @@ public class EmpiricalEngine extends Engine {
 
     onJobFinished(job, state, scenarioConfig);
 
+    // Same gap as cityImage had: this engine overrides executeJob, so it never reached the export
+    // core's Engine performs, and a run produced no volumes and no routes.
+    state.flowHandler.exportFlowsData(1);
+
     state.finish();
   }
 }
