@@ -12,24 +12,13 @@ import pedsim.core.parameters.ParameterManager;
 /**
  * The city-image testing module.
  *
- * <p>Written 13 Sep 2026. Until then cityImage implemented no {@link SimulationModule} at all — the
- * interface's own javadoc listed a {@code CityImageSimulationModule} as an extension point, and no
- * such class had ever existed. Three things followed from its absence, and all three were silent:
+ * <p>Generates one shared origin-destination matrix, puts one agent per route-choice model on it,
+ * and exports the per-edge volumes each model produces, so the models differ in nothing but how they
+ * choose a route. Which models run, how many trips each walks, and which of the three test designs
+ * is used are all set through {@link #applyParameters}; see {@link TestPars}.
  *
- * <ul>
- *   <li>the module was invisible to the REST layer, so the browser dashboard could not run it;
- *   <li>its parameters were unreachable from the command line. {@code initFromArgs} wrote into
- *       {@code Pars}, {@code TimePars} and {@code RouteChoicePars} only, so {@code --stringMode} or
- *       {@code --numberTripsPerAgent} was accepted without complaint and ignored — the same defect
- *       that swallowed {@code --useDestinationChoice}, and the reason
- *       {@link #parameterClasses()} exists;
- *   <li>with the AWT {@code TestPanel} deleted, that left no way at all to choose a test mode, so
- *       the module could only run whichever mode {@code TestPars} declared.
- * </ul>
- *
- * <p>It still does not read a per-city configuration file: {@link #loadCityConfig} is left as core's
- * no-op, because the city files configure the activity model's behaviour and this module has none —
- * it generates synthetic OD pairs and compares route-choice strategies over them.
+ * <p>Reads no per-city configuration file — {@link #loadCityConfig} stays core's no-op — because
+ * those files configure the activity model's behaviour and this module has none.
  */
 public final class CityImageSimulationModule implements SimulationModule {
 
@@ -56,13 +45,12 @@ public final class CityImageSimulationModule implements SimulationModule {
   private Map<String, Object> overrides = Map.of();
 
   /**
-   * Resolves the test mode, then puts the command line back on top of it.
+   * Resolves the test design, then re-applies the command line over it.
    *
-   * <p>The order is the point. {@code TestPars.defineMode()} does not only select a mode: it also
-   * sets {@code numberTripsPerAgent} and {@code jobs} to that mode's own defaults - 255 trips and 50
-   * jobs for landmarks, 2,000 and 10 for subdivisions. So it overwrites anything the command line
-   * asked for, and a {@code --numberTripsPerAgent=8} silently became 2,000. Re-applying the
-   * overrides afterwards is what makes the flag mean something.
+   * <p>The order matters: {@code TestPars.defineMode()} sets {@code numberTripsPerAgent} and
+   * {@code jobs} to the chosen design's own defaults - 255 trips and 50 jobs for landmarks, 2,000 and
+   * 10 for subdivisions - so anything given on the command line has to be written again afterwards
+   * to take effect.
    */
   @Override
   public void applyMode() {
@@ -100,9 +88,8 @@ public final class CityImageSimulationModule implements SimulationModule {
   }
 
   /**
-   * {@code stringMode} is the one that matters: it selects between testing landmarks, testing urban
-   * subdivisions, and testing a user-chosen set of route-choice models, and until this module existed
-   * it could only be set from a GUI panel that no longer exists.
+   * {@code stringMode} selects the test design: testing landmarks, testing urban subdivisions, or
+   * testing a user-chosen set of route-choice models.
    */
   @Override
   public void applyParameters(Map<String, Object> params) {

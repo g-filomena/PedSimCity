@@ -23,7 +23,10 @@ public class CityImageImport extends pedsim.core.engine.Import {
    */
   @Override
   public void importFiles() throws Exception {
-    TestPars.defineMode();
+    // The test design is already resolved by CityImageSimulationModule.applyMode(), which runs
+    // before this. Do not call TestPars.defineMode() here: Engine.runJobs reaches this method after
+    // the command line has been applied, so it would reinstate the design's own defaults for
+    // numberTripsPerAgent and jobs and discard whatever was asked for.
 
     if (TestPars.testingLandmarks) {
       importDistances();

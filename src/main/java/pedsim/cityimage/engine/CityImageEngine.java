@@ -47,15 +47,12 @@ public class CityImageEngine extends Engine {
    * <p>This module runs one agent per route-choice model over a shared OD matrix, so its agent count
    * is the number of models being compared. {@code setSimulationParameters()} calls
    * {@code recomputeAgentCount()}, which replaces that with
-   * {@code population * percentagePopulationAgent}. The empirical engine already had this hook for
-   * the same reason; city-image did not, so whatever {@code TestPars.defineMode()} worked out was
-   * discarded.
+   * {@code population * percentagePopulationAgent}, so the count has to be restored here.
    *
-   * <p>Only the count. The mode itself is resolved in {@code CityImageSimulationModule.applyMode()},
-   * before the command-line overrides are re-applied — putting {@code defineMode()} here instead
-   * made it run <i>after</i> the command line and silently reset {@code numberTripsPerAgent} to the
-   * mode's own default, which is how {@code --numberTripsPerAgent=8} became 2,000 and ran out of
-   * heap.
+   * <p>Only the count: the test design itself is resolved in
+   * {@code CityImageSimulationModule.applyMode()}, which runs before the command line is re-applied.
+   * Resolving it here would put it after, and the design's own defaults would override whatever was
+   * asked for.
    */
   @Override
   protected void afterSetParameters() {
@@ -91,6 +88,12 @@ public class CityImageEngine extends Engine {
     updateRemainingTrips(job, agentList);
     onJobFinished(job, state, scenarioConfig);
 
+    // The module's output: the per-edge volumes each route-choice model produced. This engine
+    // overrides executeJob, so it does not reach the export core's Engine performs per day and must
+    // do it here.
+    state.flowHandler.exportFlowsData(1);
+    LOGGER.info("[cityImage] job " + job + ": pedestrian volumes and routes exported.");
+
     state.finish();
   }
 
@@ -118,9 +121,6 @@ public class CityImageEngine extends Engine {
 
     int total = totalRemainingTrips.addAndGet(currentRemaining - previousValue);
 
-    // Pushed onto the AWT event queue and into a label on PedSimCityImageApplet until the GUI was
-    // removed, behind a GraphicsEnvironment.isHeadless() guard that made it a no-op on exactly the
-    // runs anyone watches. It goes to the log instead, where a headless run can see it.
     LOGGER.fine("[cityImage] job " + job + ": " + total + " trips remaining across all jobs");
   }
 }

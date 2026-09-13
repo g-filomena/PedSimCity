@@ -39,6 +39,7 @@ public final class CityImageAgent extends OdAgent {
               agentID, routeChoice, getTripsDone(), originNode, destinationNode));
     }
 
+    initialiseHeuristics(false);
     RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
     setRoute(planner.definePath());
   }
