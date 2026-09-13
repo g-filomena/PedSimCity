@@ -25,28 +25,233 @@ public class ActivityPars {
   /**
    * Share of workers who walk to work, and of students who walk to their place of study.
    *
-   * <p>Measured, not fitted: ISTAT, <i>Spostamenti quotidiani e nuove forme di mobilita</i>, anno
-   * 2017, Figura 3: 12.0% of {@code occupati} and 27.9% of {@code scolari e studenti} reach work
-   * or school on foot (17.4% of all commuters; 14.8% among employed women).
+   * <p>Measured, not fitted, and <b>Turin-specific</b>: ISTAT, <i>Matrice del pendolarismo</i>,
+   * 15th census (2011), restricted to residents of Torino (001/272) whose place of work or study is
+   * in the same municipality - which is the only commute this model can represent. Of 233,399
+   * intra-Turin work commutes, 16.3% are made on foot; of 121,512 study commutes, 38.0%. Derivation
+   * and the full mode split in {@code COMMUTE_DISTANCE.md}.
    *
-   * <p>These replace the walk-share logit for the commute leg specifically. The logit's implied
-   * figure was 59.4%, five times the observed one, which was enough on its own to make walking
-   * commutes cost more than the entire daily metres budget.
+   * <p>These replace the national 12.0% / 27.9% (ISTAT 2017, <i>Spostamenti quotidiani</i>, Fig. 3),
+   * which answered a broader question: every commute in Italy, including the half of Piedmont's that
+   * leaves its own municipality and could never be walked.
+   *
+   * <p><b>These are now the check, not an input.</b> Nothing reads them to decide anything: the
+   * per-agent decision is {@code ActivityAgent.decideCommuteMode}, a draw against the walk-share
+   * curve at the agent's own home-work distance, and the population share that comes out is
+   * logged against these two figures once per simulated day by
+   * {@code ActivityTravelDemand.prepare}. They stopped being an input when the commute stopped
+   * being a lottery: a share of the day's trips had to be told to the departure profile only
+   * because the model could not generate the commutes it was certain to have.
+   *
+   * <p>Watch that log. The curve is English and pooled over all trip purposes, while these are
+   * Italian and specific to commuting, and commutes are systematically less walked than
+   * discretionary trips of the same length. A large gap is a statement about the curve, or about
+   * where the model is putting workplaces, and not something to close by moving a number.
+
    *
    * <p>National figures. Turin has a metro, four tram lines and above-average car ownership, so
    * the local value is plausibly lower still, but substituting a guess for a measurement would
    * give back exactly what these numbers were fetched to remove.
    */
-  public static double walkShareCommuteWorker = 0.120;
+  public static double walkShareCommuteWorker = 0.163;
 
-  public static double walkShareCommuteStudent = 0.279;
+  public static double walkShareCommuteStudent = 0.380;
+
+  /**
+   * Distance decay on workplace choice: a WORK-tagged node's attraction is divided by
+   * {@code max(10, d)^this} when {@code RouteChoicePars.useGravityModel} is set.
+   *
+   * <p><b>Uncalibrated, and currently wrong.</b> It was a bare local constant commented "a standard
+   * gravity model decay parameter". With {@link #workplaceMinDistanceMetres} it concentrates
+   * workplaces just past the floor, at a distance nearly everyone walks, and the model then walks
+   * 47% of work commutes against the 16.3% ISTAT measures for Turin.
+   *
+   * <p>What it has to reproduce is in {@code COMMUTE_DISTANCE.md}: the walked share above, and the
+   * four-band distribution of walked commute lengths. The share and the shape are one target -
+   * matching 16.3% by pushing workplaces far away while the walked commutes come out too long is
+   * worse than the present state, not better.
+   */
+  public static double workplaceDistanceDecay = 1.0;
+
+  /**
+   * Distance (m) at which a <b>commute</b> is walked with probability 0.5, and the logit steepness.
+   *
+   * <p>Separate from the pooled DfT National Travel Survey curve (NTS0308, England 2025: a
+   * half-distance near 2,290 m at a steepness of 0.00084) that the model once used for every trip,
+   * and that separation is the finding. The NTS curve pools every trip purpose; a commute is not a
+   * discretionary trip and is walked far less at
+   * the same distance. Holding one curve for both is what made the model walk 47% of work commutes
+   * where Turin walks 16.3%, and no workplace distribution could repair it - the share and the
+   * length distribution moved in opposite directions across the whole decay range.
+   *
+   * <p>Fitted, not invented: {@code CommuteCalibration} scores candidate curves against the ISTAT
+   * commuting matrix for Torino (see {@code COMMUTE_DISTANCE.md}) - the 16.3% walked share and the
+   * four-band length distribution, five targets for two parameters plus the decay. The optimum is
+   * sharp: 800 m / 0.0015 at a decay of 1.0 reproduces 16.1% and 76.4 / 19.9 / 3.7 / 0.1 against
+   * 16.3% and 76.2 / 19.0 / 3.4 / 1.3, and the misfit roughly quintuples one decay step either side.
+   *
+   * <p>Turin against England, at 800 m: 0.50 here, 0.78 on the NTS curve.
+   */
+  public static double walkShareCommuteHalfDistance = 800.0;
+
+  public static double walkShareCommuteSteepness = 0.0015;
+
+  /**
+   * The same pair, for the journey to a place of study.
+   *
+   * <p>Separate from the work curve for the reason the work curve is separate from the general one:
+   * purpose. A fourteen-year-old deciding how to get to school is not an adult deciding how to get
+   * to work - no car of their own, a catchment rather than a labour market, sometimes a parent
+   * walking them. ISTAT measures the two separately and they differ by more than a factor of two:
+   * 38.0% of intra-Turin study commutes are walked against 16.3% of work commutes.
+   *
+   * <p>Fitted the same way and to the same five-target structure, on the study rows of the matrix:
+   * with {@link #educationDistanceDecay} at 1.5, a curve of 1,200 m / 0.0019 gives 38.6% and
+   * 87.7 / 11.3 / 1.0 / 0.0 against 38.0% and 87.5 / 11.1 / 0.9 / 0.5 - misfit 1.6.
+   *
+   * <p>The decay alone does not get there. At the work curve, the best education decay reproduces
+   * the length distribution almost exactly and still walks only 29.8%, eight points short: students
+   * walk further before giving up, which is a property of the curve and not of where schools are.
+   */
+  public static double walkShareStudentHalfDistance = 1200.0;
+
+  public static double walkShareStudentSteepness = 0.0019;
+
+  /**
+   * Distance decay on the choice of a place of study, separate from
+   * {@link #workplaceDistanceDecay}.
+   *
+   * <p>1.5 against work's 1.0: schools are more local than jobs, which is what a catchment means,
+   * and ISTAT sees it directly - 87.5% of walked study trips are under fifteen minutes against
+   * 76.2% of walked work trips. Sharing one decay between the two was never a decision, only the
+   * same method called twice.
+   */
+  public static double educationDistanceDecay = 1.5;
+
+  /**
+   * Sweep the workplace decay against the ISTAT commuting matrix and exit, without simulating.
+   * See {@code pedsim.activity.engine.CommuteCalibration}.
+   */
+  public static boolean calibrateCommute = false;
+
+  /** Home locations drawn for that sweep. Cheap: no agents, no days, no routes. */
+  public static int calibrationHomes = 20000;
+
+  /**
+   * Closest a workplace may be assigned, in metres.
+   *
+   * <p>No source. It exists because a {@code 1/d^2} decay with no floor gives the nearest tagged
+   * node almost all the mass and everyone works next door. It was written as
+   * {@code RouteChoicePars.minTripDistance * 0.6} - the discretionary walking range - which is the
+   * conceptual error that produced the 2,700 m commute cap: a commute is not a discretionary trip
+   * and has no business being sized by one. Stated in metres here so it is visibly a number
+   * somebody chose, and calibrated together with {@link #workplaceDistanceDecay}.
+   */
+  public static double workplaceMinDistanceMetres = 0.0;
 
   public static double workerShare = 0.50;
   public static double studentShare = 0.15;
   public static double retireeShare = 0.20;
   public static double flexShare = 0.15;
 
-  // --- Habitual destination choice ---
+  // --- Destination choice as a choice (experimental, behind the switch below) ---
+  /**
+   * Switches destination choice from "find a node at the sampled distance" to "choose among the
+   * opportunities around here". See {@link pedsim.activity.agents.DestinationChoice}.
+   *
+   * <p>On by default since 11 September 2026. The switch stays so the two can still be compared on
+   * the same seed: the old path is handed a trip-length distribution, this one produces one, and
+   * whether the produced one matches what travel surveys observe is the question worth asking.
+   */
+  public static boolean useDestinationChoice = true;
+
+  /**
+   * Weight on the size term, {@code ln(1 + attraction)}. At 1.0 a node with ten times the
+   * opportunities of another is about 2.4 utility points ahead of it, before distance.
+   */
+  public static double sizeWeight = 1.0;
+
+
+
+  /**
+   * Impedance per metre. **This is the coefficient that shapes the trip-length distribution**, and
+   * the only one here that has to be calibrated: it is set so that the lengths the model produces
+   * match an observed distribution, rather than being handed one. At 0.0012 the utility cost of a
+   * kilometre is 1.2 points, which is roughly the pull of a node with three times the attraction.
+   *
+   * <p>Provisional. It has not been fitted to anything yet; the run that would fit it needs the
+   * observed distribution to fit against, and for Italy that means the Audimob microdata.
+   */
+  public static double distanceWeight = 0.0012;
+
+  /**
+   * Bonus for a place the agent already knows. A term, not a branch: a familiar place competes with
+   * a nearer or better one instead of overriding both, which is what the old reuse probability did.
+   */
+  public static double habitWeight = 1.5;
+
+  /**
+   * Walked trips one person makes on an average day.
+   *
+   * <p>ISFORT 22nd report: 2.53 trips a day for the mobile population, who are 80.8% of everyone,
+   * so 2.04 trips per resident per day - across all modes. Walking is about 25% of trips in a large
+   * north-western city, which gives **0.51 walked trips per resident per day**.
+   *
+   * <p>The mode share matters and is easy to drop: 2.04 counts every trip, most of them driven, and
+   * using it whole would have the model walk four times what anyone walks.
+   *
+   * <p>This is a count of <i>legs</i>, which is what the survey counts, and it is the only figure
+   * here the survey gives directly. What the model does with it is subtract the legs its structural
+   * commutes will walk today and buy the remainder as discretionary chains, dividing by the chain
+   * length {@code DailyAgenda.expectedLegs} computes rather than by a constant. It replaced
+   * {@code tripChainsPerPersonPerDay = 0.21}, which was this figure with a chain length of 2.4
+   * already divided into it - so changing an agenda probability silently changed how many trips the
+   * population made, while the survey figure it came from stayed put.
+   *
+   * <p>Worth noting what it predicts. At about 1,734 m a leg, 0.51 legs a day comes to roughly
+   * 885 m walked per resident per day - inside the 600-1,000 m that
+   * {@code Pars.metersPerDayPerPerson} was derived from, by a route that shares only its first two
+   * figures. Two derivations meeting is not proof, but it is the kind of check the metres anchor
+   * could never offer, because it was the thing being hit rather than the thing being predicted.
+   */
+  public static double walkedTripsPerPersonPerDay = 0.51;
+
+  /**
+   * How many alternatives the choice is actually computed over.
+   *
+   * <p>Drawn uniformly from the opportunities within reach. Uniform sampling is what makes this
+   * free: the correction it would need is identical for every alternative and cancels in the
+   * softmax, so the sampled choice is the same choice. Enumerating them all cost roughly five times
+   * as much per leg and changed nothing.
+   */
+  public static int choiceSetSize = 60;
+
+  /**
+   * How far out the choice set reaches, in metres.
+   *
+   * <p>It was described here as bounding the work rather than the behaviour, on the grounds that
+   * anything beyond it has a utility far below the near candidates. **Measured, that is not true at
+   * 3,000 m.** Full Torino, 1,693 agents, one day, the same fixed seed, varying only this:
+   *
+   * <pre>
+   *   1,500 m   715 trips   mean leg 1,103 m
+   *   3,000 m   644 trips   mean leg 1,384 m
+   *   6,000 m   664 trips   mean leg 1,438 m
+   *  12,000 m   639 trips   mean leg 1,371 m
+   * </pre>
+   *
+   * <p>It converges by 6,000 m - the last step moves the mean by less than the run-to-run spread -
+   * but 1,500 m truncates the trip-length distribution badly and 3,000 m still costs about 4% of
+   * the mean leg against the converged value. Since the trip-length distribution is the headline
+   * output of the destination-choice work, a 4% truncation is a result, not a rounding.
+   *
+   * <p>Either this should be 6,000 and the claim above becomes true again, or it stays at 3,000 and
+   * the 4% is reported with every trip-length figure. That is a modelling call, not a tidy-up, so
+   * the value is left where it was and the measurement written down.
+   */
+  public static double choiceSetRadiusMetres = 3000.0;
+
+  // --- Habitual destination choice (the mechanism the switch above replaces) ---
   // Exploration vs preferential return, the two mechanisms Song, Koren, Wang & Barabasi (2010),
   // Nature Physics 6:818-823, measure on mobile-phone trajectories. The chance that the next trip
   // goes to a place never visited before decays with the number of places already known, as
@@ -98,21 +303,6 @@ public class ActivityPars {
 
   /** Civil-twilight buffer: it is still light this many minutes before sunrise / after sunset. */
   public static double twilightBufferMinutes = 30;
-
-  // --- Walk-share filter ---
-  /**
-   * Applies a logit-style walk probability to sampled trip distances at release time: most trips
-   * under ~1 km are kept, few over ~3 km survive, reshaping the trip-length distribution toward
-   * observed walking mode shares. The {@code metersPerDay} budget stays the anchor; the filter only
-   * changes the mix of distances it is spent on.
-   */
-  public static boolean useWalkShareFilter = true;
-
-  /** Distance (m) at which the walk probability is 50%. */
-  public static double walkShareHalfDistance = 1800.0;
-
-  /** Logit steepness (per metre); 0.0025 gives ~88% at 1 km and ~5% at 3 km. */
-  public static double walkShareSteepness = 0.0025;
 
   // --- Weather ---
   /** Per-day stochastic weather: rainy days suppress walking, discretionary trips most. */
