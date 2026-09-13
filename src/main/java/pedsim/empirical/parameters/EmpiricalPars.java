@@ -19,7 +19,7 @@ public final class EmpiricalPars {
 
   public static int numberTripsPerAgent = 3;
 
-  // OD lengths come from Pars.minTripDistance / maxTripDistance, shared with core and cityImage;
+  // OD lengths come from Pars.minRouteLength / maxRouteLength, shared with core and cityImage;
   // see the note in TestPars for why they are shared and what must not start reading them again.
 
   public static boolean usingDMA = true;
