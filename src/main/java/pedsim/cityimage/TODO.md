@@ -1,0 +1,96 @@
+# cityImage module — what is left to do
+
+Split out of `/TODO.md` on 13 September 2026. This module compares route-choice models over a shared
+synthetic origin-destination matrix: one agent per model, the same ODs, so the models differ in
+nothing but how they choose a route.
+
+It got a `SimulationModule` on 13 Sep, which made its parameters reachable from the command line for
+the first time. Fixing that turned up four defects; all are fixed, and **the second one invalidates
+earlier output**.
+
+---
+
+## Read this before trusting any earlier result
+
+**Per-edge volumes produced before 13 September 2026 are wrong.**
+`AgentMovement.initialisePath()` never cleared `edgesWalkedSoFar`, and an `OdAgent` keeps one movement
+handler across all its trips. Trip *n* therefore reported the edges of trips 1…*n*, and
+`updateFlowsData` re-counted every earlier trip into the current one — the volumes were **cumulative
+rather than per trip**. Core and activity agents were unaffected, because they build a fresh handler
+per trip.
+
+Two more that shaped what came out:
+
+- **The module exported nothing.** `CityImageEngine` overrides `executeJob` and so never reached the
+  export core's `Engine` performs, so a run compared the models and discarded the comparison.
+- **`getHeuristics()` returned null for any agent overriding `planRoute()`.** `CityImageAgent` did.
+  It survived only because road distance and angular change never consult landmarkness; any
+  landmark-weighted model would have thrown.
+
+And, from an earlier session: **any comparison of a region- or landmark-based *distance* model made
+since March 2026 is void** — `roadDistanceSequence` called `fillRoute()`, which reads
+`partialSequence`, the last leg only, so the route was the walk from the final gateway to the
+destination and nothing before it.
+
+---
+
+## 1. "Testing Landmarks" cannot run on any bundled city
+
+`CityImageImport.importDistances` needs `<City>/<City>_distances.csv`, and
+`ls src/main/resources/*/*_distances.csv` returns nothing. Since `TestPars.stringMode` defaults to
+`"Testing Landmarks"`, **the module's default mode does not run out of the box.**
+
+The file is not city data — it is experiment data: `uniqueID,trackID,length`, 255 GPS-track lengths
+from the study, used at `CityImagePopulate:109` so the landmark test places its destinations at the
+distances real trips actually had. Recovering it means finding the GPS distance files from the
+original study.
+
+The failure is at least immediate and legible (`Resource not found: …_distances.csv`), not silent.
+
+## 2. London ships two networks and neither loads
+
+`src/main/resources/London/` is organised per experiment, where every other city is flat:
+
+| | landmarks | subdivisions |
+|---|---|---|
+| nodes | 8,178 | 9,997 |
+| edges | 12,932 | 16,100 |
+| node columns | `nodeID, x, y, height, Bc_Rd` | `nodeID, x, y, height, district, Bc_multi, gateway` |
+| edge columns | … `Eb` (no `edgeID`) | `edgeID`, … |
+
+The importer resolves `<City>/<City>_x`, flat, so **London cannot be loaded in either mode**. Each
+folder carries exactly what its own study needs — road-distance betweenness for the landmark work,
+district/gateway/`Bc_multi` for the region-and-barrier work.
+
+Two ways out, and they are not the same size:
+
+- **Cheap:** flatten to two cities, `London_landmarks/` and `London_subdivisions/`, each
+  self-contained in the layout every other city uses. No importer change, no data surgery, both
+  studies intact.
+- **Real consolidation:** one London network from the pipeline carrying both attribute sets. The
+  blocker is `London_sight_lines2D.gpkg` — **361,398 rows keyed `buildingID` ↔ `nodeID`**, bound to
+  the landmarks network's 8,178 node IDs. Merging onto the other network dangles every one of them,
+  so sight lines and landmark scores have to be re-derived, and that changes the network the
+  published landmark results were computed on.
+
+`London_distances.csv` is not part of the problem: it is 255 track lengths with no network reference.
+
+## 3. `Pars.jobs` is reset between `applyMode()` and `runJobs()`
+
+The module logs `… 1 job(s)` with `--jobs=1`, then more than one job executes. Something restores the
+test design's own job count after the override. Harmless to correctness, wrong to the user.
+
+## 4. Smaller
+
+- **The deprecated `initFromArgs(String[])` still has a caller here.** It reaches core's three
+  parameter classes only; the module's own list is in `parameterClasses()`.
+- **No per-city configuration.** `loadCityConfig` stays core's no-op, deliberately: those files
+  configure activity behaviour and this module models none. If cityImage ever needs city-level
+  parameters, it needs its own file format, not the activity one.
+- **Melbourne cannot run this module as shipped.** `src/main/resources/Melbourne/` has
+  `_nodesDual.gpkg` but no `_edgesDual.gpkg`, and `Import.readGraphs` loads the dual graph only when
+  both are present — so `ANGULAR_CHANGE`, one of the two default models, is silently unavailable.
+- **Re-run the angular A/B properly.** The 13 Sep fix took angular fallbacks to 0, but attempts fell
+  420 → 99 in the same run and the configuration behind the recorded 92/420 was never written down,
+  so the *rate* comparison is not like-for-like. A clean before/after on one seed would settle it and
+  would measure how much this module's simplest-path results move.
