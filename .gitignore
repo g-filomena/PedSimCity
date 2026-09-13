@@ -92,6 +92,8 @@ desktop.ini
 /analysis/.ipynb_checkpoints/
 /analysis/__pycache__/
 /analysis/**/cache/
+/validation/
+/analysis/validation/
 
 # Runtime / analysis output dirs (generated in the working dir = repo root)
 /figures/
