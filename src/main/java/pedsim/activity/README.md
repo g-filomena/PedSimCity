@@ -136,5 +136,9 @@ curl -X POST http://localhost:8081/api/start \
   -d '{"module":"activity","cityName":"Melbourne","days":7,"jobs":1}'
 ```
 
-The GUI city options are **Melbourne** and **Torino**. With no census/POI datasets present for the
+The bundled city options are **Melbourne** and **Torino**. With no census/POI datasets present for the
 chosen city, the model degrades gracefully to uniform-random home/work and destination selection.
+
+## Open items
+
+See `TODO.md` beside this file.

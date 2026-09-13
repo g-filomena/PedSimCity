@@ -37,24 +37,27 @@ Along with:
 * [Java Tuples](https://www.javatuples.org)
 * [SLF4J](https://www.slf4j.org)
 
-**How to run the applet:**
-1. Install Java on your machine.
+**How to run:**
+1. Install Java (JDK 21) on your machine.
 2. Download the jar file *pedsimcity1.23-jar-with-dependencies.jar* wherever it is convenient.
 3. Open the command prompt in the directory where the .jar file is placed.
-4. Run the command *java -jar pedsimcity1.23-jar-with-dependencies.jar*.
-5. The applet should pop-up and log-messages should appear in the command prompt window.
+4. Run `java -jar pedsimcity1.23-jar-with-dependencies.jar --cityName=Torino --days=1`.
+5. The run starts immediately and logs to the terminal. Add `--website` for the browser dashboard.
 
 **This is the recommended option for running PedSimCity and it does not require the user to take any other step or to manually install the dependencies.**
 
-If the user desires to use the applet within Eclipse, for example, to explore the source files or to make changes, the following instructions should be followed:
+> **The Java (AWT) GUI was removed on 13 September 2026.** There is no window and no
+> *Run Simulation* button. A run is configured by two things, both of which leave a record it can be
+> reproduced from: `src/main/resources/<City>/<City>.properties` for per-city parameters, and
+> `--key=value` on the command line for everything else. The step that used to ask for the
+> `src/main/resources/` path by hand is gone too — resources are read from the classpath.
 
-1. Download the raw content of the Github `PedSimCity` Repository, as a .zip file.
-2. Unzip the file and move the nested PedSimCity-Master folder wherever it is convenient. 
-3. Open Eclipse, and create a new Java project; any name will do.
-4. Right click on the project on the left-hand side *Package Explorer*. Select *Build Path*, *Link Source*, navigate to the PedSimCity-Master, navigate to and then select the folder *src/main/java* (without double clicking on it).
-4. Import all the libraries mentioned above, manually, by right clicking on your project *Build Path*, *Add External Archives*.
-5. To execute the applet, right-click on teh class ```PedSimCity.applet```, *Run as Java Application*.
-6. Before pressing the *Run Simulation* button, click on *Other options* and copy-paste the entire path referring to the path *src/main/resources/* in the corresponding field. This is necessary for retrieving the input data.
+To work on the sources in an IDE instead:
+
+1. Clone the repository (it uses Git LFS for the GIS data; `git lfs pull` if the .gpkg files look like 133-byte text).
+2. Open the folder as a Maven project; the dependencies in `pom.xml` resolve automatically.
+3. Run `mvn -Pall-modules compile` to build every module — the default profile builds fewer than half.
+4. Run any launcher's `main`: `pedsim.night.launcher.NightLauncher`, `pedsim.activity.launcher.ActivityLauncher`, `pedsim.core.launcher.CoreLauncher`, and so on.
 
 **How to run in an editor such as Cursor or VS Code:**
 
@@ -62,28 +65,41 @@ If the user desires to use the applet within Eclipse, for example, to explore th
 2. Open the project folder in your editor (e.g. VS Code or Cursor).
 3. Open the terminal and ensure you are in the project folder with the `pom.xml` file.
 4. The fastest way to run the simulation after making changes is:
-   `mvn compile exec:java` (core applet) or `mvn compile exec:java@night` (Night Applet).
+   `mvn compile exec:java` (core) or `mvn compile exec:java@night` (night module). Both run
+   headless; add `@night-website` for the browser dashboard.
    *Note: Only use `mvn clean compile exec:java` if you are experiencing caching issues or have changed your dependencies in `pom.xml`. Skipping `clean` makes incremental builds much faster.*
-5. Alternatively, you can use your IDE's built-in run button to launch `PedSimCityNightApplet.java` directly without using the terminal.
+5. Alternatively, use your IDE's run button on `NightLauncher.java` (`pedsim.night.launcher`).
 
-The applet allows the user to run the simulation with three different configurations:
+The city-image module runs the simulation with three different configurations:
 1. Testing Landmarks (London, Muenster).
 2. Testing Urban Subdivisions (London, Paris, Muenster).
 3. Testing Specific Route Choice Models (Muenster).
 4. Empirical ABM (Muenster).
 
-Options 1, 2 and 4 all come with pre-defined set as regards the parameters: number of ```jobs```, ```numAgents``` per scenario, ```numberTripsPerAgent```. This is line with the settings used for producing the results presented in the papers mentioned above.
-When ```testingLandmarks``` and  ```testingSubdivisions```, the user can however runs the model for specific ODs by checking the ```Testing Specific ODs``` box and inputing the nodeIDs in the corresponding fields (the number of ```jobs``` won't change).
-The user can also change other simulation-related parameters by clicking on the ```Other Options``` button, before starting the simulation. 
+Each design carries the `jobs`, `numAgents` and `numberTripsPerAgent` used to produce the results in
+the papers above, and `--stringMode` selects between them:
 
-When choosing option 3, the route choice models of interest need to be chosen by clicking the ```Choose Route Choices``` button. 
-The user can also define the number of ```jobs```, and ```numberTripsPerAgent``` (one route choice model = one agent).
+```bash
+mvn -Pcityimage-empirical compile exec:java \
+  -Dexec.mainClass=pedsim.cityimage.launcher.CityImageLauncher \
+  -Dexec.args="--headless --cityName=Muenster --stringMode='Testing Urban Subdivisions'"
+```
+
+`--numberTripsPerAgent` and `--jobs` override the design's own defaults. For specific
+origin-destination pairs, pass `--testingSpecificOD=true` with `--originsTmp` and `--destinationsTmp`
+as comma-separated node IDs. Under "Testing Specific Route Choice Models" one agent walks the matrix
+per route-choice model.
+
+**"Testing Landmarks" needs `<City>_distances.csv`, which no bundled city currently ships** — see
+`src/main/java/pedsim/cityimage/TODO.md`.
 
 ## Architecture: modules
 
-`core` is shared infrastructure (engine base, routing, cognitive-map machinery, REST server +
-dashboard state). It does **not** run a simulation on its own. Domain models extend it; each module
-has its own README under `src/main/java/pedsim/<module>/`:
+`core` is shared infrastructure: the engine and day loop, routing and path finding, the
+cognitive-map machinery, the REST server and dashboard state. It models no behaviour — no census, no
+personas, no agendas — so a bare core run releases agents at a flat rate and sends them somewhere
+they know; it exists as the skeleton the domain models extend, and as a smoke test. Each module has
+its own README and `TODO.md` under `src/main/java/pedsim/<module>/`:
 
 | Module | Role |
 |---|---|
@@ -100,9 +116,9 @@ runnable modules and `/api/start` routes to them.
 
 ### Running a module
 
-Each runnable module has Maven exec profiles (GUI and REST+dashboard); see its README for parameters:
+Each runnable module has Maven exec profiles (headless run, and REST + browser dashboard); see its README for parameters:
 
-| Module | GUI | REST + dashboard |
+| Module | headless | REST + dashboard |
 |---|---|---|
 | night (default) | `mvn compile exec:java@night` | `mvn compile exec:java@night-website` |
 | activity | `mvn compile exec:java@activity` | `mvn compile exec:java@activity-website` |
