@@ -12,8 +12,8 @@
 	<name>${project.groupId}:${project.artifactId}</name>
     <description>
 		PedSimCity is an Agent-Based Model for simulating pedestrian movement in large urban areas. It incoporates simplified cognitive maps of the urban environment in the behavioural architecture of the agents. 
-		In the Java applet, the user can test how the inclusion of meaningful urban elements in the agent cognitive map shapes their route choice behaivour.
-		Available case studies in the applet include London (UK), Paris (FR), Muenster (DE). 
+		Runs are launched from the command line; per-city parameters are read from src/main/resources/&lt;City&gt;/&lt;City&gt;.properties, and a browser dashboard is available with --website.
+		Bundled case studies include London (UK), Paris (FR), Muenster (DE), Torino (IT) and Melbourne (AU).
     </description>
     <url>https://github.com/g-filomena/PedSimCity</url>
 	
@@ -139,7 +139,7 @@
 		<dependency>
 			<groupId>uk.ac.liv.gdsl</groupId>
 			<artifactId>GeoMason-light</artifactId>
-			<version>2.1.1</version>
+			<version>2.2.0</version>
         </dependency>
 
        <!-- Mason: not on Maven Central; resolved from the vendored jar so `mvn compile` works
@@ -205,7 +205,7 @@
 						<manifest>
 							<addClasspath>true</addClasspath>
 							<classpathPrefix>lib/</classpathPrefix>
-							<mainClass>pedsim.core.applet.PedSimCityApplet</mainClass>
+							<mainClass>pedsim.core.launcher.CoreLauncher</mainClass>
 						</manifest>
 					</archive>
 				</configuration>
@@ -264,7 +264,7 @@
 							</descriptorRefs>
 							<archive>
 								<manifest>
-									<mainClass>pedsim.core.applet.PedSimCityApplet</mainClass>
+									<mainClass>pedsim.core.launcher.CoreLauncher</mainClass>
 								</manifest>
 							</archive>
 						</configuration>
@@ -284,7 +284,7 @@
                             <goal>java</goal>
                         </goals>
                         <configuration>
-                            <mainClass>pedsim.core.applet.PedSimCityApplet</mainClass>
+                            <mainClass>pedsim.core.launcher.CoreLauncher</mainClass>
                             <additionalClasspathElements>
                                 <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
                                 <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
@@ -297,7 +297,7 @@
                             <goal>java</goal>
                         </goals>
                         <configuration>
-                            <mainClass>pedsim.night.applet.PedSimCityNightApplet</mainClass>
+                            <mainClass>pedsim.night.launcher.NightLauncher</mainClass>
                             <additionalClasspathElements>
                                 <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
                                 <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
@@ -310,7 +310,7 @@
                             <goal>java</goal>
                         </goals>
                         <configuration>
-                            <mainClass>pedsim.core.applet.PedSimCityApplet</mainClass>
+                            <mainClass>pedsim.core.launcher.CoreLauncher</mainClass>
 							
 							<classpathScope>compile</classpathScope>
 							<includeProjectDependencies>true</includeProjectDependencies>
@@ -331,7 +331,7 @@
                             <goal>java</goal>
                         </goals>
                         <configuration>
-                            <mainClass>pedsim.night.applet.PedSimCityNightApplet</mainClass>
+                            <mainClass>pedsim.night.launcher.NightLauncher</mainClass>
 							
 							<classpathScope>compile</classpathScope>
 							<includeProjectDependencies>true</includeProjectDependencies>
@@ -352,7 +352,7 @@
                             <goal>java</goal>
                         </goals>
                         <configuration>
-                            <mainClass>pedsim.learning.applet.PedSimCityLearningApplet</mainClass>
+                            <mainClass>pedsim.learning.launcher.LearningLauncher</mainClass>
                             <additionalClasspathElements>
                                 <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
                                 <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
@@ -366,7 +366,7 @@
                             <goal>java</goal>
                         </goals>
                         <configuration>
-                            <mainClass>pedsim.learning.applet.PedSimCityLearningApplet</mainClass>
+                            <mainClass>pedsim.learning.launcher.LearningLauncher</mainClass>
 
                             <classpathScope>compile</classpathScope>
                             <includeProjectDependencies>true</includeProjectDependencies>
@@ -387,7 +387,7 @@
                             <goal>java</goal>
                         </goals>
                         <configuration>
-                            <mainClass>pedsim.activity.applet.PedSimCityActivityApplet</mainClass>
+                            <mainClass>pedsim.activity.launcher.ActivityLauncher</mainClass>
                             <additionalClasspathElements>
                                 <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
                                 <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
@@ -401,7 +401,7 @@
                             <goal>java</goal>
                         </goals>
                         <configuration>
-                            <mainClass>pedsim.activity.applet.PedSimCityActivityApplet</mainClass>
+                            <mainClass>pedsim.activity.launcher.ActivityLauncher</mainClass>
 
                             <classpathScope>compile</classpathScope>
                             <includeProjectDependencies>true</includeProjectDependencies>
@@ -422,7 +422,7 @@
                             <goal>java</goal>
                         </goals>
                         <configuration>
-                            <mainClass>pedsim.social.applet.PedSimCitySocialApplet</mainClass>
+                            <mainClass>pedsim.social.launcher.SocialLauncher</mainClass>
                             <additionalClasspathElements>
                                 <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
                                 <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
@@ -436,7 +436,7 @@
                             <goal>java</goal>
                         </goals>
                         <configuration>
-                            <mainClass>pedsim.social.applet.PedSimCitySocialApplet</mainClass>
+                            <mainClass>pedsim.social.launcher.SocialLauncher</mainClass>
 
                             <classpathScope>compile</classpathScope>
                             <includeProjectDependencies>true</includeProjectDependencies>
