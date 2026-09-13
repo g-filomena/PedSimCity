@@ -80,11 +80,7 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
    * @param currentNode The current node for which to find adjacent nodes.
    */
   void findBestLandmarkness(NodeGraph currentNode) {
-    // Known-network filtering only applies to individualised cognitive maps (mirrors the
-    // road-distance variant): knownNodes/knownEdges are only populated when the map is
-    // individualised, so testing them unconditionally would filter out every neighbour for
-    // community-map agents.
-    boolean individualised = agent.getCognitiveMap().individualised;
+    boolean individualised = restrictToKnownNetwork();
 
     for (DirectedEdge outEdge : currentNode.getOutDirectedEdges()) {
       NodeGraph targetNode = (NodeGraph) outEdge.getToNode();

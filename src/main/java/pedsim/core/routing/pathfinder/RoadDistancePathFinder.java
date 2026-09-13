@@ -3,6 +3,7 @@ package pedsim.core.routing.pathfinder;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.agents.Agent;
 import pedsim.core.routing.pathfinding.DijkstraRoadDistance;
 import sim.graph.NodeGraph;
@@ -34,9 +35,47 @@ public class RoadDistancePathFinder extends PathFinder {
         pathfinder.dijkstraAlgorithm(
             originNode, destinationNode, destinationNode, directedEdgesToAvoid, this.agent);
 
+    if (partialSequence.isEmpty()) {
+      partialSequence = searchFullNetwork(originNode, destinationNode);
+    }
+
     partialSequence = sequenceOnCommunityNetwork(partialSequence);
     fillRoute();
     return route;
+  }
+
+  /**
+   * The same search again, over the whole network rather than the streets the agent knows.
+   *
+   * <p>An individualised agent whose known network cannot connect its origin to its destination
+   * used to get an empty sequence, which {@code fillRoute} turns into a two-node route with no
+   * edges and a length of zero - a pedestrian who reaches its destination without walking. Walking
+   * unknown streets is what a person does when the ones they know do not get them there, so the
+   * search widens rather than the trip being lost, and the widening is counted on the day ledger.
+   *
+   * <p>The route it finds is one the agent could not have planned from its own knowledge, so the
+   * length it plans against should carry a far larger error than a known route's. The model does
+   * not represent that yet; sizing it needs a source.
+   *
+   * @param originNode the origin node.
+   * @param destinationNode the destination node.
+   * @return the widened search's edge sequence, empty if the whole network has no path either.
+   */
+  private List<DirectedEdge> searchFullNetwork(NodeGraph originNode, NodeGraph destinationNode) {
+    if (agent == null
+        || agent.getCognitiveMap() == null
+        || !agent.getCognitiveMap().individualised) {
+      return partialSequence; // not confined in the first place; the retry would be identical
+    }
+    DijkstraRoadDistance widened = new DijkstraRoadDistance();
+    widened.ignoreKnownNetwork();
+    List<DirectedEdge> sequence =
+        widened.dijkstraAlgorithm(
+            originNode, destinationNode, destinationNode, directedEdgesToAvoid, agent);
+    if (!sequence.isEmpty() && agent.getState() != null) {
+      agent.getState().ledger().recordFullNetworkEscalation(false);
+    }
+    return sequence;
   }
 
   /**
@@ -104,6 +143,13 @@ public class RoadDistancePathFinder extends PathFinder {
       agent.getProperties().setRegionBasedNavigation(false);
       return roadDistance(initialNode, destinationNode, this.agent);
     }
+    // The whole sequence, not the last leg. {@code fillRoute} reads {@code partialSequence}, which
+    // at this point holds only the final leg the loop computed, so the route returned was the walk
+    // from the last gateway or on-route landmark to the destination and nothing before it. Correct
+    // from November 2023 until the March 2026 routeChoice/routing restructure (9fea027) replaced
+    // the direct assignment with a call to fillRoute; both sibling sequence routers,
+    // {@code angularChangeBasedSequence} and {@code globalLandmarksPathSequence}, kept it.
+    partialSequence = completeSequence;
     fillRoute();
     return route;
   }

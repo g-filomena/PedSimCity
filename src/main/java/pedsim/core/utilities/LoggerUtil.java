@@ -41,27 +41,6 @@ public class LoggerUtil {
     return logger;
   }
 
-  /**
-   * Redirect logger output also to a TextArea in the GUI.
-   */
-  public static void redirectToTextArea(TextArea textArea) {
-    Handler guiHandler =
-        new Handler() {
-          @Override
-          public void publish(LogRecord record) {
-            if (textArea != null && isLoggable(record)) {
-              textArea.append(record.getLevel() + ": " + record.getMessage() + "\n");
-            }
-          }
-
-          @Override
-          public void flush() {}
-
-          @Override
-          public void close() throws SecurityException {}
-        };
-    guiHandler.setLevel(Level.ALL);
-
-    logger.addHandler(guiHandler);
-  }
+  // redirectToTextArea(TextArea) lived here, mirroring the log into the applet's log pane. It went
+  // with the AWT GUI: the console and the run's own output files are the record now.
 }

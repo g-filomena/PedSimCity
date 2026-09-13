@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.agents.Agent;
+import pedsim.core.engine.PedSimCity;
 import pedsim.core.routing.pathfinding.DijkstraAngularChange;
 import sim.graph.NodeGraph;
 import sim.routing.Route;
@@ -29,46 +30,184 @@ public class AngularChangePathFinder extends PathFinder {
    */
   public Route angularChangeBased(NodeGraph originNode, NodeGraph destinationNode, Agent agent) {
 
+    if (agent != null && agent.getState() != null) {
+      agent.getState().ledger().recordAngularAttempt();
+    }
     this.agent = agent;
     previousJunction = null;
 
-    NodeGraph dualOrigin =
-        originNode.getDualNode(originNode, destinationNode, false, previousJunction);
-    NodeGraph dualDestination = null;
-    int dualLookupAttempts = 0;
-    while ((dualDestination == null || dualDestination.equals(dualOrigin))
-        && dualLookupAttempts < 100) {
-      dualDestination =
-          destinationNode.getDualNode(originNode, destinationNode, false, previousJunction);
-      dualLookupAttempts++;
-    }
-    if (dualDestination == null || dualDestination.equals(dualOrigin)) {
-      return route; // no valid dual node found; return empty route
-    }
-
-    NodeGraph commonJunction = RoutingUtils.getPrimalJunction(dualOrigin, dualDestination);
-    if (commonJunction != null) {
-      route.directedEdgesSequence.add(network.getDirectedEdgeBetween(originNode, commonJunction));
-      route.directedEdgesSequence.add(
-          network.getDirectedEdgeBetween(commonJunction, destinationNode));
-      return route;
+    // Every centroid incident on each endpoint, best-aligned first, rather than only the single
+    // best-aligned one. The dual search is confined to the agent's known dual subgraph while the
+    // centroid was chosen from the geometry of the street, so the one centroid geometry prefers is
+    // regularly not in that subgraph and no path can exist - 92 of 420 angular routes a day on
+    // full Torino. getDualNodes says as much itself: "when computing paths within subgraphs, some
+    // specific segments may be indeed unreachable". The retry loop this replaces called the
+    // singular getDualNode up to a hundred times with identical arguments; it is a minimum over
+    // incident edges with no randomness in it, so all hundred calls returned the same centroid.
+    List<NodeGraph> dualOrigins =
+        new ArrayList<>(
+            originNode.getDualNodes(originNode, destinationNode, false, previousJunction).keySet());
+    List<NodeGraph> dualDestinations =
+        new ArrayList<>(
+            destinationNode
+                .getDualNodes(originNode, destinationNode, false, previousJunction)
+                .keySet());
+    if (dualOrigins.isEmpty() || dualDestinations.isEmpty()) {
+      return route; // no dual representation at an endpoint; return empty route
     }
 
-    DijkstraAngularChange dijkstra = new DijkstraAngularChange();
-    partialSequence =
-        dijkstra.dijkstraAlgorithm(
-            dualOrigin,
-            dualDestination,
-            destinationNode,
-            new HashSet<>(centroidsToAvoid),
-            previousJunction,
-            agent);
-    cleanDualPath(originNode, destinationNode);
-    partialSequence = sequenceOnCommunityNetwork(partialSequence);
-    route.directedEdgesSequence = partialSequence;
+    hadDualPath = false;
+    anyPairKnown = false;
 
-    route.computeRouteSequences();
-    return route;
+    Route found = searchCandidates(originNode, destinationNode, dualOrigins, dualDestinations);
+    if (found != null) {
+      return found;
+    }
+
+    // Nothing the agent knows connects these centroids. Widen the search to the whole dual network
+    // rather than swap the route-choice model: an agent who cannot get there through the turns it
+    // knows still walks, and it still walks minimising angular change. Shortest path stays the last
+    // resort, for when the city's own dual graph has no path either.
+    if (agent != null
+        && agent.getCognitiveMap() != null
+        && agent.getCognitiveMap().individualised) {
+      searchFullNetwork = true;
+      found = searchCandidates(originNode, destinationNode, dualOrigins, dualDestinations);
+      searchFullNetwork = false;
+      if (found != null) {
+        if (agent.getState() != null) {
+          agent.getState().ledger().recordFullNetworkEscalation(true);
+        }
+        return found;
+      }
+    }
+
+    if (!anyPairKnown) {
+      recordEndpointsUnknown(agent);
+    }
+    return distanceFallback(originNode, destinationNode, agent, hadDualPath);
+  }
+
+  /** Set while the candidate search is allowed to leave the agent's known dual network. */
+  private boolean searchFullNetwork = false;
+
+  /** Whether any candidate pair produced a dual path, before cleaning. */
+  private boolean hadDualPath = false;
+
+  /** Whether the agent knew both ends of at least one candidate pair. */
+  private boolean anyPairKnown = false;
+
+  /**
+   * Tries each pair of candidate centroids, best-aligned first, and returns the first route that
+   * survives cleaning.
+   *
+   * @return the route, or {@code null} if no pair yielded one.
+   */
+  private Route searchCandidates(
+      NodeGraph originNode,
+      NodeGraph destinationNode,
+      List<NodeGraph> dualOrigins,
+      List<NodeGraph> dualDestinations) {
+
+    for (NodeGraph dualOrigin : dualOrigins) {
+      for (NodeGraph dualDestination : dualDestinations) {
+        if (dualDestination.equals(dualOrigin)) {
+          continue;
+        }
+        anyPairKnown |= endpointsKnown(agent, dualOrigin, dualDestination);
+
+        NodeGraph commonJunction = RoutingUtils.getPrimalJunction(dualOrigin, dualDestination);
+        if (commonJunction != null) {
+          route.directedEdgesSequence.add(
+              network.getDirectedEdgeBetween(originNode, commonJunction));
+          route.directedEdgesSequence.add(
+              network.getDirectedEdgeBetween(commonJunction, destinationNode));
+          // Without this the two-edge shortcut returns a route whose node and edge sequences were
+          // never built - no origin, no destination, no line geometry, and a length of zero, which
+          // the day ledger then rejects. Every other exit from this class computes them.
+          route.computeRouteSequences();
+          return route;
+        }
+
+        DijkstraAngularChange dijkstra = new DijkstraAngularChange();
+        if (searchFullNetwork) {
+          dijkstra.ignoreKnownNetwork();
+        }
+        partialSequence =
+            dijkstra.dijkstraAlgorithm(
+                dualOrigin,
+                dualDestination,
+                destinationNode,
+                new HashSet<>(centroidsToAvoid),
+                previousJunction,
+                agent);
+        if (partialSequence.isEmpty()) {
+          continue;
+        }
+        hadDualPath = true;
+        cleanDualPath(originNode, destinationNode);
+        partialSequence = sequenceOnCommunityNetwork(partialSequence);
+        if (partialSequence.isEmpty()) {
+          continue; // cleaning trimmed it away; try the next pair of centroids
+        }
+        route.directedEdgesSequence = partialSequence;
+        route.computeRouteSequences();
+        return route;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Whether the agent knows both ends of this candidate pair.
+   *
+   * <p>The search is confined to the agent's known dual subgraph while the candidates are chosen
+   * from the geometry of the street, so a pair outside what the agent knows has no path by
+   * construction however well connected the city's dual graph is. Reported when no candidate pair
+   * was fully known, which is the case this diagnoses; an agent with no individualised dual map is
+   * not restricted and so counts as knowing them.
+   */
+  private boolean endpointsKnown(Agent agent, NodeGraph dualOrigin, NodeGraph dualDest) {
+    if (agent == null || agent.getState() == null || agent.getCognitiveMap() == null) {
+      return true;
+    }
+    Set<NodeGraph> known = agent.getCognitiveMap().getNodesInKnownDualNetwork();
+    if (known == null || known.isEmpty()) {
+      return true;
+    }
+    return known.contains(dualOrigin) && known.contains(dualDest);
+  }
+
+  private void recordEndpointsUnknown(Agent agent) {
+    if (agent != null && agent.getState() != null) {
+      agent.getState().ledger().recordAngularEndpointUnknown();
+    }
+  }
+
+  /**
+   * Shortest path instead, when no angular-change path survives.
+   *
+   * <p>Two ways to end up with nothing. The dual Dijkstra can find no path at all for any pair of
+   * candidate centroids - the dual graph has components the primal graph does not, so a pair
+   * connected on the street can be unreachable through turns. And {@code cleanDualPath} guards
+   * {@code size < 2} but not {@code size == 2}: a two-edge path that is both "one edge ahead" and
+   * carrying an unnecessary first edge loses both, which is why short trips were the ones that fell
+   * over.
+   *
+   * <p>Handing the empty sequence on was a crash, not a degradation:
+   * {@code Route.computeRouteSequences} reads {@code nodesSequence.get(0)} unguarded, so every run
+   * on a city with a dual graph died the first time a pedestrian met this - which is every run on
+   * the full Torino network. Returning an empty route instead would only move the failure into the
+   * movement code, and the agent does still have somewhere to be, so it walks the shortest path and
+   * the substitution is counted rather than hidden.
+   */
+  private Route distanceFallback(
+      NodeGraph originNode, NodeGraph destinationNode, Agent agent, boolean trimmed) {
+    PedSimCity state = agent.getState();
+    if (state != null) {
+      state.ledger().recordAngularFallback(trimmed);
+    }
+    return new RoadDistancePathFinder().roadDistance(originNode, destinationNode, agent);
   }
 
   /**
@@ -84,6 +223,9 @@ public class AngularChangePathFinder extends PathFinder {
    */
   public Route angularChangeBasedSequence(List<NodeGraph> sequenceNodes, Agent agent) {
 
+    if (agent != null && agent.getState() != null) {
+      agent.getState().ledger().recordAngularAttempt();
+    }
     this.agent = agent;
     this.regionBased = agent.getProperties().isRegionBasedNavigation();
     this.sequenceNodes = new ArrayList<>(sequenceNodes);
@@ -159,6 +301,9 @@ public class AngularChangePathFinder extends PathFinder {
       tmpOrigin = tmpDestination;
     }
     completeSequence = sequenceOnCommunityNetwork(completeSequence);
+    if (completeSequence.isEmpty()) {
+      return distanceFallback(originNode, destinationNode, agent, false);
+    }
     route.directedEdgesSequence = completeSequence;
     route.computeRouteSequences();
     return route;

@@ -54,6 +54,41 @@ public abstract class Dijkstra {
   protected Set<NodeGraph> knownDualNodes = new HashSet<>();
   protected SubGraph subGraph = null;
 
+  /**
+   * Set to search the whole network, ignoring what the agent knows.
+   *
+   * <p>An individualised agent that cannot reach its destination through the streets it knows does
+   * not stay at home; it walks streets it has never walked. The escalation is the caller's to make
+   * - see {@code RoadDistancePathFinder} and {@code AngularChangePathFinder} - and is counted on
+   * the day ledger, because a route found this way is one the agent could not have planned from its
+   * own knowledge.
+   *
+   * <p>What is not represented: the agent plans against the length of a route through streets it
+   * has never seen, so that length should carry a far larger error than a route through known
+   * streets does. The model applies the same (small) perception error to both. Sizing that error
+   * needs a source.
+   */
+  protected boolean ignoreKnownNetwork = false;
+
+  /** Searches the whole network on this run, whatever the agent knows. */
+  public void ignoreKnownNetwork() {
+    ignoreKnownNetwork = true;
+  }
+
+  /**
+   * Whether this search is confined to the agent's known network.
+   *
+   * <p>Only individualised cognitive maps carry one: {@code knownNodes} and friends are populated
+   * only then, so testing them unconditionally would filter out every neighbour for a community-map
+   * agent.
+   */
+  protected boolean restrictToKnownNetwork() {
+    return !ignoreKnownNetwork
+        && agent != null
+        && agent.getCognitiveMap() != null
+        && agent.getCognitiveMap().individualised;
+  }
+
   protected static final double MAX_DEFLECTION_ANGLE = 180.00;
   protected static final double MIN_DEFLECTION_ANGLE = 0;
 
@@ -124,7 +159,7 @@ public abstract class Dijkstra {
    */
   protected void initialisePrimal(Set<DirectedEdge> segmentsToAvoid) {
 
-    if (agent.getCognitiveMap().individualised) {
+    if (restrictToKnownNetwork()) {
       knownNodes = agent.getCognitiveMap().getNodesInKnownNetwork();
       knownEdges = agent.getCognitiveMap().getEdgesInKnownNetwork();
     }
@@ -142,7 +177,7 @@ public abstract class Dijkstra {
    */
   protected void initialiseDual(Set<NodeGraph> centroidsToAvoid, NodeGraph previousJunction) {
 
-    if (agent.getCognitiveMap().individualised) {
+    if (restrictToKnownNetwork()) {
       knownDualEdges = new HashSet<>(agent.getCognitiveMap().getEdgesInKnownDualNetwork());
       knownDualNodes = new HashSet<>(agent.getCognitiveMap().getNodesInKnownDualNetwork());
     }

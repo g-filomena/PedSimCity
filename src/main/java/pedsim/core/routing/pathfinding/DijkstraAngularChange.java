@@ -115,10 +115,7 @@ public class DijkstraAngularChange extends Dijkstra {
       }
 
       EdgeGraph commonEdge = (EdgeGraph) outEdge.getEdge();
-      // Known-network filtering only applies to individualised cognitive maps (mirrors the
-      // primal variant): knownDualEdges is only populated when the map is individualised, so
-      // testing it unconditionally would filter out every edge for community-map agents.
-      if (agent.getCognitiveMap().individualised && !isDualEdgeKnown(commonEdge)) {
+      if (restrictToKnownNetwork() && !isDualEdgeKnown(commonEdge)) {
         continue;
       }
 

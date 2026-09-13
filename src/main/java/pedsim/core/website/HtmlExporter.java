@@ -260,13 +260,8 @@ public class HtmlExporter {
   }
 
   private static boolean isABTestingEnabled() {
-    try {
-      Class<?> cls = Class.forName("pedsim.night.parameters.NightPars");
-      java.lang.reflect.Field f = cls.getField("enableLightABTesting");
-      return f.getBoolean(null);
-    } catch (Exception e) {
-      return false;
-    }
+    return pedsim.core.engine.SimulationStateStore.getInstance()
+        .moduleFlag("enableLightABTesting");
   }
 
   private static final String HTML_TEMPLATE_1 =
