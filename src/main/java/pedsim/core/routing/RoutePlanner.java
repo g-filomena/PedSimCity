@@ -6,6 +6,7 @@ import java.util.List;
 import pedsim.core.agents.Agent;
 import pedsim.core.agents.AgentProperties;
 import pedsim.core.parameters.RouteChoicePars;
+import pedsim.core.utilities.LoggerUtil;
 import pedsim.core.routing.elements.BarrierBasedNavigation;
 import pedsim.core.routing.elements.GlobalLandmarkNavigation;
 import pedsim.core.routing.elements.LandmarkNavigation;
@@ -48,7 +49,30 @@ public class RoutePlanner {
     this.agent = agent;
     this.properties = agent.getProperties();
     this.nodesSequence = new ArrayList<>();
+    warnIfUnconfigured();
   }
+
+  /**
+   * Warns once when a planner is built on properties nothing has configured: the route then falls
+   * back to road distance, which is not the agent's route choice. {@code Agent.planRoute()} calls
+   * {@code initialiseHeuristics()} first and the module property classes set a mode themselves.
+   */
+  private void warnIfUnconfigured() {
+    if (properties.isConfigured() || unconfiguredWarningIssued) {
+      return;
+    }
+    unconfiguredWarningIssued = true;
+    LoggerUtil.getLogger()
+        .warning(
+            "RoutePlanner built on unconfigured AgentProperties (agent "
+                + agent.agentID
+                + "): no minimisation mode, local heuristic or route-choice element is set, so the"
+                + " route falls back to road distance. Plan through Agent.planRoute(), which calls"
+                + " initialiseHeuristics() first. Reported once per run.");
+  }
+
+  /** One warning is the point; a per-trip one would bury the run's own output. */
+  private static volatile boolean unconfiguredWarningIssued = false;
 
   /**
    * Defines the path for the agent based on route choice properties and
@@ -60,7 +84,7 @@ public class RoutePlanner {
 
     // === Use only minimisation-based navigation
     if (properties.shouldOnlyUseMinimization()) {
-      if (properties.isMinimisingDistance()) {
+      if (properties.isMinimisingDistance() || !angularAvailable()) {
         return new RoadDistancePathFinder().roadDistance(originNode, destinationNode, agent);
       }
       return new AngularChangePathFinder().angularChangeBased(originNode, destinationNode, agent);
@@ -103,17 +127,34 @@ public class RoutePlanner {
       return route;
     }
 
-    // Fallback or finalize the route based on the local heuristic
+    // The local heuristic routes each leg between the sub-goals chosen above. The test is
+    // positive - is it angular - so LocalHeuristicMode.NONE, which means no heuristic was chosen,
+    // routes by distance: angular is a stated preference, shortest path is what is left without one.
+    boolean angular = properties.isLocalHeuristicAngular() && angularAvailable();
     route =
         nodesSequence.isEmpty()
-            ? (properties.isLocalHeuristicDistance()
-                ? new RoadDistancePathFinder().roadDistance(originNode, destinationNode, agent)
-                : new AngularChangePathFinder()
-                    .angularChangeBased(originNode, destinationNode, agent))
-            : (properties.isLocalHeuristicDistance()
-                ? new RoadDistancePathFinder().roadDistanceSequence(nodesSequence, agent)
-                : new AngularChangePathFinder().angularChangeBasedSequence(nodesSequence, agent));
+            ? (angular
+                ? new AngularChangePathFinder()
+                    .angularChangeBased(originNode, destinationNode, agent)
+                : new RoadDistancePathFinder().roadDistance(originNode, destinationNode, agent))
+            : (angular
+                ? new AngularChangePathFinder().angularChangeBasedSequence(nodesSequence, agent)
+                : new RoadDistancePathFinder().roadDistanceSequence(nodesSequence, agent));
     return route;
+  }
+
+  /**
+   * Whether angular-change routing can run at all: it searches the dual graph, so a city that
+   * shipped no dual layers cannot serve it.
+   *
+   * <p>{@link pedsim.core.agents.Heuristics} constrains both angular modes to distance when the
+   * dual graph is absent, which covers every agent routing through {@code Agent.planRoute()}. The
+   * check is repeated here because {@code RoutePlanner} is also constructed directly, and without it
+   * the failure is a {@code NullPointerException} on a null dual node inside
+   * {@code NodeGraph.getDualNodes}, which names nothing about the missing layer.
+   */
+  private boolean angularAvailable() {
+    return pedsim.core.engine.PedSimCity.dualGraphLoaded;
   }
 
   /**

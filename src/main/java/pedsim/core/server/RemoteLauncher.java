@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
-import pedsim.core.parameters.ParameterManager;
 import pedsim.core.utilities.LoggerUtil;
 
 /**
@@ -110,7 +109,7 @@ public class RemoteLauncher {
    *
    * @param fullArgs the command line to run on the server, e.g. {@code --headless --cityName=Torino}
    */
-  public void runOnServer(String fullArgs) {
+  public Process runOnServer(String fullArgs) {
     String remoteCmd = buildRemoteCommand(fullArgs);
 
     LoggerUtil.getLogger().info("[SERVER][CMD] " + remoteCmd);
@@ -138,9 +137,11 @@ public class RemoteLauncher {
                 }
               })
           .start();
+      return proc;
 
     } catch (IOException e) {
       LoggerUtil.getLogger().severe("SSH Error: " + e.getMessage());
+      return null;
     }
   }
 
@@ -159,6 +160,118 @@ public class RemoteLauncher {
     } catch (IOException e) {
       LoggerUtil.getLogger().severe("SSH Error: " + e.getMessage());
     }
+  }
+
+  // -------------------------
+  // Command line
+  // -------------------------
+
+  private static final String USAGE =
+      """
+      Runs a simulation on the configured server over SSH.
+
+        java -cp "target/classes;<deps>" pedsim.core.server.RemoteLauncher \\
+            --remoteMainClass=pedsim.night.launcher.NightLauncher \\
+            [--remoteProjectDir=...] [--sshKey=...] [--server=user@host] \\
+            [--javaBinDir=...] [--remoteClasspath=...] \\
+            -- --headless --cityName=Torino --days=1
+
+        java ... pedsim.core.server.RemoteLauncher --stop --remoteMainClass=...
+
+      Everything after -- (and anything not listed above) is passed to the remote run.
+      Defaults come from server.properties.
+
+      Note: the remote command does a git pull and compiles there, so it runs committed code.
+      Uncommitted work has to be shipped by hand - see CLAUDE.md, Running on gdsl1.""";
+
+  /**
+   * Runs the simulation on the server from the command line.
+   *
+   * @param args launcher options, then the run's own arguments
+   */
+  public static void main(String[] args) throws Exception {
+    if (args.length == 0 || List.of(args).contains("--help")) {
+      System.out.println(USAGE);
+      return;
+    }
+
+    String mainClass = null;
+    String projectDir = ServerConfig.remoteProjectDir("");
+    String keyOverride = null;
+    String serverOverride = null;
+    String javaBinOverride = null;
+    String classpathOverride = null;
+    boolean stop = false;
+    List<String> passThrough = new ArrayList<>();
+    boolean afterSeparator = false;
+
+    for (String arg : args) {
+      if (afterSeparator) {
+        passThrough.add(arg);
+      } else if ("--".equals(arg)) {
+        afterSeparator = true;
+      } else if ("--stop".equals(arg)) {
+        stop = true;
+      } else if (arg.startsWith("--remoteMainClass=")) {
+        mainClass = value(arg);
+      } else if (arg.startsWith("--remoteProjectDir=")) {
+        projectDir = value(arg);
+      } else if (arg.startsWith("--remoteClasspath=")) {
+        classpathOverride = value(arg);
+      } else if (arg.startsWith("--sshKey=")) {
+        keyOverride = value(arg);
+      } else if (arg.startsWith("--server=")) {
+        serverOverride = value(arg);
+      } else if (arg.startsWith("--javaBinDir=")) {
+        javaBinOverride = value(arg);
+      } else {
+        passThrough.add(arg);
+      }
+    }
+
+    if (mainClass == null || mainClass.isBlank()) {
+      System.out.println("--remoteMainClass is required." + System.lineSeparator() + USAGE);
+      return;
+    }
+
+    RemoteLauncher launcher =
+        new RemoteLauncher(
+            new ServerProjectConfig(projectDir, mainClass, ServerConfig.classpath()));
+    if (keyOverride != null) {
+      launcher.setKeyPath(keyOverride);
+    }
+    if (serverOverride != null) {
+      launcher.setServer(serverOverride);
+    }
+    if (javaBinOverride != null) {
+      launcher.setJavaBinDir(javaBinOverride);
+    }
+    if (classpathOverride != null) {
+      launcher.setClasspath(classpathOverride);
+    }
+
+    if (launcher.getServer().isBlank()) {
+      System.out.println(
+          "No server configured: set server.host in server.properties, or pass --server=user@host.");
+      return;
+    }
+
+    if (stop) {
+      launcher.stopOnServer();
+      return;
+    }
+
+    Process proc = launcher.runOnServer(String.join(" ", passThrough));
+    if (proc == null) {
+      System.exit(1);
+    }
+    // The output reader runs on its own thread, so without this the JVM would exit before the
+    // first line of the remote run arrived.
+    System.exit(proc.waitFor());
+  }
+
+  private static String value(String arg) {
+    return arg.substring(arg.indexOf('=') + 1).trim();
   }
 
   // -------------------------

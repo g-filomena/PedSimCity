@@ -17,15 +17,11 @@ public class Pars {
   public static int numAgents;
 
   /**
-   * How often one person sets off from home on an average day, when nothing is known about who they
-   * are.
-   *
-   * <p>Read only when the running module supplies no travel demand of its own. Core models no reason
-   * for a person to leave the house, so this figure is a placeholder that lets the skeleton run
-   * rather than a claim about anybody's travel: it carries no source and is not something to
-   * calibrate against. A module that models activity states its own count and this is never read.
+   * Departures per person per day, read when the running module supplies no travel demand of its
+   * own. 0.255 = ISFORT's 0.51 walked legs per resident per day / 2 legs per out-and-back; see
+   * {@code RELEASE_BUDGET.md}.
    */
-  public static double departuresPerPersonPerDay = 0.25;
+  public static double departuresPerPersonPerDay = 0.255;
 
   /**
    * Range the desired route length is drawn from, in <b>walked</b> metres.

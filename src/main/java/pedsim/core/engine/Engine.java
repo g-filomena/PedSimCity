@@ -2,6 +2,9 @@ package pedsim.core.engine;
 
 import java.awt.Desktop;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.logging.Logger;
 import java.util.stream.IntStream;
 import pedsim.core.parameters.Pars;
@@ -74,6 +77,7 @@ public class Engine {
         return;
       }
 
+      jobTotals.clear();
       boolean runParallel = parallel && supportsParallel();
       if (parallel && !runParallel) {
         logger.info("This module does not support parallel jobs; running them sequentially.");
@@ -98,6 +102,8 @@ public class Engine {
           executeJob(jobNr, scenarioConfig);
         }
       }
+
+      reportReplicates();
 
     } finally {
       SimulationStateStore.getInstance().running = false;
@@ -197,6 +203,7 @@ public class Engine {
         if (isNextDay(steps, currentDay)) {
           state.flowHandler.exportFlowsData(currentDay + 1);
           exportCognitiveData(state, currentDay + 1);
+          onDayFinished(state, job, currentDay + 1);
           currentDay++;
 
           currentDayReleaseManager.close();
@@ -223,12 +230,14 @@ public class Engine {
 
       state.flowHandler.exportFlowsData(currentDay + 1);
       exportCognitiveData(state, currentDay + 1);
+      onDayFinished(state, job, currentDay + 1);
 
     } finally {
       currentDayReleaseManager.close();
     }
 
     onJobFinished(job, state, scenarioConfig);
+    recordJobTotals(job, seed, state);
     state.finish();
 
     TripRouteRecorder.saveToFile("test_trips.csv");
@@ -274,6 +283,64 @@ public class Engine {
     return baseSeed + job;
   }
 
+  /**
+   * One row per finished job: job, seed, legs, planned metres, walked metres, agents. A run is
+   * deterministic from its seed, so a single job has no error bar; job <i>n</i> uses {@code seed + n}.
+   */
+  private final List<double[]> jobTotals = Collections.synchronizedList(new ArrayList<>());
+
+  private void recordJobTotals(int job, long seed, PedSimCity state) {
+    jobTotals.add(
+        new double[] {
+          job,
+          seed,
+          state.ledger().runLegsPlanned(),
+          state.ledger().runPlannedRouteMeters(),
+          state.ledger().runWalkedRouteMeters(),
+          state.agentsList.size()
+        });
+  }
+
+  /** Logs each replicate, and the spread across them when there is more than one. */
+  private void reportReplicates() {
+    List<double[]> rows;
+    synchronized (jobTotals) {
+      rows = new ArrayList<>(jobTotals);
+    }
+    if (rows.isEmpty()) {
+      return;
+    }
+    rows.sort((a, b) -> Double.compare(a[0], b[0]));
+
+    StringBuilder out = new StringBuilder("Replicates:");
+    for (double[] r : rows) {
+      out.append(
+          String.format(
+              "%n  job %.0f (seed %.0f): %.0f legs, %.0f m planned, %.0f m walked, %.0f agents",
+              r[0], r[1], r[2], r[3], r[4], r[5]));
+    }
+    if (rows.size() > 1) {
+      appendSpread(out, "legs", rows, 2);
+      appendSpread(out, "planned m", rows, 3);
+      appendSpread(out, "walked m", rows, 4);
+    }
+    logger.info(out.toString());
+  }
+
+  /** Mean and sample standard deviation of one column, as an absolute figure and a percentage. */
+  private static void appendSpread(StringBuilder out, String label, List<double[]> rows, int col) {
+    double mean = rows.stream().mapToDouble(r -> r[col]).average().orElse(0.0);
+    double sumSquares = 0.0;
+    for (double[] r : rows) {
+      sumSquares += (r[col] - mean) * (r[col] - mean);
+    }
+    double sd = Math.sqrt(sumSquares / (rows.size() - 1));
+    out.append(
+        String.format(
+            "%n  %-10s mean %.0f, sd %.0f (%.1f%%) over %d replicates",
+            label, mean, sd, mean == 0.0 ? 0.0 : 100.0 * sd / Math.abs(mean), rows.size()));
+  }
+
   protected boolean continueSimulation(PedSimCity state) {
     return state.schedule.step(state)
         && (state.schedule.getSteps() <= TimePars.simulationDurationInSteps);
@@ -292,6 +359,15 @@ public class Engine {
   }
 
   protected void onStepUpdate(PedSimCity state, double steps) {
+    // no-op
+  }
+
+  /**
+   * A day has ended and its ledger is still intact — the next day's release manager clears it.
+   *
+   * @param day the day that has just finished, counting from 1
+   */
+  protected void onDayFinished(PedSimCity state, int job, int day) {
     // no-op
   }
 

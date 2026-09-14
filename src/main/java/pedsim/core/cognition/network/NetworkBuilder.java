@@ -37,8 +37,15 @@ public class NetworkBuilder {
 
   public synchronized void buildKnownNetwork() {
 
+    // LinkedHashSet, for reproducibility rather than taste. EdgeGraph overrides neither hashCode
+    // nor equals, so a HashSet of them iterates in identity-hash order, and HotSpot derives those
+    // from a per-JVM generator whose values differ between JVM builds. Islands.findDisconnectedIslands
+    // and mergeConnectedIslands walk this set to decide which islands to join and through which
+    // edges, so its order changes the agent's known network, and with it every route planned on it.
+    // The edge ids arrive from a Set<Integer>, which does iterate the same way everywhere, so
+    // insertion order here is stable.
     setNecessaryEdges(
-        new HashSet<>(
+        new LinkedHashSet<>(
             GraphUtils.getEdgesFromEdgeIDs(
                 cognitiveMap.getAgentKnownEdges(), PedSimCity.edgesMap)));
 
@@ -52,7 +59,7 @@ public class NetworkBuilder {
   }
 
   private void buildKNownDualNetwork() {
-    setNecessaryDualEdges(new HashSet<>());
+    setNecessaryDualEdges(new LinkedHashSet<>());
     for (EdgeGraph edge : getNecessaryEdges()) {
       if (edge != null && edge.getDualNode() != null && edge.getDualNode().getOutEdges() != null) {
         for (DirectedEdge directedEdge : edge.getDualNode().getOutEdges().getEdges()) {
@@ -62,7 +69,7 @@ public class NetworkBuilder {
     }
 
     if (getNecessaryDualEdges().isEmpty()) {
-      setNecessaryDualNodes(new HashSet<>());
+      setNecessaryDualNodes(new LinkedHashSet<>());
       return;
     }
 

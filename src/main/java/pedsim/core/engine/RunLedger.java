@@ -185,6 +185,9 @@ public class RunLedger {
   public void recordPlannedRoute(double meters) {
     if (meters > 0.0 && Double.isFinite(meters)) {
       plannedRouteMeters.add(meters);
+      legsPlanned.increment();
+      runPlannedRouteMeters.add(meters);
+      runLegsPlanned.increment();
     } else {
       unusableRouteLengths.increment();
     }
@@ -194,6 +197,7 @@ public class RunLedger {
   public void recordWalkedRoute(double meters) {
     if (meters > 0.0 && Double.isFinite(meters)) {
       walkedRouteMeters.add(meters);
+      runWalkedRouteMeters.add(meters);
     } else {
       unusableRouteLengths.increment();
     }
@@ -209,6 +213,26 @@ public class RunLedger {
   /** Records a destination search that exhausted its band and took any node instead. */
   public void recordDestinationFallback() {
     destinationFallbacks.increment();
+  }
+
+  /** Metres of route planned over the whole job, across every day. */
+  public double runPlannedRouteMeters() {
+    return runPlannedRouteMeters.sum();
+  }
+
+  /** Metres walked over the whole job, across every day. */
+  public double runWalkedRouteMeters() {
+    return runWalkedRouteMeters.sum();
+  }
+
+  /** Legs planned over the whole job, across every day. */
+  public long runLegsPlanned() {
+    return runLegsPlanned.sum();
+  }
+
+  /** Legs planned so far today. */
+  public long legsPlanned() {
+    return legsPlanned.sum();
   }
 
   /** Metres of route planned so far today. */
@@ -236,9 +260,21 @@ public class RunLedger {
     return destinationFallbacks.sum();
   }
 
+  // Job totals: not cleared by the daily reset below, so a multi-day run reports the run.
+  private final java.util.concurrent.atomic.DoubleAdder runPlannedRouteMeters =
+      new java.util.concurrent.atomic.DoubleAdder();
+  private final java.util.concurrent.atomic.DoubleAdder runWalkedRouteMeters =
+      new java.util.concurrent.atomic.DoubleAdder();
+  private final java.util.concurrent.atomic.LongAdder runLegsPlanned =
+      new java.util.concurrent.atomic.LongAdder();
+
+  private final java.util.concurrent.atomic.LongAdder legsPlanned =
+      new java.util.concurrent.atomic.LongAdder();
+
   /** Clears the day's ledgers and counters. */
   public void reset() {
     plannedRouteMeters.reset();
+    legsPlanned.reset();
     walkedRouteMeters.reset();
     unusableRouteLengths.reset();
     destinationWidenings.reset();

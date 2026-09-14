@@ -13,6 +13,9 @@ import java.util.stream.Collectors;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.prep.PreparedGeometry;
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
+import org.locationtech.jts.index.strtree.STRtree;
 import pedsim.core.agents.Agent;
 import pedsim.core.cognition.cityimage.Region;
 import pedsim.core.cognition.network.NetworkBuilder;
@@ -220,19 +223,55 @@ public class CognitiveMap extends SharedCognitiveMap {
     agentKnownNodes.clear();
     agentKnownEdges.clear();
     cognitiveCollage = new ArrayList<Polygon>(polygons);
-    // for (Pair<Polygon, List<NodeGraph>> pair : collage.keySet()) {
-    for (Polygon polygon : cognitiveCollage) {
-      // List<NodeGraph> nodesInKnownSpace = pair.getValue1();
-      List<NodeGraph> nodesInKnownSpace =
-          SharedCognitiveMap.getCommunityPrimalNetwork().getNodesWithinPolygon(polygon);
-      agentKnownNodes.addAll(GraphUtils.getNodeIDs(nodesInKnownSpace));
-      nodesInKnownSpace.forEach(
-          node -> agentKnownEdges.addAll(GraphUtils.getEdgeIDs(node.getEdges())));
+    List<NodeGraph> nodesInKnownSpace = nodesWithinCollage(cognitiveCollage);
+    agentKnownNodes.addAll(GraphUtils.getNodeIDs(nodesInKnownSpace));
+    for (NodeGraph node : nodesInKnownSpace) {
+      agentKnownEdges.addAll(GraphUtils.getEdgeIDs(node.getEdges()));
     }
 
     fuseBoneWithCommunityNetwork();
     identifyKnownUrbanElements();
     networkBuilder.buildKnownNetwork();
+  }
+
+  /**
+   * The network's nodes that fall inside any polygon of the collage.
+   *
+   * <p>Same predicate as {@code Graph.getNodesWithinPolygon}, which is a plain
+   * {@code Polygon.contains} on the node's geometry, and the same result: the loop this replaced
+   * called that method once per collage polygon and unioned the answers into a set, so nothing
+   * downstream ever saw the per-polygon grouping.
+   *
+   * <p>What it stops paying for is the shape of that loop. Each call scanned every node in the
+   * city, and each test built a fresh JTS geometry graph for the polygon, so the cost was the
+   * number of nodes times the number of polygons - and a collage is one polygon per connected blob
+   * of remembered 5 m cells, so there are many. Here the polygons go into an STRtree once, prepared
+   * (which indexes their edges instead of re-deriving them per test), and the nodes are walked
+   * once. This was the whole remaining cost of the learning module's cognitive-map rebuild.
+   */
+  private static List<NodeGraph> nodesWithinCollage(List<Polygon> polygons) {
+    List<NodeGraph> nodesInside = new ArrayList<>();
+    if (polygons.isEmpty()) {
+      return nodesInside;
+    }
+    STRtree index = new STRtree();
+    for (Polygon polygon : polygons) {
+      index.insert(polygon.getEnvelopeInternal(), PreparedGeometryFactory.prepare(polygon));
+    }
+    index.build();
+
+    for (NodeGraph node : SharedCognitiveMap.getCommunityPrimalNetwork().getNodes()) {
+      Geometry nodeGeometry = node.getMasonGeometry().getGeometry();
+      @SuppressWarnings("unchecked")
+      List<PreparedGeometry> candidates = index.query(nodeGeometry.getEnvelopeInternal());
+      for (PreparedGeometry candidate : candidates) {
+        if (candidate.contains(nodeGeometry)) {
+          nodesInside.add(node);
+          break;
+        }
+      }
+    }
+    return nodesInside;
   }
 
   private void identifyKnownUrbanElements() {
@@ -267,7 +306,12 @@ public class CognitiveMap extends SharedCognitiveMap {
     Map<Integer, Set<EdgeGraph>> edgesByRegion = new HashMap<>();
     for (EdgeGraph edge : getEdgesInKnownNetwork()) {
       if (potentiallyKnownRegions.contains(edge.getRegionID())) {
-        edgesByRegion.computeIfAbsent(edge.getRegionID(), unused -> new HashSet<>()).add(edge);
+        // LinkedHashSet: these buckets are handed to Islands.findDisconnectedIslands, and EdgeGraph
+        // has no hashCode of its own, so a HashSet would order them by identity hash - stable within
+        // a JVM build and different across them.
+        edgesByRegion
+            .computeIfAbsent(edge.getRegionID(), unused -> new LinkedHashSet<>())
+            .add(edge);
       }
     }
 
