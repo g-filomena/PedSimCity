@@ -44,12 +44,14 @@ public class CommuterAgent extends Agent {
   }
 
   /**
-   * Whether the next non-home trip should target the work node. Core: a work node exists, the
-   * agent has not worked today and it is daytime. Activity-based modules refine this with persona
-   * work-start windows and day-of-week.
+   * Whether the next non-home trip should target the work node: a work node exists and the agent
+   * has not worked today. Activity-based modules refine this with persona work-start windows and
+   * day-of-week.
+   *
+   * <p>Darkness plays no part: people walk to and from work in the dark for months of the year.
    */
   protected boolean shouldGoToWork() {
-    return workNode != null && !hasWorkedToday && !isDark();
+    return workNode != null && !hasWorkedToday;
   }
 
   /** The commute comes first; anything else is a trip to somewhere the agent knows. */

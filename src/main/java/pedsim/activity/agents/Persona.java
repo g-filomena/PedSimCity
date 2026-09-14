@@ -214,12 +214,13 @@ public enum Persona {
    * applied identically to every zone, so who has a job was the one persona fact the census was
    * not allowed to settle.
    *
-   * <p>One overlap survives, and it is bounded. P101 counts the employed 15-24, who are already
-   * counted here as students, so taking it whole borrows them from flex rather than from student.
-   * The 2021 permanent census publishes no enrolment variable at section level - only educational
-   * attainment - so there is no per-zone figure for the employed 15-24 to subtract. The error is
-   * at most the youth employment rate times the 15-24 share, a couple of points of the adult
-   * population, and it moves people between two personas that both lack a commute.
+   * <p>Students and workers are disjoint. P101 counts the employed 15-24, who are also in the 15-24
+   * age band, and the census publishes no enrolment variable at section level - only educational
+   * attainment - so there is no per-zone count of the employed young to subtract. The student share
+   * is therefore thinned by {@link ActivityPars#youthEmploymentRate}, leaving the employed young
+   * among the workers, which is the side they belong on: a job means a commute, and the commute is
+   * the part of the day this model simulates. The accuracy of that one rate is the assumption the
+   * split rests on.
    *
    * <p>{@code NaN} shares fall back to the global {@link ActivityPars} values one by one, so a
    * census carrying age bands but no employment keeps the old worker/flex ratio and nothing else
@@ -238,6 +239,12 @@ public enum Persona {
         Double.isNaN(zoneStudentShare)
             ? ActivityPars.studentShare
             : Math.min(1.0, Math.max(0.0, zoneStudentShare));
+    if (!Double.isNaN(zoneWorkerShare)) {
+      // The employed 15-24 are in both the age band and P101. Thin the band by the youth
+      // employment rate and they stay counted once, as workers. Only when the zone actually
+      // supplies an employment share: without one there is no double count to undo.
+      student *= Math.max(0.0, 1.0 - ActivityPars.youthEmploymentRate);
+    }
 
     double residual = Math.max(0.0, 1.0 - retiree - student);
     double worker;
@@ -248,8 +255,8 @@ public enum Persona {
               ? residual * ActivityPars.workerShare / workerFlexTotal
               : residual / 2.0;
     } else {
-      // Capped at the residual: the employed of student age are already counted as students, and
-      // a zone whose employment share exceeds what is left cannot have more workers than adults.
+      // Still capped at the residual: a zone cannot have more workers than it has adults left
+      // after its retirees and students, however the employment share was measured.
       worker = Math.min(residual, Math.max(0.0, zoneWorkerShare));
     }
     double flex = residual - worker;

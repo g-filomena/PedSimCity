@@ -147,6 +147,23 @@ public class ActivityPars {
    */
   public static double workplaceMinDistanceMetres = 0.0;
 
+  /**
+   * Share of the 15-24 age band that is in employment, used to stop the same people being counted
+   * as students and as workers.
+   *
+   * <p>The census gives no enrolment variable at section level, so the student persona is the 15-24
+   * age band and ISTAT's P101 is everyone employed at 15-64 - the employed young appear in both.
+   * {@link pedsim.activity.agents.Persona#sample} now removes them from the student share and
+   * leaves them among the workers, which is the side they belong on: they commute.
+   *
+   * <p><b>This default is a national order of magnitude, not a Turin figure.</b> ISTAT's 15-24
+   * employment rate for Italy has run in the high teens in recent years; Piedmont sits above the
+   * national rate and a city rate would be higher still. Set it per city in
+   * {@code <City>.properties} once you have the local number, and treat 0.18 as a placeholder that
+   * makes the overlap explicit rather than as a measurement.
+   */
+  public static double youthEmploymentRate = 0.18;
+
   public static double workerShare = 0.50;
   public static double studentShare = 0.15;
   public static double retireeShare = 0.20;

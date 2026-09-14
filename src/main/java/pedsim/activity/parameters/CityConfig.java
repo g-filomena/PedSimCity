@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
+import pedsim.activity.agents.ActivityPurpose;
 import pedsim.core.parameters.ParameterManager;
 import pedsim.core.utilities.LoggerUtil;
 
@@ -107,6 +108,9 @@ public final class CityConfig {
    *     {@link pedsim.core.engine.SimulationModule#parameterClasses()}
    */
   public static void load(String cityName, Class<?>[] targets) {
+    // Before anything is read: a second city in the same JVM must not inherit the first's opening
+    // hours, and a city with no file must run on the built-in ones.
+    ActivityPurpose.resetToDefaults();
     if (cityName == null || cityName.isBlank()) {
       return;
     }
@@ -139,6 +143,14 @@ public final class CityConfig {
         refused.add(key);
         continue;
       }
+      if (key.startsWith(PURPOSE_PREFIX)) {
+        if (writePurpose(key, raw)) {
+          applied.put(key, raw);
+        } else {
+          unplaced.add(key);
+        }
+        continue;
+      }
       if (writeInto(targets, key, raw)) {
         applied.put(key, raw);
       } else {
@@ -168,6 +180,30 @@ public final class CityConfig {
               + " in "
               + describe(targets)
               + ". Check the spelling — nothing was applied for these.");
+    }
+  }
+
+  /** Prefix for the opening-window keys, e.g. {@code purpose.DINING.open}. */
+  private static final String PURPOSE_PREFIX = "purpose.";
+
+  /**
+   * Writes one {@code purpose.<NAME>.<setting>} key.
+   *
+   * <p>These are the one group of city parameters that are not fields on a parameter class: they
+   * live on the {@link ActivityPurpose} enum, four per purpose. The enum's own values are generic
+   * defaults - dining 11:00-23:00 is not an Italian day - so a city that knows better says so here.
+   *
+   * @return whether the key named a purpose and a setting that exist, and parsed as a number
+   */
+  private static boolean writePurpose(String key, String raw) {
+    String[] parts = key.split("\\.");
+    if (parts.length != 3) {
+      return false;
+    }
+    try {
+      return ActivityPurpose.applyCitySetting(parts[1], parts[2], Double.parseDouble(raw));
+    } catch (NumberFormatException e) {
+      return false;
     }
   }
 

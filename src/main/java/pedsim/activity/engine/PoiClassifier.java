@@ -97,8 +97,18 @@ public final class PoiClassifier {
       }
       double weight = areaWeighted ? attractionUnits(geometry) : 1.0;
       for (ActivityPurpose purpose : purposes) {
+        // LinkedHashMap, and the reason is reproducibility rather than taste. NodeGraph overrides
+        // neither hashCode nor equals, so a HashMap keyed on one iterates in identity-hash order -
+        // and HotSpot generates identity hashes from a per-JVM generator whose values differ
+        // between JVM builds. Every weighted draw over these maps (WorkplaceChoice.draw,
+        // sampleEducationNode, DestinationChoice) walks the entries to build a cumulative
+        // distribution and then picks by position, so the order decides which node a given random
+        // number selects. That made a run replay exactly on the machine that produced it and
+        // disagree with the same seed on another: 1163 mandatory legs and 2064 trips on gdsl1
+        // against 1143 and 2049 on Windows, same code, same data, same jar. Insertion order here
+        // follows the buildings and POI layers, which are read in file order.
         weights
-            .computeIfAbsent(purpose, p -> new java.util.HashMap<>())
+            .computeIfAbsent(purpose, p -> new java.util.LinkedHashMap<>())
             .merge(node, weight, Double::sum);
       }
       classified++;
