@@ -32,4 +32,54 @@ if [ "$fail" -ne 0 ]; then
     echo "Fix: run 'git lfs install', then re-stage the file(s) above. Commit aborted."
     exit 1
 fi
+
+# ---------------------------------------------------------------------------
+# Formatting: fix it here, so it is never pushed wrong and CI never fails on it.
+#
+# At commit time rather than push time on purpose. A pre-push hook can only stop
+# you - the commits it is about to push already contain the unformatted code, so
+# it has to abort and ask you to commit the fix. Doing it here means the commit
+# is formatted in the first place and nothing downstream has anything to say.
+#
+# Only files already staged are re-staged. Spotless formats the whole tree, and
+# sweeping files you had not staged into the commit would be worse than the
+# problem being solved. A staged file that also has unstaged edits is the one
+# case that still merges them - rare, and git warns you in the commit diff.
+#
+# Skip with `git commit --no-verify`, or SKIP_SPOTLESS=1.
+# ---------------------------------------------------------------------------
+
+staged_java=$(git diff --cached --name-only --diff-filter=ACM -- '*.java')
+
+if [ -n "$staged_java" ] && [ -z "$SKIP_SPOTLESS" ] && command -v mvn >/dev/null 2>&1; then
+    printf 'pre-commit: formatting staged Java (spotless)... '
+    log=$(mktemp 2>/dev/null || echo /tmp/spotless-pre-commit.log)
+
+    if mvn -q spotless:apply < /dev/null > "$log" 2>&1; then
+        restaged=""
+        for f in $staged_java; do
+            # Skip anything deleted between staging and now.
+            [ -f "$f" ] || continue
+            if ! git diff --quiet -- "$f"; then
+                git add -- "$f"
+                restaged="$restaged $f"
+            fi
+        done
+        if [ -n "$restaged" ]; then
+            printf 'reformatted and re-staged:
+'
+            for f in $restaged; do echo "  $f"; done
+        else
+            printf 'already clean
+'
+        fi
+    else
+        printf 'FAILED
+'
+        echo "spotless:apply failed; committing unformatted. Output:"
+        tail -20 "$log"
+    fi
+    rm -f "$log"
+fi
+
 exit 0
