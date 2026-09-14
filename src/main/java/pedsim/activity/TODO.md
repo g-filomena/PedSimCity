@@ -8,6 +8,17 @@ items there are now described in `README.md` and `CLAUDE.md`, and what was still
 
 ---
 
+## Read this before trusting an earlier activity figure
+
+**Every commute number in this file was measured before 14 September 2026 and is superseded.** The
+per-purpose attraction maps iterated in identity-hash order, so `WorkplaceChoice.draw` picked a
+different workplace on each JVM build; making them insertion-ordered moved where the model puts
+workplaces, and with it the commute distance and `walksToWork`. The current Torino day reports
+`workers 16.8% (ISTAT 16.3%), students 38.3% (ISTAT 38.0%)`. The walked-commute length bands in
+item 5 have not been re-measured since.
+
+---
+
 ## 1. Layer 2 is a count with an invented interior
 
 `ActivityPars.walkedTripsPerPersonPerDay = 0.51` anchors *how many* trips happen; it is ISFORT's own
@@ -54,14 +65,17 @@ Measured on a fixed seed, varying only the radius:
 | 12,000 m | 639 | 1,371 m |
 
 Converged by 6,000 m; the current value costs about 4% of the mean walked leg, so it bounds the
-behaviour and not merely the work. Either raise it to 6,000, or keep 3,000 and report the truncation
-with every trip-length result.
+behaviour and not merely the work. **Decided 14 Sep 2026: keep 3,000 and report the truncation with
+every trip-length result.** The javadoc's claim that the radius bounds the work rather than the
+behaviour is therefore wrong by about 4%, and that is the number to quote.
 
 ## 4. There is no independent check on commuting left
 
 Workers were fitted to ISTAT, then students were fitted too, and `workplaceDistanceDecay` /
-`workplaceMinDistanceMetres` were fitted alongside them. A Torino day reporting `workers 16.4%
-(ISTAT 16.3%), students 36.9% (38.0%)` says the fit worked and nothing else.
+`workplaceMinDistanceMetres` were fitted alongside them. A Torino day reporting `workers 16.8%
+(ISTAT 16.3%), students 38.3% (38.0%)` says the fit worked and nothing else — and note that those
+are the figures *after* the 14 Sep workplace-draw fix, which moved them without anything being
+refitted, which is its own small warning about how much of the agreement the fit is carrying.
 
 Worth keeping in view, because it is what the fit replaced: on two networks differing in one relevant
 way, with an unfitted decay of β = 2 from a 540 m floor, Torino_simplified (no WORK tags, uniform
@@ -88,6 +102,10 @@ roughly six-fold in that band while matching the other three (78.2 / 18.5 / 3.1 
 76.2 / 19.0 / 3.4). The fitted logit matches the mass and misses the tail. See
 `analysis/validation/Torino/night_torino_2026-09-13.md`.
 
+**Those four numbers are from 13 September and the workplace draw has changed since**, so re-measure
+before quoting them: the fix moved where workplaces are, which is exactly what sets this
+distribution. The bands are now identical on both machines, which they were not before.
+
 ## 6. The commute is not multi-modal, so the walking it generates is missing
 
 The commuters who do not walk currently make **no trip at all**. What the model should produce for
@@ -101,28 +119,50 @@ through `startChainedTrip`, which calls `planRoute()` directly and bypasses the 
 every intermediate leg is walked regardless of distance. Routing chained planning through the same
 `planTrip` seam would fix it.
 
-## 7. The `!isDark()` guard on commuting has no source
+## 7. ~~The `!isDark()` guard on commuting~~ — removed 14 September 2026
 
-`CommuterAgent.shouldGoToWork` refuses to set off after dark, so nobody in the model commutes in the
-dark — and people commute in the dark all winter. `planMandatoryDeparture` was made to agree with it
-so the leg budget is not mischarged; agreeing with a rule is not the rule being right. **This matters
-most to the night module**; see `../night/TODO.md`.
+`ActivityAgent.shouldGoToWork` no longer consults `isDark()`, and
+`planMandatoryDeparture` no longer refuses to draw a departure into darkness. Darkness was never a
+reason not to go to work: the persona's start window says when somebody sets off, and the season says
+whether it is light when they do. The guard had been deleting the winter commute — Turin's sunset is
+before 17:00 through December.
 
-## 8. Opening windows and stay durations are 32 invented numbers
+**It changes results, in two places.** Mandatory legs now occur in winter darkness, so more of the
+day's leg budget goes to commuting and fewer discretionary chains are bought; and night aggregates
+over `[20:00, 06:00)` now contain commutes in winter, which they did not before. A summer day is
+unaffected, which is why nothing showed in the June runs.
+
+## 8. Opening windows and stay durations: the mechanism is there, the data is not
 
 `ActivityPurpose` holds open hour, close hour, mean stay and log sigma for each of eight purposes, and
-`DepartureProfile` reads the windows straight off the enum. **Nothing reads an OSM `opening_hours`
-tag.** They are city parameters with no city behind them — the enum says 11:00–23:00 for dining
-everywhere — and belong in `<City>.properties` under a key convention the flat file does not have yet
-(`purpose.DINING.open`, `purpose.DINING.stayMinutes`).
+`DepartureProfile` reads the windows straight off the enum. They are city parameters with no city
+behind them — the enum says 11:00–23:00 for dining everywhere, which is not an Italian day.
 
-## 9. Worker/flex from P101 has one residue
+**Half of this is fixed (14 Sep 2026).** A city file may now set any of the four through
+`purpose.<NAME>.open` / `.close` / `.stayMinutes` / `.staySigma`; `CityConfig` applies and reports
+them like every other key, and `ActivityPurpose.resetToDefaults()` runs first so a second city in one
+JVM cannot inherit the first's hours. The enum values are now defaults rather than facts.
+
+**What is left is the data, and it is deliberately not invented.** `Torino.properties` carries the
+key block commented out, because filling it with plausible-sounding Italian hours would only move the
+invention somewhere that looks sourced. It wants either an aggregation of OSM `opening_hours` for
+Turin — **nothing in the pipeline reads that tag**, so this is pipeline work — or a local
+retail/hospitality schedule.
+
+## 9. Worker/student overlap — closed as an assumption, 14 September 2026
 
 The 2021 permanent census publishes no enrolment variable at section level, so students are the 15-24
-age band and the employed among them are counted twice — borrowed from flex rather than from student.
-Bounded by the youth employment rate times the 15-24 share, a couple of points of adults. Closing it
-needs a per-zone employed-15-24 figure the census does not give; the municipal aggregate would do, or
-state it as an assumption. Wiring: `01_census_istat.py` → `CensusZone` → `Persona.sample`.
+age band while ISTAT P101 counts everyone employed at 15-64: the employed young were both, and the
+residual borrowed them from flex. `Persona.sample` now thins the student share by
+`ActivityPars.youthEmploymentRate`, leaving the employed young among the workers — the side they
+belong on, since a job means a commute and the commute is what this model simulates.
+
+**The residue is now one number instead of a silent double count.** `youthEmploymentRate = 0.18` is a
+national order of magnitude, not a Turin figure: ISTAT's 15-24 employment rate for Italy has run in
+the high teens recently, Piedmont sits above the national rate, and a city rate would be higher
+still. **Check it, and set the local value in `Torino.properties`** — and if a per-zone employed-15-24
+count ever becomes available, it supersedes the parameter entirely. Wiring:
+`01_census_istat.py` → `CensusZone` → `Persona.sample`.
 
 ## 10. Smaller, and deliberately not done
 
@@ -130,6 +170,17 @@ state it as an assumption. Wiring: `01_census_istat.py` → `CensusZone` → `Pe
   ladder with a uniform draw, so on such a city commutes come out far longer than they should.
 - **Lunch trips from work** — splitting the mandatory stay around a midday dining leg adds agenda
   complexity for little effect at pedestrian scale. The work stay stays whole.
+- **The workplace draw now follows the POI and building layers' row order.** The attraction maps are
+  `LinkedHashMap`s, which is what makes a run reproducible across machines, and their insertion order
+  is the order `PoiClassifier` reads those layers in. So re-exporting `<City>_POIs.gpkg` with the rows
+  in a different order is a change to the model's output, with nothing in the run to say so. It is the
+  cheaper half of the trade — the alternative was an order that differed per JVM build — but a POI
+  layer is now a versioned input, not just a set of points.
+- **An agent's known network can still differ across machines**, through
+  `Islands.mergeConnectedIslands`: the library re-wraps the edge set it is handed into a `HashSet`,
+  so which bridge joins two islands of an agent's known space is identity-hash ordered. It reaches
+  this tier and learning, not night. Detail and the proposed library fix are in `../core/TODO.md`
+  item 5.
 - **Only `ActivityPars` and `Pars` keys are exercised by the city file.** `NightPars`,
   `LearningPars`, `SocialPars`, `TestPars` and `EmpiricalPars` have no city files at all.
 
@@ -140,8 +191,9 @@ state it as an assumption. Wiring: `01_census_istat.py` → `CensusZone` → `Pe
 - **Night** agents get personas, purposes and chaining — their populate goes through
   `ActivityPopulate.defineHomeWorkLocations` — and use the same destination choice as everyone else,
   with a park/water refusal applied to the result.
-- **Learning** agents extend core `Agent`, not `ActivityAgent`, so personas and agendas do not apply
-  there. Memory decay reads `STEP_DURATION`, so a finer step rescales it automatically.
+- **Learning** agents are `ActivityAgent`s, so everything in this file applies to them: personas,
+  agendas, purposes, destination choice, the commute and its mode choice. Their own memory decay
+  reads `STEP_DURATION`, so a finer step rescales it automatically.
 - **Behavioural `isDark` is seasonal; the exporters' day/night aggregation window is fixed.** The
   divergence is intentional, so that aggregates stay comparable across dates.
 - **Home and work assignment goes through `NodesLookup`**, so it needs GeoMason-light 2.2.0 to be

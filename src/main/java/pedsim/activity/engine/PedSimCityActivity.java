@@ -25,23 +25,34 @@ public class PedSimCityActivity extends PedSimCity {
   // 24h activity clock: true between ~20:00 and ~06:00. Driven by ActivityEngine.onStepUpdate.
   public boolean isDark = false;
 
-  /** The seasonal flag {@code ActivityEngine.onStepUpdate} maintains, not the fixed night window. */
-  @Override
-  public boolean isDark() {
-    return isDark;
+  /**
+   * Legs that set off in the dark, and the subset of those the fixed
+   * {@code [NIGHT_START_HOUR, DAY_START_HOUR)} window would not count as night. Darkness here is
+   * seasonal, so in winter the two differ. Cleared at the end of each day.
+   */
+  public final java.util.concurrent.atomic.LongAdder legsInDarkness =
+      new java.util.concurrent.atomic.LongAdder();
+
+  public final java.util.concurrent.atomic.LongAdder legsDarkOutsideNightWindow =
+      new java.util.concurrent.atomic.LongAdder();
+
+  /** Clears the day's darkness counters. */
+  public void resetDarknessCounters() {
+    legsInDarkness.reset();
+    legsDarkOutsideNightWindow.reset();
   }
 
   /**
-   * Darkness for a clock hour of a given day, from the seasonal sunrise/sunset model at the city's
-   * latitude. Taken at the middle of the hour, since an hour bucket is either side of a boundary.
+   * Darkness for a clock hour of a given day: the seasonal sunrise and sunset at the city's
+   * latitude, taken at the middle of the hour since an hour bucket straddles the boundary. This is
+   * the same condition the agents respond to, and handing it to the flow handler is what gives the
+   * volume exports their light/dark split.
    */
-  @Override
-  public boolean isDarkHour(int clockHour, int dayNumber) {
+  private boolean isDarkHour(int clockHour, int dayNumber) {
     if (!pedsim.activity.parameters.ActivityPars.useSeasonalDaylight) {
-      return super.isDarkHour(clockHour, dayNumber);
+      return TimePars.isNight(clockHour);
     }
-    java.time.LocalDate date =
-        pedsim.core.parameters.TimePars.SIMULATION_START_DATE.plusDays((long) dayNumber - 1);
+    java.time.LocalDate date = TimePars.SIMULATION_START_DATE.plusDays((long) dayNumber - 1);
     return Daylight.isDark(date.atTime(clockHour, 30));
   }
 
@@ -81,6 +92,8 @@ public class PedSimCityActivity extends PedSimCity {
 
   public PedSimCityActivity(long seed, int job, ScenarioConfig scenarioConfig) {
     super(seed, job, scenarioConfig);
+    // This tier is the one that knows what dark means, so it is the one that tells the exports.
+    flowHandler.setDarknessModel(this::isDarkHour);
   }
 
   /**

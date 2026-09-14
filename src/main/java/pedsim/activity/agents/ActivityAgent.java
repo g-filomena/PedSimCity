@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import pedsim.activity.engine.PedSimCityActivity;
 import pedsim.activity.parameters.ActivityPars;
+import pedsim.core.agents.Agent;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.parameters.Pars;
 import pedsim.core.parameters.TimePars;
@@ -18,6 +19,7 @@ import sim.engine.SimState;
 import sim.graph.Graph;
 import sim.graph.NodeGraph;
 import sim.graph.NodesLookup;
+import sim.routing.Route;
 
 /**
  * Pedestrian agent for the activity-based model. Follows a 24h activity pattern organised as
@@ -40,11 +42,21 @@ import sim.graph.NodesLookup;
  *       or BUS routing when the transit network is active.
  * </ul>
  *
+ * <p>The working day is part of it: an agent with a workplace goes there once a day, stays for its
+ * persona's mandatory-stay range, and comes home. That lives here rather than in {@code core}
+ * because a working day is an activity programme - the smallest one the model has - and core's
+ * default agent is a bare {@link Agent} that goes somewhere it knows and comes back. What stays on
+ * {@code Agent} is the workplace as a <i>place</i>: {@code workNode} and its part in the cognitive
+ * map's anchors, which is a location someone knows rather than a job.
+ *
  * <p>No vulnerability or lighting behaviour — those belong to the night module.
  */
-public class ActivityAgent extends CommuterAgent {
+public class ActivityAgent extends Agent {
 
   private static final long serialVersionUID = 1L;
+
+  /** Whether the commute has already been made today. Cleared when the agent gets home. */
+  protected boolean hasWorkedToday = false;
 
   // Multi-modal transit tracking fields
   public NodeGraph ultimateDestinationNode;
@@ -301,6 +313,23 @@ public class ActivityAgent extends CommuterAgent {
     return speedFactor;
   }
 
+  /**
+   * Counts the leg against the day's darkness counters, then installs it. Every planner crosses
+   * this, chained legs included.
+   */
+  @Override
+  public void setRoute(Route route) {
+    if (route != null && state instanceof PedSimCityActivity activityState) {
+      if (isDark()) {
+        activityState.legsInDarkness.increment();
+        if (!TimePars.isNight(TimePars.getTime(state.schedule.getSteps()).toLocalTime())) {
+          activityState.legsDarkOutsideNightWindow.increment();
+        }
+      }
+    }
+    super.setRoute(route);
+  }
+
   /** Reads the activity 24h clock so destination selection and work-targeting follow time of day. */
   @Override
   protected boolean isDark() {
@@ -317,17 +346,35 @@ public class ActivityAgent extends CommuterAgent {
    * through December, so much of the winter commute happens in the dark - the most routine walking
    * there is, by the population most exposed to unlit streets.
    */
-  @Override
   protected boolean shouldGoToWork() {
     if (workNode == null || hasWorkedToday || !walksToWork) {
       return false;
     }
     if (persona == null) {
-      return super.shouldGoToWork();
+      return true;
     }
     LocalDateTime now = now();
     return persona.worksOn(now.getDayOfWeek())
         && persona.isWithinMandatoryStartWindow(hourOf(now));
+  }
+
+  /** The commute comes first; anything else is a trip to somewhere the agent knows. */
+  @Override
+  protected void defineOutboundDestination() {
+    if (shouldGoToWork()) {
+      destinationNode = workNode;
+    } else {
+      super.defineOutboundDestination();
+    }
+  }
+
+  /** Arriving at the workplace is what spends the day's commute. */
+  @Override
+  protected void handleReachedSoloDestination() {
+    if (lastDestination != null && lastDestination.equals(workNode)) {
+      hasWorkedToday = true;
+    }
+    super.handleReachedSoloDestination();
   }
 
   // ----------------------------------------------------------------
@@ -411,18 +458,25 @@ public class ActivityAgent extends CommuterAgent {
   protected void handleReachedHome() {
     agenda = null;
     currentPurpose = null;
+    hasWorkedToday = false;
     super.handleReachedHome();
   }
 
   /**
-   * Stay durations by activity: the persona's mandatory-stay range at work/study, the purpose's
-   * lognormal stay for discretionary stops, the core uniform draw otherwise.
+   * Stay durations by activity: the persona's mandatory-stay range at work or study, a plain six
+   * to nine hours at a workplace when there is no persona, the purpose's lognormal stay for
+   * discretionary stops, and the core uniform draw otherwise.
    */
   @Override
   protected void calculateTimeAtDestination(long steps) {
-    if (persona != null && lastDestination != null && lastDestination.equals(workNode)) {
+    boolean atWork = lastDestination != null && lastDestination.equals(workNode);
+    if (persona != null && atWork) {
       timeAtDestination =
           persona.sampleMandatoryStayMinutes(random) * TimePars.MINUTE_TO_STEPS + steps;
+    } else if (atWork) {
+      // No persona to ask, so a working day as anyone would guess it: six to nine hours. Unsourced,
+      // and the persona distribution above is the one to prefer.
+      timeAtDestination = ((360 + random.nextInt(181)) * TimePars.MINUTE_TO_STEPS) + steps;
     } else if (currentPurpose != null) {
       timeAtDestination =
           currentPurpose.sampleStayMinutes(random) * TimePars.MINUTE_TO_STEPS + steps;

@@ -67,6 +67,12 @@ public class ActivityEngine extends Engine {
     }
   }
 
+  /** Every module on this tier gets a row per simulated day. */
+  @Override
+  protected void onDayFinished(PedSimCity state, int job, int day) {
+    DaySummary.append(state, state.appName(), job, day);
+  }
+
   @Override
   protected Engine createWorkerEngine() {
     return new ActivityEngine(stateFactory, baseSeed);

@@ -215,12 +215,9 @@ public enum Persona {
    * not allowed to settle.
    *
    * <p>Students and workers are disjoint. P101 counts the employed 15-24, who are also in the 15-24
-   * age band, and the census publishes no enrolment variable at section level - only educational
-   * attainment - so there is no per-zone count of the employed young to subtract. The student share
-   * is therefore thinned by {@link ActivityPars#youthEmploymentRate}, leaving the employed young
-   * among the workers, which is the side they belong on: a job means a commute, and the commute is
-   * the part of the day this model simulates. The accuracy of that one rate is the assumption the
-   * split rests on.
+   * age band, and the census gives no per-zone count of them to subtract, so the student share is
+   * thinned by {@link ActivityPars#youthEmploymentRate} and the employed young stay among the
+   * workers - the side that commutes. That rate is the assumption the split rests on.
    *
    * <p>{@code NaN} shares fall back to the global {@link ActivityPars} values one by one, so a
    * census carrying age bands but no employment keeps the old worker/flex ratio and nothing else
