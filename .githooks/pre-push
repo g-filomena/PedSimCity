@@ -1,0 +1,53 @@
+#!/bin/sh
+# Formatting gate, then Git LFS.
+#
+# Two things have to be true of this file. It must end by handing off to
+# `git lfs pre-push`, because that is what this hook was before and LFS needs it
+# to upload objects. And nothing before that handoff may read stdin: Git feeds
+# the hook the list of refs being pushed on stdin, and LFS reads it. Hence the
+# `< /dev/null` on the Maven calls.
+#
+# `spotless:check` decides, not a before/after comparison of which files are
+# dirty: a file that was already modified stays modified, so reformatting it
+# changes nothing about that list and the gate would pass on unformatted code.
+# Check answers the actual question. Apply then fixes it, and the push stops,
+# because the commits being pushed still hold the unformatted version.
+#
+# Needs network the first time (the plugin resolves from Maven Central), so no
+# -o/--offline here. Skip with `git push --no-verify`, or SKIP_SPOTLESS=1.
+
+if [ -z "$SKIP_SPOTLESS" ] && command -v mvn >/dev/null 2>&1; then
+    printf 'pre-push: checking formatting (spotless)... '
+    log=$(mktemp 2>/dev/null || echo /tmp/spotless-pre-push.log)
+
+    if mvn -q spotless:check < /dev/null > "$log" 2>&1; then
+        printf 'clean\n'
+    else
+        printf 'violations found, fixing\n'
+        if ! mvn -q spotless:apply < /dev/null >> "$log" 2>&1; then
+            echo ""
+            echo "spotless:apply failed:"
+            tail -20 "$log"
+            echo ""
+            echo "Push aborted. Fix the above, or push with --no-verify."
+            rm -f "$log"
+            exit 1
+        fi
+        echo ""
+        echo "Spotless reformatted:"
+        grep -oE 'src[/\][^ ]*\.java' "$log" | sort -u | sed 's/^/  /'
+        echo ""
+        echo "Those changes are uncommitted, so the commits you are pushing still"
+        echo "contain the unformatted code. Review, commit, then push again."
+        rm -f "$log"
+        exit 1
+    fi
+    rm -f "$log"
+fi
+
+# Git LFS must run, and must get stdin and the original arguments untouched.
+command -v git-lfs >/dev/null 2>&1 || {
+    printf >&2 "\n%s\n\n" "This repository is configured for Git LFS but 'git-lfs' was not found on your path. If you no longer wish to use Git LFS, remove this hook by deleting the 'pre-push' file in the hooks directory (set by 'core.hookspath'; usually '.git/hooks')."
+    exit 2
+}
+git lfs pre-push "$@"
