@@ -6,7 +6,17 @@ public class NightPars {
         MEAN
     }
 
-    public static DirectionalLuxStatistic directionalLuxStatistic = DirectionalLuxStatistic.MIN;
+    // MEAN, not MIN (register finding B1). The 12 m visibility horizon is well supported --
+    // Fotios, Yang & Uttley (2015) measured pedestrian fixation on other people at 10.3 m,
+    // 15 m as the recommended observation distance -- but MIN across that window is about one
+    // lamp spacing wide (mean nearest-neighbour spacing 11.7 m; 39% of lamps have no neighbour
+    // within 12 m), so it reduces to "how far is the entry node from the nearest lamp", a
+    // property of where the junction happens to fall in the lighting rhythm rather than of the
+    // street. Switching to MEAN relabelled 4.8% of entrances from dark to lit when measured
+    // against the pipeline's own directional lookup, and both visibility_mean_lux and
+    // visibility_min_lux are already written by 04_directional_lighting.py, so this is a
+    // same-run NightImport column switch, not a pipeline re-run.
+    public static DirectionalLuxStatistic directionalLuxStatistic = DirectionalLuxStatistic.MEAN;
   // GUI Configurable parameters for light sensitivity (Lux)
   public static double minVulnerableLightSensitivity = 5.0;
   public static double maxVulnerableLightSensitivity = 15.0;
