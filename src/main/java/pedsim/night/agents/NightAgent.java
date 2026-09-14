@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import pedsim.activity.agents.ActivityAgent;
 import pedsim.activity.parameters.ActivityPars;
-import pedsim.core.agents.Heuristics;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.utilities.StringEnum.Vulnerable;
@@ -12,9 +11,9 @@ import pedsim.night.engine.PedSimCityNight;
 import pedsim.night.routing.pathfinder.RoadDistancePathFinder;
 import sim.engine.SimState;
 import sim.graph.Graph;
+import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
 import sim.graph.NodesLookup;
-import sim.graph.GraphUtils;
 
 /**
  * Pedestrian agent for the night module. Inherits the 24h activity pattern (time-of-day destination

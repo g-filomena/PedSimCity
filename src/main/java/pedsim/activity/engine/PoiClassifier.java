@@ -45,8 +45,7 @@ public final class PoiClassifier {
    * Idempotent per run: clears any previous content first.
    */
   public static void buildPurposeWeights() {
-    Map<ActivityPurpose, Map<NodeGraph, Double>> weights =
-        PedSimCityActivity.nodesPurposeWeight;
+    Map<ActivityPurpose, Map<NodeGraph, Double>> weights = PedSimCityActivity.nodesPurposeWeight;
     weights.clear();
 
     List<NodeGraph> nodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
@@ -61,15 +60,18 @@ public final class PoiClassifier {
         classifyLayer(PedSimCityActivity.poisLayer.getGeometries(), nodeIndex, weights, false);
 
     if (classified == 0) {
-      logger.info("poiClassifier: no OSM-like use tags found; purpose weights unavailable "
-          + "(uniform destination choice; work nodes from DMA / distance fallbacks).");
+      logger.info(
+          "poiClassifier: no OSM-like use tags found; purpose weights unavailable "
+              + "(uniform destination choice; work nodes from DMA / distance fallbacks).");
       return;
     }
 
     Map<ActivityPurpose, Integer> counts = new EnumMap<>(ActivityPurpose.class);
     weights.forEach((purpose, map) -> counts.put(purpose, map.size()));
     logger.info(
-        "poiClassifier: classified " + classified + " tagged features; nodes per purpose: "
+        "poiClassifier: classified "
+            + classified
+            + " tagged features; nodes per purpose: "
             + counts);
   }
 

@@ -5,13 +5,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import pedsim.cityimage.parameters.TestPars;
-import pedsim.core.parameters.Pars;
 import pedsim.core.agents.Agent;
 import pedsim.core.engine.Engine;
 import pedsim.core.engine.Import;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.engine.SimulationStateStore;
+import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
 
 /** Engine specialised for the city-image testing module. */

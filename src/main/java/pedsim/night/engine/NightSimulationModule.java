@@ -120,23 +120,23 @@ public final class NightSimulationModule implements SimulationModule {
 
   @Override
   public Map<String, Object> extraState() {
-        return Map.of(
-            "enableLightABTesting", NightPars.enableLightABTesting,
-            "abTestPairs", NightPars.abTestPairs,
-            "crowdednessPercentile", NightPars.crowdednessPercentile,
-            "directionalLuxStatistic", NightPars.directionalLuxStatistic.toString(),
-            "nonVulnerableLightSensitivity", NightPars.nonVulnerableLightSensitivity,
-            "useGravityModel", pedsim.core.parameters.RouteChoicePars.useGravityModel);
-    }
+    return Map.of(
+        "enableLightABTesting", NightPars.enableLightABTesting,
+        "abTestPairs", NightPars.abTestPairs,
+        "crowdednessPercentile", NightPars.crowdednessPercentile,
+        "directionalLuxStatistic", NightPars.directionalLuxStatistic.toString(),
+        "nonVulnerableLightSensitivity", NightPars.nonVulnerableLightSensitivity,
+        "useGravityModel", pedsim.core.parameters.RouteChoicePars.useGravityModel);
+  }
 
   @Override
   public Map<String, Object> parameterSchema() {
-        return Map.of(
-            "enableLightABTesting", "boolean",
-            "abTestPairs", "int",
-            "crowdednessPercentile", "double",
-            "directionalLuxStatistic", "enum:MIN|MEAN",
-            "nonVulnerableLightSensitivity", "double",
-            "useGravityModel", "boolean");
-    }
+    return Map.of(
+        "enableLightABTesting", "boolean",
+        "abTestPairs", "int",
+        "crowdednessPercentile", "double",
+        "directionalLuxStatistic", "enum:MIN|MEAN",
+        "nonVulnerableLightSensitivity", "double",
+        "useGravityModel", "boolean");
+  }
 }

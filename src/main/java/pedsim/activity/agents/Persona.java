@@ -110,9 +110,7 @@ public enum Persona {
 
   /** Whether this persona attends its mandatory activity on the given day (weekdays only). */
   public boolean worksOn(DayOfWeek day) {
-    return hasMandatoryActivity()
-        && day != DayOfWeek.SATURDAY
-        && day != DayOfWeek.SUNDAY;
+    return hasMandatoryActivity() && day != DayOfWeek.SATURDAY && day != DayOfWeek.SUNDAY;
   }
 
   /**

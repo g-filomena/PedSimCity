@@ -73,7 +73,10 @@ public final class EmpiricalSimulationModule implements SimulationModule {
   public void applyParameters(Map<String, Object> params) {
     for (String key :
         new String[] {
-          "numberTripsPerAgent", "usingDMA", "includePopulationBenchmark", "includeNullBenchmark",
+          "numberTripsPerAgent",
+          "usingDMA",
+          "includePopulationBenchmark",
+          "includeNullBenchmark",
           "numAgents"
         }) {
       if (params.containsKey(key)) {
@@ -90,7 +93,8 @@ public final class EmpiricalSimulationModule implements SimulationModule {
     if (!params.containsKey("jobs")) {
       Pars.jobs = EmpiricalPars.defaultJobs;
     }
-    // EmpiricalEngine.afterSetParameters() puts this back after recomputeAgentCount() overwrites it.
+    // EmpiricalEngine.afterSetParameters() puts this back after recomputeAgentCount() overwrites
+    // it.
     Pars.numAgents = EmpiricalPars.numAgents;
   }
 

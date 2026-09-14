@@ -159,8 +159,7 @@ public final class CityConfig {
     }
 
     logger.info(
-        String.format(
-            "%s: applied %d parameter(s) from %s", cityName, applied.size(), resource));
+        String.format("%s: applied %d parameter(s) from %s", cityName, applied.size(), resource));
     for (Map.Entry<String, String> entry : applied.entrySet()) {
       logger.fine("  " + entry.getKey() + " = " + entry.getValue());
     }

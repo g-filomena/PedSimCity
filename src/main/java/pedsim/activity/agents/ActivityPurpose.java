@@ -43,7 +43,8 @@ public enum ActivityPurpose {
   STROLL(0.0, 24.0, 30, 0.40);
 
   // Not final: the constants above are generic defaults, replaceable per city through the
-  // purpose.<NAME>.<setting> keys CityConfig reads. The defaults are kept alongside so a second city
+  // purpose.<NAME>.<setting> keys CityConfig reads. The defaults are kept alongside so a second
+  // city
   // in the same JVM does not inherit the first's hours.
   private double openHour;
   private double closeHour;
@@ -58,11 +59,7 @@ public enum ActivityPurpose {
   private static final double MIN_STAY_MINUTES = 5;
   private static final double MAX_STAY_MINUTES = 240;
 
-  ActivityPurpose(
-      double openHour,
-      double closeHour,
-      double meanStayMinutes,
-      double logSigma) {
+  ActivityPurpose(double openHour, double closeHour, double meanStayMinutes, double logSigma) {
     this.openHour = openHour;
     this.closeHour = closeHour;
     this.meanStayMinutes = meanStayMinutes;
@@ -201,37 +198,37 @@ public enum ActivityPurpose {
       case "bar", "pub", "nightclub", "casino", "cinema", "theatre", "music_venue" -> NIGHTLIFE;
       case "school", "university", "college", "kindergarten", "library", "education" -> EDUCATION;
       case "bank",
-              "atm",
-              "post_office",
-              "pharmacy",
-              "clinic",
-              "doctors",
-              "dentist",
-              "hospital",
-              "veterinary",
-              "townhall",
-              "courthouse",
-              "police" ->
+          "atm",
+          "post_office",
+          "pharmacy",
+          "clinic",
+          "doctors",
+          "dentist",
+          "hospital",
+          "veterinary",
+          "townhall",
+          "courthouse",
+          "police" ->
           ERRANDS;
       case "supermarket", "convenience", "mall", "department_store", "marketplace", "retail" ->
           SHOPPING;
       case "park",
-              "garden",
-              "playground",
-              "pitch",
-              "sports_centre",
-              "fitness_centre",
-              "swimming_pool",
-              "stadium",
-              "museum",
-              "gallery",
-              "attraction",
-              "viewpoint",
-              "zoo",
-              "theme_park",
-              "place_of_worship",
-              "community_centre",
-              "arts_centre" ->
+          "garden",
+          "playground",
+          "pitch",
+          "sports_centre",
+          "fitness_centre",
+          "swimming_pool",
+          "stadium",
+          "museum",
+          "gallery",
+          "attraction",
+          "viewpoint",
+          "zoo",
+          "theme_park",
+          "place_of_worship",
+          "community_centre",
+          "arts_centre" ->
           LEISURE;
       case "office", "commercial", "industrial", "government" -> WORK;
       // cityImage macro-group vocabulary (the labels in the buildings layer's land_use /

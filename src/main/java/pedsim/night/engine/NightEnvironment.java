@@ -46,37 +46,43 @@ public class NightEnvironment extends ActivityEnvironment {
   }
 
   /**
-     * Joins mean_lux from the illuminated edges dataset onto the primal graph edges by edgeID.
-     * Only edges present in both datasets receive a mean_lux attribute. Edges not present in the
-     * illuminated dataset are left without the attribute.
-     */
-    private static void joinIlluminatedEdges() {
-        List<MasonGeometry> illuminatedGeoms = PedSimCityNight.illuminatedEdges.getGeometries();
-        int joined = 0;
-        int missing = 0;
+   * Joins mean_lux from the illuminated edges dataset onto the primal graph edges by edgeID.
+   * Only edges present in both datasets receive a mean_lux attribute. Edges not present in the
+   * illuminated dataset are left without the attribute.
+   */
+  private static void joinIlluminatedEdges() {
+    List<MasonGeometry> illuminatedGeoms = PedSimCityNight.illuminatedEdges.getGeometries();
+    int joined = 0;
+    int missing = 0;
 
-        for (MasonGeometry geom : illuminatedGeoms) {
-            AttributeValue edgeIDAttr = geom.getAttributes().get("edgeID");
-            AttributeValue meanLuxAttr = geom.getAttributes().get("mean_lux");
-            if (edgeIDAttr == null || meanLuxAttr == null) {
-                missing++;
-                continue;
-            }
+    for (MasonGeometry geom : illuminatedGeoms) {
+      AttributeValue edgeIDAttr = geom.getAttributes().get("edgeID");
+      AttributeValue meanLuxAttr = geom.getAttributes().get("mean_lux");
+      if (edgeIDAttr == null || meanLuxAttr == null) {
+        missing++;
+        continue;
+      }
 
-            EdgeGraph edge = pedsim.core.engine.PedSimCity.edgesMap.get(edgeIDAttr.getInteger());
-            if (edge == null) {
-                missing++;
-                continue;
-            }
+      EdgeGraph edge = pedsim.core.engine.PedSimCity.edgesMap.get(edgeIDAttr.getInteger());
+      if (edge == null) {
+        missing++;
+        continue;
+      }
 
-            edge.attributes.put("mean_lux", new AttributeValue(meanLuxAttr.getDouble()));
-            joined++;
-        }
-
-        int graphEdges = pedsim.core.engine.PedSimCity.edgesMap.size();
-        logger.info(
-            "mean_lux set on " + joined + " / " + graphEdges + " graph edges ("
-                + illuminatedGeoms.size() + " illuminated records, " + missing
-                + " with no matching graph edge).");
+      edge.attributes.put("mean_lux", new AttributeValue(meanLuxAttr.getDouble()));
+      joined++;
     }
+
+    int graphEdges = pedsim.core.engine.PedSimCity.edgesMap.size();
+    logger.info(
+        "mean_lux set on "
+            + joined
+            + " / "
+            + graphEdges
+            + " graph edges ("
+            + illuminatedGeoms.size()
+            + " illuminated records, "
+            + missing
+            + " with no matching graph edge).");
+  }
 }

@@ -8,13 +8,13 @@ import java.util.Map;
 import pedsim.activity.engine.PedSimCityActivity;
 import pedsim.activity.parameters.ActivityPars;
 import pedsim.core.agents.Agent;
+import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.parameters.Pars;
 import pedsim.core.parameters.TimePars;
 import pedsim.core.utilities.StringEnum;
 import pedsim.core.utilities.StringEnum.AgentStatus;
 import pedsim.transit.TransitStop;
-import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import sim.engine.SimState;
 import sim.graph.Graph;
 import sim.graph.NodeGraph;
@@ -94,16 +94,22 @@ public class ActivityAgent extends Agent {
 
     // Check if agent arrived at the transit boarding platform (Leg 1 completed)
     if (boardingStop != null && status == AgentStatus.WALKING_ALONE) {
-      boolean atPlatform = reachedDestination.get() 
-          || (destinationNode != null && destinationNode.getID() == boardingStop.snappedNodeId)
-          || (currentLocation != null && currentLocation.getGeometry().getCoordinate().distance(boardingStop.snappedNodeGraph.getCoordinate()) < 20.0);
+      boolean atPlatform =
+          reachedDestination.get()
+              || (destinationNode != null && destinationNode.getID() == boardingStop.snappedNodeId)
+              || (currentLocation != null
+                  && currentLocation
+                          .getGeometry()
+                          .getCoordinate()
+                          .distance(boardingStop.snappedNodeGraph.getCoordinate())
+                      < 20.0);
 
       if (atPlatform) {
         reachedDestination.set(false);
         destinationNode = ultimateDestinationNode;
         TransitStop platformStop = boardingStop;
         boardingStop = null;
-        
+
         setStatus(AgentStatus.WAITING);
         platformStop.waitingPassengers.add(this);
         return;
@@ -122,16 +128,26 @@ public class ActivityAgent extends Agent {
     }
 
     // Evaluate multi-modal transit for trips longer than ~800 meters when transit network is active
-    if (pedsim.core.parameters.RouteChoicePars.usePublicTransport && !PedSimCityActivity.allTransitStops.isEmpty() && boardingStop == null && egressStop == null) {
+    if (pedsim.core.parameters.RouteChoicePars.usePublicTransport
+        && !PedSimCityActivity.allTransitStops.isEmpty()
+        && boardingStop == null
+        && egressStop == null) {
       double tripDist = originNode.getCoordinate().distance(destinationNode.getCoordinate());
       if (tripDist > 800.0) {
         TransitStop bStop = findNearestStop(originNode, 600.0);
         TransitStop eStop = findNearestStop(destinationNode, 600.0);
 
-        if (bStop != null && eStop != null && bStop != eStop 
-            && bStop.snappedNodeGraph != null && eStop.snappedNodeGraph != null) {
-          
-          double transitDist = bStop.snappedNodeGraph.getCoordinate().distance(eStop.snappedNodeGraph.getCoordinate());
+        if (bStop != null
+            && eStop != null
+            && bStop != eStop
+            && bStop.snappedNodeGraph != null
+            && eStop.snappedNodeGraph != null) {
+
+          double transitDist =
+              bStop
+                  .snappedNodeGraph
+                  .getCoordinate()
+                  .distance(eStop.snappedNodeGraph.getCoordinate());
           if (transitDist > 400.0) {
             String sharedMode = null;
             double splitProbability = 0.0;
@@ -154,13 +170,14 @@ public class ActivityAgent extends Agent {
               egressStop = eStop;
               destinationNode = bStop.snappedNodeGraph;
               PedSimCityActivity.agentTransitDestinations.put(this, eStop);
-              if (originNode != null && destinationNode != null && originNode.getID() == destinationNode.getID()) {
+              if (originNode != null
+                  && destinationNode != null
+                  && originNode.getID() == destinationNode.getID()) {
                 reachedDestination.set(true);
               } else {
                 reinitializeMovementPath();
               }
               return;
-
             }
           }
         }
@@ -169,7 +186,6 @@ public class ActivityAgent extends Agent {
 
     PedSimCityActivity.countTrip("WALK");
   }
-
 
   private TransitStop findNearestStop(NodeGraph node, double maxRadius) {
     TransitStop bestStop = null;
@@ -230,8 +246,7 @@ public class ActivityAgent extends Agent {
     // asks it the wrong question and keeps commutes the factor of the network's circuity too
     // short - which is to say it walks far more of them than anyone walks.
     double commuteMetres =
-        homeNode.getCoordinate().distance(workNode.getCoordinate())
-            * Pars.networkCircuityFactor;
+        homeNode.getCoordinate().distance(workNode.getCoordinate()) * Pars.networkCircuityFactor;
     boolean student = persona == Persona.STUDENT;
     walksToWork =
         random.nextDouble() < state.travelDemand().commuteWalkProbability(commuteMetres, student);
@@ -246,8 +261,7 @@ public class ActivityAgent extends Agent {
     if (homeNode == null || workNode == null) {
       return 0.0;
     }
-    return homeNode.getCoordinate().distance(workNode.getCoordinate())
-        * Pars.networkCircuityFactor;
+    return homeNode.getCoordinate().distance(workNode.getCoordinate()) * Pars.networkCircuityFactor;
   }
 
   /** Whether this agent has a workplace or place of study at all. */
@@ -354,8 +368,7 @@ public class ActivityAgent extends Agent {
       return true;
     }
     LocalDateTime now = now();
-    return persona.worksOn(now.getDayOfWeek())
-        && persona.isWithinMandatoryStartWindow(hourOf(now));
+    return persona.worksOn(now.getDayOfWeek()) && persona.isWithinMandatoryStartWindow(hourOf(now));
   }
 
   /** The commute comes first; anything else is a trip to somewhere the agent knows. */
@@ -400,8 +413,7 @@ public class ActivityAgent extends Agent {
    */
   @Override
   protected void goHome() {
-    ActivityPurpose next =
-        (agenda != null) ? agenda.pollOpenActivity(hourOf(now())) : null;
+    ActivityPurpose next = (agenda != null) ? agenda.pollOpenActivity(hourOf(now())) : null;
     if (next == null || lastDestination == null) {
       currentPurpose = null;
       super.goHome();
@@ -678,7 +690,8 @@ public class ActivityAgent extends Agent {
       favourites.merge(node, 1, Integer::sum);
       return;
     }
-    if (countFamiliarPlaces() >= ActivityPars.familiarLocationCapacity && !evictLeastVisited(node)) {
+    if (countFamiliarPlaces() >= ActivityPars.familiarLocationCapacity
+        && !evictLeastVisited(node)) {
       return;
     }
     favourites.put(node, 1);

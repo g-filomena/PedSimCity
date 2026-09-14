@@ -7,7 +7,6 @@ import pedsim.activity.engine.PedSimCityActivity;
 import pedsim.core.agents.Agent;
 import pedsim.core.utilities.StringEnum.AgentStatus;
 import sim.engine.SimState;
-
 import sim.engine.Steppable;
 
 /**
@@ -54,7 +53,7 @@ public class TransitVehicle implements Steppable {
       if (destStop != null && destStop.stopId.equals(currentStop.stopId)) {
         it.remove();
         PedSimCityActivity.agentTransitDestinations.remove(agent);
-        
+
         // Re-inject agent onto the physical walkable street graph at this station
         if (currentStop.snappedNodeGraph != null) {
           agent.originNode = currentStop.snappedNodeGraph;
@@ -62,7 +61,6 @@ public class TransitVehicle implements Steppable {
         agent.reinitializeMovementPath();
         agent.setStatus(AgentStatus.WALKING_ALONE);
       }
-
     }
 
     // 2. Board waiting passengers on the platform
@@ -70,12 +68,12 @@ public class TransitVehicle implements Steppable {
     while (waitIt.hasNext() && onboardPassengers.size() < capacity) {
       Agent waitingAgent = waitIt.next();
       TransitStop destStop = PedSimCityActivity.agentTransitDestinations.get(waitingAgent);
-      
+
       // Check if this vehicle can take the agent closer to their destination
       if (destStop != null && destStop.servesMode(this.mode)) {
         waitIt.remove();
         onboardPassengers.add(waitingAgent);
-        
+
         // Update live ridership stats
         int count = PedSimCityActivity.tripsByMode.getOrDefault(this.mode, 0);
         PedSimCityActivity.tripsByMode.put(this.mode, count + 1);

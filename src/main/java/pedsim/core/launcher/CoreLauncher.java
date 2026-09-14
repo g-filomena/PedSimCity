@@ -1,7 +1,5 @@
 package pedsim.core.launcher;
 
-import pedsim.core.launcher.ModuleLauncher;
-
 /**
  * Entry point for the core module.
  *

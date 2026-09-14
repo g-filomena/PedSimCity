@@ -182,7 +182,8 @@ public class RemoteLauncher {
       Defaults come from server.properties.
 
       Note: the remote command does a git pull and compiles there, so it runs committed code.
-      Uncommitted work has to be shipped by hand - see CLAUDE.md, Running on gdsl1.""";
+      Uncommitted work has to be shipped by hand - see CLAUDE.md, Running on gdsl1.\
+      """;
 
   /**
    * Runs the simulation on the server from the command line.
@@ -252,7 +253,8 @@ public class RemoteLauncher {
 
     if (launcher.getServer().isBlank()) {
       System.out.println(
-          "No server configured: set server.host in server.properties, or pass --server=user@host.");
+          "No server configured: set server.host in server.properties, or pass"
+              + " --server=user@host.");
       return;
     }
 

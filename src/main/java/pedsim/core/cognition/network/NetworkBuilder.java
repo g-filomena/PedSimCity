@@ -39,7 +39,8 @@ public class NetworkBuilder {
 
     // LinkedHashSet, for reproducibility rather than taste. EdgeGraph overrides neither hashCode
     // nor equals, so a HashSet of them iterates in identity-hash order, and HotSpot derives those
-    // from a per-JVM generator whose values differ between JVM builds. Islands.findDisconnectedIslands
+    // from a per-JVM generator whose values differ between JVM builds.
+    // Islands.findDisconnectedIslands
     // and mergeConnectedIslands walk this set to decide which islands to join and through which
     // edges, so its order changes the agent's known network, and with it every route planned on it.
     // The edge ids arrive from a Set<Integer>, which does iterate the same way everywhere, so
@@ -83,7 +84,6 @@ public class NetworkBuilder {
     setNecessaryDualNodes(GraphUtils.nodesFromEdges(getNecessaryDualEdges()));
     accommodateDualNetwork();
   }
-
 
   private void accommodateDualNetwork() {
     getNecessaryDualNodes()

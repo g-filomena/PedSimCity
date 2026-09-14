@@ -3,7 +3,6 @@ package pedsim.night.agents;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.planargraph.DirectedEdge;

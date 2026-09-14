@@ -38,8 +38,7 @@ public class ActivityEngine extends Engine {
     if (!pedsim.activity.parameters.ActivityPars.calibrateCommute) {
       return false;
     }
-    CommuteCalibration.run(
-        pedsim.activity.parameters.ActivityPars.calibrationHomes, baseSeed);
+    CommuteCalibration.run(pedsim.activity.parameters.ActivityPars.calibrationHomes, baseSeed);
     return true;
   }
 

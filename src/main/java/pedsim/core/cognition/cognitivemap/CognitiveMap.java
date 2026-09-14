@@ -2,14 +2,13 @@ package pedsim.core.cognition.cognitivemap;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Polygon;
@@ -72,10 +71,7 @@ public class CognitiveMap extends SharedCognitiveMap {
     spatialAbility =
         Math.min(
             1.0,
-            Math.max(
-                0.0,
-                MEAN_SPATIAL_ABILITY
-                    + (agent.getRandom().nextDouble() - 0.5) * 0.5));
+            Math.max(0.0, MEAN_SPATIAL_ABILITY + (agent.getRandom().nextDouble() - 0.5) * 0.5));
   }
 
   public void formCognitiveMap() {
@@ -307,7 +303,8 @@ public class CognitiveMap extends SharedCognitiveMap {
     for (EdgeGraph edge : getEdgesInKnownNetwork()) {
       if (potentiallyKnownRegions.contains(edge.getRegionID())) {
         // LinkedHashSet: these buckets are handed to Islands.findDisconnectedIslands, and EdgeGraph
-        // has no hashCode of its own, so a HashSet would order them by identity hash - stable within
+        // has no hashCode of its own, so a HashSet would order them by identity hash - stable
+        // within
         // a JVM build and different across them.
         edgesByRegion
             .computeIfAbsent(edge.getRegionID(), unused -> new LinkedHashSet<>())

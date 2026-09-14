@@ -6,7 +6,6 @@ import java.util.List;
 import pedsim.core.agents.Agent;
 import pedsim.core.agents.AgentProperties;
 import pedsim.core.parameters.RouteChoicePars;
-import pedsim.core.utilities.LoggerUtil;
 import pedsim.core.routing.elements.BarrierBasedNavigation;
 import pedsim.core.routing.elements.GlobalLandmarkNavigation;
 import pedsim.core.routing.elements.LandmarkNavigation;
@@ -15,6 +14,7 @@ import pedsim.core.routing.elements.RegionLandmarkNavigation;
 import pedsim.core.routing.pathfinder.AngularChangePathFinder;
 import pedsim.core.routing.pathfinder.GlobalLandmarksPathFinder;
 import pedsim.core.routing.pathfinder.RoadDistancePathFinder;
+import pedsim.core.utilities.LoggerUtil;
 import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
 import sim.routing.Route;
@@ -129,7 +129,8 @@ public class RoutePlanner {
 
     // The local heuristic routes each leg between the sub-goals chosen above. The test is
     // positive - is it angular - so LocalHeuristicMode.NONE, which means no heuristic was chosen,
-    // routes by distance: angular is a stated preference, shortest path is what is left without one.
+    // routes by distance: angular is a stated preference, shortest path is what is left without
+    // one.
     boolean angular = properties.isLocalHeuristicAngular() && angularAvailable();
     route =
         nodesSequence.isEmpty()

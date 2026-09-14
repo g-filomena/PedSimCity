@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 import org.apache.commons.lang3.ArrayUtils;
-import pedsim.core.parameters.TimePars;
 import pedsim.core.utilities.LoggerUtil;
 import pedsim.core.utilities.RouteData;
 import pedsim.core.utilities.StringEnum;

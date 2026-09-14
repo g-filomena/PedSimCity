@@ -21,13 +21,27 @@ public final class DaySummary {
   private static final Logger logger = LoggerUtil.getLogger();
 
   private static final String[] HEADERS = {
-    "date", "day", "job", "agents",
-    "legs", "planned_m", "walked_m", "m_per_agent",
-    "legs_dark", "legs_dark_outside_window",
-    "mandatory_legs", "budget_legs", "chains_per_person", "legs_per_chain",
-    "worker_walk_share", "student_walk_share",
-    "unusable_lengths", "band_widenings", "destination_fallbacks",
-    "full_network_escalations", "incomplete_island_merges"
+    "date",
+    "day",
+    "job",
+    "agents",
+    "legs",
+    "planned_m",
+    "walked_m",
+    "m_per_agent",
+    "legs_dark",
+    "legs_dark_outside_window",
+    "mandatory_legs",
+    "budget_legs",
+    "chains_per_person",
+    "legs_per_chain",
+    "worker_walk_share",
+    "student_walk_share",
+    "unusable_lengths",
+    "band_widenings",
+    "destination_fallbacks",
+    "full_network_escalations",
+    "incomplete_island_merges"
   };
 
   private DaySummary() {}

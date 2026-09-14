@@ -35,7 +35,8 @@ public final class TestPars extends Pars {
   // beside an inherited minRouteLength holding the same number under another name.
   //
   // What must NOT come back is the commute reading this range. That is what capped every commute in
-  // the model at 2,700 m - a discretionary walking range sizing a journey that is not discretionary.
+  // the model at 2,700 m - a discretionary walking range sizing a journey that is not
+  // discretionary.
   // The commute has its own distance model: ActivityPars.workplaceDistanceDecay for where the
   // workplace goes, and ActivityAgent.walksToWork for whether it is walked.
 

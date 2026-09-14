@@ -57,7 +57,8 @@ public class TransitLoader {
       }
 
       if (reader == null) {
-        logger.warning("transit_stops.csv not found for city " + Pars.cityName + ". Transit disabled.");
+        logger.warning(
+            "transit_stops.csv not found for city " + Pars.cityName + ". Transit disabled.");
         return;
       }
 
@@ -68,7 +69,13 @@ public class TransitLoader {
       }
 
       String[] headers = headerLine.split(",");
-      int idxStopId = -1, idxStopName = -1, idxX = -1, idxY = -1, idxNodeId = -1, idxModes = -1, idxRoutes = -1;
+      int idxStopId = -1,
+          idxStopName = -1,
+          idxX = -1,
+          idxY = -1,
+          idxNodeId = -1,
+          idxModes = -1,
+          idxRoutes = -1;
       for (int i = 0; i < headers.length; i++) {
         String h = headers[i].trim().toLowerCase();
         if (h.equals("stop_id")) idxStopId = i;
@@ -89,15 +96,26 @@ public class TransitLoader {
 
         try {
           String stopId = parts[idxStopId].replaceAll("\"", "").trim();
-          String stopName = idxStopName >= 0 && idxStopName < parts.length ? parts[idxStopName].replaceAll("\"", "").trim() : stopId;
-          double x = idxX >= 0 && idxX < parts.length ? Double.parseDouble(parts[idxX].trim()) : 0.0;
-          double y = idxY >= 0 && idxY < parts.length ? Double.parseDouble(parts[idxY].trim()) : 0.0;
+          String stopName =
+              idxStopName >= 0 && idxStopName < parts.length
+                  ? parts[idxStopName].replaceAll("\"", "").trim()
+                  : stopId;
+          double x =
+              idxX >= 0 && idxX < parts.length ? Double.parseDouble(parts[idxX].trim()) : 0.0;
+          double y =
+              idxY >= 0 && idxY < parts.length ? Double.parseDouble(parts[idxY].trim()) : 0.0;
           int snappedNodeId = Integer.parseInt(parts[idxNodeId].trim());
-          String modes = idxModes >= 0 && idxModes < parts.length ? parts[idxModes].replaceAll("\"", "").trim() : "BUS";
-          String routes = idxRoutes >= 0 && idxRoutes < parts.length ? parts[idxRoutes].replaceAll("\"", "").trim() : "N/A";
+          String modes =
+              idxModes >= 0 && idxModes < parts.length
+                  ? parts[idxModes].replaceAll("\"", "").trim()
+                  : "BUS";
+          String routes =
+              idxRoutes >= 0 && idxRoutes < parts.length
+                  ? parts[idxRoutes].replaceAll("\"", "").trim()
+                  : "N/A";
 
           TransitStop stop = new TransitStop(stopId, stopName, snappedNodeId, x, y, modes, routes);
-          
+
           // Link to physical street graph node
           NodeGraph nodeGraph = PedSimCity.nodesMap.get(snappedNodeId);
           if (nodeGraph != null) {
@@ -128,7 +146,8 @@ public class TransitLoader {
       long elapsed = System.currentTimeMillis() - startTime;
       logger.info(
           String.format(
-              "Multi-Modal Transit: Loaded %d stations (%d linked to graph nodes, %d skipped) in %d ms. -> Metro: %d, Tram: %d, Bus: %d",
+              "Multi-Modal Transit: Loaded %d stations (%d linked to graph nodes, %d skipped) in %d"
+                  + " ms. -> Metro: %d, Tram: %d, Bus: %d",
               loadedCount,
               linkedCount,
               skippedCount,

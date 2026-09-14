@@ -18,6 +18,7 @@ public class TimePars {
    * defined. Default: a Monday in early June.
    */
   public static LocalDate SIMULATION_START_DATE = LocalDate.of(2026, 6, 1);
+
   public static double MINUTE_TO_STEPS;
   public static double releaseAgentsEverySteps;
 
@@ -33,7 +34,7 @@ public class TimePars {
   public static double lunchPeakVolume = 0.10;
   public static double lunchPeakTime = 13.00; // 1:00 PM
   public static double lunchPeakSpread = 0.80;
-  
+
   public static double eveningPeakVolume = 0.35;
   public static double eveningPeakTime = 17.50; // 5:30 PM
   public static double eveningPeakSpread = 1.30;
@@ -170,8 +171,7 @@ public class TimePars {
               * wrappedSplitGaussian(timeInHours, lunchPeakTime, lunchPeakSpread, lunchPeakSpread);
       share +=
           effectiveNightVolume
-              * wrappedSplitGaussian(
-                  timeInHours, nightPeakTime, nightLeftSpread, nightRightSpread);
+              * wrappedSplitGaussian(timeInHours, nightPeakTime, nightLeftSpread, nightRightSpread);
       share += effectiveBackground / 24.0;
     }
 

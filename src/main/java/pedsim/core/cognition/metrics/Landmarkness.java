@@ -26,8 +26,7 @@ public class Landmarkness {
     double bestScore = 0.0;
     for (Building landmark : candidateNode.adjacentBuildings) {
       if (landmarksIDs.contains(landmark.buildingID)) {
-        bestScore =
-            Math.max(bestScore, landmark.attributes.get("localLandmarkness").getDouble());
+        bestScore = Math.max(bestScore, landmark.attributes.get("localLandmarkness").getDouble());
       }
     }
     return bestScore;

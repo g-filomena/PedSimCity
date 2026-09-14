@@ -1,7 +1,6 @@
 package pedsim.activity.agents;
 
 import java.time.LocalDateTime;
-import pedsim.activity.parameters.ActivityPars;
 import pedsim.core.parameters.TimePars;
 
 /**
@@ -141,7 +140,8 @@ public final class DepartureProfile {
       double binFrom = b * binHours;
       double binTo = binFrom + binHours;
       // The window may run past midnight; the tail wraps into the early bins.
-      double overlap = overlap(binFrom, binTo, from, to) + overlap(binFrom + 24.0, binTo + 24.0, from, to);
+      double overlap =
+          overlap(binFrom, binTo, from, to) + overlap(binFrom + 24.0, binTo + 24.0, from, to);
       if (overlap > 0.0) {
         density[b] += perHour * overlap;
       }
@@ -178,13 +178,11 @@ public final class DepartureProfile {
    * @return the share, in {@code [0, 1]}
    */
   public double share(LocalDateTime time) {
-    double hour =
-        time.getHour() + time.getMinute() / 60.0 + time.getSecond() / 3600.0;
+    double hour = time.getHour() + time.getMinute() / 60.0 + time.getSecond() / 3600.0;
     int bin = (int) Math.floor(hour / binHours);
     if (bin < 0 || bin >= density.length) {
       return 0.0;
     }
     return density[bin];
   }
-
 }

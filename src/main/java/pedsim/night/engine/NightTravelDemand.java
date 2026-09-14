@@ -73,5 +73,4 @@ public class NightTravelDemand extends ActivityTravelDemand {
                 + steps);
     return 2;
   }
-
 }
