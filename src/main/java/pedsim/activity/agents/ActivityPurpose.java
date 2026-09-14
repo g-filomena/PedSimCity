@@ -42,10 +42,9 @@ public enum ActivityPurpose {
   /** A walk for its own sake; always available, uniform destination choice. */
   STROLL(0.0, 24.0, 30, 0.40);
 
-  // Not final, and the constants above are defaults rather than facts: they are invented figures
-  // with no city behind them - dining 11:00-23:00 reads as English rather than Italian - so a city
-  // file may replace them through the purpose.<NAME>.<setting> keys that CityConfig reads. The
-  // defaults are kept alongside so a second city in the same JVM does not inherit the first's hours.
+  // Not final: the constants above are generic defaults, replaceable per city through the
+  // purpose.<NAME>.<setting> keys CityConfig reads. The defaults are kept alongside so a second city
+  // in the same JVM does not inherit the first's hours.
   private double openHour;
   private double closeHour;
   private double meanStayMinutes;
@@ -75,14 +74,11 @@ public enum ActivityPurpose {
   }
 
   /**
-   * Applies one {@code purpose.<NAME>.<setting>} key from a city file.
-   *
-   * <p>Settings are {@code open}, {@code close} (hours of the day, and a close before an open wraps
-   * past midnight), {@code stayMinutes} (the lognormal mean) and {@code staySigma} (its log sigma).
+   * Applies one {@code purpose.<NAME>.<setting>} key from a city file. Settings: {@code open},
+   * {@code close} (hours; a close before an open wraps midnight), {@code stayMinutes} (lognormal
+   * mean), {@code staySigma}.
    *
    * @param purposeName the enum constant's name, case-insensitive
-   * @param setting which of the four to write
-   * @param value the value from the file
    * @return whether the key named a purpose and a setting that exist
    */
   public static boolean applyCitySetting(String purposeName, String setting, double value) {

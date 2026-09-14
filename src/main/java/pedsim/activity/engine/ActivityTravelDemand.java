@@ -31,6 +31,13 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
 
   private double discretionaryChainsPerPerson;
 
+  // The day's arithmetic, kept so the day's output row can state it rather than re-deriving it.
+  private double dayMandatoryLegs;
+  private double dayBudgetLegs;
+  private double dayLegsPerChain;
+  private double dayWorkerWalkShare;
+  private double dayStudentWalkShare;
+
   public ActivityTravelDemand(PedSimCityActivity state) {
     super(state);
     this.activity = state;
@@ -130,6 +137,12 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
     double discretionaryLegs = Math.max(0.0, budgetLegs - mandatoryLegs);
     discretionaryChainsPerPerson = agents > 0.0 ? discretionaryLegs / legsPerChain / agents : 0.0;
 
+    dayMandatoryLegs = mandatoryLegs;
+    dayBudgetLegs = budgetLegs;
+    dayLegsPerChain = legsPerChain;
+    dayWorkerWalkShare = workersWithJob > 0 ? (double) workersWalking / workersWithJob : 0.0;
+    dayStudentWalkShare = studentsWithPlace > 0 ? (double) studentsWalking / studentsWithPlace : 0.0;
+
     LOGGER.info(
         String.format(
             "day %s: %.0f mandatory legs of a %.0f-leg budget; %.3f discretionary chains per"
@@ -167,6 +180,36 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
     }
   }
 
+
+  /** Legs today's structural commutes will walk. */
+  public double mandatoryLegs() {
+    return dayMandatoryLegs;
+  }
+
+  /** The day's whole leg budget, structural and discretionary together. */
+  public double budgetLegs() {
+    return dayBudgetLegs;
+  }
+
+  /** Legs in a discretionary chain, as the realised persona mix produces it. */
+  public double legsPerChain() {
+    return dayLegsPerChain;
+  }
+
+  /** Discretionary chains bought per person today. */
+  public double discretionaryChainsPerPerson() {
+    return discretionaryChainsPerPerson;
+  }
+
+  /** Share of workers with a job who walk to it. */
+  public double workerWalkShare() {
+    return dayWorkerWalkShare;
+  }
+
+  /** Share of students with a place who walk to it. */
+  public double studentWalkShare() {
+    return dayStudentWalkShare;
+  }
 
   private static final Persona[] PERSONAS = {
     Persona.WORKER, Persona.STUDENT, Persona.RETIREE, Persona.FLEX

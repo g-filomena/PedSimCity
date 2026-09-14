@@ -187,11 +187,8 @@ public final class CityConfig {
   private static final String PURPOSE_PREFIX = "purpose.";
 
   /**
-   * Writes one {@code purpose.<NAME>.<setting>} key.
-   *
-   * <p>These are the one group of city parameters that are not fields on a parameter class: they
-   * live on the {@link ActivityPurpose} enum, four per purpose. The enum's own values are generic
-   * defaults - dining 11:00-23:00 is not an Italian day - so a city that knows better says so here.
+   * Writes one {@code purpose.<NAME>.<setting>} key. These are the only city parameters that are not
+   * fields on a parameter class: they live on the {@link ActivityPurpose} enum, four per purpose.
    *
    * @return whether the key named a purpose and a setting that exist, and parsed as a number
    */
