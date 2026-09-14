@@ -38,8 +38,13 @@ proposed fix below is expected to reference the specific finding ID (e.g.
 
 ## Status
 
-Scaffold only — no proposed fixes have been added yet. This README will be
-updated with a table of contents as files are added.
+| Finding | Files | What changed |
+|---|---|---|
+| **C5** | `src/main/java/pedsim/night/agents/NightBehaviour.java`<br>`src/main/java/pedsim/night/parameters/NightPars.java` | The reroute-vs-speed-up split (`rerouteOrIncreaseSpeed()`) was a hardcoded `random.nextDouble() < 0.5`, independent of how dark the edge actually is. Replaced with a probability that equals 0.5 at/above the agent's sensitivity threshold (i.e. **unchanged** wherever the original constant applied — the still-lit branch in `whenLitVulnerable`, and any edge with no continuous lux reading) and rises linearly toward a new tunable ceiling, `NightPars.maxRerouteProbabilityInDarkness` (default `0.9`, uncalibrated — needs tuning against the Torino/Lyon validation data), as the edge's measured illuminance falls toward 0 lux. Darkness is read from the same directional-entrance/mean-lux values `checkLightLevel()` already uses, so no new data dependency is introduced. Shadow-compiled clean against the real project classpath (`target/classes` + resolved `.m2` deps) before being added here. |
+
+Each row above corresponds to one finding ID from `night_model_issues.html`.
+This table is the single source of truth for what's actually in this folder —
+keep it in sync as files are added.
 
 ## Branch
 
