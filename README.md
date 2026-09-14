@@ -135,6 +135,13 @@ Each runnable module has Maven exec profiles (headless run, and REST + browser d
 | `pipeline/` | Python data-prep scripts + `build_lighting*.py` orchestrators — see [`pipeline/README.md`](pipeline/README.md) |
 | `analysis/` | Jupyter notebooks + scripts for post-hoc analysis of results |
 | `outputs/` | all simulation results (gitignored) |
+| `.githooks/` | Git LFS guard + spotless formatting hooks — **copy them in once per clone**, see [`.githooks/README.md`](.githooks/README.md) |
+
+**Code formatting is automatic, once the hooks are installed.** Java is formatted with
+[spotless](https://github.com/diffplug/spotless) + google-java-format; `pre-commit` applies it to
+what you staged and `pre-push` refuses a push that is not clean. `mvn spotless:apply` does it by
+hand. The hooks are not installed by cloning — `cp .githooks/pre-commit .git/hooks/` and likewise for
+`pre-push`.
 
 **Preparing a city's data** — on Windows double-click `build_city.bat` (base layers +
 POIs), `build_census.bat` (ISTAT census) or `build_lighting.bat` (street lighting from
