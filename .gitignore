@@ -77,7 +77,7 @@ desktop.ini
 # -------------------------------------------------------------------
 
 /cache/
-/Obsolete/
+/obsolete/
 /outputs/
 /src/main/java/pedsim/social/
 /src/main/java/pedsim/learning/
