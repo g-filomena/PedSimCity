@@ -6,7 +6,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import pedsim.activity.engine.PedSimCityActivity;
-import pedsim.activity.engine.Daylight;
 import pedsim.activity.parameters.ActivityPars;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.parameters.Pars;
@@ -267,10 +266,8 @@ public class ActivityAgent extends CommuterAgent {
    *
    * <p>It must ask exactly what {@link #shouldGoToWork()} will ask when the agent is actually
    * released, or the day's leg budget is charged for a commute chain that then does not happen.
-   * Darkness is the condition that catches this out: {@code shouldGoToWork} refuses to set off in
-   * the dark, so a winter morning departure drawn here would be released, decline to commute, and
-   * take a discretionary trip the budget never bought. In June at Turin's latitude the two agree
-   * and nothing shows; in December they would not, which is precisely when it would be missed.
+   * Neither consults darkness: the persona's start window decides when someone leaves, and the
+   * season decides whether it is light when they do.
    *
    * @param day the day being prepared
    * @return whether this agent has a walked mandatory trip today
@@ -286,19 +283,8 @@ public class ActivityAgent extends CommuterAgent {
     }
     int from = (int) Math.round(persona.getMandatoryStartEarliest() * 60.0);
     int to = (int) Math.round(persona.getMandatoryStartLatest() * 60.0);
-    int minute = to > from ? from + random.nextInt(to - from) : from;
-    if (darkAt(day.atStartOfDay().plusMinutes(minute))) {
-      return false;
-    }
-    mandatoryDepartureMinute = minute;
+    mandatoryDepartureMinute = to > from ? from + random.nextInt(to - from) : from;
     return true;
-  }
-
-  /** Darkness at a future moment, by the same rule {@code ActivityEngine.onStepUpdate} applies. */
-  private static boolean darkAt(LocalDateTime time) {
-    return ActivityPars.useSeasonalDaylight
-        ? Daylight.isDark(time)
-        : TimePars.isNight(time.toLocalTime());
   }
 
   /** Minute of the day this agent departs for its mandatory activity, or -1. */
@@ -325,10 +311,15 @@ public class ActivityAgent extends CommuterAgent {
    * Work (or study) trip only when the persona attends today (weekday) and the current time falls
    * inside its start window — an agent released at 5 PM no longer commutes. Agents without a
    * persona keep the core rule.
+   *
+   * <p>Darkness is deliberately not consulted: the persona's start window says when someone sets
+   * off, and the season says whether it is light when they do. Turin's sunset is before 17:00
+   * through December, so much of the winter commute happens in the dark - the most routine walking
+   * there is, by the population most exposed to unlit streets.
    */
   @Override
   protected boolean shouldGoToWork() {
-    if (workNode == null || hasWorkedToday || isDark() || !walksToWork) {
+    if (workNode == null || hasWorkedToday || !walksToWork) {
       return false;
     }
     if (persona == null) {

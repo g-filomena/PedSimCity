@@ -25,6 +25,26 @@ public class PedSimCityActivity extends PedSimCity {
   // 24h activity clock: true between ~20:00 and ~06:00. Driven by ActivityEngine.onStepUpdate.
   public boolean isDark = false;
 
+  /** The seasonal flag {@code ActivityEngine.onStepUpdate} maintains, not the fixed night window. */
+  @Override
+  public boolean isDark() {
+    return isDark;
+  }
+
+  /**
+   * Darkness for a clock hour of a given day, from the seasonal sunrise/sunset model at the city's
+   * latitude. Taken at the middle of the hour, since an hour bucket is either side of a boundary.
+   */
+  @Override
+  public boolean isDarkHour(int clockHour, int dayNumber) {
+    if (!pedsim.activity.parameters.ActivityPars.useSeasonalDaylight) {
+      return super.isDarkHour(clockHour, dayNumber);
+    }
+    java.time.LocalDate date =
+        pedsim.core.parameters.TimePars.SIMULATION_START_DATE.plusDays((long) dayNumber - 1);
+    return Daylight.isDark(date.atTime(clockHour, 30));
+  }
+
   // Raw census layer as loaded from <City>_censusData.gpkg: one polygon set carrying population
   // structure only (residence_pct, residents, plus module columns like vulnerability_pct).
   // Destination attraction comes from the OSM-tag purpose weights, not from the census.

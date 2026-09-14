@@ -42,10 +42,19 @@ public enum ActivityPurpose {
   /** A walk for its own sake; always available, uniform destination choice. */
   STROLL(0.0, 24.0, 30, 0.40);
 
-  private final double openHour;
-  private final double closeHour;
-  private final double meanStayMinutes;
-  private final double logSigma;
+  // Not final, and the constants above are defaults rather than facts: they are invented figures
+  // with no city behind them - dining 11:00-23:00 reads as English rather than Italian - so a city
+  // file may replace them through the purpose.<NAME>.<setting> keys that CityConfig reads. The
+  // defaults are kept alongside so a second city in the same JVM does not inherit the first's hours.
+  private double openHour;
+  private double closeHour;
+  private double meanStayMinutes;
+  private double logSigma;
+
+  private final double defaultOpenHour;
+  private final double defaultCloseHour;
+  private final double defaultMeanStayMinutes;
+  private final double defaultLogSigma;
 
   private static final double MIN_STAY_MINUTES = 5;
   private static final double MAX_STAY_MINUTES = 240;
@@ -59,6 +68,63 @@ public enum ActivityPurpose {
     this.closeHour = closeHour;
     this.meanStayMinutes = meanStayMinutes;
     this.logSigma = logSigma;
+    this.defaultOpenHour = openHour;
+    this.defaultCloseHour = closeHour;
+    this.defaultMeanStayMinutes = meanStayMinutes;
+    this.defaultLogSigma = logSigma;
+  }
+
+  /**
+   * Applies one {@code purpose.<NAME>.<setting>} key from a city file.
+   *
+   * <p>Settings are {@code open}, {@code close} (hours of the day, and a close before an open wraps
+   * past midnight), {@code stayMinutes} (the lognormal mean) and {@code staySigma} (its log sigma).
+   *
+   * @param purposeName the enum constant's name, case-insensitive
+   * @param setting which of the four to write
+   * @param value the value from the file
+   * @return whether the key named a purpose and a setting that exist
+   */
+  public static boolean applyCitySetting(String purposeName, String setting, double value) {
+    ActivityPurpose purpose;
+    try {
+      purpose = valueOf(purposeName.toUpperCase(Locale.ROOT));
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
+    switch (setting) {
+      case "open":
+        purpose.openHour = value;
+        return true;
+      case "close":
+        purpose.closeHour = value;
+        return true;
+      case "stayMinutes":
+        purpose.meanStayMinutes = value;
+        return true;
+      case "staySigma":
+        purpose.logSigma = value;
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  /** Restores every purpose's built-in window and stay duration. */
+  public static void resetToDefaults() {
+    for (ActivityPurpose purpose : values()) {
+      purpose.openHour = purpose.defaultOpenHour;
+      purpose.closeHour = purpose.defaultCloseHour;
+      purpose.meanStayMinutes = purpose.defaultMeanStayMinutes;
+      purpose.logSigma = purpose.defaultLogSigma;
+    }
+  }
+
+  /** The window and stay duration as they stand, for logging what a city file did. */
+  public String describeSettings() {
+    return String.format(
+        "%s open %.1f-%.1f, stay %.0f min (sigma %.2f)",
+        name(), openHour, closeHour, meanStayMinutes, logSigma);
   }
 
   /*
