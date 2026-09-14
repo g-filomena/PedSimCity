@@ -36,6 +36,21 @@ public class AngularChangePathFinder extends PathFinder {
     this.agent = agent;
     previousJunction = null;
 
+    // Origin and destination joined by a single street: that is the route, and it has no turn in it
+    // for the angular model to weigh. Handled here rather than falling out of the candidate loops,
+    // because the pair of centroids that would express it is the same centroid on both sides - it
+    // is incident to both endpoints - and the loops skip a pair of identical centroids as
+    // degenerate. A destination with only this edge incident, a dead end, therefore produced no
+    // candidate pair at all and was served by the distance fallback and counted as one.
+    DirectedEdge directEdge = network.getDirectedEdgeBetween(originNode, destinationNode);
+    if (directEdge != null) {
+      List<DirectedEdge> single = new ArrayList<>();
+      single.add(directEdge);
+      route.directedEdgesSequence = single;
+      route.computeRouteSequences();
+      return route;
+    }
+
     // Every centroid incident on each endpoint, best-aligned first, rather than only the single
     // best-aligned one. The dual search is confined to the agent's known dual subgraph while the
     // centroid was chosen from the geometry of the street, so the one centroid geometry prefers is
@@ -118,15 +133,18 @@ public class AngularChangePathFinder extends PathFinder {
 
         NodeGraph commonJunction = RoutingUtils.getPrimalJunction(dualOrigin, dualDestination);
         if (commonJunction != null) {
-          route.directedEdgesSequence.add(
-              network.getDirectedEdgeBetween(originNode, commonJunction));
-          route.directedEdgesSequence.add(
-              network.getDirectedEdgeBetween(commonJunction, destinationNode));
-          // Without this the two-edge shortcut returns a route whose node and edge sequences were
-          // never built - no origin, no destination, no line geometry, and a length of zero, which
-          // the day ledger then rejects. Every other exit from this class computes them.
-          route.computeRouteSequences();
-          return route;
+          List<DirectedEdge> shortcut =
+              edgesViaCommonJunction(originNode, commonJunction, destinationNode);
+          if (shortcut != null) {
+            route.directedEdgesSequence = shortcut;
+            // Without this the shortcut returns a route whose node and edge sequences were never
+            // built - no origin, no destination, no line geometry, and a length of zero, which the
+            // day ledger then rejects. Every other exit from this class computes them.
+            route.computeRouteSequences();
+            return route;
+          }
+          // This network cannot represent the shortcut; fall through to the dual search, which may
+          // still connect this pair of centroids the long way round.
         }
 
         DijkstraAngularChange dijkstra = new DijkstraAngularChange();
@@ -318,9 +336,51 @@ public class AngularChangePathFinder extends PathFinder {
    *                       destination.
    */
   private void addEdgesCommonJunction(NodeGraph commonJunction) {
-    DirectedEdge first = network.getDirectedEdgeBetween(tmpOrigin, commonJunction);
-    DirectedEdge second = network.getDirectedEdgeBetween(commonJunction, tmpDestination);
-    partialSequence.add(first);
-    partialSequence.add(second);
+    List<DirectedEdge> edges = edgesViaCommonJunction(tmpOrigin, commonJunction, tmpDestination);
+    if (edges == null) {
+      return; // leaves partialSequence empty, so the caller tries the next pair of centroids
+    }
+    partialSequence.addAll(edges);
+  }
+
+  /**
+   * The one or two primal edges joining origin to destination through the junction their two
+   * centroids share, or {@code null} when this network cannot represent that walk.
+   *
+   * <p>{@code getPrimalJunction} returns the endpoint the two primal edges have <i>in common</i>,
+   * and that endpoint is regularly the origin or the destination itself - when one centroid already
+   * spans the whole trip, the "junction" is simply the far end of it. {@code getDirectedEdgeBetween}
+   * is then asked for an edge from a node to itself and answers {@code null}, which used to go
+   * straight into the route and surface much later as a {@code NullPointerException} inside
+   * {@code Route.nodesSequence}. The walk in that case is a <i>single</i> edge, not two.
+   *
+   * <p>That is the only way a {@code null} arises on today's call paths, and the deduction is worth
+   * keeping: {@code network} is {@code SharedCognitiveMap.getCommunityPrimalNetwork()}, which is
+   * assigned {@code PedSimCity.network} - the whole primal graph, not a subset - and
+   * {@code getDualNodes} iterates the node's own incident edges, so any junction other than the
+   * endpoint itself is the far end of an edge that exists. The null return below is therefore a
+   * guard, not a case anything currently reaches; {@code network} is a seam, and pointing it at a
+   * real subgraph would make it live. Do not cite it as an explanation for a failure.
+   */
+  private List<DirectedEdge> edgesViaCommonJunction(
+      NodeGraph originNode, NodeGraph commonJunction, NodeGraph destinationNode) {
+
+    List<DirectedEdge> sequence = new ArrayList<>();
+    if (!commonJunction.equals(originNode)) {
+      DirectedEdge first = network.getDirectedEdgeBetween(originNode, commonJunction);
+      if (first == null) {
+        return null;
+      }
+      sequence.add(first);
+    }
+    if (!commonJunction.equals(destinationNode)) {
+      DirectedEdge second = network.getDirectedEdgeBetween(commonJunction, destinationNode);
+      if (second == null) {
+        return null;
+      }
+      sequence.add(second);
+    }
+    // Both equal means origin and destination are the same node: no walk at all.
+    return sequence.isEmpty() ? null : sequence;
   }
 }

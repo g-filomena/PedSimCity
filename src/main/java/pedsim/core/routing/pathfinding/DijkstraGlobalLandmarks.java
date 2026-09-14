@@ -84,13 +84,17 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
 
     for (DirectedEdge outEdge : currentNode.getOutDirectedEdges()) {
       NodeGraph targetNode = (NodeGraph) outEdge.getToNode();
-      if (visitedNodes.contains(targetNode)
-          || (individualised && !knownNodes.contains(targetNode))) {
+      // Through isNodeKnown/isEdgeKnown, which map a subgraph node or edge back to its parent
+      // before the lookup. These tested the raw child objects against sets of parent objects, so
+      // with region-based navigation active every neighbour was rejected and an individualised
+      // agent could find no landmark route at all. Dijkstra has always had the mapped form; this
+      // was the second, unmapped copy of the same check.
+      if (visitedNodes.contains(targetNode) || (individualised && !isNodeKnown(targetNode))) {
         continue;
       }
 
       EdgeGraph commonEdge = (EdgeGraph) outEdge.getEdge();
-      if (individualised && !knownEdges.contains(commonEdge)) {
+      if (individualised && !isEdgeKnown(commonEdge)) {
         continue;
       }
 
