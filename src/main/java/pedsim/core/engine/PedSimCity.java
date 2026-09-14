@@ -1,6 +1,8 @@
 package pedsim.core.engine;
 
+import ec.util.MersenneTwisterFast;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -229,7 +231,32 @@ public class PedSimCity extends SimState {
   private Stoppable spatialIndexUpdater;
 
   protected void startMovingAgents() {
-    for (Agent agent : agentsList) {
+    // A random order, drawn from the model seed: random, and the same random on every machine.
+    //
+    // MASON breaks ties within a tick by the order steppables were scheduled, so this decides the
+    // order agents step - and therefore the order they plan legs, occupy edges and observe each
+    // other's crowding. There is no correct order (nothing makes one pedestrian move before
+    // another), so it should be drawn rather than fixed; what it must not be is drawn from
+    // something outside the seed.
+    //
+    // It was the latter: agentsList is a ConcurrentHashMap key set and Agent overrides no hashCode,
+    // so it iterated in identity-hash order, which HotSpot derives from a per-JVM generator. The
+    // same seed therefore stepped agents in a different order on a different machine. It shows up
+    // only once several agents are walking at once, which is why the opening legs of a run matched
+    // across machines and the rest did not.
+    //
+    // Ordering by a per-agent key rather than shuffling the list, so that nothing here depends on
+    // the order agentsList happens to enumerate. A shuffle would: Fisher-Yates permutes positions,
+    // so shuffling an identity-hash-ordered list turns one unknown order into another, and it would
+    // need a canonical sort first to be reproducible - an invariant that looks redundant and
+    // reintroduces this whole defect the day somebody removes it. scheduleKey depends only on the
+    // agent and the seed, so the result is a function of which agents exist, never of how they were
+    // reached.
+    List<Agent> inScheduleOrder = new ArrayList<>(agentsList);
+    inScheduleOrder.sort(
+        Comparator.comparingLong((Agent agent) -> scheduleKey(agent.agentID))
+            .thenComparingInt(agent -> agent.agentID));
+    for (Agent agent : inScheduleOrder) {
       Stoppable stop = schedule.scheduleRepeating(agent);
       agent.setStoppable(stop);
     }
@@ -238,6 +265,27 @@ public class PedSimCity extends SimState {
     spatialIndexUpdater =
         schedule.scheduleRepeating(agents.scheduleSpatialIndexUpdater(), Integer.MAX_VALUE, 1.0);
     agents.setMBR(MBR);
+  }
+
+  /**
+   * This agent's position in the step order: a value drawn from the run's seed and the agent's own
+   * ID, and from nothing else.
+   *
+   * <p>Ordering by it gives a random permutation that is a pure function of the seed, arrived at
+   * without enumerating anything - which is the property the step order needs and the one it did
+   * not have while it came from a hash set's iteration order. Because the key depends only on the
+   * agent, the order cannot inherit the order the agents were reached in.
+   *
+   * <p>Seeded per agent in the same way as everything else here - a distinct multiplier off the
+   * model seed, as {@code Populate.seedFrom} and {@link #nextAgentSeed()} do - so that this draws
+   * from MASON's generator like every other draw in the simulation rather than introducing a
+   * second, separately-reasoned-about source of randomness. Built once per agent at startup, so
+   * the cost of constructing a generator does not matter. Two agents drawing the same long is
+   * vanishingly unlikely over 64 bits but not impossible, which is what the ID tiebreak in the
+   * comparator is for.
+   */
+  private long scheduleKey(int agentID) {
+    return new MersenneTwisterFast(seed() * 15_485_863L + agentID).nextLong();
   }
 
   /**

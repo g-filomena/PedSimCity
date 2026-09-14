@@ -8,7 +8,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -148,13 +149,23 @@ public class AgentReleaseManager implements AutoCloseable {
       return 0;
     }
 
+    // Ordered by agent ID before anything draws from it. state.agentsAtHome is a
+    // ConcurrentHashMap key set and Agent overrides no hashCode, so it iterates in identity-hash
+    // order - which HotSpot derives from a per-JVM generator. Copying it into a list and then
+    // indexing that list by position meant the same seed drew the same index into a differently
+    // ordered list, and released a different agent, on a different machine. The draw below is
+    // uniform over the list, so imposing an order changes no distribution; it only fixes which
+    // agent sits at each index.
     List<Agent> candidates = new ArrayList<>(state.agentsAtHome);
     if (candidates.isEmpty()) {
       return 0;
     }
+    candidates.sort(Comparator.comparingInt(candidate -> candidate.agentID));
 
     int hour = currentTime != null ? currentTime.getHour() : 0;
-    Set<Agent> released = new HashSet<>();
+    // Insertion-ordered, so the order agents are started - and therefore the order they enter the
+    // schedule and plan their routes - follows the draw order rather than identity-hash order.
+    Set<Agent> released = new LinkedHashSet<>();
     int attempts = 0;
     int maxAttempts = Math.max(100, candidates.size() * 20);
 
