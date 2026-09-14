@@ -170,7 +170,8 @@ public class NightBehaviour {
   /**
      * Checks the current edge using explicit lighting pass/fail semantics.
      *
-     * mean-light passes if measured mean_lux exists and is above threshold, or if the binary
+     * mean-light passes if measured mean_lux AND min_lux both exist and clear the threshold (or,
+     * where min_lux is absent, mean_lux alone — see {@link #meanLightPasses}), or if the binary
      * lit fallback says the edge is lit. Entrance-light passes if directional lux exists and is
      * above threshold, or if the binary lit fallback says the edge is lit. Missing data without
      * a binary-lit fallback fails closed.
@@ -188,13 +189,33 @@ public class NightBehaviour {
         }
     }
 
+    /**
+     * Mean-light gate for the current edge: passes only when the edge is lit on average AND has
+     * no sampled point below threshold, so an edge bright at both ends and dark in the middle
+     * (mean passes, min doesn't) now correctly fails instead of reading as lit &mdash; register
+     * finding C1. min_lux and mean_lux are written by the same pipeline aggregation over the same
+     * sample points ({@code 03_street_lights.py}), so wherever one is present the other normally
+     * is too; where min_lux is absent (a lighting dataset from before that column existed) this
+     * falls back to the mean-only check that ran here before this fix, so older datasets keep
+     * working exactly as they did.
+     *
+     * <p>{@code pct_unlit} is the other statistic C1 flagged as computed and unused; left out of
+     * this gate deliberately &mdash; it is the percentage of the edge below the pipeline's fixed
+     * 5 lux service threshold, not this agent's personal {@code threshold}, so it isn't directly
+     * comparable the way min_lux and mean_lux are. A candidate for a separate, explicitly-scoped
+     * use, not one folded silently in here.
+     */
     private boolean meanLightPasses(double threshold) {
         var meanLuxAttr = nightMovement.currentEdge.attributes.get("mean_lux");
-        if (meanLuxAttr != null) {
-            return meanLuxAttr.getDouble() >= threshold;
+        if (meanLuxAttr == null) {
+            // No measured lux: pass only if the binary lit flag says the edge is lit.
+            return SharedCognitiveMap.getLitEdges().contains(nightMovement.currentEdge);
         }
-        // No measured lux: pass only if the binary lit flag says the edge is lit.
-        return SharedCognitiveMap.getLitEdges().contains(nightMovement.currentEdge);
+        if (meanLuxAttr.getDouble() < threshold) {
+            return false;
+        }
+        var minLuxAttr = nightMovement.currentEdge.attributes.get("min_lux");
+        return minLuxAttr == null || minLuxAttr.getDouble() >= threshold;
     }
 
     private boolean entranceLightPasses(double threshold) {
