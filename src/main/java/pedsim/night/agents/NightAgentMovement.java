@@ -349,15 +349,19 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
   }
 
   /**
-   * Defines the set of edges the agent should avoid during rerouting.
+   * The edges this agent will not route through when bypassing the one that frightened it.
    *
-   * <p>The two branches are exclusive, which the previous shape hid: a vulnerable agent's set began
-   * with the current edge and the non-lit edges, then had <em>every</em> edge in the city added to
-   * it, which subsumed both. So for a vulnerable agent neither line had any effect, and in
-   * particular <b>the problematic edge being bypassed was not itself avoided</b> unless it happened
-   * to fall outside both the community-known and the agent-known networks. That behaviour is
-   * preserved exactly here; it is written out rather than left as an accident of ordering, and
-   * whether a vulnerable agent should avoid the edge it is fleeing is a question worth asking.
+   * <p>A vulnerable agent keeps to familiar ground: everything outside the community-known network
+   * is avoided, less the streets this particular agent knows. A non-vulnerable one avoids only what
+   * is unlit and not community-known. Parks and water are added for the vulnerable, and for anyone
+   * currently avoiding them.
+   *
+   * <p>The edge being fled is avoided by both, which is why it is added after the branch and after
+   * the vulnerable branch's {@code removeAll} - inside the branch it would be subtracted straight
+   * back out, since the problematic edge is normally a street the agent or the community knows, and
+   * A* could then return a "bypass" that ran down it. Edges incident to the destination are never
+   * avoided, so the tail of the route stays reachable; {@code canReroute()} guarantees the fled edge
+   * is not one of them.
    */
   private void defineEdgesToAvoid() {
     edgesToAvoid.clear();
@@ -368,9 +372,10 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
           GraphUtils.getEdgesFromEdgeIDs(
               agent.getCognitiveMap().getAgentKnownEdges(), PedSimCity.edgesMap));
     } else {
-      edgesToAvoid.add(currentEdge);
       edgesToAvoid.addAll(SharedCognitiveMap.getEdgesNonLitNonCommunityKnown());
     }
+
+    edgesToAvoid.add(currentEdge);
 
     if (agent.isVulnerableBoolean() || nightBehaviour.avoidParksWater) {
       edgesToAvoid.addAll(SharedCognitiveMap.getEdgesWithinParksOrAlongWater());
