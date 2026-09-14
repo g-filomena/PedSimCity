@@ -51,8 +51,7 @@ public final class NetworkCircuity {
    */
   public static void measureInto(Graph network) {
     if (!Pars.measureNetworkCircuity) {
-      logger.info(
-          "network circuity: measurement disabled, using " + Pars.networkCircuityFactor);
+      logger.info("network circuity: measurement disabled, using " + Pars.networkCircuityFactor);
       return;
     }
     if (network == null || network.getNodes().isEmpty()) {
@@ -89,9 +88,7 @@ public final class NetworkCircuity {
     }
 
     if (pairs == 0 || straightTotal <= 0.0) {
-      logger.info(
-          "network circuity: could not be measured, keeping "
-              + Pars.networkCircuityFactor);
+      logger.info("network circuity: could not be measured, keeping " + Pars.networkCircuityFactor);
       return;
     }
 

@@ -1,16 +1,17 @@
 package pedsim.night.parameters;
 
 public class NightPars {
-    public enum DirectionalLuxStatistic {
-        MIN,
-        MEAN
-    }
+  public enum DirectionalLuxStatistic {
+    MIN,
+    MEAN
+  }
 
-    public static DirectionalLuxStatistic directionalLuxStatistic = DirectionalLuxStatistic.MIN;
+  public static DirectionalLuxStatistic directionalLuxStatistic = DirectionalLuxStatistic.MIN;
   // GUI Configurable parameters for light sensitivity (Lux)
   public static double minVulnerableLightSensitivity = 5.0;
   public static double maxVulnerableLightSensitivity = 15.0;
-  // Non-vulnerable agents treat an edge as dark only below 5 lux (the pipeline's UNLIT_LUX_THRESHOLD).
+  // Non-vulnerable agents treat an edge as dark only below 5 lux (the pipeline's
+  // UNLIT_LUX_THRESHOLD).
   public static double nonVulnerableLightSensitivity = 5.0;
 
   // Nominal illuminance (lux) credited to edges known lit only via the binary "lit" flag (no

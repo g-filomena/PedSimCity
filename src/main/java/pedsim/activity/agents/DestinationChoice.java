@@ -4,8 +4,8 @@ import ec.util.MersenneTwisterFast;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import pedsim.core.parameters.Pars;
 import pedsim.activity.parameters.ActivityPars;
+import pedsim.core.parameters.Pars;
 import sim.graph.NodeGraph;
 
 /**
@@ -89,13 +89,10 @@ public final class DestinationChoice {
       // calibrating it will have. What it still cannot see is circuity that varies from place to
       // place, which is exactly where a river or a railway is.
       double metres =
-          origin.getCoordinate().distance(candidate.getCoordinate())
-              * Pars.networkCircuityFactor;
+          origin.getCoordinate().distance(candidate.getCoordinate()) * Pars.networkCircuityFactor;
 
       double pull = attraction == null ? 0.0 : attraction.getOrDefault(candidate, 0.0);
-      double u =
-          ActivityPars.sizeWeight * Math.log1p(pull)
-              - ActivityPars.distanceWeight * metres;
+      double u = ActivityPars.sizeWeight * Math.log1p(pull) - ActivityPars.distanceWeight * metres;
       if (familiar != null && familiar.containsKey(candidate)) {
         u += ActivityPars.habitWeight;
       }

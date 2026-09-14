@@ -102,16 +102,18 @@ public class Import {
       if (!loaded) {
         loaded = readBuildingsLayer("_landmarks");
         if (loaded) {
-          logger.info(
-              "Buildings layer loaded from " + Pars.cityName + "_landmarks.gpkg.");
+          logger.info("Buildings layer loaded from " + Pars.cityName + "_landmarks.gpkg.");
         }
       }
       if (loaded) {
         PedSimCity.buildings.setID("buildingID");
         logger.info("Buildings successfully imported.");
       } else {
-        logger.info("No usable buildings layer (" + Pars.cityName + "_buildings.gpkg); "
-            + "landmark navigation and building-based destination choice disabled.");
+        logger.info(
+            "No usable buildings layer ("
+                + Pars.cityName
+                + "_buildings.gpkg); "
+                + "landmark navigation and building-based destination choice disabled.");
       }
     } catch (Exception e) {
       handleImportError("Importing Buildings Failed", e);
@@ -126,8 +128,9 @@ public class Import {
   protected void readSightLines() throws Exception {
     try {
       if (!buildingsCarryLandmarkScores()) {
-        logger.info("Sight lines not loaded: buildings carry no landmark scores"
-            + " (landmark navigation disabled).");
+        logger.info(
+            "Sight lines not loaded: buildings carry no landmark scores"
+                + " (landmark navigation disabled).");
         return;
       }
       URL sightLinesUrl = findResource("_sight_lines2D");
@@ -229,7 +232,9 @@ public class Import {
       } catch (Exception e) {
         if (e.getMessage() != null && e.getMessage().contains("getEnvelopeInternal")) {
           logger.warning(
-              "Layer " + layerName + " contains records with null geometries. Skipping corrupt"
+              "Layer "
+                  + layerName
+                  + " contains records with null geometries. Skipping corrupt"
                   + " records and continuing...");
         } else {
           throw e;

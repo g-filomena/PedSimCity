@@ -141,13 +141,17 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
     dayBudgetLegs = budgetLegs;
     dayLegsPerChain = legsPerChain;
     dayWorkerWalkShare = workersWithJob > 0 ? (double) workersWalking / workersWithJob : 0.0;
-    dayStudentWalkShare = studentsWithPlace > 0 ? (double) studentsWalking / studentsWithPlace : 0.0;
+    dayStudentWalkShare =
+        studentsWithPlace > 0 ? (double) studentsWalking / studentsWithPlace : 0.0;
 
     LOGGER.info(
         String.format(
             "day %s: %.0f mandatory legs of a %.0f-leg budget; %.3f discretionary chains per"
                 + " person at %.2f legs each",
-            time.toLocalDate(), mandatoryLegs, budgetLegs, discretionaryChainsPerPerson,
+            time.toLocalDate(),
+            mandatoryLegs,
+            budgetLegs,
+            discretionaryChainsPerPerson,
             legsPerChain));
 
     // The walked commute share is produced by the model, not given to it, so it can be logged
@@ -165,8 +169,11 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
       // The shape, not just the share. Matching 16.3% by pushing workplaces out of reach while the
       // walked commutes come out too long would be worse than the present state, so both are
       // reported. ISTAT (Turin, intra-municipal, work): 76.2 / 19.0 / 3.4 / 1.3.
-      int walked = walkedCommuteBands[0] + walkedCommuteBands[1]
-          + walkedCommuteBands[2] + walkedCommuteBands[3];
+      int walked =
+          walkedCommuteBands[0]
+              + walkedCommuteBands[1]
+              + walkedCommuteBands[2]
+              + walkedCommuteBands[3];
       if (walked > 0) {
         LOGGER.info(
             String.format(
@@ -179,7 +186,6 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
       }
     }
   }
-
 
   /** Legs today's structural commutes will walk. */
   public double mandatoryLegs() {
@@ -261,7 +267,6 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
     return discretionaryChainsPerPerson;
   }
 
-
   /** Rainy days suppress the walking volume: fewer releases per time step. */
   @Override
   public double releaseBudgetMultiplier(LocalDateTime time) {
@@ -313,7 +318,8 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
    */
   public static double commuteWalkCurve(double meters, boolean student) {
     double half =
-        student ? ActivityPars.walkShareStudentHalfDistance
+        student
+            ? ActivityPars.walkShareStudentHalfDistance
             : ActivityPars.walkShareCommuteHalfDistance;
     double steepness =
         student ? ActivityPars.walkShareStudentSteepness : ActivityPars.walkShareCommuteSteepness;

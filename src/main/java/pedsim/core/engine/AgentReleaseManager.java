@@ -30,6 +30,7 @@ public class AgentReleaseManager implements AutoCloseable {
 
   protected static final Logger logger = LoggerUtil.getLogger();
   protected LocalDateTime currentTime;
+
   /** Seeded from the model's seed and the day, so a release schedule is repeatable. */
   protected MersenneTwisterFast random;
 
@@ -43,6 +44,7 @@ public class AgentReleaseManager implements AutoCloseable {
 
   /** Measurement only: what the population has walked so far today, for the log. */
   protected double metersWalkedSoFarToday;
+
   private final int dayNumber;
   private String logFilePath;
   private PrintWriter logWriter = null;
@@ -174,7 +176,8 @@ public class AgentReleaseManager implements AutoCloseable {
         && attempts < maxAttempts) {
       attempts++;
       // Uniform among the agents at home, which leaves the per-agent trip count binomial - the
-      // no-information baseline. Real walking is concentrated on fewer people than that, but nothing
+      // no-information baseline. Real walking is concentrated on fewer people than that, but
+      // nothing
       // measured says by how much; a propensity, once the data support one, belongs in
       // releaseCandidateWeight below rather than in a bias applied here.
       Agent candidate = candidates.get(random.nextInt(candidates.size()));

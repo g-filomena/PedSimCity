@@ -226,7 +226,9 @@ public class HtmlExporter {
         "Night Pedestrian Simulation: " + city + " — " + runLabel + " · Job " + job;
     String dashboardTitleHtml = escapeHtml(dashboardTitle).replace(" — ", " &nbsp;—&nbsp; ");
 
-    return new StringBuilder(HTML_TEMPLATE_1).append(HTML_TEMPLATE_2).toString()
+    return new StringBuilder(HTML_TEMPLATE_1)
+        .append(HTML_TEMPLATE_2)
+        .toString()
         .replace("__DASHBOARD_TITLE__", escapeHtml(dashboardTitle))
         .replace("__DASHBOARD_TITLE_HTML__", dashboardTitleHtml)
         .replace("__RUN_LABEL__", escapeJsTemplateLiteral(runLabel))
@@ -260,8 +262,7 @@ public class HtmlExporter {
   }
 
   private static boolean isABTestingEnabled() {
-    return pedsim.core.engine.SimulationStateStore.getInstance()
-        .moduleFlag("enableLightABTesting");
+    return pedsim.core.engine.SimulationStateStore.getInstance().moduleFlag("enableLightABTesting");
   }
 
   private static final String HTML_TEMPLATE_1 =
@@ -288,7 +289,7 @@ public class HtmlExporter {
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Inter',sans-serif;background:var(--bg-light);color:var(--text-main);display:flex;flex-direction:column;height:100vh;overflow:hidden}
-  
+
   .global-nav-bar { width: 100%; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--panel-border); padding: 1rem 2rem; display: flex; justify-content: center; gap: 2rem; flex-shrink: 0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); z-index: 20; position: relative; }
   .global-nav-item { color: var(--text-muted); font-weight: 600; font-size: 0.95rem; text-decoration: none; cursor: pointer; padding: 0.5rem 1rem; border-radius: 6px; transition: all 0.2s ease; }
   .global-nav-item:hover { color: var(--text-main); background: rgba(255, 255, 255, 0.1); }
@@ -312,12 +313,12 @@ public class HtmlExporter {
   .card .value.red{color:var(--danger)}
   .card .value.orange{color:#fb923c}
   .card .value.yellow{color:var(--accent)}
-  
+
   #tab-bar{flex-shrink:0;display:flex;justify-content:center;gap:32px;background:rgba(15,23,42,0.95);backdrop-filter:blur(10px);border-bottom:1px solid var(--panel-border);padding:12px 32px}
   .tab-btn{padding:8px 16px;font-size:0.95rem;font-weight:600;color:var(--text-muted);background:none;border:none;border-radius:6px;cursor:pointer;transition:all .2s;}
   .tab-btn.active{color:var(--accent);background:rgba(234,179,8,0.15);}
   .tab-btn:hover:not(.active){color:var(--text-main);background:rgba(255,255,255,0.1);}
-  
+
   .tab-panel{display:none;flex:1;position:relative;overflow:hidden}
   .tab-panel.active{display:flex;flex-direction:column}
   #container, #ab-container, #hv-container, #vol-container {position:relative;flex:1;width:100%;overflow:hidden;background:var(--bg-light)}

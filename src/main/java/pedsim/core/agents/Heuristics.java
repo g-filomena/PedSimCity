@@ -119,7 +119,9 @@ public final class Heuristics {
 
   /** Angular minimisation needs the dual graph; fall back to distance when it is absent. */
   private MinimisationMode constrainMinimisation(MinimisationMode mode) {
-    return (mode == MinimisationMode.ANGULAR && !dualAvailable()) ? MinimisationMode.DISTANCE : mode;
+    return (mode == MinimisationMode.ANGULAR && !dualAvailable())
+        ? MinimisationMode.DISTANCE
+        : mode;
   }
 
   /** Angular local heuristic needs the dual graph; fall back to distance when it is absent. */

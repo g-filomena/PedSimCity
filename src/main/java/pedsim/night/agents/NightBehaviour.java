@@ -119,7 +119,8 @@ public class NightBehaviour {
       return;
     }
 
-    // Unknown and not main road -> reroute or increase speed. Otherwise (main road or known) proceed.
+    // Unknown and not main road -> reroute or increase speed. Otherwise (main road or known)
+    // proceed.
     if (!agent.getCognitiveMap().isEdgeKnown(edge) && !SharedCognitiveMap.isEdgeMainRoad(edge)) {
       rerouteOrIncreaseSpeed();
     }
@@ -161,58 +162,58 @@ public class NightBehaviour {
   }
 
   /**
-     * Checks the current edge using explicit lighting pass/fail semantics.
-     *
-     * mean-light passes if measured mean_lux exists and is above threshold, or if the binary
-     * lit fallback says the edge is lit. Entrance-light passes if directional lux exists and is
-     * above threshold, or if the binary lit fallback says the edge is lit. Missing data without
-     * a binary-lit fallback fails closed.
-     */
-    protected void checkLightLevel() {
-        final double threshold = agent.lightSensitivityThreshold;
+   * Checks the current edge using explicit lighting pass/fail semantics.
+   *
+   * mean-light passes if measured mean_lux exists and is above threshold, or if the binary
+   * lit fallback says the edge is lit. Entrance-light passes if directional lux exists and is
+   * above threshold, or if the binary lit fallback says the edge is lit. Missing data without
+   * a binary-lit fallback fails closed.
+   */
+  protected void checkLightLevel() {
+    final double threshold = agent.lightSensitivityThreshold;
 
-        boolean meanLightPasses = meanLightPasses(threshold);
-        boolean entranceLightPasses = entranceLightPasses(threshold);
+    boolean meanLightPasses = meanLightPasses(threshold);
+    boolean entranceLightPasses = entranceLightPasses(threshold);
 
-        if (meanLightPasses && entranceLightPasses) {
-            whenLit(nightMovement.currentEdge);
-        } else {
-            whenNonLit(nightMovement.currentEdge);
-        }
+    if (meanLightPasses && entranceLightPasses) {
+      whenLit(nightMovement.currentEdge);
+    } else {
+      whenNonLit(nightMovement.currentEdge);
     }
+  }
 
-    private boolean meanLightPasses(double threshold) {
-        var meanLuxAttr = nightMovement.currentEdge.attributes.get("mean_lux");
-        if (meanLuxAttr != null) {
-            return meanLuxAttr.getDouble() >= threshold;
-        }
-        // No measured lux: pass only if the binary lit flag says the edge is lit.
-        return SharedCognitiveMap.getLitEdges().contains(nightMovement.currentEdge);
+  private boolean meanLightPasses(double threshold) {
+    var meanLuxAttr = nightMovement.currentEdge.attributes.get("mean_lux");
+    if (meanLuxAttr != null) {
+      return meanLuxAttr.getDouble() >= threshold;
     }
+    // No measured lux: pass only if the binary lit flag says the edge is lit.
+    return SharedCognitiveMap.getLitEdges().contains(nightMovement.currentEdge);
+  }
 
-    private boolean entranceLightPasses(double threshold) {
-        Double entranceLux = directionalEntranceLuxOrNull();
-        if (entranceLux != null) {
-            return entranceLux >= threshold;
-        }
-        // No directional value: pass only if the binary lit flag says the edge is lit.
-        return SharedCognitiveMap.getLitEdges().contains(nightMovement.currentEdge);
+  private boolean entranceLightPasses(double threshold) {
+    Double entranceLux = directionalEntranceLuxOrNull();
+    if (entranceLux != null) {
+      return entranceLux >= threshold;
     }
+    // No directional value: pass only if the binary lit flag says the edge is lit.
+    return SharedCognitiveMap.getLitEdges().contains(nightMovement.currentEdge);
+  }
 
   /**
-     * Directional entrance illuminance for the current directed edge, or null when no directional
-     * value exists for this edge/direction.
-     */
-    private Double directionalEntranceLuxOrNull() {
-        if (nightMovement.currentDirectedEdge == null) {
-            return null;
-        }
-
-        NodeGraph fromNode = (NodeGraph) nightMovement.currentDirectedEdge.getFromNode();
-        NodeGraph toNode = (NodeGraph) nightMovement.currentDirectedEdge.getToNode();
-        return pedsim.night.engine.PedSimCityNight.directionalLuxMap.get(
-            pedsim.night.engine.PedSimCityNight.luxKey(fromNode.getID(), toNode.getID()));
+   * Directional entrance illuminance for the current directed edge, or null when no directional
+   * value exists for this edge/direction.
+   */
+  private Double directionalEntranceLuxOrNull() {
+    if (nightMovement.currentDirectedEdge == null) {
+      return null;
     }
+
+    NodeGraph fromNode = (NodeGraph) nightMovement.currentDirectedEdge.getFromNode();
+    NodeGraph toNode = (NodeGraph) nightMovement.currentDirectedEdge.getToNode();
+    return pedsim.night.engine.PedSimCityNight.directionalLuxMap.get(
+        pedsim.night.engine.PedSimCityNight.luxKey(fromNode.getID(), toNode.getID()));
+  }
 
   /** Determines whether to reroute the agent or increase its speed. */
   protected void rerouteOrIncreaseSpeed() {

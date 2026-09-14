@@ -27,7 +27,8 @@ public class TripRouteRecorder {
     public boolean vulnerable;
     public int originNodeId;
     public int destNodeId;
-    public double meanLux = Double.NaN; // mean illuminance on the trip; NaN when no lighting tracked
+    public double meanLux =
+        Double.NaN; // mean illuminance on the trip; NaN when no lighting tracked
     public List<Coordinate> pathCoords = new ArrayList<>();
     public List<Integer> edgeIds = new ArrayList<>();
     public List<Integer> nodeIds = new ArrayList<>();

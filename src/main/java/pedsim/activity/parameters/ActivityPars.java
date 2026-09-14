@@ -47,7 +47,7 @@ public class ActivityPars {
    * Italian and specific to commuting, and commutes are systematically less walked than
    * discretionary trips of the same length. A large gap is a statement about the curve, or about
    * where the model is putting workplaces, and not something to close by moving a number.
-
+   *
    *
    * <p>National figures. Turin has a metro, four tram lines and above-average car ownership, so
    * the local value is plausibly lower still, but substituting a guess for a measurement would
@@ -178,8 +178,6 @@ public class ActivityPars {
    * opportunities of another is about 2.4 utility points ahead of it, before distance.
    */
   public static double sizeWeight = 1.0;
-
-
 
   /**
    * Impedance per metre. **This is the coefficient that shapes the trip-length distribution**, and

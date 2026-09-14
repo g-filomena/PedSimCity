@@ -1,7 +1,5 @@
 package pedsim.cityimage.engine;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import pedsim.cityimage.utilities.StringEnum.RouteChoice;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;

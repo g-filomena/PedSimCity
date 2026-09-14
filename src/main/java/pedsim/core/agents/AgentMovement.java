@@ -61,7 +61,9 @@ public class AgentMovement {
     // volumes this module exists to compare were cumulative, not per trip. Core and activity agents
     // never saw it because reinitializeMovementPath() builds a fresh movement handler per trip.
     edgesWalkedSoFar.clear();
-    if (route == null || route.directedEdgesSequence == null || route.directedEdgesSequence.isEmpty()) {
+    if (route == null
+        || route.directedEdgesSequence == null
+        || route.directedEdgesSequence.isEmpty()) {
       this.directedEdgesSequence = new ArrayList<>();
       if (agent.destinationNode != null && agent.destinationNode.getCoordinate() != null) {
         agent.updateAgentPosition(agent.destinationNode.getCoordinate());
@@ -78,7 +80,6 @@ public class AgentMovement {
     // Sets the Agent up to proceed along an Edge
     setupEdge(firstDirectedEdge);
   }
-
 
   /**
    * Sets the agent up to proceed along a specified edge.

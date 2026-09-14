@@ -83,7 +83,15 @@ public class TripDiagnostic {
         fw.write(
             String.format(
                 "%d,%s,%s,%d,%.1f,%s,%s,%b,%.2f%n",
-                t.agentId, startTime, endTime, durationMin, distanceM, nodes, edges, t.vulnerable, luxVal));
+                t.agentId,
+                startTime,
+                endTime,
+                durationMin,
+                distanceM,
+                nodes,
+                edges,
+                t.vulnerable,
+                luxVal));
       }
 
       logger.info("[TripDiagnostic] Saved successfully → " + filename);

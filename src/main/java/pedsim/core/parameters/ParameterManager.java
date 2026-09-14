@@ -56,7 +56,8 @@ public class ParameterManager {
     // same field and consults only measureNetworkCircuity, so supplying one without the other would
     // have the measurement overwrite it at startup. An explicit measureNetworkCircuity on the same
     // command line still wins.
-    if (params.containsKey("networkCircuityFactor") && !params.containsKey("measureNetworkCircuity")) {
+    if (params.containsKey("networkCircuityFactor")
+        && !params.containsKey("measureNetworkCircuity")) {
       Pars.measureNetworkCircuity = false;
     }
     return params;
@@ -101,8 +102,7 @@ public class ParameterManager {
     } catch (NoSuchFieldException e) {
       // Every key is offered to each parameter class in turn, so misses are the norm, not a
       // problem: one hit is what matters. Reporting them on stderr buried every run start.
-      LoggerUtil.getLogger()
-          .fine("No field named " + key + " in " + targetClass.getSimpleName());
+      LoggerUtil.getLogger().fine("No field named " + key + " in " + targetClass.getSimpleName());
     } catch (Exception e) {
       System.err.println("Failed to set field " + key + ": " + e.getMessage());
     }

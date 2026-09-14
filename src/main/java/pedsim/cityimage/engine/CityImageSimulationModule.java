@@ -101,8 +101,12 @@ public final class CityImageSimulationModule implements SimulationModule {
   private static void writeOverrides(Map<String, Object> params) {
     for (String key :
         new String[] {
-          "stringMode", "numberTripsPerAgent", "testingSpecificOD", "verboseMode",
-          "originsTmp", "destinationsTmp"
+          "stringMode",
+          "numberTripsPerAgent",
+          "testingSpecificOD",
+          "verboseMode",
+          "originsTmp",
+          "destinationsTmp"
         }) {
       if (params.containsKey(key)) {
         ParameterManager.setFieldValue(TestPars.class, key, params.get(key).toString());

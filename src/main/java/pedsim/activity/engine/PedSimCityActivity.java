@@ -5,13 +5,10 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import pedsim.activity.agents.ActivityAgent;
 import pedsim.activity.agents.ActivityPurpose;
 import pedsim.core.agents.Agent;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
-import pedsim.core.parameters.Pars;
-import pedsim.core.parameters.RouteChoicePars;
 import pedsim.core.parameters.TimePars;
 import pedsim.transit.TransitStop;
 import pedsim.transit.TransitVehicle;
@@ -20,7 +17,8 @@ import sim.graph.NodeGraph;
 
 public class PedSimCityActivity extends PedSimCity {
 
-  private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(PedSimCityActivity.class.getName());
+  private static final java.util.logging.Logger logger =
+      java.util.logging.Logger.getLogger(PedSimCityActivity.class.getName());
 
   // 24h activity clock: true between ~20:00 and ~06:00. Driven by ActivityEngine.onStepUpdate.
   public boolean isDark = false;
@@ -88,6 +86,7 @@ public class PedSimCityActivity extends PedSimCity {
   public static void countTrip(String mode) {
     tripsByMode.merge(mode, 1, Integer::sum);
   }
+
   public static Map<Agent, TransitStop> agentTransitDestinations = new HashMap<>();
 
   public PedSimCityActivity(long seed, int job, ScenarioConfig scenarioConfig) {
@@ -109,7 +108,8 @@ public class PedSimCityActivity extends PedSimCity {
   protected void startMovingAgents() {
     super.startMovingAgents();
 
-    // Spawn and schedule moving multi-modal transit vehicles if stations are present and transit is enabled
+    // Spawn and schedule moving multi-modal transit vehicles if stations are present and transit is
+    // enabled
     if (pedsim.core.parameters.RouteChoicePars.usePublicTransport && !allTransitStops.isEmpty()) {
       if (!metroStops.isEmpty()) {
         for (int i = 0; i < 4; i++) {
@@ -135,7 +135,11 @@ public class PedSimCityActivity extends PedSimCity {
           schedule.scheduleRepeating(bus, 1, 1.0);
         }
       }
-      logger.info(String.format("Multi-Modal Transit Vehicles scheduled: 4 Metro, 10 Tram, 20 Bus fleets active across %d stations.", allTransitStops.size()));
+      logger.info(
+          String.format(
+              "Multi-Modal Transit Vehicles scheduled: 4 Metro, 10 Tram, 20 Bus fleets active"
+                  + " across %d stations.",
+              allTransitStops.size()));
     }
   }
 
@@ -162,10 +166,14 @@ public class PedSimCityActivity extends PedSimCity {
     if (totalTrips == 0) totalTrips = 1;
 
     System.out.printf("  [MODE SPLIT ANALYSIS]\n");
-    System.out.printf("  - METRO      : %6d trips (%.1f%%)\n", metroTrips, 100.0 * metroTrips / totalTrips);
-    System.out.printf("  - TRAM       : %6d trips (%.1f%%)\n", tramTrips, 100.0 * tramTrips / totalTrips);
-    System.out.printf("  - BUS        : %6d trips (%.1f%%)\n", busTrips, 100.0 * busTrips / totalTrips);
-    System.out.printf("  - WALK ONLY  : %6d trips (%.1f%%)\n", walkTrips, 100.0 * walkTrips / totalTrips);
+    System.out.printf(
+        "  - METRO      : %6d trips (%.1f%%)\n", metroTrips, 100.0 * metroTrips / totalTrips);
+    System.out.printf(
+        "  - TRAM       : %6d trips (%.1f%%)\n", tramTrips, 100.0 * tramTrips / totalTrips);
+    System.out.printf(
+        "  - BUS        : %6d trips (%.1f%%)\n", busTrips, 100.0 * busTrips / totalTrips);
+    System.out.printf(
+        "  - WALK ONLY  : %6d trips (%.1f%%)\n", walkTrips, 100.0 * walkTrips / totalTrips);
     System.out.println("------------------------------------------------------------");
     int totalWaiting = 0;
     for (TransitStop stop : allTransitStops) {
@@ -179,8 +187,7 @@ public class PedSimCityActivity extends PedSimCity {
 
   /** Whether the current simulated day is rainy (see {@link Weather}). */
   public boolean isRainyNow() {
-    return Weather.isRainy(
-        TimePars.getTime(schedule.getSteps()).toLocalDate(), seed());
+    return Weather.isRainy(TimePars.getTime(schedule.getSteps()).toLocalDate(), seed());
   }
 
   /** Travel demand for the activity tier; see {@link ActivityTravelDemand}. */
@@ -190,7 +197,6 @@ public class PedSimCityActivity extends PedSimCity {
   }
 
   /** Clears all static data structures to allow for a clean simulation restart. */
-
   public static void clearStaticData() {
     // clear() the layers themselves: getGeometries() returns a defensive copy.
     censusLayer.clear();
@@ -206,5 +212,3 @@ public class PedSimCityActivity extends PedSimCity {
     agentTransitDestinations.clear();
   }
 }
-
-

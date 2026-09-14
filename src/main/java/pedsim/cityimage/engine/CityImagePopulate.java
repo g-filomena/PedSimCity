@@ -3,12 +3,12 @@ package pedsim.cityimage.engine;
 import java.util.ArrayList;
 import java.util.List;
 import org.javatuples.Pair;
-import pedsim.core.parameters.Pars;
-import pedsim.core.engine.NetworkCircuity;
 import pedsim.cityimage.agents.CityImageAgent;
 import pedsim.cityimage.parameters.TestPars;
 import pedsim.cityimage.utilities.StringEnum.RouteChoice;
+import pedsim.core.engine.NetworkCircuity;
 import pedsim.core.engine.PedSimCity;
+import pedsim.core.parameters.Pars;
 import sim.graph.Graph;
 import sim.graph.NodeGraph;
 import sim.graph.NodesLookup;
@@ -28,6 +28,7 @@ import sim.graph.NodesLookup;
 public class CityImagePopulate extends pedsim.core.engine.Populate {
 
   private static final int LANDMARK_TEST_DESTINATIONS = 255;
+
   /**
    * Route length range for the urban-subdivision test, in <b>walked</b> metres like
    * {@link Pars#minRouteLength}. Converted to a straight-line interval at the point of search, since
@@ -158,7 +159,9 @@ public class CityImagePopulate extends pedsim.core.engine.Populate {
       NodeGraph originNode = randomGenericOrigin();
       NodeGraph destinationNode =
           randomDestination(
-              originNode, NetworkCircuity.straightLineFor(Pars.minRouteLength), NetworkCircuity.straightLineFor(Pars.maxRouteLength));
+              originNode,
+              NetworkCircuity.straightLineFor(Pars.minRouteLength),
+              NetworkCircuity.straightLineFor(Pars.maxRouteLength));
 
       odMatrix.add(new Pair<>(originNode, destinationNode));
     }
@@ -174,7 +177,9 @@ public class CityImagePopulate extends pedsim.core.engine.Populate {
 
   private NodeGraph randomDestination(NodeGraph originNode) {
     return randomDestination(
-        originNode, NetworkCircuity.straightLineFor(Pars.minRouteLength), NetworkCircuity.straightLineFor(Pars.maxRouteLength));
+        originNode,
+        NetworkCircuity.straightLineFor(Pars.minRouteLength),
+        NetworkCircuity.straightLineFor(Pars.maxRouteLength));
   }
 
   private NodeGraph randomDestination(

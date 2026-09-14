@@ -11,11 +11,11 @@ import org.javatuples.Pair;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
-import pedsim.core.parameters.Pars;
 import pedsim.core.cognition.cognitivemap.CognitiveMap;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.NetworkCircuity;
 import pedsim.core.engine.PedSimCity;
+import pedsim.core.parameters.Pars;
 import pedsim.core.parameters.TimePars;
 import pedsim.core.routing.RoutePlanner;
 import pedsim.core.utilities.StringEnum.AgentStatus;
@@ -62,6 +62,7 @@ public class Agent implements Steppable {
 
   protected Route route;
   protected NodeGraph lastDestination;
+
   /**
    * Per-agent RNG, seeded by {@link PedSimCity#nextAgentSeed()} from the model's seed and the
    * order in which this simulation built its agents.
@@ -75,6 +76,7 @@ public class Agent implements Steppable {
 
   /** Seed for an agent built without a simulation; fixed, so even that path is repeatable. */
   private static final long DETACHED_AGENT_SEED = 0L;
+
   protected AgentMovement agentMovement;
 
   private int tripsDone = 0;
@@ -659,7 +661,6 @@ public class Agent implements Steppable {
     this.status = status;
   }
 
-
   /**
    * Checks if the agent is waiting.
    *
@@ -713,7 +714,6 @@ public class Agent implements Steppable {
   public double getMetersWalkedDay() {
     return metersWalkedDay;
   }
-
 
   /**
    * Gets the simulation state of the agent.

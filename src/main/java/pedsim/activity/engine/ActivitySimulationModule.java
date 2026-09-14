@@ -72,8 +72,10 @@ public final class ActivitySimulationModule implements SimulationModule {
       pedsim.core.parameters.RouteChoicePars.useGravityModel =
           Boolean.parseBoolean(params.get("useGravityModel").toString());
     }
-    // The activity module's own parameters. A key not handled here, and whose class is not listed in
-    // parameterClasses(), is accepted on the command line and then ignored with nothing in the output
+    // The activity module's own parameters. A key not handled here, and whose class is not listed
+    // in
+    // parameterClasses(), is accepted on the command line and then ignored with nothing in the
+    // output
     // to say so.
     if (params.containsKey("useDestinationChoice")) {
       pedsim.activity.parameters.ActivityPars.useDestinationChoice =
@@ -89,17 +91,25 @@ public final class ActivitySimulationModule implements SimulationModule {
     }
     if (params.containsKey("calibrationHomes")) {
       pedsim.core.parameters.ParameterManager.setFieldValue(
-          pedsim.activity.parameters.ActivityPars.class, "calibrationHomes",
+          pedsim.activity.parameters.ActivityPars.class,
+          "calibrationHomes",
           params.get("calibrationHomes").toString());
     }
     for (String key :
         new String[] {
-          "distanceWeight", "sizeWeight", "habitWeight", "choiceSetRadiusMetres",
+          "distanceWeight",
+          "sizeWeight",
+          "habitWeight",
+          "choiceSetRadiusMetres",
           "walkedTripsPerPersonPerDay",
-          "workplaceDistanceDecay", "workplaceMinDistanceMetres",
-          "walkShareCommuteWorker", "walkShareCommuteStudent",
-          "walkShareCommuteHalfDistance", "walkShareCommuteSteepness",
-          "walkShareStudentHalfDistance", "walkShareStudentSteepness",
+          "workplaceDistanceDecay",
+          "workplaceMinDistanceMetres",
+          "walkShareCommuteWorker",
+          "walkShareCommuteStudent",
+          "walkShareCommuteHalfDistance",
+          "walkShareCommuteSteepness",
+          "walkShareStudentHalfDistance",
+          "walkShareStudentSteepness",
           "educationDistanceDecay"
         }) {
       if (params.containsKey(key)) {
@@ -109,7 +119,8 @@ public final class ActivitySimulationModule implements SimulationModule {
     }
     if (params.containsKey("choiceSetSize")) {
       pedsim.core.parameters.ParameterManager.setFieldValue(
-          pedsim.activity.parameters.ActivityPars.class, "choiceSetSize",
+          pedsim.activity.parameters.ActivityPars.class,
+          "choiceSetSize",
           params.get("choiceSetSize").toString());
     }
   }

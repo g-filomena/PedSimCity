@@ -47,9 +47,7 @@ public class NightImport extends ActivityImport {
       PedSimCityNight.illuminatedEdges.clear();
       VectorLayer.readGPKG(fileUrl, PedSimCityNight.illuminatedEdges);
       logger.info(
-          "Illuminated edges loaded: "
-              + PedSimCityNight.illuminatedEdges.size()
-              + " features.");
+          "Illuminated edges loaded: " + PedSimCityNight.illuminatedEdges.size() + " features.");
     } catch (Exception e) {
       logger.warning("Failed to load illuminated edges: " + e.getMessage());
     }

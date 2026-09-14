@@ -8,8 +8,8 @@ import java.util.logging.Logger;
 import pedsim.activity.agents.ActivityPurpose;
 import pedsim.activity.agents.WorkplaceChoice;
 import pedsim.activity.parameters.ActivityPars;
-import pedsim.core.utilities.LoggerUtil;
 import pedsim.core.parameters.Pars;
+import pedsim.core.utilities.LoggerUtil;
 import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
 
@@ -53,8 +53,7 @@ public final class CommuteCalibration {
    * @param seed the generator seed
    */
   public static void run(int homes, long seed) {
-    Map<NodeGraph, Double> work =
-        PedSimCityActivity.nodesPurposeWeight.get(ActivityPurpose.WORK);
+    Map<NodeGraph, Double> work = PedSimCityActivity.nodesPurposeWeight.get(ActivityPurpose.WORK);
     if (work == null || work.isEmpty()) {
       logger.warning("commute calibration: this city carries no WORK tags; nothing to calibrate.");
       return;
@@ -73,18 +72,30 @@ public final class CommuteCalibration {
                 + "  target: 16.3%% walking, lengths 76.2 / 19.0 / 3.4 / 1.3",
             homeNodes.size(), work.size(), Pars.networkCircuityFactor));
 
-    calibrate("WORK", work, ISTAT_WORK_SHARE, ISTAT_WORK_BANDS,
-        ActivityPars.walkShareCommuteHalfDistance, ActivityPars.walkShareCommuteSteepness,
-        homeNodes, random);
+    calibrate(
+        "WORK",
+        work,
+        ISTAT_WORK_SHARE,
+        ISTAT_WORK_BANDS,
+        ActivityPars.walkShareCommuteHalfDistance,
+        ActivityPars.walkShareCommuteSteepness,
+        homeNodes,
+        random);
 
     Map<NodeGraph, Double> education =
         PedSimCityActivity.nodesPurposeWeight.get(ActivityPurpose.EDUCATION);
     if (education == null || education.isEmpty()) {
       logger.warning("commute calibration: no EDUCATION tags; skipping the student fit.");
     } else {
-      calibrate("EDUCATION", education, ISTAT_STUDY_SHARE, ISTAT_STUDY_BANDS,
-          ActivityPars.walkShareStudentHalfDistance, ActivityPars.walkShareStudentSteepness,
-          homeNodes, random);
+      calibrate(
+          "EDUCATION",
+          education,
+          ISTAT_STUDY_SHARE,
+          ISTAT_STUDY_BANDS,
+          ActivityPars.walkShareStudentHalfDistance,
+          ActivityPars.walkShareStudentSteepness,
+          homeNodes,
+          random);
     }
   }
 
@@ -112,25 +123,32 @@ public final class CommuteCalibration {
     System.out.println();
     System.out.printf(
         "=== %s: target %.1f%% walking, lengths %.1f / %.1f / %.1f / %.1f (%d tagged nodes)%n",
-        label, targetShare, targetBands[0], targetBands[1], targetBands[2], targetBands[3],
+        label,
+        targetShare,
+        targetBands[0],
+        targetBands[1],
+        targetBands[2],
+        targetBands[3],
         attraction.size());
 
-    System.out.printf("%nA. with this purpose's curve as it stands (half %.0f m, steepness %.5f)%n",
+    System.out.printf(
+        "%nA. with this purpose's curve as it stands (half %.0f m, steepness %.5f)%n",
         currentHalf, currentSteepness);
-    System.out.printf("%6s %10s   %31s   %8s%n",
-        "beta", "walk share", "walked length bands (%)", "misfit");
+    System.out.printf(
+        "%6s %10s   %31s   %8s%n", "beta", "walk share", "walked length bands (%)", "misfit");
     System.out.println("-".repeat(64));
     for (double beta : betas) {
       double[] d = commuteDistances(homeNodes, attraction, beta, 0.0, random);
       Result r = evaluate(d, currentHalf, currentSteepness, targetShare, targetBands);
-      System.out.printf("%6.1f %9.1f%%   %7.1f %7.1f %7.1f %6.1f   %8.1f%n",
-          beta, r.walkShare * 100.0,
-          r.bands[0], r.bands[1], r.bands[2], r.bands[3], r.misfit);
+      System.out.printf(
+          "%6.1f %9.1f%%   %7.1f %7.1f %7.1f %6.1f   %8.1f%n",
+          beta, r.walkShare * 100.0, r.bands[0], r.bands[1], r.bands[2], r.bands[3], r.misfit);
     }
 
     System.out.println();
     System.out.println("B. best curve per decay (two parameters against five targets)");
-    System.out.printf("%6s %10s %11s %10s   %31s   %8s%n",
+    System.out.printf(
+        "%6s %10s %11s %10s   %31s   %8s%n",
         "beta", "half (m)", "steepness", "walk share", "walked length bands (%)", "misfit");
     System.out.println("-".repeat(88));
     for (double beta : betas) {
@@ -150,9 +168,17 @@ public final class CommuteCalibration {
           }
         }
       }
-      System.out.printf("%6.1f %10.0f %11.5f %9.1f%%   %7.1f %7.1f %7.1f %6.1f   %8.1f%n",
-          beta, bestHalf, bestSteep, best.walkShare * 100.0,
-          best.bands[0], best.bands[1], best.bands[2], best.bands[3], best.misfit);
+      System.out.printf(
+          "%6.1f %10.0f %11.5f %9.1f%%   %7.1f %7.1f %7.1f %6.1f   %8.1f%n",
+          beta,
+          bestHalf,
+          bestSteep,
+          best.walkShare * 100.0,
+          best.bands[0],
+          best.bands[1],
+          best.bands[2],
+          best.bands[3],
+          best.misfit);
     }
     System.out.println();
   }

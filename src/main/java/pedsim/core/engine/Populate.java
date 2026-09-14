@@ -11,7 +11,6 @@ import org.locationtech.jts.geom.GeometryFactory;
 import pedsim.core.agents.Agent;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.parameters.Pars;
-import pedsim.core.parameters.RouteChoicePars;
 import pedsim.core.utilities.LoggerUtil;
 import sim.graph.NodeGraph;
 import sim.graph.NodesLookup;
@@ -28,6 +27,7 @@ public class Populate {
   protected PedSimCity state;
   protected static final Logger logger = LoggerUtil.getLogger();
   protected final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory();
+
   /**
    * Populate-time generator. Seeded from the model's seed by {@link #seedFrom}, because home and
    * work assignment decides where every agent lives and therefore how far it walks: left on the

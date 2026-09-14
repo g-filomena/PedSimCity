@@ -36,7 +36,11 @@ public class DailyAgenda {
    *        ({@link ActivityPars#rainDiscretionaryMultiplier}) while commutes still happen
    */
   public static DailyAgenda build(
-      Persona persona, double hourOfDay, boolean expectingWorkLeg, MersenneTwisterFast random, boolean rainy) {
+      Persona persona,
+      double hourOfDay,
+      boolean expectingWorkLeg,
+      MersenneTwisterFast random,
+      boolean rainy) {
     DailyAgenda agenda = new DailyAgenda();
     if (persona == null) {
       return agenda; // destination chosen per trip, no chaining

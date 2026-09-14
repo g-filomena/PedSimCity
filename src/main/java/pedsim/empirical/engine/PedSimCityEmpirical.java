@@ -2,9 +2,7 @@ package pedsim.empirical.engine;
 
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
-import pedsim.core.parameters.Pars;
 import pedsim.empirical.agent.EmpiricalGroup;
-import pedsim.empirical.parameters.EmpiricalPars;
 
 /** Empirical ABM simulation state. */
 public class PedSimCityEmpirical extends PedSimCity {
@@ -28,5 +26,4 @@ public class PedSimCityEmpirical extends PedSimCity {
     EmpiricalPopulate populate = new EmpiricalPopulate();
     populate.populateEmpiricalGroups(this);
   }
-
 }

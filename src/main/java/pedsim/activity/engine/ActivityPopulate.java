@@ -3,7 +3,6 @@ package pedsim.activity.engine;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Supplier;
 import pedsim.activity.agents.ActivityAgent;
 import pedsim.activity.agents.ActivityPurpose;
@@ -14,7 +13,6 @@ import pedsim.core.agents.Agent;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.Populate;
 import pedsim.core.parameters.RouteChoicePars;
-import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
 
 /**

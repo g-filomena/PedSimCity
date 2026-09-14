@@ -12,7 +12,6 @@ import pedsim.core.parameters.TimePars;
 import pedsim.core.utilities.LoggerUtil;
 import pedsim.core.website.GeoJsonExporter;
 import pedsim.core.website.HtmlExporter;
-import sim.util.geo.Utilities;
 
 public class Engine {
 
@@ -385,7 +384,10 @@ public class Engine {
    *     -> "&lt;agentType&gt;_&lt;hour&gt;" -> count.
    */
   protected void onJobExport(
-      int job, PedSimCity state, int day, java.util.Map<Integer, java.util.Map<String, Integer>> volumes) {
+      int job,
+      PedSimCity state,
+      int day,
+      java.util.Map<Integer, java.util.Map<String, Integer>> volumes) {
     // no-op
   }
 
@@ -410,5 +412,4 @@ public class Engine {
     long totalMinutes = (long) (totalSteps * (TimePars.STEP_DURATION / 60));
     return totalMinutes / (24 * 60);
   }
-
 }

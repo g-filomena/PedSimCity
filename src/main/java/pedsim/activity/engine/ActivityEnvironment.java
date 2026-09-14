@@ -5,8 +5,8 @@ import java.util.List;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.index.strtree.STRtree;
-import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.activity.parameters.ActivityPars;
+import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.Environment;
 import pedsim.core.parameters.Pars;
 import sim.graph.NodeGraph;
@@ -48,7 +48,6 @@ public class ActivityEnvironment extends Environment {
     pedsim.transit.TransitLoader.loadStops(null);
   }
 
-
   private static void buildCensusZones() {
     List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
     STRtree nodeIndex = buildNodeIndex(allNodes);
@@ -76,9 +75,12 @@ public class ActivityEnvironment extends Environment {
     }
 
     // Where the city is. The seasonal daylight model needs a latitude, and the census layer carries
-    // the centroid latitude of the city it describes. A city whose census lacks the column falls back
-    // to the ActivityPars default, with a warning: the fallback is one place, and simulating a city's
-    // darkness at another city's latitude moves every day/night boundary the night module rests on -
+    // the centroid latitude of the city it describes. A city whose census lacks the column falls
+    // back
+    // to the ActivityPars default, with a warning: the fallback is one place, and simulating a
+    // city's
+    // darkness at another city's latitude moves every day/night boundary the night module rests on
+    // -
     // eight degrees of latitude is most of an hour of midsummer sunset.
     if (!Double.isNaN(cityLatitude)) {
       ActivityPars.latitudeDegrees = cityLatitude;
@@ -96,7 +98,8 @@ public class ActivityEnvironment extends Environment {
     if (totalResidents > 0.0) {
       if (Pars.population == 1500000) {
         if (Pars.cityName != null && Pars.cityName.contains("Torino")) {
-          // Hardcode full municipal census population of Torino (846,567) even when running on Torino_simplified graph
+          // Hardcode full municipal census population of Torino (846,567) even when running on
+          // Torino_simplified graph
           Pars.population = 846567;
         } else {
           // Census carries absolute counts: apply the sampling fraction to the real headcount.
