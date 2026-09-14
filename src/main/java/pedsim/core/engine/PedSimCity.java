@@ -31,6 +31,11 @@ public class PedSimCity extends SimState {
   private static final long serialVersionUID = 1L;
   protected String appName;
 
+  /** The module's name, which is also the folder its outputs are written under. */
+  public String appName() {
+    return appName;
+  }
+
   // Urban elements: graphs, buildings, etc.
   public static VectorLayer roads = new VectorLayer();
   public static VectorLayer buildings = new VectorLayer();

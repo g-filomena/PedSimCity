@@ -77,6 +77,8 @@ public class Exporter {
     boolean perAgent = !(agents.length == 1 && agents[0] == StringEnum.Default.DEFAULT);
     boolean hourly =
         simValues != null && simValues.length > 0 && simValues[0] instanceof StringEnum.Hour;
+    // No light/dark columns unless the running module says what dark means; core does not.
+    boolean splitByDarkness = hourly && flowHandler.darknessModel() != null;
 
     // ---- Header ----
     List<String> headers = new ArrayList<>();
@@ -88,12 +90,16 @@ public class Exporter {
         }
       }
       for (Enum<?> s : simValues) headers.add(s.toString()); // hourly, summed over agent types
-      headers.add("DAY");
-      headers.add("NIGHT"); // day/night aggregation of the hours
+      if (splitByDarkness) {
+        headers.add("LIGHT");
+        headers.add("DARK"); // by the running module's own definition of a dark hour
+      }
       if (perAgent) {
-        for (Enum<?> a : agents) {
-          headers.add(a + "_DAY");
-          headers.add(a + "_NIGHT");
+        if (splitByDarkness) {
+          for (Enum<?> a : agents) {
+            headers.add(a + "_LIGHT");
+            headers.add(a + "_DARK");
+          }
         }
         for (Enum<?> a : agents) headers.add(a.toString()); // per agent type, over all hours
       }
@@ -120,28 +126,32 @@ public class Exporter {
           for (Enum<?> a : agents) t += cellVolume(ev, a, s);
           row.add(Integer.toString(t));
         }
-        int dayVol = 0;
-        int nightVol = 0;
-        for (Enum<?> a : agents) {
-          for (Enum<?> s : simValues) {
-            int v = cellVolume(ev, a, s);
-            if (isNightHour(s)) nightVol += v;
-            else dayVol += v;
-          }
-        }
-        row.add(Integer.toString(dayVol));
-        row.add(Integer.toString(nightVol));
-        if (perAgent) {
+        if (splitByDarkness) {
+          int lightVol = 0;
+          int darkVol = 0;
           for (Enum<?> a : agents) {
-            int d = 0;
-            int n = 0;
             for (Enum<?> s : simValues) {
               int v = cellVolume(ev, a, s);
-              if (isNightHour(s)) n += v;
-              else d += v;
+              if (isDarkHour(s, day)) darkVol += v;
+              else lightVol += v;
             }
-            row.add(Integer.toString(d));
-            row.add(Integer.toString(n));
+          }
+          row.add(Integer.toString(lightVol));
+          row.add(Integer.toString(darkVol));
+        }
+        if (perAgent) {
+          if (splitByDarkness) {
+            for (Enum<?> a : agents) {
+              int light = 0;
+              int dark = 0;
+              for (Enum<?> s : simValues) {
+                int v = cellVolume(ev, a, s);
+                if (isDarkHour(s, day)) dark += v;
+                else light += v;
+              }
+              row.add(Integer.toString(light));
+              row.add(Integer.toString(dark));
+            }
           }
           for (Enum<?> a : agents) {
             int t = 0;
@@ -176,9 +186,16 @@ public class Exporter {
     return edgeVolumes.getOrDefault(key, 0);
   }
 
-  /** Whether an {@code Hour} scenario falls in the night window (matching the isDark boundary). */
-  private static boolean isNightHour(Enum<?> hour) {
-    return hour instanceof StringEnum.Hour && TimePars.isNight(((StringEnum.Hour) hour).ordinal());
+  /**
+   * Whether an {@code Hour} column is dark on the day being exported. A seasonal model makes a 17:00
+   * column dark in December and light in June, so two dates are not comparable on the LIGHT/DARK
+   * columns; the hourly columns are.
+   */
+  private boolean isDarkHour(Enum<?> hour, int day) {
+    DarknessModel darkness = flowHandler.darknessModel();
+    return darkness != null
+        && hour instanceof StringEnum.Hour
+        && darkness.isDark(((StringEnum.Hour) hour).ordinal(), day);
   }
 
   /**

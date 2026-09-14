@@ -61,6 +61,17 @@ public class FlowHandler {
     exporter = new Exporter(this, appName);
   }
 
+  /** The module's definition of darkness, or null: with none set there is no light/dark split. */
+  private DarknessModel darknessModel;
+
+  public void setDarknessModel(DarknessModel darknessModel) {
+    this.darknessModel = darknessModel;
+  }
+
+  public DarknessModel darknessModel() {
+    return darknessModel;
+  }
+
   public Enum<?>[] getAgentScenarioValues() {
     return state.scenarioConfig.getAgentScenarioValues();
   }

@@ -57,6 +57,18 @@ public class AgentProperties {
     return minimisationMode != MinimisationMode.NONE;
   }
 
+  /**
+   * Whether a route-choice model has been picked: fresh properties sit at {@code NONE}/{@code NONE}
+   * with no elements, which is the state before one is chosen rather than a model in itself.
+   *
+   * @return whether a minimisation mode, a local heuristic or any route-choice element is set
+   */
+  public boolean isConfigured() {
+    return minimisationMode != MinimisationMode.NONE
+        || localHeuristicMode != LocalHeuristicMode.NONE
+        || !elements.isEmpty();
+  }
+
   public boolean shouldUseLocalHeuristic() {
     return localHeuristicMode != LocalHeuristicMode.NONE;
   }

@@ -30,19 +30,8 @@ public class ParameterManager {
   // CLI args → parameter classes
   // ------------------------------------------------------------
 
-  /**
-   * Parse CLI args and apply them to core's parameter classes only.
-   *
-   * @deprecated Prefer {@link #initFromArgs(String[], Class[])} with the running module's
-   *     {@code parameterClasses()}. This overload reaches {@code Pars}, {@code TimePars} and
-   *     {@code RouteChoicePars} and nothing else, so a module parameter passed on the command line
-   *     is accepted without complaint and then ignored.
-   */
-  @Deprecated
-  public static Map<String, String> initFromArgs(String[] args) {
-    return initFromArgs(
-        args, new Class<?>[] {Pars.class, TimePars.class, RouteChoicePars.class});
-  }
+  // One entry point, and it takes the running module's own parameterClasses(). A variant reaching
+  // only core's three classes would accept a module's key on the command line and then ignore it.
 
   /**
    * Parse CLI args and apply them to every parameter class the running module declares.
@@ -97,6 +86,10 @@ public class ParameterManager {
         Double[] arr = new Double[parts.length];
         for (int i = 0; i < parts.length; i++) arr[i] = Double.parseDouble(parts[i].trim());
         f.set(null, arr);
+      } else if (type == java.time.LocalDate.class) {
+        // ISO-8601, e.g. --SIMULATION_START_DATE=2026-12-07. The date sets day-of-week and
+        // day-of-year, so it chooses the season a run happens in.
+        f.set(null, java.time.LocalDate.parse(raw.trim()));
       } else if (type == String[].class) {
         String[] arr = raw.split(",");
         for (int i = 0; i < arr.length; i++) arr[i] = arr[i].trim();
