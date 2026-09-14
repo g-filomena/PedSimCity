@@ -49,4 +49,14 @@ public class NightPars {
   // below threshold should tip the balance toward rerouting rather than just walking faster.
   // 0.9 is a starting value, not a calibrated one -- tune against the Torino/Lyon validation data.
   public static double maxRerouteProbabilityInDarkness = 0.9;
+
+  // Ceiling on the route-planning cost multiplier DijkstraRoadDistanceNight applies to a KNOWN
+  // edge whose mean_lux falls below the travelling agent's own lightSensitivityThreshold
+  // (register finding C2: "light never enters route planning"). 1.0 = no penalty (plain distance
+  // x perception error, as before this fix); this value = the multiplier at 0 lux on a fully
+  // known edge. Restricted to known edges only -- an unknown edge's darkness stays entirely a
+  // situated-reaction matter, so this and maxRerouteProbabilityInDarkness never double-count the
+  // same darkness. 1.5 is a starting value, not a calibrated one -- tune against the Torino/Lyon
+  // validation data.
+  public static double maxKnownDarkEdgeCostMultiplier = 1.5;
 }

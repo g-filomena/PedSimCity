@@ -1,0 +1,203 @@
+package pedsim.night.routing.pathfinding;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import org.locationtech.jts.planargraph.DirectedEdge;
+import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
+import pedsim.core.routing.pathfinding.DijkstraRoadDistance;
+import pedsim.night.agents.NightAgent;
+import pedsim.night.parameters.NightPars;
+import sim.graph.EdgeGraph;
+import sim.graph.NodeGraph;
+
+/**
+ * Road-distance shortest path for night-time routing.
+ *
+ * <p>Resolution proceeds as a graded fallback so that constraints are relaxed only as far as
+ * necessary:
+ * <ol>
+ *   <li><b>First attempt</b>: avoid parks/water <em>and</em> edges in unknown regions.
+ *   <li><b>Second attempt</b>: relax the unknown-region constraint but keep avoiding parks/water.
+ *   <li><b>Final fallback</b>: an unconstrained {@link DijkstraRoadDistance} shortest path.
+ * </ol>
+ *
+ * <p>Both constrained attempts apply only to vulnerable agents; for non-vulnerable agents the
+ * filter is a no-op and night avoidance is left to situated navigation.
+ *
+ * <p><b>Deliberately narrower than the destination rule.</b>
+ * {@code NightAgent.chooseDestinationAvoidingParksAfterDark} refuses a park or waterside
+ * destination for every night agent after dark, while the avoidance here gates on vulnerability.
+ * Walking past a dark park and choosing to spend the evening in one are different decisions, so
+ * they share a rule and not a gate. See that method for the other half of the reasoning.
+ *
+ * <p><b>Lux now enters route planning for known edges (register finding C2).</b> Previously this
+ * class computed edge cost from distance alone, so an agent could never prefer a lit route in
+ * advance &mdash; it only reacted once already standing on a dark edge ({@link
+ * pedsim.night.agents.NightBehaviour#rerouteOrIncreaseSpeed}). {@link #findMinDistances} now
+ * scales a known edge's cost up by {@link #lightingCostMultiplier} when its measured lux falls
+ * below the travelling agent's own {@code lightSensitivityThreshold}. Restricted to <b>known</b>
+ * edges deliberately, for two reasons: it uses the cognitive map the model already has rather
+ * than handing agents citywide omniscience about streets they've never walked, and it avoids
+ * scoring the same darkness twice &mdash; an unknown edge's darkness is left entirely to situated
+ * reaction, exactly as before this fix.
+ */
+public class DijkstraRoadDistanceNight extends DijkstraRoadDistance {
+
+  public Set<NodeGraph> disregardedNodes = new HashSet<>();
+  protected boolean secondAttempt;
+
+  /**
+   * Finds the minimum distances for adjacent nodes in the primal graph.
+   *
+   * <p>The neighbour filter is applied on every attempt; the degree of relaxation is governed by
+   * {@link #secondAttempt} via {@link #shouldAvoidEdgeAtNight(EdgeGraph, boolean)}.
+   *
+   * <p>Performance: neighbours are reached by iterating the node's own outgoing directed edges,
+   * which yields the target node, the undirected edge and the directed edge in one object — no
+   * {@code getEdgeBetween}/{@code getDirectedEdgeBetween} map lookups are needed. The cost noise
+   * comes from the job's own seeded RNG (see {@code Dijkstra.drawFromDistribution}) instead of the
+   * shared static generator in GeoMason.
+   *
+   * <p>Barrier preferences do not apply at night. The parent asks {@code costPerceptionError},
+   * which raises the cost of edges along barriers the agent dislikes and lowers it along ones it
+   * likes; this draws a plain perception error instead, so a night agent's aversion to severing
+   * barriers and preference for natural ones are absent from its routing. Whether that is right is
+   * undecided - it has never been stated either way - but the omission is deliberate here rather
+   * than an oversight in the override.
+   *
+   * @param currentNode the current node in the primal graph
+   */
+  @Override
+  protected void findMinDistances(NodeGraph currentNode) {
+    boolean anyValidNeighbour = false;
+
+    for (DirectedEdge outEdge : currentNode.getOutDirectedEdges()) {
+      NodeGraph targetNode = (NodeGraph) outEdge.getToNode();
+      EdgeGraph commonEdge = (EdgeGraph) outEdge.getEdge();
+      if (!canMoveToNodeAtNight(targetNode, commonEdge)) {
+        continue;
+      }
+      anyValidNeighbour = true;
+
+      double error = drawFromDistribution(1.0, 0.10, null);
+      double edgeCost = commonEdge.getLength() * error * lightingCostMultiplier(commonEdge);
+      computeTentativeCost(currentNode, targetNode, edgeCost);
+      isBest(currentNode, targetNode, outEdge);
+    }
+
+    if (!anyValidNeighbour) {
+      disregardedNodes.add(currentNode);
+    }
+  }
+
+  /**
+   * Cost multiplier applied to a known edge's plain distance cost, based on how far its measured
+   * {@code mean_lux} falls below the travelling agent's own {@code lightSensitivityThreshold}
+   * (register finding C2). 1.0 (no penalty) for: a non-{@link NightAgent} caller, an edge the
+   * agent doesn't know (situated reaction handles those instead — see the class Javadoc), an edge
+   * with no continuous lux reading, or an edge already at/above threshold. Otherwise rises
+   * linearly toward {@link NightPars#maxKnownDarkEdgeCostMultiplier} as illuminance falls toward
+   * 0 lux.
+   *
+   * <p>Uses the agent's own threshold, which already differs by vulnerability (a vulnerable
+   * agent draws a higher, more easily triggered threshold in {@code NightAgent.initSensitivity}),
+   * so no separate vulnerable/non-vulnerable split is needed here — the asymmetry the model
+   * already has does the work.
+   *
+   * <p>{@code mean_lux} only, not the directional/entrance value: the Dijkstra traversal here
+   * reasons about the edge as a planning-time cost, not the direction-specific approach view
+   * {@code NightBehaviour}'s reactive gate uses. Folding that in too is future scope, not this fix.
+   */
+  private double lightingCostMultiplier(EdgeGraph edge) {
+    if (!(agent instanceof NightAgent nightAgent)) {
+      return 1.0;
+    }
+    if (!nightAgent.getCognitiveMap().isEdgeKnown(edge)) {
+      return 1.0;
+    }
+    var meanLuxAttr = edge.attributes.get("mean_lux");
+    if (meanLuxAttr == null) {
+      return 1.0;
+    }
+    double threshold = nightAgent.lightSensitivityThreshold;
+    double lux = meanLuxAttr.getDouble();
+    if (threshold <= 0 || lux >= threshold) {
+      return 1.0;
+    }
+    double darknessDepth = Math.min(1.0, (threshold - lux) / threshold);
+    return 1.0 + (NightPars.maxKnownDarkEdgeCostMultiplier - 1.0) * darknessDepth;
+  }
+
+  /**
+   * Determines whether an edge should be avoided at night.
+   *
+   * <p>The {@code secondAttempt} term is tested first so that, on the relaxed attempt, the
+   * region-knowledge lookup is short-circuited away entirely.
+   *
+   * @param edge the edge to evaluate
+   * @param secondAttempt if true, relaxes the unknown-region avoidance criterion (parks/water are
+   *     still avoided)
+   * @return true if the edge should be avoided at night
+   */
+  protected boolean shouldAvoidEdgeAtNight(EdgeGraph edge, boolean secondAttempt) {
+    if (edge.getNodes().contains(destinationNode)) {
+      return false;
+    }
+    return SharedCognitiveMap.getEdgesWithinParksOrAlongWater().contains(edge)
+        || (!secondAttempt && !isRegionKnown(edge.getRegionID()));
+  }
+
+  /**
+   * @param targetNode the candidate neighbour
+   * @param edge the already-resolved edge between the current node and {@code targetNode}
+   * @return true if the agent may move onto {@code targetNode} at night
+   */
+  private boolean canMoveToNodeAtNight(NodeGraph targetNode, EdgeGraph edge) {
+    return (!agent.isVulnerableBoolean() || !shouldAvoidEdgeAtNight(edge, secondAttempt))
+        && !disregardedNodes.contains(targetNode);
+  }
+
+  /**
+   * Reconstructs the sequence of directed edges composing the path.
+   *
+   * <p>Performance: each predecessor wrapper is fetched once per step (instead of three map
+   * lookups), and edges are appended then reversed once, avoiding the O(n^2) cost of repeated
+   * head insertions on an {@link ArrayList}.
+   *
+   * @return the reconstructed directed-edge sequence
+   */
+  @Override
+  protected List<DirectedEdge> reconstructSequence() {
+    List<DirectedEdge> directedEdgesSequence = new ArrayList<>();
+    NodeGraph step = destinationNode;
+
+    if (nodeWrappersMap.get(destinationNode) != null && nodeWrappersMap.size() > 1) {
+      while (true) {
+        var wrapper = nodeWrappersMap.get(step);
+        if (wrapper.nodeFrom == null) {
+          break;
+        }
+        directedEdgesSequence.add(wrapper.directedEdgeFrom);
+        step = wrapper.nodeFrom;
+      }
+      Collections.reverse(directedEdgesSequence);
+    }
+
+    if (directedEdgesSequence.isEmpty()) {
+      if (!secondAttempt) {
+        secondAttempt = true;
+        // The relaxed attempt must not inherit dead-ends pruned under the stricter constraints.
+        disregardedNodes.clear();
+        directedEdgesSequence = dijkstraAlgorithm(originNode, destinationNode, agent);
+      }
+      if (directedEdgesSequence.isEmpty()) {
+        directedEdgesSequence =
+            new DijkstraRoadDistance().dijkstraAlgorithm(originNode, destinationNode, agent);
+      }
+    }
+    return directedEdgesSequence;
+  }
+}
