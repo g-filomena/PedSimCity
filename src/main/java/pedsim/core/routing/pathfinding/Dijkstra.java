@@ -37,8 +37,31 @@ public abstract class Dijkstra {
   protected PriorityQueue<Entry> unvisitedNodes;
 
   protected Set<NodeGraph> centroidsToAvoid = new HashSet<>();
-  protected Set<DirectedEdge> directedEdgesToAvoid = new HashSet<>();
+
+  /**
+   * The street segments the search must not use, in either direction.
+   *
+   * <p><b>Avoidance is direction-insensitive, and that is a modelling fact rather than an
+   * implementation detail.</b> Callers hand in {@code DirectedEdge}s - JTS half-edges, which carry a
+   * direction - and {@link #collectEdgesToAvoid} keeps only {@code directedEdge.getEdge()}, the
+   * undirected {@code EdgeGraph} beneath. Ask to avoid A→B and B→A goes with it.
+   *
+   * <p><b>Decided 14 Sep 2026: this is intended, keep it.</b> The sequence routers build the set from
+   * {@code completeSequence}, the traversals as actually taken, and each sub-route advances towards
+   * the destination. Having walked A→B on the way there, the agent does not then walk B→A, so
+   * forbidding the reverse costs nothing it would have used. Collapsing to the undirected segment is
+   * stricter than the {@code Set<DirectedEdge>} signature suggests, and that is the behaviour
+   * wanted; the signature is the misleading part, not the implementation.
+   *
+   * <p>The directed set used to be retained in a field beside this one and was never read once this
+   * had been derived from it - so the direction was captured and then dropped. The two names were
+   * close enough that {@code subGraphInitialisation} tested the wrong field, which is how avoidance
+   * came to be discarded entirely inside a region subgraph. The field is gone; if direction-specific
+   * avoidance is ever wanted, it has to be built, not re-enabled. {@code PathFinder} still has a
+   * field of that name: that one is the caller's, built from a route sequence and handed in.
+   */
   protected Set<EdgeGraph> edgesToAvoid = new HashSet<>();
+
   protected Map<NodeGraph, NodeWrapper> nodeWrappersMap = new HashMap<>();
   protected AgentProperties properties;
   protected double tentativeCost;
@@ -164,7 +187,7 @@ public abstract class Dijkstra {
       knownEdges = agent.getCognitiveMap().getEdgesInKnownNetwork();
     }
     if (segmentsToAvoid != null && !segmentsToAvoid.isEmpty()) {
-      getEdgesToAvoid(segmentsToAvoid);
+      collectEdgesToAvoid(segmentsToAvoid);
     }
     subGraphInitialisation();
   }
@@ -197,8 +220,17 @@ public abstract class Dijkstra {
   protected void subGraphInitialisation() {
     if (regionCondition()) {
       subGraph = PedSimCity.regionsMap.get(originNode.getRegionID()).primalGraph;
+      // Mapped onto the subgraph's own edges when there are any, which is what the dual branch
+      // below has always done. This tested a second field holding the same edges in their incoming
+      // form - since deleted - and tested it the other way round, so the set was mapped only when
+      // it
+      // was empty and *discarded* whenever it was not: edge avoidance inside a region subgraph
+      // silently did not happen, in the one case where it matters. The mapping is needed as well as
+      // the keeping, because the
+      // `commonEdge` these are tested against during the search is a subgraph edge, and `EdgeGraph`
+      // has no value equality - a parent edge would never match its own child.
       edgesToAvoid =
-          (directedEdgesToAvoid.isEmpty())
+          (!edgesToAvoid.isEmpty())
               ? new HashSet<>(subGraph.getChildEdges(new ArrayList<>(edgesToAvoid)))
               : new HashSet<>();
       originNode = subGraph.findNode(originNode.getCoordinate());
@@ -226,14 +258,13 @@ public abstract class Dijkstra {
   }
 
   /**
-   * Extracts edges to avoid from a set of directed edges.
+   * Records the undirected edges behind a set of directed ones, as the set the search consults.
    *
-   * @param directedEdgesToAvoid A set of directed edges to avoid.
+   * @param directedEdges The directed edges to avoid.
    */
-  protected void getEdgesToAvoid(Set<DirectedEdge> directedEdgesToAvoid) {
-    this.directedEdgesToAvoid = new HashSet<>(directedEdgesToAvoid);
-    for (DirectedEdge edge : this.directedEdgesToAvoid) {
-      edgesToAvoid.add((EdgeGraph) edge.getEdge());
+  protected void collectEdgesToAvoid(Set<DirectedEdge> directedEdges) {
+    for (DirectedEdge directedEdge : directedEdges) {
+      edgesToAvoid.add((EdgeGraph) directedEdge.getEdge());
     }
   }
 
@@ -293,8 +324,7 @@ public abstract class Dijkstra {
    */
   protected double drawFromDistribution(double mean, double sd, String direction) {
     double value = agent.getRandom().nextGaussian() * sd + mean;
-    if (("left".equals(direction) && value > mean)
-        || ("right".equals(direction) && value < mean)) {
+    if (("left".equals(direction) && value > mean) || ("right".equals(direction) && value < mean)) {
       value = mean;
     }
     return value <= 0 ? mean : value;
@@ -438,6 +468,22 @@ public abstract class Dijkstra {
   protected boolean isRegionKnown(int regionID) {
     return agent.getCognitiveMap().isRegionKnown(regionID)
         || SharedCognitiveMap.isRegionKnownByCommunity(regionID);
+  }
+
+  /**
+   * Whether the agent knows this node, mapping it back to the parent graph first when the search is
+   * running inside a region subgraph.
+   *
+   * <p>The mapping is the whole point. `SubGraph` gives a child node the parent's `nodeID`,
+   * coordinate and attributes, so the two look identical in a debugger, but they are distinct
+   * objects and `NodeGraph` has no value equality - so `knownNodes.contains(childNode)` is false for
+   * every node the agent knows perfectly well.
+   */
+  protected boolean isNodeKnown(NodeGraph node) {
+    if (knownNodes == null) {
+      return false;
+    }
+    return knownNodes.contains(subGraph == null ? node : subGraph.getParentNode(node));
   }
 
   protected boolean isEdgeKnown(EdgeGraph commonEdge) {
