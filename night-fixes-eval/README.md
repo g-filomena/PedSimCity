@@ -9,9 +9,9 @@ model, prepared by Marcin Wozniak for review by Gabriele Filomena.
 a file that lives elsewhere in the repo at the same relative path, e.g.:
 
 ```
-night-fixes-eval/src/main/java/pedsim/night/engine/NightBehaviour.java
+night-fixes-eval/src/main/java/pedsim/night/agents/NightBehaviour.java
   -> proposes changes to
-src/main/java/pedsim/night/engine/NightBehaviour.java
+src/main/java/pedsim/night/agents/NightBehaviour.java
 ```
 
 The rest of the tree on this branch — and everything on `main` — stays
@@ -41,6 +41,7 @@ proposed fix below is expected to reference the specific finding ID (e.g.
 | Finding | Files | What changed |
 |---|---|---|
 | **C5** | `src/main/java/pedsim/night/agents/NightBehaviour.java`<br>`src/main/java/pedsim/night/parameters/NightPars.java` | The reroute-vs-speed-up split (`rerouteOrIncreaseSpeed()`) was a hardcoded `random.nextDouble() < 0.5`, independent of how dark the edge actually is. Replaced with a probability that equals 0.5 at/above the agent's sensitivity threshold (i.e. **unchanged** wherever the original constant applied — the still-lit branch in `whenLitVulnerable`, and any edge with no continuous lux reading) and rises linearly toward a new tunable ceiling, `NightPars.maxRerouteProbabilityInDarkness` (default `0.9`, uncalibrated — needs tuning against the Torino/Lyon validation data), as the edge's measured illuminance falls toward 0 lux. Darkness is read from the same directional-entrance/mean-lux values `checkLightLevel()` already uses, so no new data dependency is introduced. Shadow-compiled clean against the real project classpath (`target/classes` + resolved `.m2` deps) before being added here. |
+| **C6** | `src/main/java/pedsim/night/agents/NightAgent.java` | **Documentation only, no functional change** — this is not a code fix, matching the register's own suggested treatment. Night agents never board transit: `NightAgent.step()` fully overrides `ActivityAgent.step()` without calling `super`, so every trip is walked end to end even though the phone-data validation (Torino Vodafone, Lyon comptage-mobilites) counts metro and bus riders too. The existing transit-boarding code was deliberately **not** enabled — it assigns riders from three hardcoded archetype lines and walks an all-stops loop at one tick per hop, which would distort results more than walk-only does. Added a class-level Javadoc note stating this explicitly, plus the direction of the resulting bias: reported walking volumes/distances and lighting-exposure metrics are a conservative *upper bound* on real pedestrian street exposure, biased heavier on trips that parallel transit corridors. Shadow-compiled clean (both the proposed file and, as a control, the untouched original through the same pipeline). |
 
 Each row above corresponds to one finding ID from `night_model_issues.html`.
 This table is the single source of truth for what's actually in this folder —
