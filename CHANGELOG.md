@@ -16,10 +16,177 @@ Read this before trusting an older figure.
 | before **13 Sep 2026** | night A/B comparisons | twins no longer share a drawn trip length — they share a destination — and an A/B twin always chooses by utility |
 | before **13 Sep 2026** | cityImage and empirical per-edge volumes | `edgesWalkedSoFar` accumulated across an agent's trips, so each trip re-counted every earlier one: volumes were cumulative, not per trip |
 | since **March 2026** | region- and landmark-based *distance* route comparisons | `roadDistanceSequence` returned its last leg instead of the whole sequence |
+| before **14 Sep 2026** | any figure depending on where workplaces are | the per-purpose attraction maps iterated in identity-hash order, so the workplace draw picked differently per JVM build; a Torino day now reports workers 16.8% / students 38.3% |
+| any comparison spanning **two machines** | all of it | still open: trips and metres differ across machines by about 1% on one seed |
+| any learning run before **14 Sep 2026** | all of it — there are none | the module threw during agent creation without a dual graph, and routed seed memory by angular change regardless of route choice where it did not throw |
 
 ---
 
 ## September 2026
+
+### 14 September (last) — one activity agent, and less machinery around it
+
+**`CommuterAgent` is gone; `LearningAgent` extends `ActivityAgent`.** The learning module already ran
+on `ActivityEngine`, `ActivityPopulate` and `ActivityTravelDemand`; only its agent class stood
+outside the activity tier, and `ActivityPopulate` gates the persona block on
+`instanceof ActivityAgent`, so learners had no persona, no agenda and no commute mode while the
+travel demand computed a budget from personas and agendas — hence `0 mandatory legs` and `1.00 legs
+each` on every learning run. Learners now hold the full programme, and the working day (the
+worked-today latch, the work-targeting rule, the stay) is part of `ActivityAgent`, which was
+`CommuterAgent`'s only remaining subclass. **Changes learning results**, of which there were none
+older than 14 September.
+
+**Core no longer counts darkness.** The per-leg dark/light tally came out of `Agent.setRoute` and
+`RunLedger`: darkness is a night-module concern, and the volume exports already carry it per edge per
+day in the `LIGHT` / `DARK` columns. `PedSimCity.isDarkHour(hour, day)` stays, because the exporter
+needs it.
+
+**The replicate summary lost its class.** `ReplicateSummary` (125 lines) is a dozen lines inside
+`Engine`: one row per finished job, and the mean and sample sd across them when there is more than
+one. The numbers it reports are the same.
+
+### 14 September (later still) — what the fixed night window misses, and three routing fixes
+
+**The exporters' night is not the model's night, and in winter the gap is most of the walking.**
+Mandatory legs run 06:30-19:30, so removing the darkness guard did not push commutes into the fixed
+`[20:00, 06:00)` aggregation window — it pushed them into *behavioural* darkness, which the window
+does not see. `RunLedger` counts both now and the day's line reports them. On `Torino_simplified` at
+338 agents: **1 June, 29/166 legs begun in darkness and 0 outside the window; 7 December, 90/172 in
+darkness and 63 outside it** — 37% of the day's walking reported as daytime volume while the agents
+walked it in the dark and behaved accordingly, since lighting-aware routing, park and water refusal
+and vulnerable detours all key off `isDark`. Whether to aggregate on the window, on darkness, or on
+both is now a stated decision rather than an assumption nobody had tested.
+
+**Night means dark for that date.** The pedestrian-volume exports aggregate the hourly columns on
+the seasonal sunrise and sunset of the day being exported instead of a fixed clock window, and those
+two columns are now `LIGHT` and `DARK`. `PedSimCity.isDarkHour(hour, day)` is the seam: core answers
+with the fixed `TimePars` window, the activity tier with the daylight model at the city's latitude.
+The same `Torino_simplified` day reports 8% of volume in the dark on 1 June and 56% on 7 December.
+
+**Every run this repo has ever produced was 1 June** — the shortest night of the year, in a model
+about darkness — because `TimePars.SIMULATION_START_DATE` could only be changed by editing the class.
+`ParameterManager` parses `LocalDate` now, so `--SIMULATION_START_DATE=2026-12-07` works.
+
+**A fleeing night agent avoids the edge it is fleeing.** `NightAgentMovement.defineEdgesToAvoid`
+added the current edge in the non-vulnerable branch only. A vulnerable agent's avoid-set is the whole
+city minus what it knows, and the problematic edge is normally a street it or the community knows, so
+it was subtracted straight back out and A* could return a "bypass" that ran down it. The one
+population the module is about was the one that could not get away from what frightened it.
+**Changes vulnerable-agent results**, which is the A/B's manipulated arm.
+
+**`LocalHeuristicMode.NONE` means unset, and unset routes by distance.** The final ternary in
+`RoutePlanner.definePath` tested "is it distance", so every mode that was not DISTANCE - the
+constructed default included - resolved as angular; it is a positive `isLocalHeuristicAngular()` test
+now. Nothing that configures itself could reach it with NONE (`Heuristics` always sets a mode,
+cityImage's route-choice names all carry DISTANCE or ANGULAR except `DISTANT_LANDMARKS`, which
+returns earlier, and empirical always sets one), so no configured module's behaviour moves - only the
+callers that never chose a model. Those now also get a warning: `AgentProperties.isConfigured()` is
+false when nothing is set, and `RoutePlanner` says so once per run, naming the agent and pointing at
+`Agent.planRoute()`.
+
+### 14 September (later) — the winter commute, replicate variance, and four settled questions
+
+**People commute in the dark again.** `CommuterAgent.shouldGoToWork`, `ActivityAgent.shouldGoToWork`
+and `ActivityAgent.planMandatoryDeparture` all consulted darkness: the first two refused to set off
+after dark and the third refused to draw a departure into it, so that the leg budget was not charged
+for a commute that would not happen. Turin's sunset is before 17:00 through December, so between
+them they deleted the winter commute — the most routine walking there is, made by the population most
+exposed to unlit streets, in the one module built to study exactly that. The persona's start window
+decides when somebody leaves; the season decides whether it is light when they do. **Changes
+results**: more of the day's legs go to commuting in winter and fewer discretionary chains are
+bought, and night aggregates over `[20:00, 06:00)` now contain commutes. A summer day is unchanged,
+which is why nothing showed in the June runs.
+
+**A run reports its own variance.** `--jobs=N` always gave N replicates (job *n* uses `seed + n`) but
+nothing ever compared them, so a single run's number carried no error bar and a difference between
+two conditions could not be told from a difference between two seeds. `ReplicateSummary` now prints
+each job's legs, planned and walked metres and metres per agent, then the mean, sample sd and range
+across them; `RunLedger` gained job totals that the daily reset leaves alone, so a multi-day run
+reports the run rather than its last day. First measurement, two jobs on `Torino_simplified` at 169
+agents: **sd 6.5% of planned metres, 12.9% of legs** — several times the cross-machine disagreement,
+and the floor any claimed effect has to clear.
+
+**The student/worker overlap is an assumption instead of a silent double count.** The census gives no
+enrolment variable at section level, so students were the 15-24 age band while P101 counted everyone
+employed at 15-64: the employed young were both, and the residual borrowed them from flex.
+`Persona.sample` thins the student share by the new `ActivityPars.youthEmploymentRate`, leaving them
+among the workers, where a commute belongs. The default 0.18 is a national order of magnitude and not
+a Turin figure, and says so.
+
+**Opening windows can now come from the city.** `ActivityPurpose`'s 32 numbers are defaults rather
+than facts: a city file may set `purpose.<NAME>.open` / `.close` / `.stayMinutes` / `.staySigma`, and
+`CityConfig` applies and reports them like any other key, resetting the enum first so one JVM can run
+two cities. `Torino.properties` carries the block commented out — nothing in the pipeline reads OSM
+`opening_hours`, and inventing Italian-sounding hours would only move the invention somewhere that
+looks sourced.
+
+**`Pars.departuresPerPersonPerDay` has a source**: 0.255, from ISFORT's 0.51 walked legs per resident
+per day halved, because a core agent's departure is an out-and-back. It stays in core, which was the
+open question — core has to answer `TravelDemand` on its own — while the activity taxonomy stays
+behind the interface.
+
+**`RemoteLauncher` has a `main`**, so the remote-run capability orphaned by the AWT GUI's removal is
+reachable again as a command rather than a class nothing calls. The deprecated
+`ParameterManager.initFromArgs(String[])` is deleted: both remaining callers had already moved to
+`ModuleLauncher`, and with it goes the way a module parameter could be accepted and then ignored.
+
+### 14 September — the learning module runs, and a seed stops depending on the machine
+
+**A seed did not reproduce a run across machines.** `gdsl1` and the Windows laptop each replayed
+themselves exactly and disagreed with each other by about 1% of trips, on the same seed, code, data
+and jar. Not floating point: `Math.exp`, `log`, `pow`, `sin` and `sqrt` were checked over 200,000
+inputs and agree bit-for-bit across the two. The cause is that **`NodeGraph` and `EdgeGraph` override
+neither `hashCode` nor `equals`**, so a `HashMap`/`HashSet` keyed on one iterates in identity-hash
+order, which HotSpot derives from a per-JVM generator that differs between JVM builds.
+`PoiClassifier` built the per-purpose attraction maps that way and `WorkplaceChoice.draw` walks their
+entries into a cumulative distribution and picks by position, so one random number chose a different
+workplace on each machine, which moved the commute distance and then `walksToWork`. Now
+`LinkedHashMap`; `NetworkBuilder`'s known-network edge sets and
+`CognitiveMap.deriveOtherKnownRegions`'s per-region buckets became `LinkedHashSet` for the same
+reason, since `Islands.mergeConnectedIslands` iterates them. **The whole population layer is now
+identical across the two machines** — mandatory legs, both walked commute shares, the length bands.
+Trips and metres still differ by about 1%; the remaining path is downstream, in destination choice or
+routing, and is not found. Until it is, a comparison must be run entirely on one machine.
+
+**The learning module completed a day for the first time.** Three defects, none of which could be
+seen because the first one crashed the run:
+
+- `IncrementalLearning.buildBasicMemory()` plans through a `RoutePlanner` it builds itself rather
+  than `Agent.planRoute()`, so `initialiseHeuristics()` had never run and the agent's properties sat
+  at `MinimisationMode.NONE` / `LocalHeuristicMode.NONE` — which `RoutePlanner`'s final ternary reads
+  as angular. Seed memory was therefore angular-routed regardless of the agent's route choice, and
+  threw inside `NodeGraph.getDualNodes` on a primal-only city. It now samples route choice per seed
+  route, which is what the `randomizeRouteChoiceParameters` TODO asked for and what makes the loop
+  mean anything: origin and destination are fixed, so without it all five iterations recomputed one
+  path. `RoutePlanner` additionally refuses angular routing when no dual graph is loaded.
+- `applyDecay` took the percentile threshold **before** the decay and compared it with the values
+  **after**. A uniform multiplication preserves ranking and so cannot move cells across a percentile;
+  worse, with `usingMeaningfulness` off every cell sits at exactly 1.0 and the 15th percentile lands
+  there, so the *entire* active set "dropped" on every step of every learner, each time rebuilding
+  the cognitive map. Taken from the decayed grid now. **The modelling question — absolute threshold
+  or percentile — is still open** and is recorded in the learning TODO.
+- `buildBasicMemory` rebuilt the cognitive map once per seed route while `readjustCognitiveMap`
+  re-derives everything from the current grid, so four of five rebuilds were discarded. Accumulates
+  now, rebuilds once.
+
+**Learning performance**, all behaviour-preserving and confirmed against identical run output:
+`CognitiveMap.readjustCognitiveMap` walks the network's nodes once against an STRtree of prepared
+collage polygons instead of calling `Graph.getNodesWithinPolygon` per polygon (that method scans
+every node and builds a fresh JTS geometry graph per test, so cost was nodes × polygons) — 16 agents
+went 4 m 10 s → 2 m 45 s; and the landmark-membership filters in
+`RouteProperties.computeRouteProperties` hoist `getGeometries()` out of the per-building lambda into
+a `HashSet`, which was handing back a fresh `Bag` and scanning it linearly once per building.
+`LearningPars.cognitiveMapRebuildFraction` throttles rebuilds to a material change in the remembered
+space. It remains slow — about 10 s per agent, nearly all one-off seeding, with
+`LearningPars.cellSize` the lever.
+
+**Verified on `gdsl1`.** The server tree was carrying **July's `Torino_censusData.gpkg`** — the
+vintage drift the night TODO warns about, and it matters here specifically because the current census
+carries `centroid_lat`, so the run takes Turin's latitude (45.0691°) instead of falling back to
+`ActivityPars.latitudeDegrees = 53.4`, Liverpool's, which sets every sunset in a model about
+darkness. With it shipped: a Torino day at 4,232 agents in 1 m 25 s, clean ledger; the night A/B path
+spawning 72 pairs and writing 158 paired trips, twins sharing origin and destination with the
+vulnerable one detouring.
 
 ### 13 September — release, trip distance, configuration, and the GUI
 

@@ -15,6 +15,45 @@ Legend: 🔴 crash/data-corrupting · 🟠 wrong results · 🟡 performance/UX
 
 Uncommitted at the time of writing; hashes to be filled in when this lands.
 
+### 🟠 A seed reproduced a run only on the machine that produced it (2026-09-14)
+- **Symptom:** the identical command on `gdsl1` and on the Windows laptop gave 1163 against 1143
+  mandatory legs, 2064 against 2049 trips, and 2,746,498 against 2,663,226 planned metres — same seed
+  (20260912), same code, same resources, same `GeoMason-light-2.2.0.jar` at 117,232 bytes. Each
+  machine replayed *itself* exactly (three runs and two runs respectively), so nothing looked wrong
+  from either one alone.
+- **Cause:** not floating point — `Math.exp`, `log`, `pow`, `sin` and `sqrt` were checked over
+  200,000 inputs and agree bit-for-bit across the two. `NodeGraph` and `EdgeGraph` override neither
+  `hashCode` nor `equals`, so a `HashMap`/`HashSet` keyed on one iterates in identity-hash order, and
+  HotSpot derives identity hashes from a per-JVM generator whose values differ between JVM builds
+  (21.0.1 locally, 21.0.6 on the server). `PoiClassifier` built the per-purpose attraction maps as
+  `HashMap<NodeGraph, Double>`, and `WorkplaceChoice.draw` walks their entries into a cumulative
+  distribution and then picks by position — so one random number selected a different workplace on
+  each machine, which moved the commute distance, which moved `walksToWork`.
+- **Fix:** `LinkedHashMap` for those maps, whose insertion order follows the buildings and POI layers
+  and is therefore stable. `NetworkBuilder`'s known-network edge sets and
+  `CognitiveMap.deriveOtherKnownRegions`'s per-region buckets became `LinkedHashSet` for the same
+  reason, since `Islands.mergeConnectedIslands` iterates them to decide which islands to join — that
+  reaches the activity and learning tiers, not night, whose agents build a simple bone.
+- **Result:** the population layer is now identical across the two machines — mandatory legs, both
+  walked commute shares, the length bands. **Trips and metres still differ by about 1%** (2036 against
+  2058); the remaining path is downstream in destination choice or routing and has not been found.
+  Until it is, a comparison must be run entirely on one machine, with the machine recorded beside the
+  seed. **This changes results**: a Torino day now reports workers 16.8% / students 38.3%, where it
+  reported 14.9% / 38.8% before.
+
+### 🔴 `RoutePlanner` routed angular with no dual graph to route on (2026-09-14)
+- **Symptom:** `NullPointerException: Cannot read field "primalEdge" because "dualNode" is null`,
+  from `NodeGraph.checkPreviousJunction` via `getDualNodes`, on any primal-only city.
+- **Cause:** `definePath()` tests `isLocalHeuristicDistance()`, so every mode that is *not* DISTANCE —
+  including the constructed default `LocalHeuristicMode.NONE` — resolves as angular, and the
+  minimisation branch above it has the same shape. `Heuristics.constrainLocalHeuristic` already
+  demotes angular to distance when the dual graph is absent, but only for callers that reach it
+  through `Agent.planRoute()`; `RoutePlanner` is also constructed directly.
+- **Fix:** both branches check `PedSimCity.dualGraphLoaded` before choosing angular. The
+  NONE-reads-as-angular asymmetry is left as it was and flagged in place — changing it would move
+  every module's behaviour. Verified no-op for night on full Torino, which has a dual graph: a day
+  reproduced byte-for-byte against the pre-change baseline.
+
 ### 🔴 The OD modules never terminated, and their volumes were cumulative (2026-09-13)
 - **Symptom:** cityImage ran 300 s on 2 models × 4 trips without finishing; 8 × 6 exhausted a 4 GB
   heap. Empirical had the same loop.
