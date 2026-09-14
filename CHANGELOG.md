@@ -45,6 +45,25 @@ needs it.
 `Engine`: one row per finished job, and the mean and sample sd across them when there is more than
 one. The numbers it reports are the same.
 
+**Formatting became automatic** (`b6c7529`, `4bfa34e`). `pom.xml` gained spotless-maven-plugin 3.6.0
+driving google-java-format 1.28.0 over `src/main/java/**`, `src/test/java/**` and root `*.java`, and
+both git hooks now act on it: `pre-commit` applies the formatting and re-stages the Java files that
+were already staged, `pre-push` checks and aborts on a violation. Commit time is where the fix
+belongs — a pre-push hook can only stop you, because the commits it is about to push already hold the
+unformatted code. **No behaviour change**, and the hooks are copied per clone rather than wired
+through `core.hooksPath`, which would bypass Git LFS's own hooks.
+
+Two consequences worth knowing, both documented in `CLAUDE.md` and `.githooks/README.md`:
+`spotless:apply` formats the **whole tree** while the hook re-stages only what you staged, so files
+you never opened come back reformatted and dirty — `<ratchetFrom>` would confine it and is not set
+yet; and `SKIP_SPOTLESS=1` is read by *both* hooks, so exporting it in a shell turns formatting off
+at commit and push together.
+
+**The tree-wide sweep itself is not committed yet.** Running the formatter over the repo touches 58
+Java files, essentially all of it whitespace and google-java-format's line re-wrapping; the plan is
+one isolated formatting commit plus a `.git-blame-ignore-revs`, so it costs one diff rather than
+polluting every future one. See `TODO.md`.
+
 ### 14 September (later still) — what the fixed night window misses, and three routing fixes
 
 **The exporters' night is not the model's night, and in winter the gap is most of the walking.**
