@@ -20,24 +20,18 @@ public class PedSimCityActivity extends PedSimCity {
   private static final java.util.logging.Logger logger =
       java.util.logging.Logger.getLogger(PedSimCityActivity.class.getName());
 
-  // 24h activity clock: true between ~20:00 and ~06:00. Driven by ActivityEngine.onStepUpdate.
+  // Seasonal darkness at the current simulation time, driven by ActivityEngine.onStepUpdate.
   public boolean isDark = false;
 
   /**
-   * Legs that set off in the dark, and the subset of those the fixed
-   * {@code [NIGHT_START_HOUR, DAY_START_HOUR)} window would not count as night. Darkness here is
-   * seasonal, so in winter the two differ. Cleared at the end of each day.
+   * Legs that set off in seasonal darkness. Cleared at the end of each day.
    */
   public final java.util.concurrent.atomic.LongAdder legsInDarkness =
-      new java.util.concurrent.atomic.LongAdder();
-
-  public final java.util.concurrent.atomic.LongAdder legsDarkOutsideNightWindow =
       new java.util.concurrent.atomic.LongAdder();
 
   /** Clears the day's darkness counters. */
   public void resetDarknessCounters() {
     legsInDarkness.reset();
-    legsDarkOutsideNightWindow.reset();
   }
 
   /**
@@ -47,9 +41,6 @@ public class PedSimCityActivity extends PedSimCity {
    * volume exports their light/dark split.
    */
   private boolean isDarkHour(int clockHour, int dayNumber) {
-    if (!pedsim.activity.parameters.ActivityPars.useSeasonalDaylight) {
-      return TimePars.isNight(clockHour);
-    }
     java.time.LocalDate date = TimePars.SIMULATION_START_DATE.plusDays((long) dayNumber - 1);
     return Daylight.isDark(date.atTime(clockHour, 30));
   }

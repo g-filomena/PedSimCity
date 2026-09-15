@@ -295,19 +295,29 @@ public class ActivityPars {
   /** Probability that a working agent chains a second discretionary activity after work. */
   public static double secondPostWorkActivityProbability = 0.15;
 
-  // --- Seasonal daylight ---
+  // --- Daylight ---
   /**
-   * Behavioural darkness follows the seasonal sunrise/sunset model in {@code Daylight} when true;
-   * the fixed {@code TimePars.DAY_START_HOUR}/{@code NIGHT_START_HOUR} window otherwise. Exporter
-   * day/night volume aggregation always uses the fixed window so outputs stay comparable.
+   * The city's time zone, as an IANA id such as {@code Europe/Rome}, or blank when it has not said.
+   *
+   * <p>Darkness is computed in solar time and reported in clock time, so the conversion needs the
+   * offset the city's clocks actually keep - summer time included. A city that names no zone is
+   * assumed to keep the standard time of its nearest 15-degree meridian all year, which is an hour
+   * out through the summer wherever daylight saving is observed. It cannot be derived from the
+   * position: zone boundaries are political.
    */
-  public static boolean useSeasonalDaylight = true;
-
-  /** Latitude used by the sunrise/sunset model (degrees; default Liverpool). */
-  public static double latitudeDegrees = 53.4;
+  public static String timeZoneId = "";
 
   /** Civil-twilight buffer: it is still light this many minutes before sunrise / after sunset. */
   public static double twilightBufferMinutes = 30;
+
+  /**
+   * Start of the fixed daylight window, in hours, used only when the city's position is unknown.
+   * Set it to state a city's day directly instead of having it computed.
+   */
+  public static double dayStartHour = 6.0;
+
+  /** End of the fixed daylight window, in hours; the counterpart of {@link #dayStartHour}. */
+  public static double nightStartHour = 20.0;
 
   // --- Weather ---
   /** Per-day stochastic weather: rainy days suppress walking, discretionary trips most. */

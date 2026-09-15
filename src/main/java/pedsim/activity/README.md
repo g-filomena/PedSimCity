@@ -32,11 +32,15 @@ Supporting types (all in `pedsim.activity`): `Persona`, `ActivityPurpose`, `Dail
 
 ## The 24-hour activity pattern
 
-1. **Clock** — `ActivityEngine.onStepUpdate` sets `PedSimCityActivity.isDark`. With
-   `ActivityPars.useSeasonalDaylight` (default) darkness follows the seasonal sunrise/sunset model
-   in `Daylight` (latitude + day-of-year, civil-twilight buffer); otherwise the fixed
-   `TimePars` 20:00–06:00 window. The exporter's day/night aggregation always uses the fixed
-   window so outputs stay comparable. The release curve in `TimePars` is day-of-week aware:
+1. **Clock** — `ActivityEngine.onStepUpdate` sets `PedSimCityActivity.isDark` from `Daylight`,
+   which is the model's only definition of darkness: sunrise and sunset for the simulation date at
+   `Pars.cityLatitude` / `cityLongitude`, with a civil-twilight buffer, converted from solar to clock
+   time through `ActivityPars.timeZoneId`. The position is measured from the street network by
+   core's `CityLocation`; a city whose network declares no usable CRS falls back to the fixed
+   `dayStartHour`/`nightStartHour` window (06:00–20:00 by default), and the run says which regime is
+   in force at startup. The exporter splits its volumes by the same model, so behaviour and outputs
+   cannot disagree; the night module inherits `isDark` and never recomputes it, and core holds only
+   the `DarknessModel` seam. The release curve in `TimePars` is day-of-week aware:
    weekday commute peaks, a Friday night shift, and a weekend curve with no morning commute.
 2. **Population** — `ActivityPopulate` draws each agent's **home** from residence-weighted census
    zones (the census is population structure only) and its **work** from the WORK-purpose
@@ -81,7 +85,7 @@ choice — that is the POI/tag layers' job below.
 | `retiree_pct` | rate [0,1] | optional: share of adult residents 65+ — conditions the persona mix per home zone |
 | `student_pct` | rate [0,1] | optional: share of adult residents 15–24 — conditions the persona mix per home zone |
 
-The layer is produced by `pipeline/01_census_istat.py` (run via `build_census.bat`) — an
+The layer is produced by `pipeline/01_census_istat.py` (run via `scripts/build_census.bat`) — an
 **ISTAT adapter for Italian cities**; other countries need a sibling adapter emitting the
 same columns from their own raw census (the Java side is country-agnostic).
 All zones are kept: non-residential zones (streets, parks, commercial) simply get `residence_pct = 0`.
@@ -102,7 +106,7 @@ each purpose it hosts, not only the first-listed one. The two layers weigh diffe
 `ActivityPars.buildingAreaPerAttractionUnit` (200 m² ≈ one venue, min 1.0) — an office block pulls
 proportionally more WORK trips than a corner office. No tags → empty purpose maps → uniform choice.
 The POI layer is produced by the `pois` stage of `pipeline/00_city_preparation.py` (run via
-`build_city.bat`).
+`scripts/build_city.bat`).
 
 ## For module authors
 

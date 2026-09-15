@@ -49,20 +49,14 @@ public class ActivityEngine extends Engine {
   }
 
   /**
-   * Advances the 24h activity clock. Behavioural darkness follows the seasonal sunrise/sunset
-   * model when enabled (so agents switch to evening behaviour at actual dusk, which in Liverpool
-   * ranges from ~16:00 in December to ~21:45 in June), the fixed
-   * {@code DAY_START_HOUR}/{@code NIGHT_START_HOUR} window otherwise. The exporter's day/night
-   * volume aggregation always uses the fixed window so outputs stay comparable.
+   * Advances the 24h activity clock. Behavioural darkness follows seasonal sunrise and sunset
+   * for the configured date and city latitude.
    */
   @Override
   protected void onStepUpdate(PedSimCity state, double steps) {
     if (state instanceof PedSimCityActivity activityState) {
       java.time.LocalDateTime now = TimePars.getTime(steps);
-      activityState.isDark =
-          pedsim.activity.parameters.ActivityPars.useSeasonalDaylight
-              ? Daylight.isDark(now)
-              : TimePars.isNight(now.toLocalTime());
+      activityState.isDark = Daylight.isDark(now);
     }
   }
 

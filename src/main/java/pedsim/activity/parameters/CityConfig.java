@@ -82,7 +82,6 @@ public final class CityConfig {
           "usePersonaReleaseWeights",
           "useCensusPersonas",
           "useWeather",
-          "useSeasonalDaylight",
           "calibrateCommute",
           "calibrationHomes",
           "enableLightABTesting",
