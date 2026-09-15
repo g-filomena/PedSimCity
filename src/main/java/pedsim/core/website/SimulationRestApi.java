@@ -13,8 +13,6 @@ import java.util.Map;
 import java.util.logging.Logger;
 import pedsim.core.engine.SimulationModule;
 import pedsim.core.engine.SimulationStateStore;
-import pedsim.core.parameters.Pars;
-import pedsim.core.parameters.TimePars;
 import pedsim.core.utilities.LoggerUtil;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
@@ -127,7 +125,7 @@ public final class SimulationRestApi {
     for (int attempt = 0; attempt < MAX_PORT_RETRIES; attempt++) {
       int port = preferredPort + attempt;
       try {
-        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+        HttpServer server = HttpServer.create(new InetSocketAddress("localhost", port), 0);
 
         // --- GET /api/state ---
         server.createContext(
@@ -166,8 +164,8 @@ public final class SimulationRestApi {
                 }
 
                 String fileName = "/".equals(path) ? "dashboard.html" : path.substring(1);
-                java.io.File file = new java.io.File(fileName);
-                if (!file.exists()) {
+                java.nio.file.Path file = resolveDashboardFile(java.nio.file.Path.of("."), path);
+                if (file == null) {
                   byte[] err = "File not found".getBytes(StandardCharsets.UTF_8);
                   exchange.sendResponseHeaders(404, err.length);
                   try (var out = exchange.getResponseBody()) {
@@ -176,7 +174,7 @@ public final class SimulationRestApi {
                   return;
                 }
 
-                byte[] body = java.nio.file.Files.readAllBytes(file.toPath());
+                byte[] body = java.nio.file.Files.readAllBytes(file);
                 if (fileName.endsWith(".png")) {
                   exchange.getResponseHeaders().add("Content-Type", "image/png");
                 } else if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) {
@@ -332,8 +330,10 @@ public final class SimulationRestApi {
                 if (selectedModule != null) {
                   final SimulationModule mod = selectedModule;
                   final Map<String, Object> finalParams = params;
-                  new Thread(() -> runModuleSimulation(mod, finalParams), "pedsim-rest-simulation")
-                      .start();
+                  if (!startModuleSimulation(mod, finalParams)) {
+                    exchange.sendResponseHeaders(409, -1);
+                    return;
+                  }
                   logger.info(
                       "[REST API] Simulation start triggered — module="
                           + mod.moduleId()
@@ -362,8 +362,8 @@ public final class SimulationRestApi {
         server.setExecutor(null);
         server.start();
         activeServer = server;
-        boundPort = port;
-        logger.info("[REST API] Server started on port " + port);
+        boundPort = server.getAddress().getPort();
+        logger.info("[REST API] Server started on port " + boundPort);
         return;
 
       } catch (BindException be) {
@@ -406,63 +406,59 @@ public final class SimulationRestApi {
   // Internal helpers
   // ----------------------------------------------------------------
 
-  /**
-   * Runs a simulation for the given module on the calling thread (intended to be a dedicated
-   * background thread so the HTTP handler returns immediately).
-   *
-   * <p>Ordering contract — must not be changed:
-   *
-   * <ol>
-   *   <li>{@code applyMode()} — sets {@code Pars.isNight} and any other mode flags
-   *   <li>{@code applyCommonParams()} / {@code module.applyParameters()} — writes Pars fields
-   *   <li>{@code Engine.runJobs()} — internally calls {@code clearStaticData()},
-   *       {@code Pars.setSimulationParameters()}, {@code Import.importFiles()}, then jobs
-   * </ol>
-   *
-   * <p>Steps 1–2 must complete before step 3, because {@code setSimulationParameters()} and
-   * {@code importFiles()} inside {@code runJobs()} read {@code Pars.isNight} and other fields set
-   * in steps 1–2.
-   */
-  private static void runModuleSimulation(SimulationModule module, Map<String, Object> params) {
+  /** Reserves synchronously so a second POST cannot race parameter setup in the worker. */
+  static boolean startModuleSimulation(SimulationModule module, Map<String, Object> params) {
+    var reservation = SimulationStateStore.getInstance().tryReserveRun();
+    if (reservation == null) return false;
     try {
-      // 1. Mode flags first (sets Pars.isNight etc.)
-      module.applyMode();
-      SimulationStateStore.getInstance().setActiveModule(module);
-
-      // 2. Parameters (common Pars fields, then module-specific)
-      applyCommonParams(params);
-      module.applyParameters(params);
-
-      // 3. Engine lifecycle (clear → setSimulationParameters → importFiles → jobs)
-      module.createEngine().runJobs(module.scenarioConfig(), Pars.parallel);
-    } catch (Exception e) {
-      logger.severe("[REST API] Module simulation failed: " + e.getMessage());
+      Map<String, String> values = new HashMap<>();
+      params.forEach(
+          (key, value) -> {
+            if (value == null) throw new IllegalArgumentException("Null parameter: " + key);
+            values.put(key, value.toString());
+          });
+      // Preserve the dashboard's automatic multi-job parallel selection; explicit flags win.
+      if (values.containsKey("jobs") && !values.containsKey("parallel")) {
+        values.put("parallel", Boolean.toString(Integer.parseInt(values.get("jobs")) > 1));
+      }
+      new Thread(
+              () -> {
+                try {
+                  new pedsim.core.engine.SimulationLauncher(module).run(values, reservation);
+                } catch (Exception e) {
+                  logger.log(
+                      java.util.logging.Level.SEVERE, "[REST API] Module simulation failed", e);
+                }
+              },
+              "pedsim-rest-simulation")
+          .start();
+      return true;
+    } catch (RuntimeException | Error e) {
+      reservation.close();
+      throw e;
     }
   }
 
-  /** Applies the standard Pars fields shared by all modules. */
-  private static void applyCommonParams(Map<String, Object> params) {
-    if (params.containsKey("cityName")) Pars.cityName = (String) params.get("cityName");
-    if (params.containsKey("days"))
-      Pars.durationDays = Integer.parseInt(params.get("days").toString());
-    if (params.containsKey("actualPopulation"))
-      Pars.population = Integer.parseInt(params.get("actualPopulation").toString());
-    if (params.containsKey("percentage"))
-      Pars.percentagePopulationAgent = Double.parseDouble(params.get("percentage").toString());
-    if (params.containsKey("jobs")) {
-      Pars.jobs = Integer.parseInt(params.get("jobs").toString());
-      Pars.parallel = (Pars.jobs > 1);
+  /** Resolves only dashboard assets inside the real document root, including symlink checks. */
+  static java.nio.file.Path resolveDashboardFile(java.nio.file.Path root, String requestPath)
+      throws IOException {
+    String name = "/".equals(requestPath) ? "dashboard.html" : requestPath.substring(1);
+    if (!name.equals("dashboard.html") && !name.endsWith(".png") && !name.endsWith(".jpg")) {
+      return null;
     }
-    if (params.containsKey("dayStartHour"))
-      TimePars.DAY_START_HOUR = Integer.parseInt(params.get("dayStartHour").toString());
-    if (params.containsKey("nightStartHour"))
-      TimePars.NIGHT_START_HOUR = Integer.parseInt(params.get("nightStartHour").toString());
-    if (params.containsKey("usePublicTransport"))
-      pedsim.core.parameters.RouteChoicePars.usePublicTransport =
-          Boolean.parseBoolean(params.get("usePublicTransport").toString());
-    if (params.containsKey("useGravityModel"))
-      pedsim.core.parameters.RouteChoicePars.useGravityModel =
-          Boolean.parseBoolean(params.get("useGravityModel").toString());
+    // Backslashes and colons also have path semantics on Windows.
+    if (name.contains("\\") || name.contains(":")) return null;
+    java.nio.file.Path realRoot = root.toRealPath();
+    java.nio.file.Path candidate = realRoot.resolve(name).normalize();
+    if (!candidate.startsWith(realRoot) || !java.nio.file.Files.isRegularFile(candidate)) {
+      return null;
+    }
+    java.nio.file.Path realFile = candidate.toRealPath();
+    return realFile.startsWith(realRoot) ? realFile : null;
+  }
+
+  static synchronized int boundPort() {
+    return boundPort;
   }
 
   /** Builds the JSON body for {@code GET /api/modules}. */
