@@ -7,7 +7,6 @@ import pedsim.core.engine.Engine;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.engine.SimulationModule;
-import pedsim.core.parameters.ParameterManager;
 
 /**
  * The city-image testing module.
@@ -53,18 +52,13 @@ public final class CityImageSimulationModule implements SimulationModule {
    * to take effect.
    */
   @Override
-  public void applyMode() {
-    pedsim.core.parameters.Pars.isNight = false;
+  public void applyDefaults(java.util.Map<String, String> selectors) {
+    // stringMode is a selector: it chooses which design's defaults apply. defineMode then sets the
+    // design's own trip and job counts, which the command line overwrites if it names them.
+    if (selectors.containsKey("stringMode")) {
+      TestPars.stringMode = selectors.get("stringMode");
+    }
     TestPars.defineMode();
-    writeOverrides(overrides);
-    pedsim.core.utilities.LoggerUtil.getLogger()
-        .info(
-            String.format(
-                "cityImage mode '%s': %d route-choice models x %d trips each, %d job(s)",
-                TestPars.stringMode,
-                TestPars.scenarios.length,
-                TestPars.numberTripsPerAgent,
-                pedsim.core.parameters.Pars.jobs));
   }
 
   @Override
@@ -87,35 +81,17 @@ public final class CityImageSimulationModule implements SimulationModule {
     TestPars.distances.clear();
   }
 
-  /**
-   * {@code stringMode} selects the test design: testing landmarks, testing urban subdivisions, or
-   * testing a user-chosen set of route-choice models.
-   */
+  /** Every key this module owns is a {@code TestPars} field, so reflection has already set it. */
   @Override
   public void applyParameters(Map<String, Object> params) {
-    overrides = Map.copyOf(params);
-    writeOverrides(params);
-  }
-
-  /** Writes this module's own keys out of an argument map. Called twice; see {@link #applyMode()}. */
-  private static void writeOverrides(Map<String, Object> params) {
-    for (String key :
-        new String[] {
-          "stringMode",
-          "numberTripsPerAgent",
-          "testingSpecificOD",
-          "verboseMode",
-          "originsTmp",
-          "destinationsTmp"
-        }) {
-      if (params.containsKey(key)) {
-        ParameterManager.setFieldValue(TestPars.class, key, params.get(key).toString());
-      }
-    }
-    if (params.containsKey("jobs")) {
-      ParameterManager.setFieldValue(
-          pedsim.core.parameters.Pars.class, "jobs", params.get("jobs").toString());
-    }
+    pedsim.core.utilities.LoggerUtil.getLogger()
+        .info(
+            String.format(
+                "cityImage mode '%s': %d scenarios x %d trips each, %d job(s)",
+                TestPars.stringMode,
+                TestPars.scenarios.length,
+                TestPars.numberTripsPerAgent,
+                pedsim.core.parameters.Pars.jobs));
   }
 
   @Override

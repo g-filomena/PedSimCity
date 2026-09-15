@@ -11,7 +11,6 @@ import pedsim.core.engine.Import;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.engine.SimulationStateStore;
-import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
 
 /** Engine specialised for the city-image testing module. */
@@ -39,20 +38,6 @@ public class CityImageEngine extends Engine {
   protected void clearStaticData() {
     super.clearStaticData();
     TestPars.distances.clear();
-  }
-
-  /**
-   * The agent count is the number of route-choice models being compared: this module runs one agent
-   * per model over a shared OD matrix.
-   *
-   * <p>Set here rather than in {@code CityImageSimulationModule.applyMode()} only because
-   * {@code TestPars.defineMode()} may have changed the model list since. The test design itself is
-   * resolved in {@code applyMode()}, which runs before the command line is re-applied; resolving it
-   * here would put it after, and the design's own defaults would override whatever was asked for.
-   */
-  @Override
-  protected void afterSetParameters() {
-    Pars.numAgents = TestPars.scenarios.length;
   }
 
   @Override

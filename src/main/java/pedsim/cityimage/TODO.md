@@ -57,10 +57,9 @@ module's simplest-path results move.
 - **No per-city configuration, deliberately.** `loadCityConfig` stays core's no-op: those files
   configure activity behaviour and this module models none. If cityImage ever needs city-level
   parameters it needs its own format, not the activity one.
-- **Anything added to a mode's defaults must also go in `writeOverrides`.** `TestPars.defineMode()`
-  sets the design's own trip and job counts *after* the command line has been applied, so
-  `CityImageSimulationModule` re-writes the overrides afterwards. A key added to a mode and not to
-  that list is silently overwritten.
+- **A mode's figures are defaults, so state them in `TestPars.defineMode()` and nowhere else.**
+  `applyDefaults` runs before the command line, which then overrides whatever it named. Nothing has
+  to be re-applied afterwards, and a key added to a design needs no second entry anywhere.
 
 ---
 
