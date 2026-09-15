@@ -19,11 +19,20 @@ public class ParameterManager {
   // Parameters reach the model from exactly two places, both of which leave a record a run can be
   // reproduced from: the running module's per-city file, and the command line.
 
+  /** Command-line names that differ from the field they set. */
+  private static final Map<String, String> ALIASES =
+      Map.of(
+          "percentage", "percentagePopulationAgent",
+          "actualPopulation", "population",
+          "days", "durationDays");
+
   /** Apply a parameter map (CLI style) to multiple target classes. */
   @SafeVarargs
   public static void applyParams(Map<String, String> params, Class<?>... targetClasses) {
-    for (Map.Entry<String, String> e : params.entrySet())
-      for (Class<?> cls : targetClasses) setFieldValue(cls, e.getKey(), e.getValue());
+    for (Map.Entry<String, String> e : params.entrySet()) {
+      String field = ALIASES.getOrDefault(e.getKey(), e.getKey());
+      for (Class<?> cls : targetClasses) setFieldValue(cls, field, e.getValue());
+    }
   }
 
   // ------------------------------------------------------------
@@ -42,25 +51,25 @@ public class ParameterManager {
   public static Map<String, String> initFromArgs(String[] args, Class<?>[] targets) {
     Map<String, String> params = parseArgs(args);
     applyParams(params, targets);
-    if (params.containsKey("percentage")) {
-      Pars.percentagePopulationAgent = Double.parseDouble(params.get("percentage"));
-    }
-    if (params.containsKey("actualPopulation")) {
-      Pars.population = Integer.parseInt(params.get("actualPopulation"));
-    }
-    if (params.containsKey("days")) {
-      Pars.durationDays = Integer.parseInt(params.get("days"));
-    }
+    applyDerived(params);
+    return params;
+  }
+
+  /**
+   * Settles the values that depend on other values, once the command line has been applied.
+   *
+   * @param params the parsed command line, consulted for what was asked for rather than what it set
+   */
+  private static void applyDerived(Map<String, String> params) {
+    // An explicit count is a count, not an input to the derivation.
+    Pars.agentCountGiven = params.containsKey("numAgents");
     Pars.recomputeAgentCount();
-    // Asking for a circuity factor means asking for that factor: NetworkCircuity measures into the
-    // same field and consults only measureNetworkCircuity, so supplying one without the other would
-    // have the measurement overwrite it at startup. An explicit measureNetworkCircuity on the same
-    // command line still wins.
+
+    // A given factor is the factor: NetworkCircuity measures into the same field at startup.
     if (params.containsKey("networkCircuityFactor")
         && !params.containsKey("measureNetworkCircuity")) {
       Pars.measureNetworkCircuity = false;
     }
-    return params;
   }
 
   /** Directly set a parameter field by name. */

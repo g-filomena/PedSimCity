@@ -58,9 +58,8 @@ public final class CityImageAgent extends OdAgent {
    * What each scenario means.
    *
    * <p>Exhaustive and without a {@code default}, so adding a {@link Scenario} constant stops
-   * compiling until it is given a model here. That is the guarantee worth having: the alternative,
-   * reading the meaning off the constant's name, is what once made {@code LOCAL_LANDMARKS_DISTANCE}
-   * and {@code LANDMARKS_DISTANCE} the same configuration under two names.
+   * compiling until it is given a model here. Reading the meaning off the constant's name instead
+   * would let two scenarios resolve to one configuration unnoticed.
    *
    * @param scenario the scenario this agent was built for
    * @return the route-choice model it stands for

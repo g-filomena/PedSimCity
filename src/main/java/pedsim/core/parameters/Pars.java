@@ -12,6 +12,7 @@ public class Pars {
 
   // General parameters
   public static String cityName = "Torino";
+
   public static int population = 1500000;
   public static double percentagePopulationAgent = 0.001;
   public static int numAgents;
@@ -122,16 +123,23 @@ public class Pars {
 
     TimePars.setTemporalPars();
     moveRate = TimePars.STEP_DURATION * pedestrianSpeed;
-    recomputeAgentCount();
     setRoadTypeMap();
   }
 
+  /** Whether {@code numAgents} was given on the command line, in which case nothing derives over it. */
+  public static boolean agentCountGiven = false;
+
   /**
-   * Recomputes the sampled agent count from {@code population * percentagePopulationAgent}. Call
-   * after changing {@code population} at runtime — e.g. when a module derives it from its own city
-   * data.
+   * Derives the agent count from {@code population * percentagePopulationAgent}.
+   *
+   * <p>Called only by a module that samples a population: core and night, and
+   * {@code ActivityEnvironment} again once the census gives a real headcount. cityImage sizes its run
+   * by the number of route-choice models and empirical by its survey cohort, so neither calls it.
    */
   public static void recomputeAgentCount() {
+    if (agentCountGiven) {
+      return;
+    }
     numAgents = (int) (population * percentagePopulationAgent);
   }
 

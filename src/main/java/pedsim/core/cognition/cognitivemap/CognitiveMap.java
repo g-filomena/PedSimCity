@@ -323,12 +323,40 @@ public class CognitiveMap extends SharedCognitiveMap {
     }
   }
 
-  // Methods to add and retrieve nodes, edges, landmarks, and regions
+  /** The threshold the current {@code agentKnownLocalLandmarks} was collected at, or NaN. */
+  private double localLandmarksThresholdUsed = Double.NaN;
+
+  /**
+   * Collects the local landmarks this agent can recognise: the buildings beside the nodes it knows
+   * whose local-landmarkness clears {@code localLandmarkThreshold}.
+   *
+   * <p>A map that was never individualised has no known nodes, so it walks the community known
+   * network instead - the set {@link #getNodesInKnownNetwork()} answers with, and the one an
+   * individualised map has fused into its own bone. Collecting nothing there would leave
+   * {@code Landmarkness.localLandmarknessNode}, which scores a candidate node by the best of its
+   * adjacent landmarks <i>that are in this set</i>, returning 0.0 for every node of every route.
+   *
+   * <p>The community walk is done once per agent and reused: the threshold comes from the agent's
+   * heuristics and does not change between trips, and this is called on every landmark-routed leg.
+   *
+   * @param localLandmarkThreshold the minimum local-landmarkness score to recognise
+   */
   public void findKnownLocalLandmarks(double localLandmarkThreshold) {
 
+    boolean community = agentKnownNodes.isEmpty() && !individualised;
+    // Memoise the community walk only. An individualised map is re-derived as the agent learns -
+    // the learning module rebuilds it outright - so its landmark set has to be recollected even at
+    // an unchanged threshold; the community one cannot change between trips.
+    if (community && localLandmarkThreshold == localLandmarksThresholdUsed) {
+      return;
+    }
+    localLandmarksThresholdUsed = community ? localLandmarkThreshold : Double.NaN;
     agentKnownLocalLandmarks = new HashSet<>();
 
-    List<NodeGraph> tmpNodes = GraphUtils.getNodesFromNodeIDs(agentKnownNodes, PedSimCity.nodesMap);
+    List<NodeGraph> tmpNodes =
+        community
+            ? new ArrayList<>(SharedCognitiveMap.getCommunityKnownNodes())
+            : GraphUtils.getNodesFromNodeIDs(agentKnownNodes, PedSimCity.nodesMap);
     // Collect local landmarks efficiently using streams
     tmpNodes.stream()
         .flatMap(node -> node.adjacentBuildings.stream())
@@ -365,7 +393,25 @@ public class CognitiveMap extends SharedCognitiveMap {
     return new HashSet<>(agentKnownEdges);
   }
 
+  /**
+   * The regions this agent can navigate through.
+   *
+   * <p>An individualised map carries the regions the agent has derived for itself. A map that was
+   * never individualised - a community-network agent - carries none, and knows the city's regions
+   * instead: it routes on the community network, so every region on it is available to it.
+   *
+   * <p>The distinction is load-bearing. {@code RegionBasedNavigation} filters the city's regions
+   * down to this set before looking for gateways, so an empty one makes
+   * {@code isRegionalSequenceDouable()} false for every pair and region-based navigation silently
+   * degrades to plain shortest path - indistinguishable, in the output, from region navigation that
+   * ran and found nothing worth doing.
+   *
+   * @return the region IDs available to this agent
+   */
   public Set<Integer> getAgentKnownRegions() {
+    if (agentKnownRegions.isEmpty() && !individualised) {
+      return new HashSet<>(PedSimCity.regionsMap.keySet());
+    }
     return agentKnownRegions;
   }
 
@@ -379,19 +425,85 @@ public class CognitiveMap extends SharedCognitiveMap {
     return agentKnownLocalLandmarks;
   }
 
+  /**
+   * The barriers this agent perceives.
+   *
+   * <p>As with {@link #getAgentKnownRegions()}: an individualised map carries the barriers along the
+   * streets the agent knows, plus the community's; a map that was never individualised carries the
+   * community's alone, which is what {@code SharedCognitiveMap.communityKnownBarriers} means - the
+   * water and road barriers everyone in the city knows about.
+   *
+   * <p>Both the cost adjustments in {@code Dijkstra.costPerceptionError} and the sub-goals in
+   * {@code BarrierIntegration} test membership of this set, so an empty one leaves barrier-based
+   * navigation with no effect on either cost or routing.
+   *
+   * @return the barrier IDs this agent perceives
+   */
   public Set<Integer> getAgentKnownBarriers() {
+    if (agentKnownBarriers.isEmpty() && !individualised) {
+      // Every barrier, not {@code communityKnownBarriers}: that set holds water and road only, so
+      // an agent restricted to it perceives no park and no railway, and the barrier type it is
+      // configured to seek or avoid may be one it can never see. What narrows the candidates for
+      // such an agent is its {@code AgentBarrierType}, which is the only filter that applied before
+      // the known-barrier restriction existed.
+      return new HashSet<>(PedSimCity.barriersMap.keySet());
+    }
     return agentKnownBarriers;
   }
 
+  /**
+   * The nodes this agent can route over.
+   *
+   * <p>An individualised map answers with the network it built for itself, which
+   * {@code fuseBoneWithCommunityNetwork} defines as <i>its own bone plus the community known
+   * network</i>. A map that was never individualised has no bone, so it answers with the community
+   * known network alone: the same formula with the personal half empty.
+   *
+   * <p>The community network is a <b>subset</b> of the city - primary and secondary roads, tertiary
+   * when {@code includeTertiary}, the city-centre regions and the salient junctions. A cityImage or
+   * empirical agent <i>routes</i> over the full network, because {@code restrictToKnownNetwork()} is
+   * false for it, but it <i>plans</i> - picks gateways, barrier sub-goals, on-route marks - among
+   * the places everyone in the city is taken to know.
+   *
+   * <p><b>This must never answer with an empty set.</b>
+   * {@code RegionBasedNavigation.getKnownGateways} keeps only gateways whose entry and exit are both
+   * in here, so an empty one leaves no gateway in any region and region-based navigation degrades to
+   * the shortest path - with no error and nothing in the output to say the model did not run.
+   *
+   * @return the nodes available to this agent
+   */
   public Set<NodeGraph> getNodesInKnownNetwork() {
     if (networkBuilder == null) {
+      if (agentKnownNodes.isEmpty() && !individualised) {
+        return SharedCognitiveMap.getCommunityKnownNodes();
+      }
       return new HashSet<>(GraphUtils.getNodesFromNodeIDs(agentKnownNodes, PedSimCity.nodesMap));
     }
     return new HashSet<>(networkBuilder.getNecessaryNodes());
   }
 
+  /**
+   * The edges this agent can route over. See {@link #getNodesInKnownNetwork()} for why a map that
+   * was never individualised answers with the whole city rather than with nothing.
+   *
+   * <p>The gate here is {@code BarrierBasedNavigation}, which keeps only the edges along a barrier
+   * that are in this set before looking for a sub-goal. An empty set empties {@code edgesAlong} for
+   * every barrier in turn, so no barrier yields a sub-goal and barrier navigation is left with the
+   * cost adjustments in {@code Dijkstra.costPerceptionError} alone - a weaker model than the one the
+   * scenario names. A community agent offers the barrier's stretches along community-known streets:
+   * a sub-goal is somewhere the agent steers towards by name.
+   *
+   * <p>A night agent is the case this must not disturb: {@code buildSimpleActivityBone} leaves
+   * {@code individualised} false but fills {@code agentKnownEdges}, so it is non-empty and keeps its
+   * bone.
+   *
+   * @return the edges available to this agent
+   */
   public Set<EdgeGraph> getEdgesInKnownNetwork() {
     if (networkBuilder == null) {
+      if (agentKnownEdges.isEmpty() && !individualised) {
+        return SharedCognitiveMap.getCommunityKnownEdges();
+      }
       return new HashSet<>(GraphUtils.getEdgesFromEdgeIDs(agentKnownEdges, PedSimCity.edgesMap));
     }
     return new HashSet<>(networkBuilder.getNecessaryEdges());
@@ -411,8 +523,23 @@ public class CognitiveMap extends SharedCognitiveMap {
     return agentKnownEdges.contains(edgeGraph.getID());
   }
 
+  /**
+   * Whether this agent can navigate within the given region.
+   *
+   * <p>Goes through {@link #getAgentKnownRegions()} rather than the field, so a community-network
+   * agent answers for the city's regions like it does everywhere else. Reading the field directly
+   * makes this false for such an agent whatever that accessor says, and the consequence is not
+   * local: {@code Dijkstra.regionCondition()} gates the region subgraph on this call, so a leg whose
+   * endpoints share a region is routed over the whole city instead of being confined to the region.
+   * Confinement is what makes a region-based route differ from the shortest path, so without it
+   * region-based navigation returns the shortest path and looks like a model that simply has no
+   * effect.
+   *
+   * @param regionID the region to test
+   * @return whether the agent can route within that region
+   */
   public boolean isRegionKnown(Integer regionID) {
-    return agentKnownRegions.contains(regionID);
+    return getAgentKnownRegions().contains(regionID);
   }
 
   public Set<NodeGraph> getNodesInKnownDualNetwork() {
@@ -443,9 +570,25 @@ public class CognitiveMap extends SharedCognitiveMap {
     return false;
   }
 
+  /**
+   * How legible a space has to be before the agent stops looking for an on-route mark in it.
+   *
+   * <p>{@code LandmarkNavigation} inserts sub-goals while the space's wayfinding easiness is
+   * <i>below</i> this, so <b>it must be positive</b>: easiness is never negative, and a threshold of
+   * 0 ends the loop before its first iteration. Local-landmark navigation then produces no on-route
+   * marks and every model built on it returns the plain minimisation route, leaving the
+   * distant-landmark weight inside {@code Dijkstra} as the only landmark term in the model.
+   *
+   * <p>The learning module overrides this and derives the threshold from the agent's spatial
+   * ability.
+   *
+   * @param regionBased whether the space being judged is a region leg rather than the whole trip
+   * @return the easiness above which no further on-route mark is sought
+   */
   public double getWayfindingEasinessThreshold(boolean regionBased) {
-    // TODO Auto-generated method stub
-    return 0;
+    return regionBased
+        ? RouteChoicePars.wayfindingEasinessThresholdRegionsCommunity
+        : RouteChoicePars.wayfindingEasinessThresholdCommunity;
   }
   //
   // public double getLocalLandmarkThreshold() {
