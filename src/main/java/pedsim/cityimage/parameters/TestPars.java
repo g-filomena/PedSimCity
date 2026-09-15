@@ -1,7 +1,7 @@
 package pedsim.cityimage.parameters;
 
 import java.util.ArrayList;
-import pedsim.cityimage.utilities.StringEnum.RouteChoice;
+import pedsim.cityimage.utilities.StringEnum.Scenario;
 import pedsim.core.parameters.Pars;
 import pedsim.core.parameters.TimePars;
 
@@ -48,34 +48,32 @@ public final class TestPars extends Pars {
 
   public static boolean verboseMode = false;
 
-  public static RouteChoice[] routeChoiceTestingLandmarks = {
-    RouteChoice.ROAD_DISTANCE,
-    RouteChoice.LANDMARKS_DISTANCE,
-    RouteChoice.ANGULAR_CHANGE,
-    RouteChoice.LANDMARKS_ANGULAR,
-    RouteChoice.LOCAL_LANDMARKS_DISTANCE,
-    RouteChoice.LOCAL_LANDMARKS_ANGULAR,
-    RouteChoice.DISTANT_LANDMARKS_DISTANCE,
-    RouteChoice.DISTANT_LANDMARKS_ANGULAR,
-    RouteChoice.DISTANT_LANDMARKS
+  public static Scenario[] landmarkScenarios = {
+    Scenario.ROAD_DISTANCE,
+    Scenario.LANDMARKS_DISTANCE,
+    Scenario.ANGULAR_CHANGE,
+    Scenario.LANDMARKS_ANGULAR,
+    Scenario.LOCAL_LANDMARKS_DISTANCE,
+    Scenario.LOCAL_LANDMARKS_ANGULAR,
+    Scenario.DISTANT_LANDMARKS_DISTANCE,
+    Scenario.DISTANT_LANDMARKS_ANGULAR,
+    Scenario.DISTANT_LANDMARKS
   };
 
-  public static RouteChoice[] routeChoiceTestingSubdivisions = {
-    RouteChoice.ANGULAR_CHANGE,
-    RouteChoice.REGION_ANGULAR,
-    RouteChoice.BARRIER_ANGULAR,
-    RouteChoice.REGION_BARRIER_ANGULAR,
-    RouteChoice.ROAD_DISTANCE,
-    RouteChoice.REGION_DISTANCE,
-    RouteChoice.BARRIER_DISTANCE,
-    RouteChoice.REGION_BARRIER_DISTANCE
+  public static Scenario[] subdivisionScenarios = {
+    Scenario.ANGULAR_CHANGE,
+    Scenario.REGION_ANGULAR,
+    Scenario.BARRIER_ANGULAR,
+    Scenario.REGION_BARRIER_ANGULAR,
+    Scenario.ROAD_DISTANCE,
+    Scenario.REGION_DISTANCE,
+    Scenario.BARRIER_DISTANCE,
+    Scenario.REGION_BARRIER_DISTANCE
   };
 
-  public static RouteChoice[] routeChoiceUser = {
-    RouteChoice.ROAD_DISTANCE, RouteChoice.ANGULAR_CHANGE
-  };
+  public static Scenario[] userScenarios = {Scenario.ROAD_DISTANCE, Scenario.ANGULAR_CHANGE};
 
-  public static RouteChoice[] routeChoiceModels = routeChoiceTestingLandmarks;
+  public static Scenario[] scenarios = landmarkScenarios;
 
   public static Integer[] originsTmp = {};
   public static Integer[] destinationsTmp = {};
@@ -85,23 +83,22 @@ public final class TestPars extends Pars {
 
     if ("Testing Landmarks".equals(stringMode)) {
       testingLandmarks = true;
-      routeChoiceModels = routeChoiceTestingLandmarks;
+      scenarios = landmarkScenarios;
       numberTripsPerAgent = 255;
       jobs = 50;
 
     } else if ("Testing Urban Subdivisions".equals(stringMode)) {
       testingSubdivisions = true;
-      routeChoiceModels = routeChoiceTestingSubdivisions;
+      scenarios = subdivisionScenarios;
       numberTripsPerAgent = 2000;
       jobs = 10;
 
     } else if ("Testing Specific Route Choice Models".equals(stringMode)) {
       testingModels = true;
-      routeChoiceModels = routeChoiceUser != null ? routeChoiceUser : new RouteChoice[0];
+      scenarios = userScenarios != null ? userScenarios : new Scenario[0];
 
-      if (routeChoiceModels.length == 0) {
-        routeChoiceModels =
-            new RouteChoice[] {RouteChoice.ROAD_DISTANCE, RouteChoice.ANGULAR_CHANGE};
+      if (scenarios.length == 0) {
+        scenarios = new Scenario[] {Scenario.ROAD_DISTANCE, Scenario.ANGULAR_CHANGE};
       }
     }
 
@@ -109,7 +106,7 @@ public final class TestPars extends Pars {
       numberTripsPerAgent = originsTmp.length;
     }
 
-    numAgents = routeChoiceModels.length;
+    numAgents = scenarios.length;
     testing = testingLandmarks || testingSubdivisions || testingModels;
     moveRate = TimePars.STEP_DURATION * pedestrianSpeed;
   }

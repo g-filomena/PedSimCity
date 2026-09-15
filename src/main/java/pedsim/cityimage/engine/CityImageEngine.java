@@ -42,21 +42,17 @@ public class CityImageEngine extends Engine {
   }
 
   /**
-   * Restores the agent count after {@code Pars.setSimulationParameters()} has overwritten it.
+   * The agent count is the number of route-choice models being compared: this module runs one agent
+   * per model over a shared OD matrix.
    *
-   * <p>This module runs one agent per route-choice model over a shared OD matrix, so its agent count
-   * is the number of models being compared. {@code setSimulationParameters()} calls
-   * {@code recomputeAgentCount()}, which replaces that with
-   * {@code population * percentagePopulationAgent}, so the count has to be restored here.
-   *
-   * <p>Only the count: the test design itself is resolved in
-   * {@code CityImageSimulationModule.applyMode()}, which runs before the command line is re-applied.
-   * Resolving it here would put it after, and the design's own defaults would override whatever was
-   * asked for.
+   * <p>Set here rather than in {@code CityImageSimulationModule.applyMode()} only because
+   * {@code TestPars.defineMode()} may have changed the model list since. The test design itself is
+   * resolved in {@code applyMode()}, which runs before the command line is re-applied; resolving it
+   * here would put it after, and the design's own defaults would override whatever was asked for.
    */
   @Override
   protected void afterSetParameters() {
-    Pars.numAgents = TestPars.routeChoiceModels.length;
+    Pars.numAgents = TestPars.scenarios.length;
   }
 
   @Override
