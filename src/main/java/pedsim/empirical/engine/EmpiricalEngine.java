@@ -4,8 +4,6 @@ import pedsim.core.engine.Engine;
 import pedsim.core.engine.Import;
 import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.engine.SimulationStateStore;
-import pedsim.core.parameters.Pars;
-import pedsim.empirical.parameters.EmpiricalPars;
 
 /** Engine for the empirical ABM module. */
 public class EmpiricalEngine extends Engine {
@@ -16,11 +14,6 @@ public class EmpiricalEngine extends Engine {
 
   public EmpiricalEngine(StateFactory stateFactory, long baseSeed) {
     super(stateFactory, baseSeed);
-  }
-
-  @Override
-  protected void afterSetParameters() {
-    Pars.numAgents = EmpiricalPars.numAgents;
   }
 
   @Override
