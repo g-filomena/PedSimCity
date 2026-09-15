@@ -18,7 +18,7 @@ import sim.routing.Route;
  * What a run measured about itself: the totals and counters a day is summarised by, and an opt-in
  * record of every leg that produced them.
  *
- * <p>Both come from one place, {@link pedsim.core.agents.Agent#setRoute}, which is the seam every
+ * <p>Both come from one place, {@link pedsim.core.agents.Agent#initialiseRoute}, which is the seam every
  * planner crosses. They are one class because they fail together: an agent that assigns its route
  * field directly instead of going through that seam leaves the totals reading zero and the per-leg
  * record empty, with nothing to say which of the two is wrong.

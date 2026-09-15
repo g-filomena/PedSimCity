@@ -124,7 +124,7 @@ public class NightAgent extends ActivityAgent {
   protected void planRoute() {
     initialiseHeuristics(true);
     RoadDistancePathFinder pathFinder = new RoadDistancePathFinder();
-    setRoute(
+    initialiseRoute(
         state.isDark
             ? pathFinder.roadDistanceNight(originNode, destinationNode, this)
             : pathFinder.roadDistance(originNode, destinationNode, this));

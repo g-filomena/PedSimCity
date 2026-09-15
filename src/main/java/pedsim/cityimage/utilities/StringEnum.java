@@ -2,7 +2,21 @@ package pedsim.cityimage.utilities;
 
 public class StringEnum extends pedsim.core.utilities.StringEnum {
 
-  public enum RouteChoice {
+  /**
+   * The route-choice models this module compares.
+   *
+   * <p>What each one means is stated in {@code CityImageAgent.modelFor}, an exhaustive switch: add a
+   * constant here and the compiler refuses the switch until it is given a model. Deriving the
+   * meaning from the name instead - by testing it for substrings - is what once made
+   * {@code LOCAL_LANDMARKS_DISTANCE} resolve exactly like {@code LANDMARKS_DISTANCE}.
+   *
+   * <p>How the names read: a bare {@code LANDMARKS_*} model uses local <i>and</i> distant landmarks,
+   * {@code LOCAL_LANDMARKS_*} only local, {@code DISTANT_LANDMARKS_*} only distant. A trailing
+   * {@code _DISTANCE} or {@code _ANGULAR} is the heuristic routing each leg between sub-goals;
+   * {@code ROAD_DISTANCE} and {@code ANGULAR_CHANGE} have no sub-goals and minimise that cost end to
+   * end. Bare {@code DISTANT_LANDMARKS} has neither: landmarkness alone decides the route.
+   */
+  public enum Scenario {
     ROAD_DISTANCE,
     ANGULAR_CHANGE,
     LANDMARKS_DISTANCE,
@@ -13,11 +27,11 @@ public class StringEnum extends pedsim.core.utilities.StringEnum {
     DISTANT_LANDMARKS_ANGULAR,
     DISTANT_LANDMARKS,
     REGION_DISTANCE,
-    REGION_BARRIER_DISTANCE,
     REGION_ANGULAR,
-    REGION_BARRIER_ANGULAR,
     BARRIER_DISTANCE,
     BARRIER_ANGULAR,
+    REGION_BARRIER_DISTANCE,
+    REGION_BARRIER_ANGULAR
   }
 
   public enum Groups {
@@ -31,7 +45,7 @@ public class StringEnum extends pedsim.core.utilities.StringEnum {
     GROUP6,
   }
 
-  public static String getAbbreviation(RouteChoice choice) {
+  public static String getAbbreviation(Scenario choice) {
     String[] parts = choice.toString().split("_");
     StringBuilder abbreviation = new StringBuilder();
     for (String part : parts) {
