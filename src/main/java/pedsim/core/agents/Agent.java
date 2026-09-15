@@ -577,7 +577,7 @@ public class Agent implements Steppable {
   protected void planRoute() {
     initialiseHeuristics(false);
     RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
-    setRoute(planner.definePath());
+    initialiseRoute(planner.definePath());
   }
 
   /**
@@ -789,13 +789,19 @@ public class Agent implements Steppable {
   /**
    * @param route the route to set
    */
-  public void setRoute(Route route) {
+  /**
+   * Installs a freshly planned route and records the leg.
+   *
+   * <p><b>Assigning {@code route} directly instead skips the recording</b>, and a module that does
+   * so walks normally while reporting no planned metres and writing no line to the per-leg trace.
+   * Every planner goes through here - the base one, the night module's lighting-aware one, and the
+   * chained legs of a trip chain, which call {@link #planRoute()} directly and so never reach
+   * {@code reinitializeMovementPath()}.
+   *
+   * @param route the route this agent is about to walk
+   */
+  public void initialiseRoute(Route route) {
     this.route = route;
-    // Every leg passes through here: the base planner, the night module's lighting-aware one, and
-    // the chained legs of a trip chain, which call planRoute() directly and so never reach
-    // reinitializeMovementPath(). Hooking a higher-level method looks tidier but is fragile when
-    // subclasses bypass it; the right seam is the one that has to be crossed because it installs
-    // the state.
     if (route != null && state != null) {
       state.trace().recordPlannedRoute(this, route);
     }

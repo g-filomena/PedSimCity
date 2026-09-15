@@ -45,7 +45,7 @@ public final class CityImageAgent extends OdAgent {
 
     initialiseHeuristics(false);
     RoutePlanner planner = new RoutePlanner(originNode, destinationNode, this);
-    setRoute(planner.definePath());
+    initialiseRoute(planner.definePath());
   }
 
   /** The scenario is the experiment: this agent walks its model and nothing re-decides it. */

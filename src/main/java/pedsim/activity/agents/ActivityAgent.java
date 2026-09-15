@@ -332,7 +332,7 @@ public class ActivityAgent extends Agent {
    * this, chained legs included.
    */
   @Override
-  public void setRoute(Route route) {
+  public void initialiseRoute(Route route) {
     if (route != null && state instanceof PedSimCityActivity activityState) {
       if (isDark()) {
         activityState.legsInDarkness.increment();
@@ -341,7 +341,7 @@ public class ActivityAgent extends Agent {
         }
       }
     }
-    super.setRoute(route);
+    super.initialiseRoute(route);
   }
 
   /** Reads the activity 24h clock so destination selection and work-targeting follow time of day. */
