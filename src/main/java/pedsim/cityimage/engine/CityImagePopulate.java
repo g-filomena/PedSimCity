@@ -5,7 +5,7 @@ import java.util.List;
 import org.javatuples.Pair;
 import pedsim.cityimage.agents.CityImageAgent;
 import pedsim.cityimage.parameters.TestPars;
-import pedsim.cityimage.utilities.StringEnum.RouteChoice;
+import pedsim.cityimage.utilities.StringEnum.Scenario;
 import pedsim.core.engine.NetworkCircuity;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.parameters.Pars;
@@ -206,20 +206,20 @@ public class CityImagePopulate extends pedsim.core.engine.Populate {
   }
 
   private void generateTestAgents() {
-    RouteChoice[] routeChoiceModels = routeChoiceModels();
+    Scenario[] scenarios = scenarios();
 
-    for (int agentID = 0; agentID < routeChoiceModels.length; agentID++) {
-      CityImageAgent agent = new CityImageAgent(state, routeChoiceModels[agentID], odMatrix);
+    for (int agentID = 0; agentID < scenarios.length; agentID++) {
+      CityImageAgent agent = new CityImageAgent(state, scenarios[agentID], odMatrix);
       addAgent(agent, agentID);
     }
   }
 
-  private RouteChoice[] routeChoiceModels() {
-    if (TestPars.routeChoiceModels != null && TestPars.routeChoiceModels.length > 0) {
-      return TestPars.routeChoiceModels;
+  private Scenario[] scenarios() {
+    if (TestPars.scenarios != null && TestPars.scenarios.length > 0) {
+      return TestPars.scenarios;
     }
 
-    return new RouteChoice[] {RouteChoice.ROAD_DISTANCE, RouteChoice.ANGULAR_CHANGE};
+    return new Scenario[] {Scenario.ROAD_DISTANCE, Scenario.ANGULAR_CHANGE};
   }
 
   private void addAgent(CityImageAgent agent, int agentID) {

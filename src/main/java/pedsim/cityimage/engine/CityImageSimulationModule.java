@@ -2,7 +2,7 @@ package pedsim.cityimage.engine;
 
 import java.util.Map;
 import pedsim.cityimage.parameters.TestPars;
-import pedsim.cityimage.utilities.StringEnum.RouteChoice;
+import pedsim.cityimage.utilities.StringEnum.Scenario;
 import pedsim.core.engine.Engine;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
@@ -62,7 +62,7 @@ public final class CityImageSimulationModule implements SimulationModule {
             String.format(
                 "cityImage mode '%s': %d route-choice models x %d trips each, %d job(s)",
                 TestPars.stringMode,
-                TestPars.routeChoiceModels.length,
+                TestPars.scenarios.length,
                 TestPars.numberTripsPerAgent,
                 pedsim.core.parameters.Pars.jobs));
   }
@@ -78,7 +78,7 @@ public final class CityImageSimulationModule implements SimulationModule {
    */
   @Override
   public ScenarioConfig scenarioConfig() {
-    return new ScenarioConfig(RouteChoice.values(), null);
+    return new ScenarioConfig(Scenario.values(), null);
   }
 
   @Override

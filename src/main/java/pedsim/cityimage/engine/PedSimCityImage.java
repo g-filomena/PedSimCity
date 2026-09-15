@@ -1,6 +1,6 @@
 package pedsim.cityimage.engine;
 
-import pedsim.cityimage.utilities.StringEnum.RouteChoice;
+import pedsim.cityimage.utilities.StringEnum.Scenario;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
 
@@ -18,7 +18,7 @@ public class PedSimCityImage extends PedSimCity {
       return scenarioConfig;
     }
 
-    return new ScenarioConfig(RouteChoice.values(), null);
+    return new ScenarioConfig(Scenario.values(), null);
   }
 
   @Override
