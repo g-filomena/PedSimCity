@@ -29,6 +29,7 @@ import sim.graph.Graph;
 import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
 import sim.routing.Route;
+import sim.util.geo.AttributeValue;
 import sim.util.geo.MasonGeometry;
 
 /**
@@ -117,6 +118,7 @@ public class SharedCognitiveMap {
     identifyRegionElements();
     barriers = PedSimCity.barriers;
     setCommunityBarriers();
+    setParkAndWaterEdges();
   }
 
   /**
@@ -124,6 +126,41 @@ public class SharedCognitiveMap {
    *
    * @return The CognitiveMap instance.
    */
+  /**
+   * Empties everything this class derives from a city, so the next run starts from nothing.
+   *
+   * <p>Called from {@code PedSimCity.clearStaticData()}, which clears the graph these are built
+   * from. They are static and none of them was being cleared, so a second run in the same JVM - the
+   * REST dashboard runs the engine lifecycle repeatedly - inherited the previous city's community
+   * network and route caches. {@code communityKnownNodes} accumulates rather than being reassigned,
+   * so it grew across runs; {@code routesSubNetwork} and {@code cachedHeuristics} are keyed on node
+   * pairs, so stale entries answer for nodes that no longer exist.
+   */
+  public static void clearStaticData() {
+    communityKnownNodes.clear();
+    communityKnownEdges.clear();
+    communityKnownRegions.clear();
+    communityKnownBarriers.clear();
+    cityCenterEdges = null;
+
+    primaryEdges.clear();
+    secondaryEdges.clear();
+    tertiaryEdges.clear();
+    neighbourhoodEdges.clear();
+    unknownEdges.clear();
+
+    edgesWithinParks.clear();
+    edgesAlongWater.clear();
+    litEdges.clear();
+    nonLitNonKnown.clear();
+
+    roadTypeMap.clear();
+
+    routesSubNetwork.clear();
+    forcedRoutesSubNetwork.clear();
+    cachedHeuristics.clear();
+  }
+
   public static SharedCognitiveMap getInstance() {
     return instance;
   }
@@ -180,6 +217,7 @@ public class SharedCognitiveMap {
    */
   private static void prepareCommunityKnownEdges() {
 
+    communityKnownNodes.clear();
     communityKnownEdges = new HashSet<>(primaryEdges);
     communityKnownEdges.addAll(secondaryEdges);
     if (RouteChoicePars.includeTertiary) {
@@ -214,13 +252,6 @@ public class SharedCognitiveMap {
 
   public static Set<EdgeGraph> getCommunityKnownEdges() {
     return communityKnownEdges;
-  }
-
-  private static void buildCommunityKnownNetwork() {
-
-    // Islands islands = new Islands(communityNetwork);
-    // tmpKnowEdges = islands.mergeConnectedIslands(tmpKnowEdges);
-    // communityKnownEdges.addAll(tmpKnowEdges);
   }
 
   /**
@@ -269,6 +300,39 @@ public class SharedCognitiveMap {
    */
   public static Set<EdgeGraph> getLitEdges() {
     return litEdges;
+  }
+
+  /**
+   * Collects the edges running through a park or along water, from the per-edge attributes
+   * {@code BarrierIntegration.setEdgeGraphBarriers} writes when the barriers layer is integrated.
+   *
+   * <p>Derived rather than stored twice: the barrier each edge touches is already on the edge, and
+   * these two sets held nothing because nothing ever filled them - so every night mechanism reading
+   * them was inert.
+   */
+  private static void setParkAndWaterEdges() {
+    edgesWithinParks =
+        communityNetwork.getEdges().stream()
+            .filter(edge -> touchesBarrierOfKind(edge, "parks"))
+            .collect(Collectors.toSet());
+
+    edgesAlongWater =
+        communityNetwork.getEdges().stream()
+            .filter(edge -> touchesBarrierOfKind(edge, "waterBodies"))
+            .collect(Collectors.toSet());
+  }
+
+  /**
+   * Whether the edge lists any barrier under the given attribute. The attribute is absent for a
+   * city that shipped no barriers, which is the same answer as listing none.
+   */
+  private static boolean touchesBarrierOfKind(EdgeGraph edge, String attribute) {
+    AttributeValue value = edge.attributes.get(attribute);
+    if (value == null) {
+      return false;
+    }
+    List<Integer> barrierIDs = value.getArray();
+    return barrierIDs != null && !barrierIDs.isEmpty();
   }
 
   /**

@@ -26,7 +26,13 @@ public class Landmarkness {
     double bestScore = 0.0;
     for (Building landmark : candidateNode.adjacentBuildings) {
       if (landmarksIDs.contains(landmark.buildingID)) {
-        bestScore = Math.max(bestScore, landmark.attributes.get("localLandmarkness").getDouble());
+        // Only finite scores enter the maximum: Math.max propagates NaN, so one unusable score
+        // would make the node's landmarkness non-finite and every comparison against the cost
+        // derived from it false.
+        double score = landmark.attributes.get("localLandmarkness").getDouble();
+        if (Double.isFinite(score)) {
+          bestScore = Math.max(bestScore, score);
+        }
       }
     }
     return bestScore;
@@ -60,7 +66,9 @@ public class Landmarkness {
       // No anchoring information at the destination: best raw score, discounted.
       for (Building landmark : distantLandmarks) {
         double score = landmark.attributes.get("globalLandmarkness").getDouble() * 0.90;
-        nodeGlobalScore = Math.max(nodeGlobalScore, score);
+        if (Double.isFinite(score)) {
+          nodeGlobalScore = Math.max(nodeGlobalScore, score);
+        }
       }
       return nodeGlobalScore;
     }
@@ -75,8 +83,18 @@ public class Landmarkness {
       }
       double score = landmark.attributes.get("globalLandmarkness").getDouble();
       double distanceLandmark = distances.get(anchorIndex);
+      // An anchor recorded at zero distance has no defined distance weight, and a non-finite score
+      // must never enter the maximum: Math.max propagates NaN, so one such landmark would make the
+      // whole node's landmarkness NaN. The routing cost is then (1 - NaN)/length, and every
+      // comparison against it is false - so the node is never relaxed and a destination carrying
+      // such an anchor cannot be reached at all, however well connected the graph is.
+      if (!(distanceLandmark > 0.0)) {
+        continue;
+      }
       score *= Math.min(targetDistance / distanceLandmark, 1.0);
-      nodeGlobalScore = Math.max(nodeGlobalScore, score);
+      if (Double.isFinite(score)) {
+        nodeGlobalScore = Math.max(nodeGlobalScore, score);
+      }
     }
     return nodeGlobalScore;
   }
