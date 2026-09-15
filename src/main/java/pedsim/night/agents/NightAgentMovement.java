@@ -342,18 +342,65 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
     return cached;
   }
 
-  /** Drops the cached network set, so a re-imported network is not answered from the old one. */
+  /**
+   * Every unlit city edge outside the community-known network: the fixed half of a non-vulnerable
+   * agent's avoid-set. Unlit is decided by the same measured-lux rule the agent's own lighting gate
+   * uses, so what frightens an agent onto a detour and what it detours around are one definition.
+   * The set was previously built in {@code SharedCognitiveMap} from the raw OSM {@code lit} tag,
+   * which is a different question with a different answer. It lives here because it is a lighting
+   * judgement made with a {@link NightPars} threshold, and core has neither.
+   *
+   * <p>Built once per network and invalidated by {@link PedSimCityNight#clearNightStaticData()}.
+   */
+  private static volatile Set<EdgeGraph> unlitEdgesOutsideCommunityKnown;
+
+  private static Set<EdgeGraph> unlitEdgesOutsideCommunityKnown() {
+    Set<EdgeGraph> cached = unlitEdgesOutsideCommunityKnown;
+    if (cached == null) {
+      cached = new HashSet<>();
+      for (EdgeGraph edge : edgesOutsideCommunityKnown()) {
+        if (!isLitForNonVulnerable(edge)) {
+          cached.add(edge);
+        }
+      }
+      unlitEdgesOutsideCommunityKnown = cached;
+    }
+    return cached;
+  }
+
+  /**
+   * Whether an edge reads as lit to a non-vulnerable agent: the rule
+   * {@code NightBehaviour.meanLightPasses} applies at
+   * {@link NightPars#nonVulnerableLightSensitivity}, including the unlit-gap test, falling back to
+   * the binary lit flag where no continuous measurement exists.
+   */
+  private static boolean isLitForNonVulnerable(EdgeGraph edge) {
+    var meanLuxAttr = edge.attributes.get("mean_lux");
+    if (meanLuxAttr == null) {
+      return SharedCognitiveMap.getLitEdges().contains(edge);
+    }
+    if (meanLuxAttr.getDouble() < NightPars.nonVulnerableLightSensitivity) {
+      return false;
+    }
+    var minLuxAttr = edge.attributes.get("min_lux");
+    return minLuxAttr == null || minLuxAttr.getDouble() >= NightPars.darkSpotLuxThreshold;
+  }
+
+  /** Drops the cached network sets, so a re-imported network is not answered from the old ones. */
   public static void clearCachedNetworkSets() {
     edgesOutsideCommunityKnown = null;
+    unlitEdgesOutsideCommunityKnown = null;
   }
 
   /**
    * The edges this agent will not route through when bypassing the one that frightened it.
    *
    * <p>A vulnerable agent keeps to familiar ground: everything outside the community-known network
-   * is avoided, less the streets this particular agent knows. A non-vulnerable one avoids only what
-   * is unlit and not community-known. Parks and water are added for the vulnerable, and for anyone
-   * currently avoiding them.
+   * is avoided, less the streets this particular agent knows - a knowledge rule, not a lighting
+   * one, which is why a vulnerable agent frightened by darkness does not thereby detour toward
+   * light. A non-vulnerable one avoids only what is unlit and not community-known, unlit by the
+   * measured-lux rule its own lighting gate uses. Parks and water are added for the vulnerable, and
+   * for anyone currently avoiding them.
    *
    * <p>The edge being fled is avoided by both, which is why it is added after the branch and after
    * the vulnerable branch's {@code removeAll} - inside the branch it would be subtracted straight
@@ -371,7 +418,7 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
           GraphUtils.getEdgesFromEdgeIDs(
               agent.getCognitiveMap().getAgentKnownEdges(), PedSimCity.edgesMap));
     } else {
-      edgesToAvoid.addAll(SharedCognitiveMap.getEdgesNonLitNonCommunityKnown());
+      edgesToAvoid.addAll(unlitEdgesOutsideCommunityKnown());
     }
 
     edgesToAvoid.add(currentEdge);

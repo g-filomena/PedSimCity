@@ -22,6 +22,34 @@ public class NightEngine extends ActivityEngine {
     super(stateFactory, baseSeed);
   }
 
+  private static final java.util.logging.Logger LOG = pedsim.core.utilities.LoggerUtil.getLogger();
+
+  /** The dashboard is this module's; core only decides when to ask for one. */
+  @Override
+  protected void generateAndOpenHtmlDashboard(
+      int job,
+      pedsim.core.engine.PedSimCity state,
+      int currentDay,
+      java.util.Map<Integer, java.util.Map<String, Integer>> finalVolumesMap) {
+    try {
+      LOG.info("[NightEngine] Compiling HTML dashboard for job " + job + "…");
+
+      String htmlPath =
+          pedsim.night.website.HtmlExporter.export(
+              currentDay + 1, // day (1-based)
+              job,
+              state.tripRecorder.getRecords(),
+              finalVolumesMap);
+
+      if (htmlPath != null && java.awt.Desktop.isDesktopSupported()) {
+        java.awt.Desktop.getDesktop().browse(new java.io.File(htmlPath).toURI());
+        LOG.info("[NightEngine] Opened dashboard in browser: " + htmlPath);
+      }
+    } catch (Exception e) {
+      LOG.warning("[NightEngine] Could not open HTML dashboard: " + e.getMessage());
+    }
+  }
+
   @Override
   protected Import createImporter() {
     return new NightImport();
@@ -44,7 +72,9 @@ public class NightEngine extends ActivityEngine {
       System.out.println(
           "Night A/B twin testing was enabled: vulnerability outputs are experimental twin "
               + "comparisons, not census-sampled shares.");
-      TripDiagnostic.saveABTestComparison("ab_test_comparison.csv");
+      TripDiagnostic.saveABTestComparison(
+          TripDiagnostic.jobFilename("ab_test_comparison.csv", job),
+          state.tripRecorder.getRecords());
     }
   }
 
@@ -55,7 +85,8 @@ public class NightEngine extends ActivityEngine {
       PedSimCity state,
       int day,
       java.util.Map<Integer, java.util.Map<String, Integer>> volumes) {
-    NightDataExporter.export(job);
+    NightDataExporter.export(
+        job, state.tripRecorder.getRecords(), state.flowHandler.lastVolumesFile());
   }
 
   @Override
