@@ -549,7 +549,7 @@ public class ActivityAgent extends Agent {
         DestinationChoice.choose(
             candidates, originNode, attraction, favouritePlaces.get(currentPurpose), random);
     if (destinationNode == null) {
-      state.ledger().recordDestinationFallback();
+      state.trace().recordDestinationFallback();
       destinationNode = NodesLookup.randomNode(network, random);
     }
   }
