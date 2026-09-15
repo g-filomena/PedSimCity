@@ -45,14 +45,31 @@ proposed fix below is expected to reference the specific finding ID (e.g.
 | **C6** | `NightAgent.java` | Docs only, no logic change. Notes explicitly that night agents never board transit (deliberate — existing transit code is worse than walk-only) and states the direction of the resulting bias. |
 | **B1** | `NightPars.java` | Directional-lux statistic default switched `MIN` → `MEAN`. `MIN` over the 12m visibility window collapses to "distance from the nearest lamp" rather than measuring the street; both columns are already written by the pipeline, so this is a config default, not a re-run. Horizon-distance half of B1 (12m → 15m) is untouched — that needs a pipeline re-run this environment can't do. |
 | **C2** | `DijkstraRoadDistanceNight.java`, `NightPars.java` | Lux now enters route-planning cost, not just reactive behaviour. A **known** edge's Dijkstra cost scales up toward a new tunable ceiling (`NightPars.maxKnownDarkEdgeCostMultiplier`, default `1.5`) as its `mean_lux` falls below the agent's threshold. Unknown edges are untouched — their darkness stays a situated-reaction matter only, so this can't double-count the same darkness with the reactive layer. |
-| **C3** | `NightAgentMovement.java` | Non-vulnerable agents' reroute avoid-set was built from the raw OSM `lit` tag, inconsistent with the continuous-lux gate that actually triggers the reroute. Replaced with a lux-based set (same fallback shape as the C1-fixed gate) built and cached **in the night module**, not by editing `SharedCognitiveMap` (core) — avoids giving core code a dependency on `NightPars`. Vulnerable-agent avoid-set (knowledge-based, not lighting) is untouched, per the register's own scoping. |
+| **C3** | `NightAgentMovement.java` | Non-vulnerable agents' reroute avoid-set was built from the raw OSM `lit` tag, inconsistent with the continuous-lux gate that actually triggers the reroute. Replaced with a lux-based set (same fallback shape as the C1-fixed gate) built and cached **in the night module**, not by editing `SharedCognitiveMap` (core) — avoids giving core code a dependency on `NightPars`. Vulnerable-agent avoid-set (knowledge-based, not lighting) is untouched, per the register's own scoping. Rebased 15 Sep onto Gabriele's own `a10a108` (a *different* fix to the same method — see Branch section below). |
 
 Paths are relative to `src/main/java/pedsim/night/`. Each row corresponds to
 one finding ID from `night_model_issues.html`; open the file's Javadoc for
 the full rationale. Keep this table in sync as files are added.
 
+**Confirmed already fixed upstream, not proposed here:** the register's
+Section F item *"Nobody commutes in the dark"* — `CommuterAgent`'s unsourced
+`!isDark()` guard — was independently removed in `f646722` ("Fix commute
+darkness and city purpose config"), before this branch got to it. Don't
+re-propose it; the register itself is updated to mark it resolved.
+
 ## Branch
 
-`night-fixes-eval`, branched from `main` at `b2692d2`. Rebase/merge status
-against `main` should be checked before Gabriele reviews, since `main` may
-have moved on since this branch was cut.
+`night-fixes-eval`, branched from `main` at `b2692d2`.
+
+**Checked against upstream movement, 15 Sep:** `main` has since advanced to
+`08063cf` (5 new commits from Gabriele, all same-day). Diffed
+`b2692d2..main` and checked every file this branch touches — only
+`NightAgentMovement.java` (C3) overlapped. Gabriele's `a10a108` fixes a
+*different* bug there (vulnerable agents weren't unconditionally avoiding
+the edge they were fleeing) and leaves `SharedCognitiveMap.getEdgesNonLitNonCommunityKnown()`
+— C3's actual target — untouched, so no duplicate work; C3 was rebased onto
+his restructuring rather than left stale. C1, C5, C6, B1, C2's files are
+untouched upstream and remain valid as proposed.
+
+Re-check `main` for further movement before Gabriele reviews — this was a
+point-in-time check, not a standing guarantee.
