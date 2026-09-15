@@ -9,7 +9,7 @@ lighting, vulnerability or learning — those live in the modules that extend co
 
 | Package | Responsibility |
 |---|---|
-| `engine` | `PedSimCity` (simulation state, GIS layers, scheduling), `Engine` (job loop, day/agent-release, flow & cognitive-map export), `Import` (graph/landmark/barrier GPKG loading), `Environment` (graph/buildings/gateways/dual-graph/barriers/regions preparation), `Populate` (agent creation + home/work assignment), `TravelDemand` + `BaselineTravelDemand` (release policy), `RunLedger` (per-day measurement), `FlowHandler`, `ScenarioConfig`, `SimulationModule`, `SimulationLauncher`, recorders/exporters |
+| `engine` | `PedSimCity` (simulation state, GIS layers, scheduling), `Engine` (job loop, day/agent-release, flow & cognitive-map export), `Import` (graph/landmark/barrier GPKG loading), `Environment` (graph/buildings/gateways/dual-graph/barriers/regions preparation), `Populate` (agent creation + home/work assignment), `TravelDemand` + `BaselineTravelDemand` (release policy), `RouteTrace` (per-day measurement plus the opt-in per-leg record), `FlowHandler`, `ScenarioConfig`, `SimulationModule`, `SimulationLauncher`, recorders/exporters |
 | `agents` | `Agent` (trip planning, movement lifecycle), `AgentMovement`, `AgentProperties`, `Heuristics`, `OdAgent` |
 | `cognition.cognitivemap` | `CognitiveMap`, `SharedCognitiveMap` (the community/primal network) |
 | `cognition.cityimage` | `Barrier`, `Gateway`, `Region` (the city-image elements) |

@@ -5,6 +5,31 @@ Repo-wide state is in `/TODO.md`; this is what bears on the night module specifi
 
 ---
 
+## Park and waterside avoidance was reading empty sets — fixed 15 September 2026
+
+`SharedCognitiveMap.edgesWithinParks` and `edgesAlongWater` had no writer anywhere in the tree, so
+every mechanism in this module that consults them did nothing:
+
+| site | what it does |
+|---|---|
+| `NightAgent` (two branches) | refuse a park or waterside destination after dark |
+| `NightAgentMovement` | vulnerable agents avoid those edges while routing |
+| `NightBehaviour` | non-vulnerable agents prefer them |
+| `DijkstraRoadDistanceNight` | the cost term behind that preference |
+
+They are derived now from the per-edge `parks` and `waterBodies` attributes that
+`BarrierIntegration.setEdgeGraphBarriers` already writes, so there is one copy of the fact rather
+than two. Torino carries 2,500 park edges and 647 waterside ones.
+
+**Every night figure this module has produced predates the mechanism running.** A 423-agent
+Torino_simplified day moves from 205 legs / 313,334 m planned / 332,136 m walked to 204 / 311,671 /
+327,246 — a small aggregate shift, but the A/B experiment's manipulated variable is exactly this
+avoidance, so the comparison is what has to be redone, not the total.
+
+The distinction the two gates encode is unchanged and still deliberate: refusing to *spend an
+evening* in an unlit park applies to every night agent, avoiding those edges while *walking past*
+applies to vulnerable agents only.
+
 ## Where it stands
 
 Verified on 13 Sep. **The commute figures in this table are superseded** — the workplace draw changed

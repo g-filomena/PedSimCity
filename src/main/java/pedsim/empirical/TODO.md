@@ -1,67 +1,63 @@
 # Empirical module — what is left to do
 
-Split out of `/TODO.md` on 13 September 2026. This module walks a shared origin-destination matrix
-with one agent group per survey-derived cluster (`Muenster_clusters.csv`), so the groups differ in the
-route-choice preferences the clusters describe.
+This module walks a shared origin-destination matrix with one agent group per survey-derived cluster
+(`Muenster_clusters.csv`), so the groups differ in the route-choice preferences the clusters describe.
+What the module *is* is in [README.md](README.md); what changed and when is in the root `CHANGELOG.md`.
+This file is only the open work.
 
-> **Output from before 13 September 2026 is wrong**, for the same reasons as cityImage: per-edge
-> volumes were cumulative rather than per trip, and the module exported nothing. It also had no
-> headless entry point at all before that date. Details in `bug_changelog.md`.
->
-> **And barrier avoidance inside a region subgraph did not happen at all** until 14 September 2026.
-> That bears directly on what this module measures — see item 4, which is the first thing to run.
+> **Nothing this module produced before 15 September 2026 is usable**, for the reasons in
+> `../cityimage/TODO.md` — the cluster-derived route choice was overwritten at plan time, and the
+> region, barrier and landmark mechanisms it contrasts were all returning the plain minimisation
+> route.
 
 ---
 
-## 1. `PopulationPars` is gone, and this module is why that is safe
+## 1. The clusters walk disjoint OD sets, so they cannot be compared to each other
 
-`PopulationPars` held 24 survey-derived route-choice probabilities — `probUsingElements = 0.63`,
-`probRoadDistance = 0.22`, `naturalBarriers = 0.49` and their standard deviations. It was removed as
-dead code (its only reader was `BarrierPreference`, which had no readers).
+`EmpiricalPopulate.assignODMatrixToEmpiricalGroups` hands POPULATION and NULLGROUP the **whole** OD
+matrix and gives each cluster a disjoint `subList` of it. That is right for assigning aggregate
+volumes — each cluster is a share of the population making its share of the trips — but it means a
+difference between GROUP1 and GROUP2 confounds route choice with geography, and no amount of seeding
+separates them.
 
-What makes that safe rather than a loss is that **`Muenster_clusters.csv` carries the same quantities
-per cluster**: `usingElements_mean/std`, `onlyDistance_*`, `onlyAngular_*`, `regions_*`, `barriers_*`,
-`distantLandmarks_*`, `preferenceNatural_*`. `PopulationPars` was the population-level aggregate of
-what the CSV holds per group — GROUP2's `usingElements_mean` is 0.680 against the aggregate 0.63.
+**So the measurement this module exists for cannot currently be made.** Two ways to get it:
 
-**Do not re-add the aggregate.** If a population-level figure is wanted, derive it from the clusters
-weighted by group size, so there is one source.
+- **Cheap and sufficient:** a diagnostic mode giving every cluster the same OD matrix, as cityImage
+  already does for its scenarios. The groups then differ in nothing but preference. It changes no
+  production path.
+- **What exists instead:** each group compared *against itself* before and after a change, on one
+  seed. That shows the preferences reach the routes; it cannot show how far apart the groups are.
 
 ## 2. Only Muenster has cluster data
 
-`Muenster_clusters.csv` is the only `*_clusters.csv` in the repo, and the module's defaults —
-Muenster, 301 agents, 10 jobs — are that study's. Running it on another city falls back to whatever
-`EmpiricalGroup` provides without cluster-specific preferences. Worth a check that it fails visibly
-rather than quietly running undifferentiated groups.
+`Muenster_clusters.csv` is the only `*_clusters.csv` in the repo, and the module's defaults — Muenster,
+301 agents, 10 jobs — are that study's. Running it on another city falls back to whatever
+`EmpiricalGroup` provides without cluster-specific preferences. **Worth a check that it fails visibly
+rather than quietly running undifferentiated groups.**
 
-## 3. Smaller
+## 3. `NULLGROUP` is a uniform prior, not an absence of mechanism
 
-- **The deprecated `initFromArgs(String[])` still has a caller here.**
-- **No per-city configuration.** `loadCityConfig` stays core's no-op, deliberately: those files
+`EmpiricalAgentsGroup.setGroup` returns early for it and `randomizeRouteChoiceParameters` then calls
+`initialiseUniform` over every route-choice property, so roughly half its agents are region-based and
+many use barrier sub-goals. The name invites the opposite reading, and a benchmark meant to be "no
+elements" is not what this is. It is also why NULLGROUP moves least under a change: a uniform draw
+over every mechanism dilutes each one.
+
+## 4. Do not re-add the population-level route-choice constants
+
+`PopulationPars` held 24 survey-derived probabilities — `probUsingElements = 0.63`,
+`probRoadDistance = 0.22`, `naturalBarriers = 0.49` and their standard deviations — and was removed.
+What makes that safe is that **`Muenster_clusters.csv` carries the same quantities per cluster**:
+`usingElements_mean/std`, `onlyDistance_*`, `onlyAngular_*`, `regions_*`, `barriers_*`,
+`distantLandmarks_*`, `preferenceNatural_*`. The aggregate was the population-level summary of what
+the CSV holds per group (GROUP2's `usingElements_mean` is 0.680 against the aggregate 0.63). If a
+population-level figure is wanted, derive it from the clusters weighted by group size, so there is one
+source.
+
+## 5. Smaller
+
+- **No per-city configuration, deliberately.** `loadCityConfig` stays core's no-op: those files
   configure activity behaviour and this module models none. The cluster CSV is the equivalent here.
-- **`EmpiricalPars.applyDefaults()` is no longer called** from the launch path; the module applies its
-  Muenster/301/10 defaults in `applyParameters`, and only where the command line is silent. The method
-  still exists and sets `Pars.cityName` unconditionally — check for other callers before keeping it.
-
-## 4. Run it — the region-subgraph avoid-set fix is unexercised
-
-**`Dijkstra.subGraphInitialisation` discarded the primal edge-avoid set** instead of mapping it onto
-the subgraph: the condition tested the wrong field, in the wrong sense, so avoidance inside a region
-subgraph silently did not happen whenever there was anything to avoid. Fixed 14 Sep 2026.
-
-This module is outside the default build profile and was not run, so the fix compiles under
-`-Pcityimage-empirical` and nothing more has been checked.
-
-**Why it matters more here than almost anywhere.** The clusters this module exists to contrast are
-partly *defined* by barrier preference — `barriers_mean/std` and `preferenceNatural_mean/std` in
-`Muenster_clusters.csv`. If avoidance was being dropped whenever a region subgraph was in play, then
-the groups were differentiated on paper and not in the routes, and any earlier comparison between
-them understates the separation by an unknown amount.
-
-**What is needed:** a Muenster run (the only city with cluster data) with region-based navigation on
-and the barrier-preference groups active, checked against the same seed before the fix — so the
-question of how much it moved is answered with a number rather than an argument.
-
-A second fix the same day, `DijkstraGlobalLandmarks.findBestLandmarkness`, also touches this module
-wherever `distantLandmarks_*` drives the route choice; the full description is in
-[../cityimage/TODO.md](../cityimage/TODO.md), item 5.
+- **The cluster is re-sampled per trip**, from `EmpiricalAgent.assignedRouteChoice()`. A cluster is a
+  distribution over ways of getting somewhere, not a label fixed to a person — drawing once per agent
+  makes a group's realised mix N draws instead of N × trips.
