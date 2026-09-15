@@ -19,7 +19,8 @@ import csv
 from pathlib import Path
 
 # Paths
-ROOT_DIR = Path(__file__).resolve().parent
+# This script lives in scripts/; the repo root is one level up.
+ROOT_DIR = Path(__file__).resolve().parent.parent
 OUTPUTS_DIR = ROOT_DIR / "outputs"
 OUTPUTS_DIR.mkdir(exist_ok=True)
 

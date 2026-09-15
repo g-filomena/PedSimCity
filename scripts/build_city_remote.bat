@@ -13,7 +13,8 @@ REM the Java simulation runs from on the same server - no round-trip needed. Cit
 REM raster (*.tif DTM/DEM) or otherwise-gitignored raw inputs must have those files scp'd up to
 REM <projectBaseDir>/PedSimCity/inputData/<City>/ first (git does not carry them).
 
-set "ROOT=%~dp0"
+rem This script lives in scripts/; ROOT is the repo root one level up.
+set "ROOT=%~dp0..\"
 
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%pipeline\remote_prep.ps1"
 set "EXITCODE=%ERRORLEVEL%"

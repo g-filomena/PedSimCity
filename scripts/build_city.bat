@@ -20,7 +20,8 @@ REM The OSM place query and EPSG are asked only on the FIRST run for a city; the
 REM saved to <City>\prep_config.json and reused, so stage re-runs cannot mismatch them.
 REM Stages checkpoint under <City>\prep_staging\ - re-running resumes automatically.
 
-set "ROOT=%~dp0"
+rem This script lives in scripts/; ROOT is the repo root one level up.
+set "ROOT=%~dp0..\"
 set "ENV_NAME=pedsimcity-prep"
 set "ENV_FILE=%ROOT%environment-prep.yml"
 set "PROJECT_CONDARC=%ROOT%.condarc"
