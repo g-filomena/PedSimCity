@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -274,6 +275,11 @@ public class BarrierBasedNavigation implements NavigationElement {
     int waterCounter = 0;
     int parkCounter = 0;
 
+    // Resolved once, not once per candidate edge: for a community-network agent this is the whole
+    // community network, so evaluating it inside the filter predicate below costs a set per edge
+    // tested and dominates the run.
+    Set<EdgeGraph> knownEdges = agent.getCognitiveMap().getEdgesInKnownNetwork();
+
     for (int barrierID : validSorted.keySet()) {
       Barrier barrier = PedSimCity.barriersMap.get(barrierID);
       BarrierType type = barrier.type;
@@ -288,10 +294,7 @@ public class BarrierBasedNavigation implements NavigationElement {
       }
 
       // only known edges
-      edgesAlong =
-          edgesAlong.stream()
-              .filter(edge -> agent.getCognitiveMap().getEdgesInKnownNetwork().contains(edge))
-              .collect(Collectors.toList());
+      edgesAlong = edgesAlong.stream().filter(knownEdges::contains).collect(Collectors.toList());
 
       // only edges with certain requirements
       Map<EdgeGraph, Double> thisBarrierEdgeGoals = keepValidSubGoals(edgesAlong);
@@ -338,6 +341,14 @@ public class BarrierBasedNavigation implements NavigationElement {
    * @return a HashMap of EdgeGraph and Double representing eligible barrier sub-goals and their
    *         distances.
    */
+  /**
+   * Candidate sub-goals along a barrier, by distance from the current location.
+   *
+   * <p>A {@code LinkedHashMap}, so the entries keep the order of {@code edgesAlong}. The caller
+   * stable-sorts this by distance and takes the first, and equal distances are common along one
+   * barrier - in a hash-ordered map that tie would be broken by {@code EdgeGraph}'s hash, which is
+   * an unstated dependency on the graph library giving it a value-based one.
+   */
   private Map<EdgeGraph, Double> keepValidSubGoals(List<EdgeGraph> edgesAlong) {
     return edgesAlong.stream()
         .filter(
@@ -356,6 +367,8 @@ public class BarrierBasedNavigation implements NavigationElement {
                 edge -> edge,
                 edge ->
                     GeometryUtilities.euclideanDistance(
-                        currentLocation.getCoordinate(), edge.getCoordsCentroid())));
+                        currentLocation.getCoordinate(), edge.getCoordsCentroid()),
+                (first, second) -> first,
+                LinkedHashMap::new));
   }
 }

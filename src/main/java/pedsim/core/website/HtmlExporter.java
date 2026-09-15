@@ -1238,7 +1238,7 @@ function abAnimate(ts) {
     if (!abFollowAgent || !agents.find(a => a.id === abFollowAgent.id && a.vuln === abFollowAgent.vuln)) {
       // Pick a new agent to follow (prefer vulnerable)
       const vulnAgents = agents.filter(a => a.vuln);
-      abFollowAgent = vulnAgents.length > 0 ? vulnAgents[Math.floor(Math.random() * vulnAgents.length)] : (agents.length > 0 ? agents[0] : null);
+      abFollowAgent = vulnAgents.length > 0 ? vulnAgents[0] : (agents.length > 0 ? agents[0] : null);
       if (abFollowAgent) {
         const current = agents.find(a => a.id === abFollowAgent.id && a.vuln === abFollowAgent.vuln);
         if (current) {

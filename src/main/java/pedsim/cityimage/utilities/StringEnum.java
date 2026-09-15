@@ -6,9 +6,8 @@ public class StringEnum extends pedsim.core.utilities.StringEnum {
    * The route-choice models this module compares.
    *
    * <p>What each one means is stated in {@code CityImageAgent.modelFor}, an exhaustive switch: add a
-   * constant here and the compiler refuses the switch until it is given a model. Deriving the
-   * meaning from the name instead - by testing it for substrings - is what once made
-   * {@code LOCAL_LANDMARKS_DISTANCE} resolve exactly like {@code LANDMARKS_DISTANCE}.
+   * constant here and the compiler refuses the switch until it is given a model. Names are labels
+   * here, never parsed for their meaning.
    *
    * <p>How the names read: a bare {@code LANDMARKS_*} model uses local <i>and</i> distant landmarks,
    * {@code LOCAL_LANDMARKS_*} only local, {@code DISTANT_LANDMARKS_*} only distant. A trailing

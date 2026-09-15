@@ -94,6 +94,11 @@ public final class SimulationLauncher {
     Map<String, String> argsMap = ParameterManager.initFromArgs(args, module.parameterClasses());
     module.applyParameters(new java.util.HashMap<>(argsMap));
     applyMode();
-    module.createEngine().runJobs(module.scenarioConfig(), Pars.parallel);
+    RouteTrace.openLegFile();
+    try {
+      module.createEngine().runJobs(module.scenarioConfig(), Pars.parallel);
+    } finally {
+      RouteTrace.closeLegFile();
+    }
   }
 }

@@ -37,14 +37,12 @@ public class NetworkBuilder {
 
   public synchronized void buildKnownNetwork() {
 
-    // LinkedHashSet, for reproducibility rather than taste. EdgeGraph overrides neither hashCode
-    // nor equals, so a HashSet of them iterates in identity-hash order, and HotSpot derives those
-    // from a per-JVM generator whose values differ between JVM builds.
-    // Islands.findDisconnectedIslands
-    // and mergeConnectedIslands walk this set to decide which islands to join and through which
-    // edges, so its order changes the agent's known network, and with it every route planned on it.
-    // The edge ids arrive from a Set<Integer>, which does iterate the same way everywhere, so
-    // insertion order here is stable.
+    // LinkedHashSet, for reproducibility rather than taste. Islands.findDisconnectedIslands and
+    // mergeConnectedIslands walk this set to decide which islands to join and through which edges,
+    // so its order changes the agent's known network and every route planned on it. Insertion order
+    // is edge-id order, which is the same everywhere; a HashSet would order by EdgeGraph's hashCode
+    // instead - deterministic since GeoMason-light 2.2.1 gave it one, but arbitrary, and dependent
+    // on that version rather than on anything stated here.
     setNecessaryEdges(
         new LinkedHashSet<>(
             GraphUtils.getEdgesFromEdgeIDs(
