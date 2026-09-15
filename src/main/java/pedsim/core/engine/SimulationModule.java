@@ -74,11 +74,26 @@ public interface SimulationModule {
   }
 
   /**
-   * Sets all module-specific mode flags on shared parameter classes (e.g. {@code Pars.isNight}).
+   * Sets all module-specific mode flags on shared parameter classes.
    * Must be called before {@link pedsim.core.parameters.Pars#setSimulationParameters()} and before
    * any GIS import.
    */
-  void applyMode();
+  /**
+   * Sets this module's defaults, before the city file and before the command line.
+   *
+   * <p>This is the first of the four stages that write parameters, and the order between them is
+   * the contract: <b>module defaults → city file → command line → derived</b>. Anything set here is
+   * overwritten by a command line that names it, so a default may be stated unconditionally - there
+   * is no need to ask whether the user supplied one.
+   *
+   * <p>{@code selectors} is the parsed command line, and may be read <b>only to choose between
+   * alternative sets of defaults</b> - cityImage picks a test design from {@code stringMode} - never
+   * to take a value from it. Taking values here is how a module comes to overwrite the command line
+   * and then need a second pass to undo itself.
+   *
+   * @param selectors the parsed command line, for choosing which defaults apply
+   */
+  default void applyDefaults(Map<String, String> selectors) {}
 
   /**
    * Clears module-specific static data beyond what {@link Engine#clearStaticData()} already

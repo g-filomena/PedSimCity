@@ -7,7 +7,6 @@ import org.locationtech.jts.geom.Coordinate;
 import pedsim.core.agents.Agent;
 import pedsim.core.parameters.TimePars;
 import pedsim.core.utilities.LoggerUtil;
-import pedsim.core.website.HtmlExporter;
 
 /**
  * Records a compact snapshot of all walking agents at configurable step intervals.
@@ -15,7 +14,7 @@ import pedsim.core.website.HtmlExporter;
  * <p>Each snapshot entry is a {@code double[]} of the form:
  * <pre>{step, agentID, lon, lat, vulnerable(1/0)}</pre>
  *
- * <p>The resulting list is consumed by {@link HtmlExporter} at the end of a
+ * <p>The resulting list is consumed by the night module's HTML dashboard at the end of a
  * simulation run to embed trajectory data directly into the self-contained
  * HTML dashboard file.
  */

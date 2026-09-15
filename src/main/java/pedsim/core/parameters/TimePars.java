@@ -64,23 +64,6 @@ public class TimePars {
   public static double fridayNightPeakVolume = 0.15;
   public static double fridayBackgroundVolume = 0.15;
 
-  // Day/night boundary — the single source of truth, used for the isDark behaviour flag, the
-  // day/night volume aggregation in the exporter, and the dashboard. Night is
-  // [NIGHT_START_HOUR, 24) ∪ [0, DAY_START_HOUR); day is [DAY_START_HOUR, NIGHT_START_HOUR).
-  // Non-final: overridable per run from the dashboard (dayStartHour / nightStartHour params).
-  public static int DAY_START_HOUR = 6;
-  public static int NIGHT_START_HOUR = 20;
-
-  /** Whether a 0–23 clock hour falls in the night window. */
-  public static boolean isNight(int clockHour) {
-    return clockHour >= NIGHT_START_HOUR || clockHour < DAY_START_HOUR;
-  }
-
-  /** Whether the given time falls in the night window. */
-  public static boolean isNight(LocalTime time) {
-    return isNight(time.getHour());
-  }
-
   /**
    * Defines the simulation mode and sets simulation parameters based on the
    * selected mode. Called at the beginning of the simulation to configure

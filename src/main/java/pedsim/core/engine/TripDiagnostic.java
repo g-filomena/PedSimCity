@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.logging.Logger;
 import org.locationtech.jts.geom.Coordinate;
@@ -26,33 +25,36 @@ import pedsim.core.utilities.LoggerUtil;
  *   <li>vulnerable      – true/false</li>
  * </ul>
  *
- * <p>Call {@link #save(String)} once after the simulation finishes.
+ * <p>Call {@link #save(String, List)} once after the simulation finishes.
  */
 public class TripDiagnostic {
 
   private static final Logger logger = LoggerUtil.getLogger();
-  private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("'Day 'D' 'HH:mm");
 
   // Coordinates are in a projected CRS (EPSG:3003, units = metres).
   // Raw Euclidean distance is therefore already in metres – no conversion needed.
 
   // -----------------------------------------------------------------------
 
-  /**
-   * Writes a clean diagnostic CSV from the trips already stored in
-   * {@link TripRouteRecorder}.
-   *
-   * @param filename absolute or relative path for the output file
-   */
-  /** Resolves a result filename into the project's outputs/ dir, creating it if missing. */
+  /** Keeps job 0's established filename and gives later replicates separate files. */
+  public static String jobFilename(String filename, int job) {
+    if (job == 0) return filename;
+    int dot = filename.lastIndexOf('.');
+    return dot < 0
+        ? filename + "_job" + job
+        : filename.substring(0, dot) + "_job" + job + filename.substring(dot);
+  }
+
+  /** Resolves relative filenames under outputs/, or preserves an explicit absolute path. */
   static String outputsPath(String filename) {
+    if (java.nio.file.Path.of(filename).isAbsolute()) return filename;
     File dir = new File("outputs");
     if (!dir.exists()) dir.mkdirs();
     return "outputs" + File.separator + filename;
   }
 
-  public static void save(String filename) {
-    List<TripRouteRecorder.TripRecord> trips = TripRouteRecorder.getRecords();
+  /** Writes diagnostics from the completed trips of one job. */
+  public static void save(String filename, List<TripRouteRecorder.TripRecord> trips) {
     String path = outputsPath(filename);
     logger.info("[TripDiagnostic] Writing " + trips.size() + " trips to " + path);
 
@@ -82,6 +84,7 @@ public class TripDiagnostic {
         double luxVal = Double.isNaN(t.meanLux) ? 0.0 : t.meanLux;
         fw.write(
             String.format(
+                java.util.Locale.ROOT,
                 "%d,%s,%s,%d,%.1f,%s,%s,%b,%.2f%n",
                 t.agentId,
                 startTime,
@@ -113,7 +116,8 @@ public class TripDiagnostic {
       LocalDateTime dt = TimePars.getTime(step);
       // Day number: count from 1
       int day = (int) (step * TimePars.STEP_DURATION / 86_400.0) + 1;
-      return String.format("Day%d %02d:%02d", day, dt.getHour(), dt.getMinute());
+      return String.format(
+          java.util.Locale.ROOT, "Day%d %02d:%02d", day, dt.getHour(), dt.getMinute());
     } catch (Exception e) {
       return String.valueOf(step);
     }
@@ -151,8 +155,8 @@ public class TripDiagnostic {
   /**
    * Generates a side-by-side comparison of vulnerable and normal twins routes, durations, distances.
    */
-  public static void saveABTestComparison(String filename) {
-    List<TripRouteRecorder.TripRecord> allTrips = TripRouteRecorder.getRecords();
+  public static void saveABTestComparison(
+      String filename, List<TripRouteRecorder.TripRecord> allTrips) {
     String path = outputsPath(filename);
     logger.info("[TripDiagnostic] Writing A/B test comparison to " + path);
 
@@ -161,7 +165,12 @@ public class TripDiagnostic {
       fw.write(
           "pair_id,trip_index,start_node,dest_node,vuln_start_time,vuln_end_time,vuln_duration_min,vuln_distance_m,vuln_route,normal_start_time,normal_end_time,normal_duration_min,normal_distance_m,normal_route,routes_differ\n");
 
-      for (int pairId = 0; pairId < 72; pairId++) {
+      // Derive pair IDs from recorded agents so configured populations are never truncated.
+      java.util.SortedSet<Integer> pairIds = new java.util.TreeSet<>();
+      for (TripRouteRecorder.TripRecord trip : allTrips) {
+        pairIds.add(trip.agentId / 2);
+      }
+      for (int pairId : pairIds) {
         final int vId = pairId * 2;
         final int nId = pairId * 2 + 1;
 
@@ -219,6 +228,7 @@ public class TripDiagnostic {
 
           fw.write(
               String.format(
+                  java.util.Locale.ROOT,
                   "%d,%d,%d,%d,%s,%s,%s,%.1f,%s,%s,%s,%s,%.1f,%s,%b%n",
                   pairId,
                   k,
