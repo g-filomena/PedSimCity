@@ -39,7 +39,8 @@ from html import escape
 from pathlib import Path
 from urllib.parse import quote
 
-REPO_ROOT = Path(__file__).resolve().parent
+# This script lives in scripts/; the repo root is one level up.
+REPO_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = REPO_ROOT / "outputs" / "results"
 SITE_DIR = REPO_ROOT / "outputs" / "site"
 

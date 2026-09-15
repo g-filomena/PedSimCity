@@ -9,7 +9,8 @@ REM src\main\resources\<City>.
 REM No py.exe. No user-specific hardcoded paths. Uses Conda + environment.yml.
 REM Prompts for the city name.
 
-set "ROOT=%~dp0"
+rem This script lives in scripts/; ROOT is the repo root one level up.
+set "ROOT=%~dp0..\"
 set "ENV_NAME=pedsimcity"
 set "ENV_FILE=%ROOT%environment.yml"
 set "PROJECT_CONDARC=%ROOT%.condarc"

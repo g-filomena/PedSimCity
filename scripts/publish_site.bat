@@ -6,12 +6,13 @@ REM via publish_site.py (standard-library Python only). One-time setup: install
 REM wrangler (npm install -g wrangler), wrangler login, create the Pages project and
 REM attach the custom domain — see README "Publishing results".
 
-set "ROOT=%~dp0"
+rem This script lives in scripts/; ROOT is the repo root one level up.
+set "ROOT=%~dp0..\"
 
 REM publish_site.py needs no GIS packages: any Python 3 will do.
 where python >nul 2>nul
 if not errorlevel 1 (
-    python "%ROOT%publish_site.py" %*
+    python "%ROOT%scripts\publish_site.py" %*
     set "EXITCODE=%ERRORLEVEL%"
     pause
     exit /b %EXITCODE%
@@ -27,7 +28,7 @@ if not defined CONDA_EXE (
     pause
     exit /b 1
 )
-"%CONDA_EXE%" run --no-capture-output -n pedsimcity python "%ROOT%publish_site.py" %*
+"%CONDA_EXE%" run --no-capture-output -n pedsimcity python "%ROOT%scripts\publish_site.py" %*
 set "EXITCODE=%ERRORLEVEL%"
 pause
 exit /b %EXITCODE%

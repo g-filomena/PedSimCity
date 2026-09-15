@@ -23,7 +23,8 @@ from scipy.spatial import cKDTree
 from pathlib import Path
 
 # Define paths
-ROOT_DIR = Path(__file__).resolve().parent
+# This script lives in scripts/; the repo root is one level up.
+ROOT_DIR = Path(__file__).resolve().parent.parent
 GTFS_DIR = ROOT_DIR / "src" / "main" / "resources" / "Torino" / "Torino_gtfs"
 SIMPLIFIED_DIR = ROOT_DIR / "src" / "main" / "resources" / "Torino_simplified"
 FULL_TORINO_DIR = ROOT_DIR / "src" / "main" / "resources" / "Torino"
