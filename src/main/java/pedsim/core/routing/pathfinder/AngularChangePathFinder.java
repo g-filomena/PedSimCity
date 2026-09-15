@@ -31,7 +31,7 @@ public class AngularChangePathFinder extends PathFinder {
   public Route angularChangeBased(NodeGraph originNode, NodeGraph destinationNode, Agent agent) {
 
     if (agent != null && agent.getState() != null) {
-      agent.getState().ledger().recordAngularAttempt();
+      agent.getState().trace().recordAngularAttempt();
     }
     this.agent = agent;
     previousJunction = null;
@@ -91,7 +91,7 @@ public class AngularChangePathFinder extends PathFinder {
       searchFullNetwork = false;
       if (found != null) {
         if (agent.getState() != null) {
-          agent.getState().ledger().recordFullNetworkEscalation(true);
+          agent.getState().trace().recordFullNetworkEscalation(true);
         }
         return found;
       }
@@ -139,7 +139,7 @@ public class AngularChangePathFinder extends PathFinder {
             route.directedEdgesSequence = shortcut;
             // Without this the shortcut returns a route whose node and edge sequences were never
             // built - no origin, no destination, no line geometry, and a length of zero, which the
-            // day ledger then rejects. Every other exit from this class computes them.
+            // day trace then rejects. Every other exit from this class computes them.
             route.computeRouteSequences();
             return route;
           }
@@ -198,7 +198,7 @@ public class AngularChangePathFinder extends PathFinder {
 
   private void recordEndpointsUnknown(Agent agent) {
     if (agent != null && agent.getState() != null) {
-      agent.getState().ledger().recordAngularEndpointUnknown();
+      agent.getState().trace().recordAngularEndpointUnknown();
     }
   }
 
@@ -223,7 +223,7 @@ public class AngularChangePathFinder extends PathFinder {
       NodeGraph originNode, NodeGraph destinationNode, Agent agent, boolean trimmed) {
     PedSimCity state = agent.getState();
     if (state != null) {
-      state.ledger().recordAngularFallback(trimmed);
+      state.trace().recordAngularFallback(trimmed);
     }
     return new RoadDistancePathFinder().roadDistance(originNode, destinationNode, agent);
   }
@@ -242,7 +242,7 @@ public class AngularChangePathFinder extends PathFinder {
   public Route angularChangeBasedSequence(List<NodeGraph> sequenceNodes, Agent agent) {
 
     if (agent != null && agent.getState() != null) {
-      agent.getState().ledger().recordAngularAttempt();
+      agent.getState().trace().recordAngularAttempt();
     }
     this.agent = agent;
     this.regionBased = agent.getProperties().isRegionBasedNavigation();

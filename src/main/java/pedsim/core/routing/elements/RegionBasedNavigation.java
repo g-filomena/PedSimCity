@@ -3,12 +3,12 @@ package pedsim.core.routing.elements;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.javatuples.Pair;
 import pedsim.core.agents.Agent;
@@ -195,19 +195,26 @@ public class RegionBasedNavigation implements NavigationElement {
       return null;
     }
 
-    validGateways = new ConcurrentHashMap<>();
-    otherGateways = new ConcurrentHashMap<>();
+    // A LinkedHashMap filled in list order, and both halves are load-bearing for reproducibility.
+    //
+    // Utilities.sortByValue is a stable sort, so gateways of equal cost - and there are many, since
+    // the cost is an angle difference - come out in the order the map enumerates them, and the
+    // first is the one returned. Gateway overrides neither hashCode nor equals, so a hash-ordered
+    // map enumerates them in identity-hash order, which HotSpot varies between runs; a
+    // parallelStream varies the insertion order for the same reason. Either one makes two runs of
+    // the same seed pick different gateways. A gateway list is tens of entries, so nothing is lost
+    // by walking it in order.
+    validGateways = new LinkedHashMap<>();
+    otherGateways = new LinkedHashMap<>();
 
     double destinationAngle = Angles.angle(currentNode, destinationNode);
     double distanceTarget = GraphUtils.nodesDistance(currentNode, destinationNode);
 
-    knownGateways.parallelStream()
-        .forEach(
-            gateway -> {
-              if (isGatewayValid(gateway, specificRegionID)) {
-                evaluateGateway(gateway, destinationAngle, distanceTarget, currentNode);
-              }
-            });
+    for (Gateway gateway : knownGateways) {
+      if (isGatewayValid(gateway, specificRegionID)) {
+        evaluateGateway(gateway, destinationAngle, distanceTarget, currentNode);
+      }
+    }
 
     if (validGateways.isEmpty() && specificRegionID != -1) {
       return null;

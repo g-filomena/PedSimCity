@@ -41,6 +41,81 @@ public class PathFinder {
   protected boolean regionBased = false;
   boolean moveOn = false;
 
+  /** Routes one leg of a sub-goal sequence, from {@code tmpOrigin} to {@code tmpDestination}. */
+  @FunctionalInterface
+  protected interface LegRouter {
+    List<DirectedEdge> route();
+  }
+
+  /**
+   * Walks a sequence of sub-goals, routing each leg with {@code legRouter} and accumulating the
+   * result into {@code completeSequence}.
+   *
+   * <p>The loop is shared because the sub-goal sequence is the same idea whatever routes its legs:
+   * take the waypoints in order, skip one already traversed, take a direct edge where there is one,
+   * otherwise route to it and backtrack if that fails. Only the leg routing differs, and keeping
+   * three copies of the loop let them drift - one advanced {@code tmpOrigin} before using it, so the
+   * edge-direction correction walked the leg from the wrong end.
+   *
+   * <p>Angular routing keeps its own loop: it searches the dual graph over a pair of candidate
+   * centroid lists, and corrects directions with {@code cleanDualPath} rather than
+   * {@link #checkEdgesSequence}, so the body differs where it matters rather than incidentally.
+   *
+   * @param sequence the sub-goals, origin first and destination last
+   * @param agent the agent being routed
+   * @param legRouter routes one leg between the current pair
+   */
+  protected void routeSequence(List<NodeGraph> sequence, Agent agent, LegRouter legRouter) {
+
+    this.agent = agent;
+    this.sequenceNodes = new ArrayList<>(sequence);
+
+    originNode = this.sequenceNodes.get(0);
+    tmpOrigin = originNode;
+    destinationNode = sequence.get(sequence.size() - 1);
+    this.sequenceNodes.remove(0);
+
+    for (NodeGraph currentNode : this.sequenceNodes) {
+      moveOn = false;
+      tmpDestination = currentNode;
+
+      if (nodesFromEdgesSequence(completeSequence).contains(tmpDestination)) {
+        controlPath(tmpDestination);
+        tmpOrigin = tmpDestination;
+        continue;
+      }
+
+      if (haveEdgesBetween()) {
+        continue;
+      }
+
+      partialSequence = legRouter.route();
+
+      while (partialSequence.isEmpty() && !moveOn) {
+        backtracking(tmpDestination);
+      }
+
+      if (moveOn) {
+        // backtracking sets moveOn two ways. Reaching the origin means this sub-goal was skipped
+        // and the agent has not moved, so tmpOrigin stays; finding a direct edge on the way back
+        // means it has, and updateTmpOrigin has already moved it.
+        if (tmpOrigin != originNode) {
+          tmpOrigin = tmpDestination;
+        }
+        continue;
+      }
+
+      // The node the leg starts from: checkEdgesSequence walks forward from it and flips any edge
+      // the search returned reversed, so handing it the leg's far end corrects nothing and
+      // corrupts the rest.
+      checkEdgesSequence(tmpOrigin);
+      completeSequence.addAll(partialSequence);
+      tmpOrigin = tmpDestination;
+    }
+
+    completeSequence = sequenceOnCommunityNetwork(completeSequence);
+  }
+
   /**
    * Performs backtracking to compute a path in a primal graph from the current temporary origin
    * node to the given temporary destination node. If the temporary origin node is the same as the
