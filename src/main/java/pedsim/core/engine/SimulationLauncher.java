@@ -10,8 +10,8 @@ import pedsim.core.website.SimulationRestApi;
 /**
  * Lifecycle scaffold for one {@link SimulationModule}: pre-load, headless run, and REST wiring.
  *
- * <p>All three launch paths (GUI, headless, website/REST) route through this class so that clear →
- * applyMode → parameters → run stays consistent across modes.
+ * <p>Both launch paths (headless and website/REST) route through this class so that clear →
+ * defaults → city file → command line → run stays consistent across modules.
  */
 public final class SimulationLauncher {
 
@@ -34,34 +34,6 @@ public final class SimulationLauncher {
   }
 
   /**
-   * Sets mode flags via the module and records the active module in {@link SimulationStateStore}
-   * so the REST state snapshot can include module-specific fields.
-   */
-  public void applyMode() {
-    module.applyMode();
-    SimulationStateStore.getInstance().setActiveModule(module);
-  }
-
-  /**
-   * Applies standard REST/CLI parameters to {@link Pars}, then delegates module-specific
-   * parameters to {@link SimulationModule#applyParameters(Map)}.
-   */
-  public void applyRestParams(Map<String, Object> params) {
-    if (params.containsKey("cityName")) Pars.cityName = (String) params.get("cityName");
-    if (params.containsKey("days"))
-      Pars.durationDays = Integer.parseInt(params.get("days").toString());
-    if (params.containsKey("actualPopulation"))
-      Pars.population = Integer.parseInt(params.get("actualPopulation").toString());
-    if (params.containsKey("percentage"))
-      Pars.percentagePopulationAgent = Double.parseDouble(params.get("percentage").toString());
-    if (params.containsKey("jobs")) {
-      Pars.jobs = Integer.parseInt(params.get("jobs").toString());
-      Pars.parallel = (Pars.jobs > 1);
-    }
-    module.applyParameters(params);
-  }
-
-  /**
    * Starts the REST API server on {@code port}. If the module is a concrete runnable simulation
    * (i.e. {@link SimulationModule#isConcreteRunnable()} is {@code true}), it is also registered so
    * that {@code POST /api/start} can select it. Infrastructure-only modules (e.g. {@link
@@ -74,31 +46,38 @@ public final class SimulationLauncher {
     SimulationRestApi.start(port);
   }
 
-  /**
-   * Full headless launch: parse CLI args, apply mode, run engine.
-   *
-   * <p>{@link Engine#runJobs} handles clearStaticData / setSimulationParameters / importFiles
-   * internally; this method only needs to set mode flags and CLI parameters first.
-   */
+  /** Reserves the simulation before applying CLI parameters. */
   public void headlessRun(String[] args) throws Exception {
-    // Order matters and is the whole contract: the city file states the city, the command line
-    // overrides it, and anything derived is computed after both (Pars.setSimulationParameters, from
-    // Engine.runJobs). Reading cityName out of the raw args first is what lets the file be found
-    // before any parameter has been applied.
-    Map<String, String> rawArgs = ParameterManager.parseArgs(args);
-    if (rawArgs.containsKey("cityName")) {
-      Pars.cityName = rawArgs.get("cityName");
+    var reservation = SimulationStateStore.getInstance().tryReserveRun();
+    if (reservation == null) {
+      logger.warning("Simulation is already running! Ignoring new run request.");
+      return;
     }
-    module.loadCityConfig(Pars.cityName);
+    run(ParameterManager.parseArgs(args), reservation);
+  }
 
-    Map<String, String> argsMap = ParameterManager.initFromArgs(args, module.parameterClasses());
-    module.applyParameters(new java.util.HashMap<>(argsMap));
-    applyMode();
-    RouteTrace.openLegFile();
-    try {
-      module.createEngine().runJobs(module.scenarioConfig(), Pars.parallel);
-    } finally {
-      RouteTrace.closeLegFile();
+  /** Shared CLI/REST lifecycle. Always releases the reservation, including setup failures. */
+  public void run(Map<String, String> params, SimulationStateStore.RunReservation reservation)
+      throws Exception {
+    try (reservation) {
+      reservation.requireActive();
+      configure(params);
+      SimulationStateStore.getInstance().setActiveModule(module);
+      RouteTrace.openLegFile();
+      try {
+        module.createEngine().runJobs(module.scenarioConfig(), Pars.parallel, reservation);
+      } finally {
+        RouteTrace.closeLegFile();
+      }
     }
+  }
+
+  /** Module defaults, city settings, explicit parameters, then derived values. */
+  void configure(Map<String, String> params) {
+    module.applyDefaults(params);
+    if (params.containsKey("cityName")) Pars.cityName = params.get("cityName");
+    module.loadCityConfig(Pars.cityName);
+    ParameterManager.initFromParams(params, module.parameterClasses());
+    module.applyParameters(new java.util.HashMap<>(params));
   }
 }

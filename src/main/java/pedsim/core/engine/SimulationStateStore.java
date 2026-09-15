@@ -33,6 +33,45 @@ public final class SimulationStateStore {
     return INSTANCE;
   }
 
+  private RunReservation activeRun;
+
+  /** Atomically reserves the process-wide simulation before any parameters are changed. */
+  public synchronized RunReservation tryReserveRun() {
+    if (activeRun != null || running) return null;
+    reset();
+    running = true;
+    activeRun = new RunReservation();
+    return activeRun;
+  }
+
+  /** A reservation may be handed from the HTTP thread to its simulation thread. */
+  public final class RunReservation implements AutoCloseable {
+    private boolean closed;
+
+    private RunReservation() {}
+
+    public void requireActive() {
+      synchronized (SimulationStateStore.this) {
+        if (closed || activeRun != this) {
+          throw new IllegalStateException("Simulation run reservation is no longer active");
+        }
+      }
+    }
+
+    @Override
+    public void close() {
+      synchronized (SimulationStateStore.this) {
+        if (closed) return;
+        closed = true;
+        if (activeRun == this) {
+          activeRun = null;
+          running = false;
+          finished = true;
+        }
+      }
+    }
+  }
+
   // ----------------------------------------------------------------
   // State fields
   // ----------------------------------------------------------------
@@ -128,7 +167,7 @@ public final class SimulationStateStore {
   }
 
   /**
-   * Records which module is currently active. Called by {@link SimulationLauncher#applyMode()}
+   * Records which module is currently active. Called by {@code SimulationLauncher.headlessRun}
    * before parameter application and before {@code runJobs()}.
    */
   public void setActiveModule(SimulationModule module) {

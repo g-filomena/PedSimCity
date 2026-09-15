@@ -35,9 +35,9 @@ public class TripRouteRecorder {
     public List<Coordinate> spookLocations = new ArrayList<>();
   }
 
-  private static final ConcurrentLinkedQueue<TripRecord> records = new ConcurrentLinkedQueue<>();
+  private final ConcurrentLinkedQueue<TripRecord> records = new ConcurrentLinkedQueue<>();
 
-  public static void recordTrip(
+  public void recordTrip(
       pedsim.core.agents.Agent agent,
       double startStep,
       double endStep,
@@ -113,15 +113,15 @@ public class TripRouteRecorder {
     }
   }
 
-  public static void clear() {
+  public void clear() {
     records.clear();
   }
 
-  public static List<TripRecord> getRecords() {
+  public List<TripRecord> getRecords() {
     return new ArrayList<>(records);
   }
 
-  public static void saveToFile(String filename) {
+  public void saveToFile(String filename) {
     String path = TripDiagnostic.outputsPath(filename);
     logger.info("[TripRouteRecorder] Saving " + records.size() + " trips to " + path);
     try (FileWriter writer = new FileWriter(path)) {
@@ -139,9 +139,12 @@ public class TripRouteRecorder {
           nodeStr.append(record.nodeIds.get(i));
         }
         String meanLuxStr =
-            Double.isNaN(record.meanLux) ? "" : String.format("%.2f", record.meanLux);
+            Double.isNaN(record.meanLux)
+                ? ""
+                : String.format(java.util.Locale.ROOT, "%.2f", record.meanLux);
         writer.write(
             String.format(
+                java.util.Locale.ROOT,
                 "%d,%.2f,%.2f,%d,%d,%s,%s,%s\n",
                 record.agentId,
                 record.startStep,

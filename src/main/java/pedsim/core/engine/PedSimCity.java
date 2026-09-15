@@ -87,6 +87,9 @@ public class PedSimCity extends SimState {
 
   public ScenarioConfig scenarioConfig;
 
+  /** Completed trips belonging exclusively to this job. */
+  public final TripRouteRecorder tripRecorder = new TripRouteRecorder();
+
   /**
    * Per-thread state reference, set in the constructor.
    * Simulation threads each get their own job's state via {@link #currentForThread()}.
