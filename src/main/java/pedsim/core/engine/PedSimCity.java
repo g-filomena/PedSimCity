@@ -16,6 +16,7 @@ import pedsim.core.agents.Agent;
 import pedsim.core.cognition.cityimage.Barrier;
 import pedsim.core.cognition.cityimage.Gateway;
 import pedsim.core.cognition.cityimage.Region;
+import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import sim.engine.SimState;
 import sim.engine.Stoppable;
 import sim.field.geo.VectorLayer;
@@ -335,6 +336,7 @@ public class PedSimCity extends SimState {
     barriersMap.clear();
     gatewaysMap.clear();
     nodesMap.clear();
+    SharedCognitiveMap.clearStaticData();
     edgesMap.clear();
     centroidsMap.clear();
     edges.clear();
