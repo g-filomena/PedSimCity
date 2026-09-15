@@ -19,6 +19,13 @@ import sim.graph.NodesLookup;
  * Pedestrian agent for the night module. Inherits the 24h activity pattern (time-of-day destination
  * selection) from {@link ActivityAgent} and adds the night perception/safety layer:
  * vulnerability-aware, lighting-aware routing and avoidance of parks/water after dark.
+ *
+ * <p><b>A night agent walks its whole trip.</b> Nothing here or in {@link ActivityAgent} reaches
+ * the transit module, so an evening journey that a real person would make by bus or metro is
+ * either walked in full or, where the commute mode choice refuses it, not made at all. The bias
+ * runs both ways and does not cancel: long journeys are walked that would not be, and the access
+ * and egress walks around stops - which concentrate night-time volume at stations, and around
+ * lighting that differs from the streets either side - are missing entirely.
  */
 public class NightAgent extends ActivityAgent {
 

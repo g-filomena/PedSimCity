@@ -7,7 +7,6 @@ import pedsim.core.engine.Engine;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.engine.SimulationModule;
-import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.StringEnum;
 import pedsim.night.parameters.NightPars;
 
@@ -41,9 +40,12 @@ public final class NightSimulationModule implements SimulationModule {
   }
 
   @Override
-  public void applyMode() {
-    Pars.isNight = true;
+  public void loadCityConfig(String cityName) {
+    pedsim.activity.parameters.CityConfig.load(cityName, parameterClasses());
   }
+
+  @Override
+  public void applyDefaults(java.util.Map<String, String> selectors) {}
 
   /**
    * Clears core and night-specific static data.
@@ -121,12 +123,18 @@ public final class NightSimulationModule implements SimulationModule {
   @Override
   public Map<String, Object> extraState() {
     return Map.of(
-        "enableLightABTesting", NightPars.enableLightABTesting,
-        "abTestPairs", NightPars.abTestPairs,
-        "crowdednessPercentile", NightPars.crowdednessPercentile,
-        "directionalLuxStatistic", NightPars.directionalLuxStatistic.toString(),
-        "nonVulnerableLightSensitivity", NightPars.nonVulnerableLightSensitivity,
-        "useGravityModel", pedsim.core.parameters.RouteChoicePars.useGravityModel);
+        "enableLightABTesting",
+        NightPars.enableLightABTesting,
+        "abTestPairs",
+        NightPars.abTestPairs,
+        "crowdednessPercentile",
+        NightPars.crowdednessPercentile,
+        "directionalLuxStatistic",
+        NightPars.directionalLuxStatistic.toString(),
+        "nonVulnerableLightSensitivity",
+        NightPars.nonVulnerableLightSensitivity,
+        "useGravityModel",
+        pedsim.core.parameters.RouteChoicePars.useGravityModel);
   }
 
   @Override

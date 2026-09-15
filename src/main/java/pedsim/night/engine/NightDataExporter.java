@@ -2,13 +2,11 @@ package pedsim.night.engine;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.logging.Logger;
@@ -43,7 +41,7 @@ public final class NightDataExporter {
   private NightDataExporter() {}
 
   /** Writes both files under {@code outputs/PedSimCityNight/data/}. */
-  public static void export(int job) {
+  public static void export(int job, List<TripRouteRecorder.TripRecord> trips, Path volumesFile) {
     Path dir = Paths.get("outputs", "PedSimCityNight", "data");
     try {
       Files.createDirectories(dir);
@@ -53,8 +51,8 @@ public final class NightDataExporter {
     }
     // Job 0 keeps the plain names; further jobs are suffixed so replications do not overwrite.
     String suffix = (job == 0) ? "" : "_job" + job;
-    writeEdgeVolumes(dir.resolve("edge_volume" + suffix + ".csv"));
-    writeTrips(dir.resolve("trips" + suffix + ".csv"));
+    writeEdgeVolumes(dir.resolve("edge_volume" + suffix + ".csv"), volumesFile);
+    writeTrips(dir.resolve("trips" + suffix + ".csv"), trips);
   }
 
   /**
@@ -62,8 +60,7 @@ public final class NightDataExporter {
    * has just written rather than from {@code volumesMap}: the in-memory map is reset at every day
    * boundary, so the CSV is the accumulated, exported truth and the two files cannot disagree.
    */
-  private static void writeEdgeVolumes(Path target) {
-    Path source = latestVolumesCsv();
+  private static void writeEdgeVolumes(Path target, Path source) {
     if (source == null) {
       logger.warning(
           "[NightDataExporter] No streetVolumes CSV found; skipping " + target.getFileName() + ".");
@@ -123,8 +120,7 @@ public final class NightDataExporter {
   }
 
   /** One row per completed trip, with the path as an edgeID sequence. */
-  private static void writeTrips(Path target) {
-    List<TripRouteRecorder.TripRecord> trips = TripRouteRecorder.getRecords();
+  private static void writeTrips(Path target, List<TripRouteRecorder.TripRecord> trips) {
     try (BufferedWriter writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
       writer.write(
           "trip_id,agent_id,start_step,end_step,vulnerable,path_length_m,mean_lux,edge_ids\n");
@@ -189,17 +185,5 @@ public final class NightDataExporter {
       total += Math.sqrt(dx * dx + dy * dy);
     }
     return total;
-  }
-
-  /** The most recently written {@code streetVolumes} CSV, or null when the folder holds none. */
-  private static Path latestVolumesCsv() {
-    File folder = Paths.get("outputs", "PedSimCityNight", "streetVolumes").toFile();
-    File[] files = folder.listFiles((d, name) -> name.endsWith(".csv"));
-    if (files == null || files.length == 0) {
-      return null;
-    }
-    List<File> candidates = new ArrayList<>(List.of(files));
-    candidates.sort((a, b) -> Long.compare(b.lastModified(), a.lastModified()));
-    return candidates.get(0).toPath();
   }
 }
