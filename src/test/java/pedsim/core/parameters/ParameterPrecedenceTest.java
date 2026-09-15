@@ -53,6 +53,33 @@ class ParameterPrecedenceTest {
   }
 
   /**
+   * The census replaces the population mid-run and recomputes; that is a derivation, so it must not
+   * overwrite a count the user asked for. This is the second call, the one that could.
+   */
+  @Test
+  void theCensusRecomputeLeavesAnExplicitCountAlone() {
+    ParameterManager.initFromArgs(
+        new String[] {"--actualPopulation=1000", "--percentage=0.001", "--numAgents=42"}, CORE);
+    assertEquals(42, Pars.numAgents);
+
+    Pars.population = 846567; // as ActivityEnvironment does, from the census
+    Pars.recomputeAgentCount();
+
+    assertEquals(42, Pars.numAgents, "a derivation overwrote an explicit --numAgents");
+  }
+
+  /** Without an explicit count, the census recompute is what sizes the run. */
+  @Test
+  void theCensusRecomputeSizesTheRunWhenNoCountWasGiven() {
+    ParameterManager.initFromArgs(new String[] {"--percentage=0.001"}, CORE);
+
+    Pars.population = 846567;
+    Pars.recomputeAgentCount();
+
+    assertEquals(846, Pars.numAgents);
+  }
+
+  /**
    * Asking for a circuity factor means asking for that factor: the startup measurement writes the
    * same field, so supplying one without the other must switch the measurement off.
    */
