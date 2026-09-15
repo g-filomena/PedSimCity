@@ -28,6 +28,14 @@ git diff main -- night-fixes-eval/<relative-path> <relative-path>
 (or just open both side by side — the relative path after
 `night-fixes-eval/` is the pointer to the original.)
 
+## Python pipeline fixes (A1, A2, A3, A4, A7, A8, B1 horizon)
+
+`pipeline/` mirrors `lighting.py`, `02_street_lights_torino.py`, `03_street_lights.py`, and
+`04_directional_lighting.py` the same way `src/` mirrors the Java files — same convention, same
+rule (nothing outside this folder touched). Unlike earlier sessions this environment now has a
+real Python install, so these are tested against real Torino data, not just proposed. See
+[`PIPELINE_FIXES.md`](PIPELINE_FIXES.md) for what changed and how it was verified.
+
 ## Source of the findings
 
 The issues these files address come from an independent audit of the
