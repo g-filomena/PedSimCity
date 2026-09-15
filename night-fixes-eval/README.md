@@ -51,6 +51,16 @@ Paths are relative to `src/main/java/pedsim/night/`. Each row corresponds to
 one finding ID from `night_model_issues.html`; open the file's Javadoc for
 the full rationale. Keep this table in sync as files are added.
 
+**These six were run, not just compiled** — see
+[`VALIDATION.md`](VALIDATION.md) for a real 7-day Torino baseline-vs-fixed
+comparison (isolated worktrees, same seed, same population). Headline: the
+fixes visibly engage (detour overhead +2.5pp) and C3 measurably improves
+non-vulnerable agents' night-lux exposure (+8.7%) — but vulnerable agents
+measurably got *worse* (−6.7%), which VALIDATION.md traces to a real,
+pre-existing gap: the vulnerable-agent avoid-set isn't lighting-based at
+all, a design question C3 explicitly left open for the code owner. Worth
+reading before review.
+
 **Confirmed already fixed upstream, not proposed here:** the register's
 Section F item *"Nobody commutes in the dark"* — `CommuterAgent`'s unsourced
 `!isDark()` guard — was independently removed in `f646722` ("Fix commute
