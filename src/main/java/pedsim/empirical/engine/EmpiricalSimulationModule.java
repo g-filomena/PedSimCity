@@ -93,8 +93,8 @@ public final class EmpiricalSimulationModule implements SimulationModule {
     if (!params.containsKey("jobs")) {
       Pars.jobs = EmpiricalPars.defaultJobs;
     }
-    // EmpiricalEngine.afterSetParameters() puts this back after recomputeAgentCount() overwrites
-    // it.
+    // This module's population is its survey cohort, not a sample of a city's residents, so the
+    // count comes from EmpiricalPars and nothing derives over it.
     Pars.numAgents = EmpiricalPars.numAgents;
   }
 

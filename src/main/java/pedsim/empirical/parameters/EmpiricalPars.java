@@ -33,11 +33,4 @@ public final class EmpiricalPars {
   public static int defaultJobs = 10;
 
   public static String defaultCityName = "Muenster";
-
-  public static void applyDefaults() {
-    Pars.cityName = defaultCityName;
-    Pars.setSimulationParameters();
-    Pars.numAgents = numAgents;
-    Pars.jobs = defaultJobs;
-  }
 }
