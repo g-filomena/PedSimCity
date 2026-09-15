@@ -123,7 +123,7 @@ is what is left when there is none.
 
 **The blast radius was smaller than it looked, and worth recording.** Nothing that configures itself
 could reach that ternary with NONE: `Heuristics` always sets a minimisation mode or samples a local
-heuristic (never NONE); cityImage's every `RouteChoice` name contains DISTANCE or ANGULAR except
+heuristic (never NONE); cityImage's every `Scenario` name contains DISTANCE or ANGULAR except
 `DISTANT_LANDMARKS`, which returns from an earlier branch; empirical always sets one of the two. So
 the only callers this changes are the ones that never chose a model at all — which is exactly the
 bug, and no configured module's behaviour moves.
@@ -166,7 +166,20 @@ model none of its agents held, and nothing in the output said so.
   has no error bar; job *n* uses `seed + n`, and `Engine` logs each replicate's totals plus the mean
   and sd across them at the end of a run. First measurement: sd 6.5% of planned metres over two jobs
   at 169 agents. Compare effects against that spread, not against zero.
-- **`RunLedger` is measurement, never an input.** Feeding the planned-versus-walked gap back into
+- **One sub-goal loop.** `PathFinder.routeSequence` holds the walk over a sub-goal sequence and takes
+  the per-leg routing as a lambda; road-distance and global-landmark routing go through it. Angular
+  keeps its own, because it searches the dual graph over two candidate centroid lists and corrects
+  edge directions with `cleanDualPath`. A fourth sub-goal router goes through `routeSequence` — the
+  three copies that existed had drifted into a direction-correction bug and an off-by-one on
+  `tmpOrigin`.
+
+- **`SharedCognitiveMap` clears its own statics.** `PedSimCity.clearStaticData()` calls
+  `SharedCognitiveMap.clearStaticData()`, which empties the road classification, the community
+  network, the lit/park/water sets and the route caches. Everything it clears is rebuilt by
+  `Environment.prepare()` → `setCommunityCognitiveMap()`, which runs after the import. Anything added
+  as static state in that class belongs in both.
+
+- **`RouteTrace` is measurement, never an input.** Feeding the planned-versus-walked gap back into
   allocation runs away: the measurement lags, the difference stays negative, and subtracting a
   negative raises the allocation.
 - **Trip lengths are walked metres; node lookup is Euclidean.** Everything that picks a destination by

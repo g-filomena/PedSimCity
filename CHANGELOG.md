@@ -19,10 +19,221 @@ Read this before trusting an older figure.
 | before **14 Sep 2026** | any figure depending on where workplaces are | the per-purpose attraction maps iterated in identity-hash order, so the workplace draw picked differently per JVM build; a Torino day now reports workers 16.8% / students 38.3% |
 | any comparison spanning **two machines** | all of it | still open: trips and metres differ across machines by about 1% on one seed |
 | any learning run before **14 Sep 2026** | all of it — there are none | the module threw during agent creation without a dual graph, and routed seed memory by angular change regardless of route choice where it did not throw |
+| any cityImage or empirical result before **15 Sep 2026**, including the tables dated 14 Sep | all of it | region navigation returned the shortest path on 100% of OD pairs, barrier sub-goals were never generated, and on-route marks had never been inserted by any version of this code |
+| any `LOCAL_LANDMARKS_*` figure before **15 Sep 2026** | the local-only claim | a substring test turned distant landmarks on as well, so those scenarios were byte-identical to their bare `LANDMARKS_*` siblings |
+| every empirical run's **totals** | planned metres only | `EmpiricalAgent` assigned `route` directly instead of through `setRoute()`, so the ledger recorded nothing; walked volumes and exports are unaffected |
+| any cityImage or empirical run using local landmarks | routes and volumes | `getWayfindingEasinessThreshold` returned 0, so on-route marks were never inserted |
+| any **night** run before **15 Sep 2026** | park and waterside behaviour | `edgesWithinParks` and `edgesAlongWater` were never filled, so destination refusal, vulnerable-agent avoidance, the preference and its cost term all read empty sets |
+| any distant-landmark route over a sub-goal sequence | the route | `globalLandmarksPathSequence` corrected edge directions from the leg's far end |
 
 ---
 
 ## September 2026
+
+### 15 September (after the refactor) — an audit of the eight modules
+
+Three questions, asked across every module: is it modular, is anything duplicated, is it
+reproducible. What it found, most serious first.
+
+**The three sub-goal routers were one loop written three times, and had drifted into a bug.**
+`checkEdgesSequence` walks a leg forward from the node it is given and flips edges the search
+returned reversed; `globalLandmarksPathSequence` advanced `tmpOrigin` to the leg's destination
+*before* calling it, so it corrected from the wrong end. It also advanced `tmpOrigin` on every
+`moveOn`, where backtracking sets that flag both for "found a direct edge" and for "gave up and
+skipped this sub-goal" - only the first means the agent moved. Both are gone: `PathFinder
+.routeSequence` holds the loop once and takes the per-leg routing as a lambda. Angular keeps its own,
+deliberately. `RoadDistancePathFinder` 172 → 134 lines, `GlobalLandmarksPathFinder` 112 → 80.
+
+**Park and waterside edges were never collected.** `SharedCognitiveMap.edgesWithinParks` and
+`edgesAlongWater` had no writer anywhere in the tree, so five night mechanisms read empty sets:
+destination refusal after dark, the vulnerable agent's avoidance, the non-vulnerable agent's
+preference and its cost term. Derived now from the per-edge `parks` / `waterBodies` attributes
+`BarrierIntegration` already writes - no second copy of the same fact. Torino has 2,500 park edges
+and 647 waterside; a night day goes from 205 legs / 313,334 m planned to 204 / 311,671 m.
+
+**Parallel floating-point sums.** `RouteProperties.cumulativeLandmarkness` summed two
+`parallelStream()`s; `DoubleStream.sum()` adds in split order and floating-point addition is not
+associative, so the same route could score differently run to run - and route memorability is what
+the learning module learns from. Sequential now.
+
+**Static state that never reset.** `SharedCognitiveMap` held 17 static mutable collections and
+cleared none, while `PedSimCity.clearStaticData()` cleared its own 22. `communityKnownNodes` was only
+ever added to, and `routesSubNetwork`, `cachedHeuristics` and `roadTypeMap` are keyed on graph
+objects from a previous city. Harmless for one run per JVM; wrong for the REST dashboard, which runs
+the engine lifecycle repeatedly. `SharedCognitiveMap.clearStaticData()` is called from
+`PedSimCity.clearStaticData()`, before the import and prepare that rebuild every one of them.
+
+**Two smaller reproducibility items.** `HtmlExporter` picked its follow-agent with `Math.random()`,
+so two renders of one run differed. And `keepValidSubGoals` returned a `HashMap<EdgeGraph, Double>`
+that the caller stable-sorts and takes the first of - equal distances along a barrier are common, so
+the tie fell to `EdgeGraph`'s hash, reproducible only because GeoMason-light 2.2.1 happens to give it
+a value-based one. A `LinkedHashMap` in candidate order removes the dependency rather than
+documenting it. The comment in `NetworkBuilder` that asserted the opposite - that `EdgeGraph`
+overrides no `hashCode` - was checked against the resolved jar and corrected.
+
+**Dead:** `EmpiricalPars.applyDefaults()` and `SharedCognitiveMap.buildCommunityKnownNetwork()`, an
+empty method whose commented-out body describes work `NetworkBuilder` already does per agent.
+
+**Clean:** no core → module imports anywhere; module scaffolding is proportionate. One finding is
+left open - `activity` and `transit` import each other, and untangling that belongs with wiring
+transit into layer 4.
+
+**Verified on gdsl1**, every module, against the traces from earlier the same day: London
+subdivisions (1,200 legs), London landmarks (2,295) and Muenster empirical (2,709) all **identical**;
+activity unchanged to the metre (58 legs, 80,499 m); core clean (49 legs, 85,161 m). Night is the one
+that moves, and by design - 205 legs / 313,334 m planned becomes 204 / 311,671, because park and
+waterside avoidance now has edges to act on.
+
+### 15 September (last) — route choice becomes a value, and the ledger becomes the trace
+
+Four of the day's defects were the same design: `AgentProperties` was a mutable bag that mixed what
+an agent's route choice *is* with what a planner had decided *for one trip*, and the two had the same
+lifetime as the agent.
+
+**`RouteChoiceModel`** is now the decision - an immutable record carrying the strategy, the
+minimisation mode or local heuristic, the elements, the landmark type and the barrier preferences.
+**`AgentProperties`** is the working copy one trip is planned against, rebuilt from the model at the
+start of every trip. What that makes unrepresentable:
+
+- a planner disabling region navigation for the rest of an agent's life rather than for one trip
+- `Heuristics` overwriting a model that cityImage or empirical assigned - it returns a model now, and
+  an agent that has one never asks; `isRouteChoiceAssigned()` is gone
+- a model falling into pure minimisation by acquiring a mode. That a pure minimisation ignores
+  every element is intended and old - v1.11's `onlyMinimising` - but it used to be *inferred* from
+  the mode being set, so `Heuristics` writing a sampled mode over an assigned model made the rule
+  discard elements the agent was built to use, and nine cityImage scenarios came out as two routes.
+  `shouldOnlyUseMinimization()` reads a declared `Strategy` now, and the record's constructor refuses
+  a model that is neither kind, so the unconfigured state that needed a warning cannot be built
+
+**The cityImage `RouteChoice` enum declares each scenario** in its constructor instead of having its
+meaning parsed out of its name by substring - the defect that made `LOCAL_LANDMARKS_*` identical to
+its bare sibling. `CityImageAgentProperties` had nothing left to do and is gone.
+
+**The empirical cluster is re-sampled per trip again.** `randomizeRouteChoiceParameters()` was called
+once in the constructor, so an agent drew one way of getting somewhere and kept it for life; v1.11
+drew per trip, from `Pedestrian.findNewAStarPath`. A cluster is a distribution over ways of getting
+somewhere rather than a label fixed to a person, and drawing once per agent makes a group's realised
+mix N draws instead of N x trips. This is the one change of the day that alters empirical results by
+design.
+
+**`RouteTrace` and the per-leg tracer are one class, `RouteTrace`.** They share the one hook that
+matters, `Agent.setRoute()`, and they fail together: when `EmpiricalAgent` assigned its route field
+directly, the totals read zero and the per-leg file held only its header, with nothing to say which
+was wrong. The counters answer how much; the per-leg record answers which route this model took for
+this OD pair. `state.ledger()` is `state.trace()`.
+
+Verified by re-running every measurement of the day and comparing traces byte for byte: London
+subdivisions (1,200 legs), London landmarks (2,295), Muenster empirical (2,709) all **identical**,
+and night and activity days unchanged to the metre. A refactor that changes no behaviour is the only
+kind worth making here, and the traces are how that was shown rather than asserted.
+
+### 15 September (later) — four more mechanisms that ran without effect
+
+Found by pinning the perception error and diffing per-leg traces, after the route-choice assignment
+fix below made a real comparison possible for the first time. Each one reported a number while doing
+nothing, and each is a regression against the 2020 `RegionBased`/`LandmarkBased` branches, v1.11 and
+the 2024 `pre-subs` branch, all three of which were checked and all three of which agree.
+
+**Region navigation returned the shortest path on 100% of OD pairs.**
+`RegionBasedNavigation.getKnownGateways()` kept only gateways whose entry and exit were in
+`CognitiveMap.getNodesInKnownNetwork()` — empty for any agent whose map was never individualised, so
+no gateway survived anywhere, the sequence collapsed to origin-plus-destination and routed as
+distance. This is the sixth instance of the invariant `CLAUDE.md` already states: a gate on an
+`agentKnown*` set needs a defined answer for an agent that has no cognitive map.
+`getNodesInKnownNetwork()` and `getEdgesInKnownNetwork()` now answer with the **community cognitive
+map** for such an agent, which is the same formula an individualised map uses with the personal half
+empty: `fuseBoneWithCommunityNetwork` is *own bone + community known network*. It is a subset of the
+city — main roads, city centre, salient junctions — and deliberately so, because these agents route
+over the full network but plan among the places everyone knows. Night agents keep their simple bone,
+which is non-empty.
+
+**And it latched off.** Three sites disable region navigation mid-trip by writing to the agent's
+properties, which outlive the trip; a cityImage agent is built once and walks its whole OD matrix, so
+the first within-region pair disabled it for the rest of the run. `RoutePlanner.definePath()` now
+restores the entry value in a `finally`.
+
+**Barrier sub-goals were never generated** — the same empty set, filtering a barrier's `edgesAlong`
+down to nothing. What separated `BARRIER_*` from its sibling until now was only the cost multiplier
+in `Dijkstra.costPerceptionError`. On London/subdivisions the barrier effect goes from 1.033x to
+**1.574x** on distance.
+
+**On-route marks have never been inserted by this code.**
+`CognitiveMap.getWayfindingEasinessThreshold` was an unimplemented stub returning 0, and
+`LandmarkNavigation` looks for sub-goals only *while* easiness is below it. v1.11's two values had
+already been carried into `RouteChoicePars` and left with no reader; core returns them now. The tell
+had been visible and was read as agreement: three differently-configured landmark models scored
+1.0740 on 255 ODs, to four decimal places. Two further gates on the same path were closed with it,
+neither sufficient alone — `findSalientJunctions` filtered against an unsatisfiable known-node set
+(and its recovery loop then silently ran at a looser percentile, for community and individualised
+agents alike), and `findKnownLocalLandmarks` collected nothing, leaving local landmarkness at 0.0 for
+every node of every route.
+
+**The threshold fix reaches only the OD modules.** `setUsingLocalLandmarks` is called from
+`CityImageAgentProperties` and `EmpiricalAgentProperties` and nowhere else, so activity, night and
+learning agents never reach `LandmarkNavigation` and no figure from those tiers is affected.
+
+**Two of cityImage's nine scenarios were the same configuration.**
+`activateLandmarks()` tested for the substring `"LANDMARKS"` before the `LOCAL`/`DISTANT` qualifiers,
+so `LOCAL_LANDMARKS_*` had distant landmarks on as well. Nine named models, seven distinct
+configurations. All nine are now distinct, and local-only is a smaller detour than local-plus-distant
+on both heuristics.
+
+**`EmpiricalAgent` bypassed `setRoute()`**, assigning the field directly, so `RouteTrace` saw no
+planned metres from any empirical run. `CityImageAgent` always called it.
+
+**Working region navigation then exposed a reproducibility defect underneath it.** Two runs of one
+seed disagreed on 18-20 of 150 ODs per `REGION_*` model while the non-region models were identical:
+`findNextGateway` collected candidates into a `ConcurrentHashMap<Gateway, Double>` from a
+`parallelStream` and `Utilities.sortByValue` is stable, so ties were broken by identity-hash
+iteration order, which HotSpot varies between runs. `Gateway` overrides neither `hashCode` nor
+`equals`. It is a `LinkedHashMap` filled by an ordinary loop now, and two runs are byte-identical.
+Third instance of this class in this repository, after `NodeGraph`/`EdgeGraph` and `Agent`.
+
+Measured: on London/subdivisions every `REGION_*` model was byte-identical to its non-region sibling
+on 150 of 150 ODs before, and on 32.7%/22.7% after. On Muenster, 39-61% of empirical legs changed
+route and the population walked 11.4% further, with a 4x spread across the survey clusters. `ROAD_DISTANCE` is beaten on 0 of
+150 and 0 of 255 ODs throughout, so the distance baseline stays minimal and the comparisons hold.
+Per-module detail in `src/main/java/pedsim/cityimage/TODO.md` item 5 and
+`src/main/java/pedsim/empirical/TODO.md`.
+
+**Two pieces of tooling, because none of this was measurable before.**
+`RouteChoicePars.perceptionErrorSD` replaces the hard-coded 0.10 in `Dijkstra.costPerceptionError`,
+so `--perceptionErrorSD=0` pins the multiplier to 1.0 and no longer needs a source edit before every
+model comparison. The draw is still made, so the random stream is unchanged. And
+`-Dpedsim.trace=<file>` writes one line per planned leg from `Agent.setRoute()` — scenario, agent,
+trip, OD, node and edge counts, length — with no timestamps, so two files are byte-comparable between
+runs and between machines. Every table above was computed from it.
+
+### 15 September — cityImage was never running the models it reported
+
+**Every route-choice comparison this module has produced is void.** `CityImageAgent.planRoute()`
+called `initialiseHeuristics(false)`, which let `Heuristics` re-decide route choice and overwrite the
+model the agent was constructed with — a coin flip between shortest path and simplest path, since no
+caller of `setActivationProbabilities` exists and the probability-driven branch is unreachable. Nine
+models were two routes in varying proportions, and the landmark, region and barrier branches of
+`definePath()` were never reached. The tell was that `ROAD_DISTANCE` was beaten on 125 of 255 OD
+pairs, by up to 2,850 m, which a distance-minimising search cannot be.
+
+Five fixes. `AgentProperties.isRouteChoiceAssigned()` (false by default, true for cityImage and
+empirical) stops `Heuristics` re-deciding a model that was assigned, while `initialiseHeuristics`
+still builds and stores the object the routing code dereferences. `Landmarkness` skips zero-distance
+anchors and admits only finite scores into `Math.max` — a refactor from `if (score > best)` to
+`Math.max(best, score)` had turned NaN from silently discarded into propagated, which made a node's
+landmarkness NaN, its cost `(1 - NaN)/length`, and every comparison against it false, so the node was
+never relaxed and a destination carrying such an anchor was unreachable. `GlobalLandmarksPathFinder`
+falls back to road distance on both exits instead of calling `computeRouteSequences()` on an empty
+sequence, and `RunLedger.landmarkFallbacks` counts it. `CognitiveMap` answers `getAgentKnownRegions`,
+`getAgentKnownBarriers` and `isRegionKnown` for agents that never individualise a map.
+
+**Region navigation remains inert** — `REGION_DISTANCE` is byte-identical to the shortest path with
+both region gates open. Open, with the next step, in `cityimage/TODO.md` item 5.
+
+Verified deterministically on London/landmarks: `DISTANT_LANDMARKS` 1.632x the shortest path,
+angular-family landmarks 1.28x, distance-family 1.076x, and 0-2% of routes identical to shortest
+where before every landmark model matched it to the metre. Barriers reach 1.033x on distance.
+
+**Two claims were made and retracted the same day** because the +/-10% perception error was read as
+signal. Any model comparison here needs that draw pinned first; `CLAUDE.md` says how and why.
 
 ### 14 September (last) — one activity agent, and less machinery around it
 
@@ -37,7 +248,7 @@ worked-today latch, the work-targeting rule, the stay) is part of `ActivityAgent
 older than 14 September.
 
 **Core no longer counts darkness.** The per-leg dark/light tally came out of `Agent.setRoute` and
-`RunLedger`: darkness is a night-module concern, and the volume exports already carry it per edge per
+`RouteTrace`: darkness is a night-module concern, and the volume exports already carry it per edge per
 day in the `LIGHT` / `DARK` columns. `PedSimCity.isDarkHour(hour, day)` stays, because the exporter
 needs it.
 
@@ -69,7 +280,7 @@ polluting every future one. See `TODO.md`.
 **The exporters' night is not the model's night, and in winter the gap is most of the walking.**
 Mandatory legs run 06:30-19:30, so removing the darkness guard did not push commutes into the fixed
 `[20:00, 06:00)` aggregation window — it pushed them into *behavioural* darkness, which the window
-does not see. `RunLedger` counts both now and the day's line reports them. On `Torino_simplified` at
+does not see. `RouteTrace` counts both now and the day's line reports them. On `Torino_simplified` at
 338 agents: **1 June, 29/166 legs begun in darkness and 0 outside the window; 7 December, 90/172 in
 darkness and 63 outside it** — 37% of the day's walking reported as daytime volume while the agents
 walked it in the dark and behaved accordingly, since lighting-aware routing, park and water refusal
@@ -120,7 +331,7 @@ which is why nothing showed in the June runs.
 nothing ever compared them, so a single run's number carried no error bar and a difference between
 two conditions could not be told from a difference between two seeds. `ReplicateSummary` now prints
 each job's legs, planned and walked metres and metres per agent, then the mean, sample sd and range
-across them; `RunLedger` gained job totals that the daily reset leaves alone, so a multi-day run
+across them; `RouteTrace` gained job totals that the daily reset leaves alone, so a multi-day run
 reports the run rather than its last day. First measurement, two jobs on `Torino_simplified` at 169
 agents: **sd 6.5% of planned metres, 12.9% of legs** — several times the cross-machine disagreement,
 and the floor any claimed effect has to clear.
@@ -366,7 +577,7 @@ commute shares of 16.6% (workers) and 37.3% (students).
 
 **Travel demand left the state class.** `AgentReleaseManager` had asked `PedSimCity` fourteen
 questions — nine about travel demand, five about the run's own measurements. They became
-`TravelDemand` and `RunLedger`, reached through `state.travelDemand()` and `state.ledger()`. No
+`TravelDemand` and `RouteTrace`, reached through `state.travelDemand()` and `state.ledger()`. No
 behaviour changed; what changed is that the release manager can no longer reach a calibration anchor,
 which is how `metersPerDayPerPerson` came to steer the departure profile months after it stopped
 being the anchor.

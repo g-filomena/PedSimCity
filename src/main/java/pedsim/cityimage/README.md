@@ -13,27 +13,27 @@ clock, no home/work routine).
 
 | Concern | Core class | City-image class |
 |---|---|---|
-| Simulation state | `PedSimCity` | `PedSimCityImage` (default scenario = `RouteChoice.values()`) |
+| Simulation state | `PedSimCity` | `PedSimCityImage` (default scenario = `Scenario.values()`) |
 | Engine | `Engine` | `CityImageEngine` |
 | Import | `Import` | `CityImageImport` |
-| Population | `Populate` | `CityImagePopulate` (builds the OD matrix, one agent per route-choice model) |
+| Population | `Populate` | `CityImagePopulate` (builds the OD matrix, one agent per scenario) |
 | Agent | `Agent` | `CityImageAgent` (runs a fixed OD list with an assigned route-choice strategy) |
 
 `CityImagePopulate.populateTests` ignores the census/home-work path entirely: it generates an OD
 matrix (generic, landmark, subdivision, or manual specific-OD mode per `TestPars`) and instantiates
-one `CityImageAgent` per route-choice model so each walks the identical OD set.
+one `CityImageAgent` per scenario so each walks the identical OD set.
 
 ## Testing modes (`parameters/TestPars`)
 
 | Mode | OD generation |
 |---|---|
-| generic | random origins from `startingNodes`, destinations in `[TestPars.minODdistance, maxODdistance]` (900–2700 m) |
+| generic | random origins from `startingNodes`, destinations in `[Pars.minRouteLength, maxRouteLength]` (900–2700 walked m) |
 | landmarks | single origin, 255 destinations from a fixed distance set |
 | subdivisions | origins from starting nodes, destinations in 1000–3000 m |
 | specific OD | manual origin/destination node-ID pairs (`originsTmp` / `destinationsTmp`) |
 
 Route-choice models default to `ROAD_DISTANCE` and `ANGULAR_CHANGE` (configurable via
-`TestPars.routeChoiceModels`).
+`TestPars.scenarios`).
 
 ## Running
 
@@ -55,4 +55,5 @@ bundled city ships** — see `TODO.md` beside this file.
 
 - Harness for reproducing the route-choice / landmark experiments from the papers; it shares the
   current core engine and agent lifecycle but keeps its own OD/test plumbing.
-- Has its own `utilities/StringEnum` (`RouteChoice`) and `agents/CityImageAgentProperties` specialisation.
+- Has its own `utilities/StringEnum` (`Scenario`); each scenario's route-choice model is stated in
+  `CityImageAgent.modelFor`, an exhaustive switch.
