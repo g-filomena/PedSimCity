@@ -306,9 +306,7 @@ public class SharedCognitiveMap {
    * Collects the edges running through a park or along water, from the per-edge attributes
    * {@code BarrierIntegration.setEdgeGraphBarriers} writes when the barriers layer is integrated.
    *
-   * <p>Derived rather than stored twice: the barrier each edge touches is already on the edge, and
-   * these two sets held nothing because nothing ever filled them - so every night mechanism reading
-   * them was inert.
+   * <p>Derived rather than stored twice: which barriers an edge touches is already on the edge.
    */
   private static void setParkAndWaterEdges() {
     edgesWithinParks =

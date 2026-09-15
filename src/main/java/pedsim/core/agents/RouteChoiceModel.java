@@ -42,12 +42,9 @@ public record RouteChoiceModel(
   /**
    * The two kinds of route-choice model, stated rather than inferred.
    *
-   * <p>A pure minimisation ignoring every element is the intended rule, and an old one: v1.11
-   * called the flag {@code onlyMinimising}. What changed is that the rule is now triggered by a
-   * declared strategy instead of inferred from "a minimisation mode is set", so a model cannot fall
-   * under it by acquiring a mode - which is what happened when {@code Heuristics} wrote a sampled
-   * mode over an assigned model and nine cityImage scenarios came out as two routes. Naming the two
-   * cases also makes {@code definePath} a switch over a closed set.
+   * <p>A pure minimisation ignores every element - that is what it means. The strategy is declared
+   * rather than inferred from "a minimisation mode is set", so acquiring a mode cannot quietly move
+   * a model into that case, and {@code definePath} switches over a closed set.
    */
   public enum Strategy {
     /** One cost minimised end to end: shortest path, or least angular change. */
