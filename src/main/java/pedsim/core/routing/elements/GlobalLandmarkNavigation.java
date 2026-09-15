@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import pedsim.core.agents.Agent;
 import pedsim.core.engine.PedSimCity;
@@ -83,12 +84,7 @@ public class GlobalLandmarkNavigation extends LandmarkNavigation {
     double percentile = RouteChoicePars.salientNodesPercentile;
     salientNodes =
         new HashMap<>(network.getSalientNodesWithinSpace(node, destinationNode, percentile));
-
-    salientNodes
-        .keySet()
-        .retainAll(
-            GraphUtils.getNodesFromNodeIDs(
-                agent.getCognitiveMap().getAgentKnownNodes(), PedSimCity.nodesMap));
+    retainKnown(salientNodes);
 
     // If no salient junctions are found, the tolerance increases till the 0.50
     // percentile;
@@ -103,7 +99,28 @@ public class GlobalLandmarkNavigation extends LandmarkNavigation {
       }
       salientNodes =
           new HashMap<>(network.getSalientNodesWithinSpace(node, destinationNode, percentile));
+      retainKnown(salientNodes);
     }
+  }
+
+  /**
+   * Keeps only the junctions the agent knows - unless it has no known-node set to be restricted to.
+   *
+   * <p>An empty known-node set means the map was never individualised, not that the agent knows
+   * nowhere: such an agent plans over the community map, so the restriction is skipped rather than
+   * applied to nothing.
+   *
+   * <p>{@code findSalientJunctions} calls this inside its percentile-lowering loop as well as before
+   * it, so an agent that does have a known-node set is never handed junctions outside it.
+   */
+  private void retainKnown(Map<NodeGraph, Double> candidates) {
+    Set<Integer> knownNodeIDs = agent.getCognitiveMap().getAgentKnownNodes();
+    if (knownNodeIDs.isEmpty()) {
+      return;
+    }
+    candidates
+        .keySet()
+        .retainAll(GraphUtils.getNodesFromNodeIDs(knownNodeIDs, PedSimCity.nodesMap));
   }
 
   /**

@@ -45,4 +45,23 @@ public class RouteChoicePars {
 
   // Region-based navigation Threshold - meters
   public static double regionNavActivationThreshold = 500;
+
+  /**
+   * Standard deviation of the multiplier {@code Dijkstra.costPerceptionError} applies to every edge
+   * cost, on every relaxation, in every model: an agent does not perceive a street's cost exactly.
+   *
+   * <p>It is behaviour, not noise to be switched off casually. But over a route it does not average
+   * out enough to ignore - at 0.10 it produces roughly 0.20 volume divergence and 0.43 edge overlap
+   * between two models whether or not those models differ - so <b>any comparison between
+   * route-choice models must set it to 0 first</b>, or it reads the dice as the model.
+   *
+   * <p>At 0 the draw is degenerate and the multiplier is exactly 1.0, so {@code ROAD_DISTANCE} is
+   * the true shortest path and is minimal on every OD pair by construction. That is the check that
+   * makes a silent substitution impossible to miss: if another model beats it, the distance
+   * baseline is not minimising distance and nothing else in the comparison can be trusted.
+   *
+   * <p>The draw is made either way, so the random stream is the same at any sigma and a run pinned
+   * here stays comparable with one that is not in everything except the perception error.
+   */
+  public static double perceptionErrorSD = 0.10;
 }
