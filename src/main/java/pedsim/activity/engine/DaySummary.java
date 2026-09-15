@@ -30,7 +30,6 @@ public final class DaySummary {
     "walked_m",
     "m_per_agent",
     "legs_dark",
-    "legs_dark_outside_window",
     "mandatory_legs",
     "budget_legs",
     "chains_per_person",
@@ -63,7 +62,6 @@ public final class DaySummary {
     int agents = state.agentsList.size();
     double planned = state.trace().plannedRouteMeters();
     long legsDark = activityState.legsInDarkness.sum();
-    long legsDarkOutside = activityState.legsDarkOutsideNightWindow.sum();
     long legs = state.trace().legsPlanned();
 
     ActivityTravelDemand demand =
@@ -79,7 +77,6 @@ public final class DaySummary {
       String.format("%.0f", state.trace().walkedRouteMeters()),
       String.format("%.0f", agents > 0 ? planned / agents : 0.0),
       Long.toString(legsDark),
-      Long.toString(legsDarkOutside),
       demand == null ? "" : String.format("%.0f", demand.mandatoryLegs()),
       demand == null ? "" : String.format("%.0f", demand.budgetLegs()),
       demand == null ? "" : String.format("%.4f", demand.discretionaryChainsPerPerson()),
@@ -95,10 +92,7 @@ public final class DaySummary {
 
     write(appName, job, row);
 
-    logger.info(
-        String.format(
-            "day %s: %d of %d legs set off in darkness, %d of them outside the fixed night window",
-            date, legsDark, legs, legsDarkOutside));
+    logger.info(String.format("day %s: %d of %d legs set off in darkness", date, legsDark, legs));
 
     activityState.resetDarknessCounters();
   }

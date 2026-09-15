@@ -40,10 +40,7 @@ public final class ActivitySimulationModule implements SimulationModule {
   }
 
   @Override
-  public void applyMode() {
-    // neutral model: no night, no empirical, no learning flags
-    pedsim.core.parameters.Pars.isNight = false;
-  }
+  public void applyDefaults(java.util.Map<String, String> selectors) {}
 
   @Override
   public Engine createEngine() {

@@ -5,7 +5,6 @@ import java.util.List;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.index.strtree.STRtree;
-import pedsim.activity.parameters.ActivityPars;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.Environment;
 import pedsim.core.parameters.Pars;
@@ -54,7 +53,6 @@ public class ActivityEnvironment extends Environment {
 
     int withNodes = 0;
     double totalResidents = 0.0;
-    double cityLatitude = Double.NaN;
     for (MasonGeometry geom : PedSimCityActivity.censusLayer.getGeometries()) {
       if (geom.getGeometry() == null) continue;
 
@@ -63,9 +61,6 @@ public class ActivityEnvironment extends Environment {
       zone.retireeShare = zoneValueOrNaN(geom, "retiree_pct");
       zone.studentShare = zoneValueOrNaN(geom, "student_pct");
       zone.workerShare = zoneValueOrNaN(geom, "worker_pct");
-      if (Double.isNaN(cityLatitude)) {
-        cityLatitude = zoneValueOrNaN(geom, "centroid_lat");
-      }
       totalResidents += zoneValue(geom, "residents");
 
       zone.nodes.addAll(claimNodes(geom.getGeometry(), nodeIndex));
@@ -74,23 +69,10 @@ public class ActivityEnvironment extends Environment {
       PedSimCityActivity.censusZones.add(zone);
     }
 
-    // Where the city is. The seasonal daylight model needs a latitude, and the census layer carries
-    // the centroid latitude of the city it describes. A city whose census lacks the column falls
-    // back
-    // to the ActivityPars default, with a warning: the fallback is one place, and simulating a
-    // city's
-    // darkness at another city's latitude moves every day/night boundary the night module rests on
-    // -
-    // eight degrees of latitude is most of an hour of midsummer sunset.
-    if (!Double.isNaN(cityLatitude)) {
-      ActivityPars.latitudeDegrees = cityLatitude;
-      logger.info(String.format("city latitude from census: %.4f degrees", cityLatitude));
-    } else {
-      logger.warning(
-          "census carries no centroid_lat: seasonal daylight uses ActivityPars.latitudeDegrees = "
-              + ActivityPars.latitudeDegrees
-              + ", which is only right for the city it was set for. Re-run 01_census_istat.py.");
-    }
+    // Where the city is is measured from the network by CityLocation, in core, not read from the
+    // census: only one city's census ever carried centroid_lat, and a city's position is a property
+    // of its geometry. All that is left here is to say which regime that left darkness in.
+    logger.info(Daylight.describeRegime());
 
     // When the census carries absolute resident counts (P1), the sampling fraction applies to the
     // real headcount: override the population and recompute the agent count. Absent the column
