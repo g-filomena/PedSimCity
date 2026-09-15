@@ -1,6 +1,5 @@
 package pedsim.core.routing.pathfinder;
 
-import java.util.ArrayList;
 import java.util.List;
 import pedsim.core.agents.Agent;
 import pedsim.core.routing.pathfinding.DijkstraGlobalLandmarks;
@@ -25,9 +24,32 @@ public class GlobalLandmarksPathFinder extends PathFinder {
         pathfinder.dijkstraAlgorithm(
             originNode, destinationNode, destinationNode, directedEdgesToAvoid, agent);
     partialSequence = sequenceOnCommunityNetwork(partialSequence);
+    if (partialSequence.isEmpty()) {
+      return distanceFallback(originNode, destinationNode, agent);
+    }
     route.directedEdgesSequence = partialSequence;
     route.computeRouteSequences();
     return route;
+  }
+
+  /**
+   * Serves the shortest path when the landmark search finds none, and counts it.
+   *
+   * <p>The counterpart of {@code AngularChangePathFinder}'s own fallback, and for the same reason:
+   * an unroutable leg that throws stops the run, and one that silently returns a shortest path is
+   * reported as a landmark route. Counting it is what keeps the substitution visible - a handful of
+   * awkward pairs at a low rate, and at a high one a set of results that are partly shortest paths.
+   *
+   * @param originNode the origin
+   * @param destinationNode the destination
+   * @param agent the agent the route is for
+   * @return the shortest-path route between the two nodes
+   */
+  private Route distanceFallback(NodeGraph originNode, NodeGraph destinationNode, Agent agent) {
+    if (agent.getState() != null) {
+      agent.getState().trace().recordLandmarkFallback();
+    }
+    return new RoadDistancePathFinder().roadDistance(originNode, destinationNode, agent);
   }
 
   /**
@@ -40,45 +62,16 @@ public class GlobalLandmarksPathFinder extends PathFinder {
    */
   public Route globalLandmarksPathSequence(List<NodeGraph> sequenceNodes, Agent agent) {
 
-    this.agent = agent;
-    this.sequenceNodes = new ArrayList<>(sequenceNodes);
+    routeSequence(
+        sequenceNodes,
+        agent,
+        () ->
+            new DijkstraGlobalLandmarks()
+                .dijkstraAlgorithm(tmpOrigin, tmpDestination, destinationNode, null, agent));
 
-    // originNode
-    originNode = sequenceNodes.get(0);
-    tmpOrigin = originNode;
-    destinationNode = sequenceNodes.get(sequenceNodes.size() - 1);
-    this.sequenceNodes.remove(0);
-
-    for (NodeGraph tmpDestination : this.sequenceNodes) {
-      moveOn = false;
-      // check if this tmpDestination has been traversed already
-      if (nodesFromEdgesSequence(completeSequence).contains(tmpDestination)) {
-        controlPath(tmpDestination);
-        tmpOrigin = tmpDestination;
-        continue;
-      }
-
-      // check if edge in between
-      if (haveEdgesBetween()) {
-        continue;
-      }
-
-      final DijkstraGlobalLandmarks pathfinder = new DijkstraGlobalLandmarks();
-      partialSequence =
-          pathfinder.dijkstraAlgorithm(tmpOrigin, tmpDestination, destinationNode, null, agent);
-
-      while (partialSequence.isEmpty() && !moveOn) {
-        backtracking(tmpDestination);
-      }
-      tmpOrigin = tmpDestination;
-      if (moveOn) {
-        continue;
-      }
-
-      checkEdgesSequence(tmpOrigin);
-      completeSequence.addAll(partialSequence);
+    if (completeSequence.isEmpty()) {
+      return distanceFallback(originNode, destinationNode, agent);
     }
-    completeSequence = sequenceOnCommunityNetwork(completeSequence);
     route.directedEdgesSequence = completeSequence;
     route.computeRouteSequences();
     return route;

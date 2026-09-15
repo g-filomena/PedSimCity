@@ -46,19 +46,16 @@ public abstract class Dijkstra {
    * direction - and {@link #collectEdgesToAvoid} keeps only {@code directedEdge.getEdge()}, the
    * undirected {@code EdgeGraph} beneath. Ask to avoid A→B and B→A goes with it.
    *
-   * <p><b>Decided 14 Sep 2026: this is intended, keep it.</b> The sequence routers build the set from
-   * {@code completeSequence}, the traversals as actually taken, and each sub-route advances towards
-   * the destination. Having walked A→B on the way there, the agent does not then walk B→A, so
-   * forbidding the reverse costs nothing it would have used. Collapsing to the undirected segment is
-   * stricter than the {@code Set<DirectedEdge>} signature suggests, and that is the behaviour
-   * wanted; the signature is the misleading part, not the implementation.
+   * <p>This is intended. The sequence routers build the set from {@code completeSequence}, the
+   * traversals as actually taken, and each sub-route advances towards the destination. Having walked
+   * A→B on the way there, the agent does not then walk B→A, so forbidding the reverse costs nothing
+   * it would have used. Collapsing to the undirected segment is stricter than the
+   * {@code Set<DirectedEdge>} signature suggests, and the signature is the misleading half.
    *
-   * <p>The directed set used to be retained in a field beside this one and was never read once this
-   * had been derived from it - so the direction was captured and then dropped. The two names were
-   * close enough that {@code subGraphInitialisation} tested the wrong field, which is how avoidance
-   * came to be discarded entirely inside a region subgraph. The field is gone; if direction-specific
-   * avoidance is ever wanted, it has to be built, not re-enabled. {@code PathFinder} still has a
-   * field of that name: that one is the caller's, built from a route sequence and handed in.
+   * <p>There is deliberately no directed counterpart to this field: direction-specific avoidance has
+   * to be built rather than switched on, and a second similarly-named field beside this one is what
+   * let {@code subGraphInitialisation} test the wrong one. {@code PathFinder} has a field of that
+   * name, which is the caller's, built from a route sequence and handed in.
    */
   protected Set<EdgeGraph> edgesToAvoid = new HashSet<>();
 
@@ -83,7 +80,7 @@ public abstract class Dijkstra {
    * <p>An individualised agent that cannot reach its destination through the streets it knows does
    * not stay at home; it walks streets it has never walked. The escalation is the caller's to make
    * - see {@code RoadDistancePathFinder} and {@code AngularChangePathFinder} - and is counted on
-   * the day ledger, because a route found this way is one the agent could not have planned from its
+   * the day trace, because a route found this way is one the agent could not have planned from its
    * own knowledge.
    *
    * <p>What is not represented: the agent plans against the length of a route through streets it
@@ -298,7 +295,7 @@ public abstract class Dijkstra {
             properties.getNaturalBarriersMean(), properties.getNaturalBarriersSD(), "left");
       }
     }
-    return drawFromDistribution(1.0, 0.10, null);
+    return drawFromDistribution(1.0, RouteChoicePars.perceptionErrorSD, null);
   }
 
   /**

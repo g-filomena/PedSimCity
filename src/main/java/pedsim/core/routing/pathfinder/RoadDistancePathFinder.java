@@ -51,7 +51,7 @@ public class RoadDistancePathFinder extends PathFinder {
    * the search widens rather than the trip being lost: walking unknown streets is what a person does
    * when the ones they know do not get them there. Without it the empty sequence becomes a two-node
    * route with no edges and a length of zero - a pedestrian who reaches its destination without
-   * walking. Each widening is counted on the day ledger.
+   * walking. Each widening is counted on the day trace.
    *
    * <p>The route it finds is one the agent could not have planned from its own knowledge, so the
    * length it plans against should carry a far larger error than a known route's. The model does
@@ -73,7 +73,7 @@ public class RoadDistancePathFinder extends PathFinder {
         widened.dijkstraAlgorithm(
             originNode, destinationNode, destinationNode, directedEdgesToAvoid, agent);
     if (!sequence.isEmpty() && agent.getState() != null) {
-      agent.getState().ledger().recordFullNetworkEscalation(false);
+      agent.getState().trace().recordFullNetworkEscalation(false);
     }
     return sequence;
   }
@@ -93,62 +93,24 @@ public class RoadDistancePathFinder extends PathFinder {
    */
   public Route roadDistanceSequence(List<NodeGraph> sequenceNodes, Agent agent) {
 
-    this.agent = agent;
-    this.sequenceNodes = new ArrayList<>(sequenceNodes);
+    NodeGraph initialNode = sequenceNodes.get(0);
 
-    // originNode
-    originNode = this.sequenceNodes.get(0);
-    NodeGraph initialNode = originNode;
-    tmpOrigin = originNode;
-    destinationNode = sequenceNodes.get(sequenceNodes.size() - 1);
-    this.sequenceNodes.remove(0);
+    routeSequence(
+        sequenceNodes,
+        agent,
+        () -> {
+          directedEdgesToAvoid = new HashSet<>(completeSequence);
+          return new DijkstraRoadDistance()
+              .dijkstraAlgorithm(
+                  tmpOrigin, tmpDestination, destinationNode, directedEdgesToAvoid, agent);
+        });
 
-    for (NodeGraph currentNode : this.sequenceNodes) {
-      moveOn = false;
-      tmpDestination = currentNode;
-
-      // check if this tmpDestination has been traversed already
-      if (nodesFromEdgesSequence(completeSequence).contains(tmpDestination)) {
-        controlPath(tmpDestination);
-        tmpOrigin = tmpDestination;
-        continue;
-      }
-
-      if (haveEdgesBetween()) {
-        continue;
-      }
-
-      directedEdgesToAvoid = new HashSet<>(completeSequence);
-      DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
-      partialSequence =
-          pathfinder.dijkstraAlgorithm(
-              tmpOrigin, tmpDestination, destinationNode, directedEdgesToAvoid, agent);
-      while (partialSequence.isEmpty() && !moveOn) {
-        backtracking(tmpDestination);
-      }
-
-      if (moveOn) {
-        if (tmpOrigin == originNode) {
-          continue;
-        }
-        tmpOrigin = tmpDestination;
-        continue;
-      }
-      checkEdgesSequence(tmpOrigin);
-      completeSequence.addAll(partialSequence);
-      tmpOrigin = tmpDestination;
-    }
-    completeSequence = sequenceOnCommunityNetwork(completeSequence);
     if (completeSequence.isEmpty()) {
       agent.getProperties().setRegionBasedNavigation(false);
       return roadDistance(initialNode, destinationNode, this.agent);
     }
-    // The whole sequence, not the last leg. {@code fillRoute} reads {@code partialSequence}, which
-    // at this point holds only the final leg the loop computed, so the route returned was the walk
-    // from the last gateway or on-route landmark to the destination and nothing before it. Correct
-    // from November 2023 until the March 2026 routeChoice/routing restructure (9fea027) replaced
-    // the direct assignment with a call to fillRoute; both sibling sequence routers,
-    // {@code angularChangeBasedSequence} and {@code globalLandmarksPathSequence}, kept it.
+    // The whole sequence, not the last leg: fillRoute reads partialSequence, which at this point
+    // holds only the final leg the loop computed.
     partialSequence = completeSequence;
     fillRoute();
     return route;
