@@ -61,7 +61,7 @@ public class AgentReleaseManager implements AutoCloseable {
     this.dayNumber = dayNumber;
     random = new MersenneTwisterFast(state.seed() * 7919L + dayNumber);
     resetMetersWalkedSoFar();
-    state.ledger().reset();
+    state.trace().reset();
     metersWalkedSoFarToday = 0.0;
     initLogFile();
   }
@@ -276,21 +276,23 @@ public class AgentReleaseManager implements AutoCloseable {
                 + "(%d route lengths unusable), %d band widenings, "
                 + "%d fallbacks to any node, %d/%d angular routes served as shortest path "
                 + "(%d no dual path, %d trimmed away, %d with an unknown dual endpoint); "
+                + "%d landmark routes served as shortest path; "
                 + "%d routes found only beyond the agent's known network (%d angular); "
                 + "%d known networks left in pieces",
             dayNumber,
-            state.ledger().plannedRouteMeters(),
-            state.ledger().walkedRouteMeters(),
-            state.ledger().unusableRouteLengths(),
-            state.ledger().destinationWidenings(),
-            state.ledger().destinationFallbacks(),
-            state.ledger().angularFallbacks(),
-            state.ledger().angularAttempts(),
-            state.ledger().angularNoDualPath(),
-            state.ledger().angularTrimmedAway(),
-            state.ledger().angularEndpointUnknown(),
-            state.ledger().fullNetworkEscalations(),
-            state.ledger().fullNetworkEscalationsAngular(),
+            state.trace().plannedRouteMeters(),
+            state.trace().walkedRouteMeters(),
+            state.trace().unusableRouteLengths(),
+            state.trace().destinationWidenings(),
+            state.trace().destinationFallbacks(),
+            state.trace().angularFallbacks(),
+            state.trace().angularAttempts(),
+            state.trace().angularNoDualPath(),
+            state.trace().angularTrimmedAway(),
+            state.trace().angularEndpointUnknown(),
+            state.trace().landmarkFallbacks(),
+            state.trace().fullNetworkEscalations(),
+            state.trace().fullNetworkEscalationsAngular(),
             sim.graph.Islands.incompleteMerges()));
     if (logWriter != null) {
       logWriter.flush();

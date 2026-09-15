@@ -195,7 +195,7 @@ public class NightAgent extends ActivityAgent {
     if (destinationNode == null) {
       // Every known candidate is on a park or waterside edge; accept any reachable node
       // so the agent proceeds.
-      state.ledger().recordDestinationFallback();
+      state.trace().recordDestinationFallback();
       destinationNode = NodesLookup.randomNode(agentNetwork, random);
     }
   }
@@ -230,7 +230,7 @@ public class NightAgent extends ActivityAgent {
       destinationNode = null;
     }
     if (destinationNode == null) {
-      state.ledger().recordDestinationFallback();
+      state.trace().recordDestinationFallback();
       destinationNode = NodesLookup.randomNode(agentNetwork, random);
     }
   }

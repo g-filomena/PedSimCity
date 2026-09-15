@@ -190,12 +190,12 @@ public class PedSimCity extends SimState {
     return new BaselineTravelDemand(this);
   }
 
-  /** What this run measured about itself; see {@link RunLedger}. Measurement only, never fed back. */
-  private final RunLedger ledger = new RunLedger();
+  /** What this run measured about itself; see {@link RouteTrace}. Measurement only, never fed back. */
+  private final RouteTrace trace = new RouteTrace();
 
-  /** This run's ledger. */
-  public RunLedger ledger() {
-    return ledger;
+  /** What this run measured about itself, and the per-leg record behind it. */
+  public RouteTrace trace() {
+    return trace;
   }
 
   /**
