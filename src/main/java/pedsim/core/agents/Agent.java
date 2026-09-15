@@ -282,14 +282,14 @@ public class Agent implements Steppable {
         candidates.retainAll(restrictTo);
       }
       if (candidates.size() >= TARGET_DESTINATION_CANDIDATES) {
-        state.ledger().recordDestinationWidening(doublings);
+        state.trace().recordDestinationWidening(doublings);
         return candidates;
       }
       // Keep the widest set seen: if the graph never offers thirty, this is the answer.
       widest = candidates;
       tolerance *= 2.0;
     }
-    state.ledger().recordDestinationWidening(MAX_SEARCH_DOUBLINGS);
+    state.trace().recordDestinationWidening(MAX_SEARCH_DOUBLINGS);
     return widest;
   }
 
@@ -319,7 +319,7 @@ public class Agent implements Steppable {
     List<NodeGraph> candidates =
         candidatesNearDistance(network, NetworkCircuity.straightLineFor(routeMetres), knownNodes);
     if (candidates.isEmpty()) {
-      state.ledger().recordDestinationFallback();
+      state.trace().recordDestinationFallback();
       candidates = new ArrayList<>(network.getNodes());
     }
 
@@ -598,7 +598,32 @@ public class Agent implements Steppable {
    */
   protected void initialiseHeuristics(boolean nightTime) {
     heuristics = new Heuristics(this);
-    heuristics.defineHeuristic(nightTime);
+    if (agentProperties == null) {
+      return;
+    }
+    // An agent built with a model of its own keeps it; one without asks for a fresh model each
+    // trip. Either way the working copy is rebuilt from a model here, so whatever the previous
+    // trip's planners switched off is back on.
+    RouteChoiceModel assigned = assignedRouteChoice();
+    agentProperties.applyModel(assigned != null ? assigned : heuristics.defineHeuristic(nightTime));
+  }
+
+  /**
+   * This agent's route choice, when it was decided before the agent started walking.
+   *
+   * <p>cityImage builds one agent per named scenario and empirical draws one per survey cluster:
+   * that assignment <i>is</i> the experiment, so those agents answer here and never consult
+   * {@link Heuristics}. Core, activity, night and learning agents return null and are given a
+   * freshly sampled model for every trip.
+   *
+   * <p>A method to override rather than a field to set, so an agent that has a model states it in
+   * one place - {@code CityImageAgent} already holds the scenario it was built with, and setting a
+   * model derived from it would be the same fact written twice.
+   *
+   * @return the model to walk for this agent's whole life, or null to sample one per trip
+   */
+  protected RouteChoiceModel assignedRouteChoice() {
+    return null;
   }
 
   /**
@@ -772,7 +797,7 @@ public class Agent implements Steppable {
     // subclasses bypass it; the right seam is the one that has to be crossed because it installs
     // the state.
     if (route != null && state != null) {
-      state.ledger().recordPlannedRoute(route.getLength());
+      state.trace().recordPlannedRoute(this, route);
     }
   }
 
