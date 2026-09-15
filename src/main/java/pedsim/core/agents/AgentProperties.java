@@ -10,10 +10,18 @@ import pedsim.core.utilities.StringEnum.MinimisationMode;
 import pedsim.core.utilities.StringEnum.RouteChoiceElement;
 
 /**
- * An agent's route-choice configuration: the minimisation mode (shortest vs least-turn), the local
- * heuristic, the active route-choice elements (landmarks, regions, barriers) and the barrier
- * cost/preference factors. A plain state holder — {@code Heuristics} and the module-specific
- * subclasses decide the values; the routing classes read them.
+ * The working copy a single trip is planned against.
+ *
+ * <p>{@link RouteChoiceModel} is the decision - what this agent's route choice <i>is</i>. This is
+ * the mutable view of it that the routing classes read while one trip is being planned, and that a
+ * planner may switch parts of off when the trip cannot use them: {@code RoutePlanner} disables
+ * region navigation for an origin and destination inside one region,
+ * {@code RegionBasedNavigation} when no gateway sequence survives.
+ *
+ * <p><b>{@code RoutePlanner} reapplies the model at the start of every trip</b>, through
+ * {@link #applyModel(RouteChoiceModel)}, so those decisions last exactly as long as the trip that
+ * made them. Writing them to something the agent keeps is what turned "not for this trip" into "not
+ * for this agent, ever" - an OD agent walks its whole matrix on one of these.
  */
 public class AgentProperties {
 
@@ -31,12 +39,75 @@ public class AgentProperties {
   private AgentBarrierType barrierType;
   private LandmarkType landmarkType;
 
+  /** The model this copy was last built from, or null before the first trip is planned. */
+  private RouteChoiceModel model;
+
   public AgentProperties() {
     this.elements = EnumSet.noneOf(RouteChoiceElement.class);
     reset();
   }
 
+  /**
+   * Rebuilds this working copy from {@code model}, discarding whatever the previous trip decided.
+   *
+   * @param model the agent's route choice
+   */
+  public void applyModel(RouteChoiceModel model) {
+    reset();
+    this.model = model;
+    if (model == null) {
+      return;
+    }
+    minimisationMode = model.minimisation();
+    localHeuristicMode = model.localHeuristic();
+    elements.addAll(model.elements());
+    landmarkType = model.landmarkType();
+
+    RouteChoiceModel.BarrierPreferences barriers = model.barriers();
+    barrierType = barriers.type();
+    preferenceNaturalBarriers = barriers.preferenceNatural();
+    aversionSeveringBarriers = barriers.aversionSevering();
+    naturalBarriersMean = barriers.naturalMean();
+    naturalBarriersSD = barriers.naturalSD();
+    severingBarriersMean = barriers.severingMean();
+    severingBarriersSD = barriers.severingSD();
+  }
+
+  /** The model this copy was built from, or null if none has been applied. */
+  public RouteChoiceModel model() {
+    return model;
+  }
+
+  /**
+   * A model describing the values currently held here.
+   *
+   * <p>For a subclass that decides a route choice by writing into these fields - the empirical
+   * module samples its clusters that way - this is how the result becomes the agent's model. The
+   * strategy follows the same rule the fields do: a minimisation mode and nothing else is a pure
+   * minimisation, anything else is element-based.
+   *
+   * @return the model these values describe
+   */
+  public RouteChoiceModel toModel() {
+    RouteChoiceModel.BarrierPreferences barriers =
+        new RouteChoiceModel.BarrierPreferences(
+            barrierType,
+            preferenceNaturalBarriers,
+            aversionSeveringBarriers,
+            naturalBarriersMean,
+            naturalBarriersSD,
+            severingBarriersMean,
+            severingBarriersSD);
+
+    if (minimisationMode != MinimisationMode.NONE) {
+      return RouteChoiceModel.minimising(minimisationMode).withBarriers(barriers);
+    }
+    return RouteChoiceModel.usingElements(localHeuristicMode, elements, landmarkType, barriers);
+  }
+
+  /** Clears every value back to the state before a model is applied. */
   public void reset() {
+    model = null;
     minimisationMode = MinimisationMode.NONE;
     localHeuristicMode = LocalHeuristicMode.NONE;
     elements.clear();
@@ -53,20 +124,15 @@ public class AgentProperties {
     landmarkType = null;
   }
 
-  public boolean shouldOnlyUseMinimization() {
-    return minimisationMode != MinimisationMode.NONE;
-  }
-
   /**
-   * Whether a route-choice model has been picked: fresh properties sit at {@code NONE}/{@code NONE}
-   * with no elements, which is the state before one is chosen rather than a model in itself.
+   * Whether the route is one cost minimised end to end, with no sub-goals - v1.11's
+   * {@code onlyMinimising}, and still the intended meaning.
    *
-   * @return whether a minimisation mode, a local heuristic or any route-choice element is set
+   * <p>Answered by the model's declared {@code Strategy} rather than inferred from "a minimisation
+   * mode is set", so a model cannot fall into this case by acquiring a mode.
    */
-  public boolean isConfigured() {
-    return minimisationMode != MinimisationMode.NONE
-        || localHeuristicMode != LocalHeuristicMode.NONE
-        || !elements.isEmpty();
+  public boolean shouldOnlyUseMinimization() {
+    return model != null && model.isPureMinimisation();
   }
 
   public boolean shouldUseLocalHeuristic() {

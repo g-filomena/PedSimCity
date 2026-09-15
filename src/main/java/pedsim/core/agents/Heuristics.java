@@ -1,6 +1,7 @@
 package pedsim.core.agents;
 
 import ec.util.MersenneTwisterFast;
+import java.util.EnumSet;
 import java.util.Objects;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.parameters.RouteChoicePars;
@@ -9,7 +10,7 @@ import pedsim.core.utilities.StringEnum.MinimisationMode;
 import pedsim.core.utilities.StringEnum.RouteChoiceElement;
 
 /**
- * Samples an agent's route-choice configuration into its {@link AgentProperties}.
+ * Samples a {@link RouteChoiceModel} for an agent that does not bring one of its own.
  *
  * <p>Two paths:
  *
@@ -21,6 +22,10 @@ import pedsim.core.utilities.StringEnum.RouteChoiceElement;
  *       with each mechanism gated by the data the city actually loaded — angular modes need the
  *       dual graph, landmark elements need landmark scores, and so on.
  * </ul>
+ *
+ * <p>It returns a model rather than writing into the agent's properties. An agent that was built
+ * with a model of its own - cityImage's one-per-scenario, empirical's cluster draw - simply never
+ * asks, so there is no way for a sampled model to overwrite an assigned one.
  */
 public final class Heuristics {
 
@@ -30,7 +35,6 @@ public final class Heuristics {
   private double probabilityUsingRegions;
   private double probabilityBarrierSubGoals;
 
-  private final AgentProperties ap;
   private final MersenneTwisterFast random;
 
   private final double globalLandmarknessWeightDistance =
@@ -39,57 +43,64 @@ public final class Heuristics {
       RouteChoicePars.globalLandmarknessWeightAngularCommunity;
 
   public Heuristics(Agent agent) {
-    this.ap = Objects.requireNonNull(Objects.requireNonNull(agent).getProperties());
+    Objects.requireNonNull(agent);
     // The agent's own seeded generator: route choice is sampled per trip, so an unseeded one here
     // put every routing decision of the run beyond replay.
     this.random = agent.getRandom();
   }
 
   /**
-   * Configures the agent's route choice for the next trip. With {@code onlyDistanceMinimisation}
-   * the properties are reset to plain shortest-path routing; otherwise the route-choice mechanisms
-   * are sampled (see class doc).
+   * Samples the route choice for the next trip.
+   *
+   * @param onlyDistanceMinimisation route by plain shortest path, sampling nothing
+   * @return the model for this trip
    */
-  public void defineHeuristic(boolean onlyDistanceMinimisation) {
+  public RouteChoiceModel defineHeuristic(boolean onlyDistanceMinimisation) {
     if (onlyDistanceMinimisation) {
-      ap.reset();
-      ap.setMinimisationMode(MinimisationMode.DISTANCE);
-      return;
+      return RouteChoiceModel.minimising(MinimisationMode.DISTANCE);
     }
-    defineRouteChoiceMechanisms();
+    return defineRouteChoiceMechanisms();
   }
 
-  public void defineRouteChoiceMechanisms() {
+  /**
+   * Samples a model from the activation probabilities, or falls back to pure minimisation when none
+   * are set.
+   *
+   * @return the sampled model
+   */
+  public RouteChoiceModel defineRouteChoiceMechanisms() {
 
     // No activation probabilities set for this agent: use pure minimisation, alternating shortest
     // path (distance) and least-turn (angular / simplest path) by the default distribution.
     // Angular needs a dual graph, so primal-only cities always minimise distance.
     if (!hasActivationProbabilities()) {
-      ap.setMinimisationMode(defaultMinimisationMode());
-      return;
+      return RouteChoiceModel.minimising(defaultMinimisationMode());
     }
 
     // Probability-driven route choice, with each mechanism gated by the data the city loaded.
     if (isGlobalMinimisationDominant()) {
-      ap.setMinimisationMode(constrainMinimisation(sampleMinimisationMode()));
-      return;
+      return RouteChoiceModel.minimising(constrainMinimisation(sampleMinimisationMode()));
     }
 
-    ap.setLocalHeuristicMode(constrainLocalHeuristic(sampleLocalHeuristicMode()));
+    LocalHeuristicMode localHeuristic = constrainLocalHeuristic(sampleLocalHeuristicMode());
+    EnumSet<RouteChoiceElement> elements = EnumSet.noneOf(RouteChoiceElement.class);
 
     if (barriersAvailable() && random.nextDouble() < probabilityBarrierSubGoals) {
-      ap.addElement(RouteChoiceElement.BARRIER_BASED_NAVIGATION);
+      elements.add(RouteChoiceElement.BARRIER_BASED_NAVIGATION);
     } else if (landmarksAvailable()) {
-      ap.addElement(RouteChoiceElement.LOCAL_LANDMARKS);
+      elements.add(RouteChoiceElement.LOCAL_LANDMARKS);
     }
 
     if (landmarksAvailable() && random.nextDouble() < probabilityDistantLandmarks) {
-      ap.addElement(RouteChoiceElement.DISTANT_LANDMARKS);
+      elements.add(RouteChoiceElement.DISTANT_LANDMARKS);
     }
 
     if (regionsAvailable() && random.nextDouble() < probabilityUsingRegions) {
-      ap.addElement(RouteChoiceElement.REGION_BASED_NAVIGATION);
+      elements.add(RouteChoiceElement.REGION_BASED_NAVIGATION);
     }
+
+    return RouteChoiceModel.usingElements(
+        localHeuristic, elements, null, RouteChoiceModel.BarrierPreferences.NONE);
   }
 
   /** Whether any activation probability has been set for this agent. */
