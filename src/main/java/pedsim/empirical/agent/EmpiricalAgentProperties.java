@@ -95,6 +95,13 @@ public final class EmpiricalAgentProperties extends AgentProperties {
     this.random = agent.getRandom();
   }
 
+  /**
+   * Draws this agent's route choice from its survey cluster's own distributions.
+   *
+   * <p>Drawn once, in the constructor, and handed to the agent as its model: the draw is what
+   * separates one group from another, so a per-trip re-decision would replace the cluster with a
+   * coin flip and make every group identical.
+   */
   public void randomizeRouteChoiceParameters() {
     reset();
 
