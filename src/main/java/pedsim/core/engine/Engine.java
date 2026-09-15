@@ -293,9 +293,9 @@ public class Engine {
         new double[] {
           job,
           seed,
-          state.ledger().runLegsPlanned(),
-          state.ledger().runPlannedRouteMeters(),
-          state.ledger().runWalkedRouteMeters(),
+          state.trace().runLegsPlanned(),
+          state.trace().runPlannedRouteMeters(),
+          state.trace().runWalkedRouteMeters(),
           state.agentsList.size()
         });
   }
@@ -362,7 +362,7 @@ public class Engine {
   }
 
   /**
-   * A day has ended and its ledger is still intact — the next day's release manager clears it.
+   * A day has ended and its trace is still intact — the next day's release manager clears it.
    *
    * @param day the day that has just finished, counting from 1
    */

@@ -12,7 +12,7 @@ import pedsim.core.utilities.LoggerUtil;
 
 /**
  * One row per simulated day for every module on the activity tier: legs against the day's budget,
- * metres, darkness exposure, commute shares and the ledger's error counts.
+ * metres, darkness exposure, commute shares and the trace's error counts.
  *
  * <p>Appended to {@code outputs/<app>/daySummary/<date>_<job>.csv} as each day ends.
  */
@@ -50,7 +50,7 @@ public final class DaySummary {
    * Appends the day's row and logs its darkness exposure: legs begun in the dark, and how many of
    * those a fixed {@code [20:00, 06:00)} window would not count as night.
    *
-   * @param state the running state, with the day's ledger still intact
+   * @param state the running state, with the day's trace still intact
    * @param appName the module's output folder name
    * @param day the day that has just finished, counting from 1
    */
@@ -61,10 +61,10 @@ public final class DaySummary {
 
     LocalDate date = TimePars.SIMULATION_START_DATE.plusDays((long) day - 1);
     int agents = state.agentsList.size();
-    double planned = state.ledger().plannedRouteMeters();
+    double planned = state.trace().plannedRouteMeters();
     long legsDark = activityState.legsInDarkness.sum();
     long legsDarkOutside = activityState.legsDarkOutsideNightWindow.sum();
-    long legs = state.ledger().legsPlanned();
+    long legs = state.trace().legsPlanned();
 
     ActivityTravelDemand demand =
         state.travelDemand() instanceof ActivityTravelDemand activityDemand ? activityDemand : null;
@@ -76,7 +76,7 @@ public final class DaySummary {
       Integer.toString(agents),
       Long.toString(legs),
       String.format("%.0f", planned),
-      String.format("%.0f", state.ledger().walkedRouteMeters()),
+      String.format("%.0f", state.trace().walkedRouteMeters()),
       String.format("%.0f", agents > 0 ? planned / agents : 0.0),
       Long.toString(legsDark),
       Long.toString(legsDarkOutside),
@@ -86,10 +86,10 @@ public final class DaySummary {
       demand == null ? "" : String.format("%.2f", demand.legsPerChain()),
       demand == null ? "" : String.format("%.4f", demand.workerWalkShare()),
       demand == null ? "" : String.format("%.4f", demand.studentWalkShare()),
-      Long.toString(state.ledger().unusableRouteLengths()),
-      Long.toString(state.ledger().destinationWidenings()),
-      Long.toString(state.ledger().destinationFallbacks()),
-      Long.toString(state.ledger().fullNetworkEscalations()),
+      Long.toString(state.trace().unusableRouteLengths()),
+      Long.toString(state.trace().destinationWidenings()),
+      Long.toString(state.trace().destinationFallbacks()),
+      Long.toString(state.trace().fullNetworkEscalations()),
       Long.toString(sim.graph.Islands.incompleteMerges())
     };
 

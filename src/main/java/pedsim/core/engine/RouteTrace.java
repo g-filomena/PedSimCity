@@ -1,25 +1,49 @@
 package pedsim.core.engine;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.DoubleAdder;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.logging.Logger;
+import pedsim.core.agents.Agent;
+import sim.graph.NodeGraph;
+import sim.routing.Route;
 
 /**
- * What a day of simulation measured about itself.
+ * What a run measured about itself: the totals and counters a day is summarised by, and an opt-in
+ * record of every leg that produced them.
  *
- * <p>Measurement only, and it must stay that way. Every quantity here is recorded so that a run can
- * be checked, and none of it is read back by the mechanism that produced it: the release is charged
- * an estimate hours before the routes that answer it exist, so the ledger always lags, and an
- * allocation that grows when it sees less walking than it charged for is a positive feedback loop -
- * it reached 21x on a one-day run when it was tried. Where a measured gap is real, it is closed at
- * its source, not by feeding it back here.
+ * <p>Both come from one place, {@link pedsim.core.agents.Agent#setRoute}, which is the seam every
+ * planner crosses. They are one class because they fail together: an agent that assigns its route
+ * field directly instead of going through that seam leaves the totals reading zero and the per-leg
+ * record empty, with nothing to say which of the two is wrong.
+ *
+ * <p>The two halves answer different questions. The counters answer <i>how much</i> - metres
+ * planned and walked, band widenings, destination fallbacks, route-choice models that silently
+ * served a shortest path - and are what a day's summary line prints. The per-leg record answers
+ * <i>which route this model took for this OD pair</i>, which no total can, and is what makes two
+ * route-choice models comparable. It is written only when {@code -Dpedsim.trace=<file>} names a
+ * file, carries no timestamps, and is therefore byte-comparable between runs and between machines.
+ *
+ * <p><b>Measurement only, and it must stay that way.</b> Nothing here is read back by the mechanism
+ * that produced it: the release is charged an estimate hours before the routes that answer it
+ * exist, so the measurement always lags, and an allocation that grows when it sees less walking
+ * than it charged for is a positive feedback loop - it reached 21x on a one-day run when it was
+ * tried. Where a measured gap is real, it is closed at its source.
  *
  * <p>Separate from {@code PedSimCity} because it is not simulation state: it is what an observer
  * wrote down while watching. Keeping the two apart is what stops a measurement being read as though
  * it were an input.
  *
- * <p>Adders rather than counters because agents step concurrently when {@code Pars.parallel} is set.
+ * <p>Adders rather than counters because agents step concurrently when {@code Pars.parallel} is set;
+ * writes to the per-leg file are synchronised for the same reason.
  */
-public class RunLedger {
+public class RouteTrace {
 
   /**
    * Metres of route planned today, summed over every leg of every agent.
@@ -67,6 +91,14 @@ public class RunLedger {
    */
   private final LongAdder angularFallbacks = new LongAdder();
 
+  /**
+   * Legs that asked for a distant-landmark route and got the shortest path instead, because the
+   * landmark search returned no path. Counted for the same reason as {@code angularFallbacks}: a
+   * landmark model silently serving shortest paths is indistinguishable, in the output, from a
+   * landmark model that works.
+   */
+  private final LongAdder landmarkFallbacks = new LongAdder();
+
   /** Angular routes whose dual-graph search returned nothing at all. */
   private final LongAdder angularNoDualPath = new LongAdder();
 
@@ -88,6 +120,16 @@ public class RunLedger {
     } else {
       angularNoDualPath.increment();
     }
+  }
+
+  /** Records a distant-landmark leg served as shortest path because no landmark path was found. */
+  public void recordLandmarkFallback() {
+    landmarkFallbacks.increment();
+  }
+
+  /** Legs that asked for a distant-landmark route and were served the shortest path. */
+  public long landmarkFallbacks() {
+    return landmarkFallbacks.sum();
   }
 
   /** Angular routes lost because the dual search found no path. */
@@ -178,7 +220,22 @@ public class RunLedger {
   }
 
   /**
-   * Records a leg whose route has just been planned.
+   * Records a leg whose route has just been planned: counted here, and written to the per-leg file
+   * when one is open.
+   *
+   * @param agent the agent that planned it
+   * @param route the route it planned
+   */
+  public void recordPlannedRoute(Agent agent, Route route) {
+    if (route == null) {
+      return;
+    }
+    recordPlannedRoute(route.getLength());
+    writeLeg(agent, route);
+  }
+
+  /**
+   * Records the length of a planned leg, without the identity the per-leg file needs.
    *
    * @param meters the routed length, which is what will actually be walked
    */
@@ -286,5 +343,100 @@ public class RunLedger {
     angularEndpointUnknown.reset();
     fullNetworkEscalations.reset();
     fullNetworkEscalationsAngular.reset();
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // The per-leg record: one line per planned leg, when -Dpedsim.trace names a file.
+  // ---------------------------------------------------------------------------------------------
+
+  private static final Logger LOGGER = Logger.getLogger(RouteTrace.class.getName());
+  private static final String TRACE_PROPERTY = "pedsim.trace";
+
+  private static Writer writer;
+  private static boolean writingLegs;
+
+  /**
+   * Opens the per-leg file if {@code -Dpedsim.trace} named one. Safe to call more than once; one
+   * file serves every job of the run, which is why it is static where the counters are not.
+   */
+  public static synchronized void openLegFile() {
+    if (writer != null || writingLegs) {
+      return;
+    }
+    String target = System.getProperty(TRACE_PROPERTY);
+    if (target == null || target.isBlank()) {
+      return;
+    }
+    try {
+      Path path = Path.of(target);
+      if (path.getParent() != null) {
+        Files.createDirectories(path.getParent());
+      }
+      writer =
+          Files.newBufferedWriter(
+              path,
+              StandardCharsets.UTF_8,
+              StandardOpenOption.CREATE,
+              StandardOpenOption.TRUNCATE_EXISTING,
+              StandardOpenOption.WRITE);
+      writer.write("scenario,agentID,trip,origin,destination,nodes,edges,length\n");
+      writingLegs = true;
+      LOGGER.info("route trace enabled: " + path.toAbsolutePath());
+    } catch (IOException e) {
+      throw new UncheckedIOException("could not open the route trace at " + target, e);
+    }
+  }
+
+  /** Whether a per-leg file is open. */
+  public static boolean writingLegs() {
+    return writingLegs;
+  }
+
+  private static synchronized void writeLeg(Agent agent, Route route) {
+    if (!writingLegs || agent == null) {
+      return;
+    }
+    Object scenario = agent.getAgentScenario();
+    int nodes = route.nodesSequence == null ? 0 : route.nodesSequence.size();
+    int edges = route.directedEdgesSequence == null ? 0 : route.directedEdgesSequence.size();
+    try {
+      writer.write(
+          String.format(
+              "%s,%d,%d,%s,%s,%d,%d,%.3f%n",
+              scenario == null ? "DEFAULT" : scenario.toString(),
+              agent.agentID,
+              agent.getTripsDone(),
+              endpoint(route, true),
+              endpoint(route, false),
+              nodes,
+              edges,
+              route.getLength()));
+    } catch (IOException e) {
+      throw new UncheckedIOException("could not write to the route trace", e);
+    }
+  }
+
+  private static String endpoint(Route route, boolean first) {
+    if (route.nodesSequence == null || route.nodesSequence.isEmpty()) {
+      return "NA";
+    }
+    NodeGraph node = first ? route.nodesSequence.get(0) : route.nodesSequence.getLast();
+    return node == null ? "NA" : String.valueOf(node.getID());
+  }
+
+  /** Flushes and closes the per-leg file, if one is open. */
+  public static synchronized void closeLegFile() {
+    if (writer == null) {
+      return;
+    }
+    try {
+      writer.flush();
+      writer.close();
+    } catch (IOException e) {
+      LOGGER.warning("could not close the route trace: " + e.getMessage());
+    } finally {
+      writer = null;
+      writingLegs = false;
+    }
   }
 }
