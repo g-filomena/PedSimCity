@@ -14,7 +14,6 @@ import pedsim.core.routing.elements.RegionLandmarkNavigation;
 import pedsim.core.routing.pathfinder.AngularChangePathFinder;
 import pedsim.core.routing.pathfinder.GlobalLandmarksPathFinder;
 import pedsim.core.routing.pathfinder.RoadDistancePathFinder;
-import pedsim.core.utilities.LoggerUtil;
 import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
 import sim.routing.Route;
@@ -49,30 +48,7 @@ public class RoutePlanner {
     this.agent = agent;
     this.properties = agent.getProperties();
     this.nodesSequence = new ArrayList<>();
-    warnIfUnconfigured();
   }
-
-  /**
-   * Warns once when a planner is built on properties nothing has configured: the route then falls
-   * back to road distance, which is not the agent's route choice. {@code Agent.planRoute()} calls
-   * {@code initialiseHeuristics()} first and the module property classes set a mode themselves.
-   */
-  private void warnIfUnconfigured() {
-    if (properties.isConfigured() || unconfiguredWarningIssued) {
-      return;
-    }
-    unconfiguredWarningIssued = true;
-    LoggerUtil.getLogger()
-        .warning(
-            "RoutePlanner built on unconfigured AgentProperties (agent "
-                + agent.agentID
-                + "): no minimisation mode, local heuristic or route-choice element is set, so the"
-                + " route falls back to road distance. Plan through Agent.planRoute(), which calls"
-                + " initialiseHeuristics() first. Reported once per run.");
-  }
-
-  /** One warning is the point; a per-trip one would bury the run's own output. */
-  private static volatile boolean unconfiguredWarningIssued = false;
 
   /**
    * Defines the path for the agent based on route choice properties and
