@@ -64,7 +64,7 @@ public final class CityImageAgent extends OdAgent {
    * @param scenario the scenario this agent was built for
    * @return the route-choice model it stands for
    */
-  private static RouteChoiceModel modelFor(Scenario scenario) {
+  static RouteChoiceModel modelFor(Scenario scenario) {
     return switch (scenario) {
       case ROAD_DISTANCE -> RouteChoiceModel.minimisingDistance();
       case ANGULAR_CHANGE -> RouteChoiceModel.minimisingAngular();
