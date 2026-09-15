@@ -18,7 +18,7 @@ import pedsim.empirical.parameters.EmpiricalPars;
  *
  * <p>Defaults to Muenster, 301 agents and 10 jobs, the study the cluster data comes from
  * ({@code Muenster_clusters.csv}). Those defaults are applied in {@link #applyParameters} and only
- * where the command line is silent, because {@link #applyMode} runs after the arguments and would
+ * where the command line is silent, because the command line is applied after the defaults.
  * override them.
  *
  * <p>Reads no per-city configuration file — {@link #loadCityConfig} stays core's no-op — because
@@ -48,8 +48,12 @@ public final class EmpiricalSimulationModule implements SimulationModule {
   }
 
   @Override
-  public void applyMode() {
-    Pars.isNight = false;
+  public void applyDefaults(java.util.Map<String, String> selectors) {
+    // The study these clusters come from is Muenster, so that is the city, the cohort and the job
+    // count this module expects. Stated unconditionally: the command line runs after this.
+    Pars.cityName = EmpiricalPars.defaultCityName;
+    Pars.jobs = EmpiricalPars.defaultJobs;
+    Pars.numAgents = EmpiricalPars.numAgents;
   }
 
   @Override
@@ -83,19 +87,6 @@ public final class EmpiricalSimulationModule implements SimulationModule {
         ParameterManager.setFieldValue(EmpiricalPars.class, key, params.get(key).toString());
       }
     }
-
-    // Defaults only where the command line was silent. The study these clusters come from is
-    // Muenster, so that is the city, the agent count and the job count this module expects unless
-    // told otherwise.
-    if (!params.containsKey("cityName")) {
-      Pars.cityName = EmpiricalPars.defaultCityName;
-    }
-    if (!params.containsKey("jobs")) {
-      Pars.jobs = EmpiricalPars.defaultJobs;
-    }
-    // This module's population is its survey cohort, not a sample of a city's residents, so the
-    // count comes from EmpiricalPars and nothing derives over it.
-    Pars.numAgents = EmpiricalPars.numAgents;
   }
 
   @Override
