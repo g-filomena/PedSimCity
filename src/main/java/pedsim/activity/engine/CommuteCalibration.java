@@ -120,37 +120,46 @@ public final class CommuteCalibration {
 
     double[] betas = {0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0};
 
-    System.out.println();
-    System.out.printf(
-        "=== %s: target %.1f%% walking, lengths %.1f / %.1f / %.1f / %.1f (%d tagged nodes)%n",
-        label,
-        targetShare,
-        targetBands[0],
-        targetBands[1],
-        targetBands[2],
-        targetBands[3],
-        attraction.size());
+    // One record, not thirty: a sweep table is only readable as a table, and prefixing every row
+    // with a log level is what printing it line by line costs. Assembled here, logged once below.
+    StringBuilder report = new StringBuilder(System.lineSeparator());
+    report.append(
+        String.format(
+            "=== %s: target %.1f%% walking, lengths %.1f / %.1f / %.1f / %.1f (%d tagged nodes)%n",
+            label,
+            targetShare,
+            targetBands[0],
+            targetBands[1],
+            targetBands[2],
+            targetBands[3],
+            attraction.size()));
 
-    System.out.printf(
-        "%nA. with this purpose's curve as it stands (half %.0f m, steepness %.5f)%n",
-        currentHalf, currentSteepness);
-    System.out.printf(
-        "%6s %10s   %31s   %8s%n", "beta", "walk share", "walked length bands (%)", "misfit");
-    System.out.println("-".repeat(64));
+    report.append(
+        String.format(
+            "%nA. with this purpose's curve as it stands (half %.0f m, steepness %.5f)%n",
+            currentHalf, currentSteepness));
+    report.append(
+        String.format(
+            "%6s %10s   %31s   %8s%n", "beta", "walk share", "walked length bands (%)", "misfit"));
+    report.append("-".repeat(64)).append(System.lineSeparator());
     for (double beta : betas) {
       double[] d = commuteDistances(homeNodes, attraction, beta, 0.0, random);
       Result r = evaluate(d, currentHalf, currentSteepness, targetShare, targetBands);
-      System.out.printf(
-          "%6.1f %9.1f%%   %7.1f %7.1f %7.1f %6.1f   %8.1f%n",
-          beta, r.walkShare * 100.0, r.bands[0], r.bands[1], r.bands[2], r.bands[3], r.misfit);
+      report.append(
+          String.format(
+              "%6.1f %9.1f%%   %7.1f %7.1f %7.1f %6.1f   %8.1f%n",
+              beta, r.walkShare * 100.0, r.bands[0], r.bands[1], r.bands[2], r.bands[3], r.misfit));
     }
 
-    System.out.println();
-    System.out.println("B. best curve per decay (two parameters against five targets)");
-    System.out.printf(
-        "%6s %10s %11s %10s   %31s   %8s%n",
-        "beta", "half (m)", "steepness", "walk share", "walked length bands (%)", "misfit");
-    System.out.println("-".repeat(88));
+    report.append(System.lineSeparator());
+    report
+        .append("B. best curve per decay (two parameters against five targets)")
+        .append(System.lineSeparator());
+    report.append(
+        String.format(
+            "%6s %10s %11s %10s   %31s   %8s%n",
+            "beta", "half (m)", "steepness", "walk share", "walked length bands (%)", "misfit"));
+    report.append("-".repeat(88)).append(System.lineSeparator());
     for (double beta : betas) {
       double[] d = commuteDistances(homeNodes, attraction, beta, 0.0, random);
       double bestMisfit = Double.MAX_VALUE;
@@ -168,19 +177,20 @@ public final class CommuteCalibration {
           }
         }
       }
-      System.out.printf(
-          "%6.1f %10.0f %11.5f %9.1f%%   %7.1f %7.1f %7.1f %6.1f   %8.1f%n",
-          beta,
-          bestHalf,
-          bestSteep,
-          best.walkShare * 100.0,
-          best.bands[0],
-          best.bands[1],
-          best.bands[2],
-          best.bands[3],
-          best.misfit);
+      report.append(
+          String.format(
+              "%6.1f %10.0f %11.5f %9.1f%%   %7.1f %7.1f %7.1f %6.1f   %8.1f%n",
+              beta,
+              bestHalf,
+              bestSteep,
+              best.walkShare * 100.0,
+              best.bands[0],
+              best.bands[1],
+              best.bands[2],
+              best.bands[3],
+              best.misfit));
     }
-    System.out.println();
+    logger.info(report.toString());
   }
 
   /**

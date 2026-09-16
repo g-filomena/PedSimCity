@@ -2,16 +2,14 @@ package pedsim.activity.engine;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import pedsim.activity.agents.ActivityPurpose;
-import pedsim.core.agents.Agent;
+import pedsim.core.engine.Exporter;
+import pedsim.core.engine.FlowHandler;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.parameters.TimePars;
-import pedsim.transit.TransitStop;
-import pedsim.transit.TransitVehicle;
 import sim.field.geo.VectorLayer;
 import sim.graph.NodeGraph;
 
@@ -34,15 +32,9 @@ public class PedSimCityActivity extends PedSimCity {
     legsInDarkness.reset();
   }
 
-  /**
-   * Darkness for a clock hour of a given day: the seasonal sunrise and sunset at the city's
-   * latitude, taken at the middle of the hour since an hour bucket straddles the boundary. This is
-   * the same condition the agents respond to, and handing it to the flow handler is what gives the
-   * volume exports their light/dark split.
-   */
-  private boolean isDarkHour(int clockHour, int dayNumber) {
-    java.time.LocalDate date = TimePars.SIMULATION_START_DATE.plusDays((long) dayNumber - 1);
-    return Daylight.isDark(date.atTime(clockHour, 30));
+  @Override
+  protected Exporter createExporter(FlowHandler flowHandler, String appName) {
+    return new ActivityExporter(flowHandler, appName);
   }
 
   // Raw census layer as loaded from <City>_censusData.gpkg: one polygon set carrying population
@@ -63,27 +55,8 @@ public class PedSimCityActivity extends PedSimCity {
   public static Map<ActivityPurpose, Map<NodeGraph, Double>> nodesPurposeWeight =
       new EnumMap<>(ActivityPurpose.class);
 
-  // Multi-Modal Transit Static Data Structures
-  public static List<TransitStop> allTransitStops = new ArrayList<>();
-  public static Map<Integer, TransitStop> transitStopsByNodeId = new HashMap<>();
-  public static List<TransitStop> metroStops = new ArrayList<>();
-  public static List<TransitStop> tramStops = new ArrayList<>();
-  public static List<TransitStop> busStops = new ArrayList<>();
-  // Mutated from agent code, which runs in parallel when Pars.parallel is set, so it must be
-  // concurrent like the other shared collections. Write through countTrip(), never put().
-  public static Map<String, Integer> tripsByMode = new java.util.concurrent.ConcurrentHashMap<>();
-
-  /** Records one completed trip against a mode ("WALK", "METRO", "TRAM", "BUS"). */
-  public static void countTrip(String mode) {
-    tripsByMode.merge(mode, 1, Integer::sum);
-  }
-
-  public static Map<Agent, TransitStop> agentTransitDestinations = new HashMap<>();
-
   public PedSimCityActivity(long seed, int job, ScenarioConfig scenarioConfig) {
     super(seed, job, scenarioConfig);
-    // This tier is the one that knows what dark means, so it is the one that tells the exports.
-    flowHandler.setDarknessModel(this::isDarkHour);
   }
 
   /**
@@ -93,87 +66,6 @@ public class PedSimCityActivity extends PedSimCity {
   @Override
   protected void populateEnvironment() {
     new ActivityPopulate().populate(this);
-  }
-
-  @Override
-  protected void startMovingAgents() {
-    super.startMovingAgents();
-
-    // Spawn and schedule moving multi-modal transit vehicles if stations are present and transit is
-    // enabled
-    if (pedsim.core.parameters.RouteChoicePars.usePublicTransport && !allTransitStops.isEmpty()) {
-      if (!metroStops.isEmpty()) {
-        for (int i = 0; i < 4; i++) {
-          TransitVehicle metro = new TransitVehicle("METRO_M1_" + i, "METRO", "M1", 400);
-          metro.stopSequence.addAll(metroStops);
-          metro.currentStopIndex = (i * metroStops.size() / 4) % metroStops.size();
-          schedule.scheduleRepeating(metro, 1, 1.0);
-        }
-      }
-      if (!tramStops.isEmpty()) {
-        for (int i = 0; i < 10; i++) {
-          TransitVehicle tram = new TransitVehicle("TRAM_LINE_" + i, "TRAM", "4", 150);
-          tram.stopSequence.addAll(tramStops);
-          tram.currentStopIndex = (i * tramStops.size() / 10) % tramStops.size();
-          schedule.scheduleRepeating(tram, 1, 1.0);
-        }
-      }
-      if (!busStops.isEmpty()) {
-        for (int i = 0; i < 20; i++) {
-          TransitVehicle bus = new TransitVehicle("BUS_LINE_" + i, "BUS", "68", 80);
-          bus.stopSequence.addAll(busStops);
-          bus.currentStopIndex = (i * busStops.size() / 20) % busStops.size();
-          schedule.scheduleRepeating(bus, 1, 1.0);
-        }
-      }
-      logger.info(
-          String.format(
-              "Multi-Modal Transit Vehicles scheduled: 4 Metro, 10 Tram, 20 Bus fleets active"
-                  + " across %d stations.",
-              allTransitStops.size()));
-    }
-  }
-
-  @Override
-  public void finish() {
-    super.finish();
-    printTransitSummary();
-  }
-
-  public static void printTransitSummary() {
-    // Nothing to report when the city has no transit layer: every line would read zero, which
-    // has previously been misread as "no trips were made".
-    if (allTransitStops.isEmpty()) {
-      return;
-    }
-    System.out.println("\n============================================================");
-    System.out.println("            PEDSIMCITY MULTI-MODAL TRANSIT SUMMARY          ");
-    System.out.println("============================================================");
-    int metroTrips = tripsByMode.getOrDefault("METRO", 0);
-    int tramTrips = tripsByMode.getOrDefault("TRAM", 0);
-    int busTrips = tripsByMode.getOrDefault("BUS", 0);
-    int walkTrips = tripsByMode.getOrDefault("WALK", 0);
-    int totalTrips = metroTrips + tramTrips + busTrips + walkTrips;
-    if (totalTrips == 0) totalTrips = 1;
-
-    System.out.printf("  [MODE SPLIT ANALYSIS]\n");
-    System.out.printf(
-        "  - METRO      : %6d trips (%.1f%%)\n", metroTrips, 100.0 * metroTrips / totalTrips);
-    System.out.printf(
-        "  - TRAM       : %6d trips (%.1f%%)\n", tramTrips, 100.0 * tramTrips / totalTrips);
-    System.out.printf(
-        "  - BUS        : %6d trips (%.1f%%)\n", busTrips, 100.0 * busTrips / totalTrips);
-    System.out.printf(
-        "  - WALK ONLY  : %6d trips (%.1f%%)\n", walkTrips, 100.0 * walkTrips / totalTrips);
-    System.out.println("------------------------------------------------------------");
-    int totalWaiting = 0;
-    for (TransitStop stop : allTransitStops) {
-      totalWaiting += stop.waitingPassengers.size();
-    }
-    System.out.printf("  [STATION INFRASTRUCTURE]\n");
-    System.out.printf("  - Active Transit Stops : %4d stops\n", allTransitStops.size());
-    System.out.printf("  - Platform Queue Totals: %4d waiting agents\n", totalWaiting);
-    System.out.println("============================================================\n");
   }
 
   /** Whether the current simulated day is rainy (see {@link Weather}). */
@@ -194,12 +86,5 @@ public class PedSimCityActivity extends PedSimCity {
     poisLayer.clear();
     censusZones.clear();
     nodesPurposeWeight.clear();
-    allTransitStops.clear();
-    transitStopsByNodeId.clear();
-    metroStops.clear();
-    tramStops.clear();
-    busStops.clear();
-    tripsByMode.clear();
-    agentTransitDestinations.clear();
   }
 }

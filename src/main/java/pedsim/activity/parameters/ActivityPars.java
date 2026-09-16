@@ -187,6 +187,17 @@ public class ActivityPars {
    *
    * <p>Provisional. It has not been fitted to anything yet; the run that would fit it needs the
    * observed distribution to fit against, and for Italy that means the Audimob microdata.
+   *
+   * <p><b>Do not rescale it to hold {@code distanceWeight × Pars.networkCircuityFactor}
+   * invariant.</b> Only that product sets any choice probability, so a change in the measured
+   * circuity moves it and the temptation is to compensate here. Compensating pins this coefficient
+   * to a circuity figure derived from a set of trips, and re-imports through the coefficient
+   * exactly the circularity that measuring circuity from the network removes. A few per cent of
+   * drift in a coefficient that has never been fitted is not a result; inheriting a superseded
+   * trip-length distribution would be.
+   *
+   * <p>{@code Torino.properties} sets this key, so changing the Java default alone does nothing
+   * for Turin.
    */
   public static double distanceWeight = 0.0012;
 
@@ -296,6 +307,20 @@ public class ActivityPars {
   public static double secondPostWorkActivityProbability = 0.15;
 
   // --- Daylight ---
+  /**
+   * Where the city is, in degrees, or {@code NaN} while unknown.
+   *
+   * <p>Measured from the street network by {@link pedsim.activity.engine.CityLocation} when the
+   * environment is prepared - the centre of the network's minimum bounding circle, transformed out
+   * of the CRS the layer declares - so it is a fact about the loaded geometry rather than a figure
+   * anyone types. It sits here rather than in core because the only thing that asks is the daylight
+   * model, and there is no default: a city whose position cannot be established gets the fixed
+   * {@link #dayStartHour} / {@link #nightStartHour} window instead of somebody else's sunset.
+   */
+  public static double cityLatitude = Double.NaN;
+
+  public static double cityLongitude = Double.NaN;
+
   /**
    * The city's time zone, as an IANA id such as {@code Europe/Rome}, or blank when it has not said.
    *

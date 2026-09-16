@@ -40,7 +40,7 @@ Supporting types (all in `pedsim.activity`): `Persona`, `ActivityPurpose`, `Dail
    `dayStartHour`/`nightStartHour` window (06:00–20:00 by default), and the run says which regime is
    in force at startup. The exporter splits its volumes by the same model, so behaviour and outputs
    cannot disagree; the night module inherits `isDark` and never recomputes it, and core holds only
-   the `DarknessModel` seam. The release curve in `TimePars` is day-of-week aware:
+   the overridable `splitsVolumesByDarkness()` / `isDarkHour()` pair on `PedSimCity`. The release curve in `TimePars` is day-of-week aware:
    weekday commute peaks, a Friday night shift, and a weekend curve with no morning commute.
 2. **Population** — `ActivityPopulate` draws each agent's **home** from residence-weighted census
    zones (the census is population structure only) and its **work** from the WORK-purpose

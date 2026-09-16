@@ -50,8 +50,13 @@ also its outstanding debt. Calibrating it needs an observed distribution: **Audi
 again a request to ISFORT. Until then any trip-length result from this model is a plausible shape,
 not a validated one.
 
-Note the coupling: it was fitted while `networkCircuityFactor` sat at 1.41 and the measurement never
-ran. The two want re-deriving under one convention, or the circuity correction is applied twice.
+Note the coupling: it was set while `networkCircuityFactor` sat at a hardcoded 1.41 and the
+measurement never ran. **Decided 16 Sep 2026: leave it at 0.0012.** Only the product of the two sets
+any choice probability and measuring the factor (1.292 on Torino) has drifted that product by 8.4%,
+but rescaling to hold it invariant would re-import through the coefficient the circularity that
+measuring circuity removed — 1.41 was itself measured on the old mechanism's trips. Report the drift
+rather than absorbing it; fitting the coefficient properly still needs Audimob. `Torino.properties`
+sets the key, so the Java default alone does nothing for Turin.
 
 ## 3. Settle `choiceSetRadiusMetres`
 
@@ -114,10 +119,22 @@ them is the walked part of a multi-modal journey — home to the boarding stop, 
 can generate. The transit module (`TransitStop`, `TransitVehicle`, the mode split in
 `ActivityAgent.planTrip`) is the half that already exists.
 
-Related, and smaller: **mode choice is evaluated only on a trip chain's first leg.** Chained legs go
-through `startChainedTrip`, which calls `planRoute()` directly and bypasses the transit split, so
-every intermediate leg is walked regardless of distance. Routing chained planning through the same
-`planTrip` seam would fix it.
+~~Related, and smaller: **mode choice is evaluated only on a trip chain's first leg.**~~ **Fixed
+16 Sep 2026.** The transit split was the tail of `planTrip()`, which `startChainedTrip` never reaches
+because it plans its own route; it is now `ActivityAgent.applyModeChoice()` and both paths call it,
+so a five-kilometre second activity is no longer walked by construction.
+
+**A second leak went with it, and it was the larger of the two.** `egressStop` had no writer that
+cleared it: the vehicle removes the agent from `agentTransitDestinations` on alighting and
+`boardingStop` is nulled at the platform, but the egress stop stayed set for the rest of the agent's
+life — and the mode split is gated on `egressStop == null`. **So one transit journey made every later
+leg of that agent's day a walk, whatever its length.** `clearTransitLegState()` now runs at the start
+of each leg, in `startChainedTrip` and in `startWalkingAlone`, which makes that guard mean "this leg
+has not already been split" rather than "this agent has never taken transit".
+
+Unmeasured, and worth knowing before reading a mode split: `countTrip("WALK")` now fires per walked
+*leg* rather than per first leg, so the walk count rises and the reported mode shares move without
+any behaviour changing. Neither figure was ever compared against anything.
 
 ## 7. ~~The `!isDark()` guard on commuting~~ — removed 14 September 2026
 

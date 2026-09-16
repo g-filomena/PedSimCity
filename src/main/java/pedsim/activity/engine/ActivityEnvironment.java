@@ -34,17 +34,19 @@ public class ActivityEnvironment extends Environment {
   private static final double[] CLAIM_RADII = {50.0, 100.0, 200.0, 400.0};
 
   /**
-   * Runs the core infrastructure preparation - which now includes measuring the network's
-   * circuity - then builds the census-zone model, the purpose-attraction weights from OSM-like use
-   * tags (independent of census availability), and loads the transit stops.
+   * Runs the core infrastructure preparation - which includes measuring the network's circuity -
+   * then measures where the city is, and builds the census-zone model, the purpose-attraction weights from OSM-like use
+   * tags, independent of census availability.
    */
   public static void prepare() {
     Environment.prepare();
+    // Where the city is, from the network core has just built: darkness is this tier's question,
+    // so the reading is this tier's too.
+    CityLocation.measureInto(SharedCognitiveMap.getCommunityPrimalNetwork());
     if (!PedSimCityActivity.censusLayer.isEmpty()) {
       buildCensusZones();
     }
     PoiClassifier.buildPurposeWeights();
-    pedsim.transit.TransitLoader.loadStops(null);
   }
 
   private static void buildCensusZones() {
