@@ -79,7 +79,7 @@ public class TrajectoryRecorder {
             agent.agentID,
             coord.x, // longitude (or projected X)
             coord.y, // latitude  (or projected Y)
-            agent.isVulnerableBoolean() ? 1.0 : 0.0
+            agent.isVulnerable() ? 1.0 : 0.0
           });
     }
   }

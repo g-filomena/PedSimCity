@@ -13,10 +13,10 @@ import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.linearref.LengthIndexedLine;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.agents.Agent;
-import pedsim.core.cognition.cityimage.Barrier;
-import pedsim.core.cognition.cityimage.Gateway;
-import pedsim.core.cognition.cityimage.Region;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
+import pedsim.core.cognition.elements.Barrier;
+import pedsim.core.cognition.elements.Gateway;
+import pedsim.core.cognition.elements.Region;
 import sim.engine.SimState;
 import sim.engine.Stoppable;
 import sim.field.geo.VectorLayer;
@@ -350,5 +350,16 @@ public class PedSimCity extends SimState {
 
     dualGraphLoaded = false;
     landmarksLoaded = false;
+  }
+
+  /**
+   * The exporter this model writes its result files with.
+   *
+   * @param flowHandler the flow handler holding the volumes
+   * @param appName the output folder name
+   * @return the exporter; a model returns its own to add columns of its own
+   */
+  protected Exporter createExporter(FlowHandler flowHandler, String appName) {
+    return new Exporter(flowHandler, appName);
   }
 }
