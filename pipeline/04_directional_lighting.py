@@ -20,7 +20,9 @@ import pandas as pd
 import paths
 
 
-VISIBILITY_HORIZON_M = 12.0
+# How far ahead a pedestrian reads the street on entering an edge. Fotios, Yang & Uttley (2015)
+# measured fixation on other people at 10.3 m and recommend 15 m as the observation distance.
+VISIBILITY_HORIZON_M = 15.0
 
 
 def main() -> None:
