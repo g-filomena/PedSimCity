@@ -3,7 +3,7 @@ package pedsim.empirical.parameters;
 import java.util.ArrayList;
 import java.util.List;
 import pedsim.core.parameters.Pars;
-import pedsim.empirical.agent.EmpiricalAgentsGroup;
+import pedsim.empirical.agents.EmpiricalAgentsGroup;
 
 /**
  * Parameters specific to the empirical ABM mode.

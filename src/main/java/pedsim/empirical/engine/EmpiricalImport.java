@@ -5,8 +5,8 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import pedsim.core.engine.Import;
 import pedsim.core.parameters.Pars;
-import pedsim.empirical.agent.EmpiricalAgentsGroup;
-import pedsim.empirical.agent.EmpiricalGroup;
+import pedsim.empirical.agents.EmpiricalAgentsGroup;
+import pedsim.empirical.agents.EmpiricalGroup;
 import pedsim.empirical.parameters.EmpiricalPars;
 
 /**

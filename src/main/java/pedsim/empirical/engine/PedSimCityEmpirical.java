@@ -2,7 +2,7 @@ package pedsim.empirical.engine;
 
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
-import pedsim.empirical.agent.EmpiricalGroup;
+import pedsim.empirical.agents.EmpiricalGroup;
 
 /** Empirical ABM simulation state. */
 public class PedSimCityEmpirical extends PedSimCity {
