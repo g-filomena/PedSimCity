@@ -8,6 +8,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.PedSimCity;
+import pedsim.night.engine.NightLighting;
 import pedsim.night.engine.PedSimCityNight;
 import pedsim.night.parameters.NightPars;
 import sim.graph.EdgeGraph;
@@ -171,7 +172,7 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
     double lux;
     if (meanLuxAttr != null) {
       lux = meanLuxAttr.getDouble();
-    } else if (SharedCognitiveMap.getLitEdges().contains(edge)) {
+    } else if (NightLighting.isTaggedLit(edge)) {
       lux = NightPars.litEdgeNominalLux;
     } else {
       lux = 0.0;
@@ -342,65 +343,27 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
     return cached;
   }
 
-  /**
-   * Every unlit city edge outside the community-known network: the fixed half of a non-vulnerable
-   * agent's avoid-set. Unlit is decided by the same measured-lux rule the agent's own lighting gate
-   * uses, so what frightens an agent onto a detour and what it detours around are one definition.
-   * The set was previously built in {@code SharedCognitiveMap} from the raw OSM {@code lit} tag,
-   * which is a different question with a different answer. It lives here because it is a lighting
-   * judgement made with a {@link NightPars} threshold, and core has neither.
-   *
-   * <p>Built once per network and invalidated by {@link PedSimCityNight#clearNightStaticData()}.
-   */
-  private static volatile Set<EdgeGraph> unlitEdgesOutsideCommunityKnown;
-
-  private static Set<EdgeGraph> unlitEdgesOutsideCommunityKnown() {
-    Set<EdgeGraph> cached = unlitEdgesOutsideCommunityKnown;
-    if (cached == null) {
-      cached = new HashSet<>();
-      for (EdgeGraph edge : edgesOutsideCommunityKnown()) {
-        if (!isLitForNonVulnerable(edge)) {
-          cached.add(edge);
-        }
-      }
-      unlitEdgesOutsideCommunityKnown = cached;
-    }
-    return cached;
-  }
-
-  /**
-   * Whether an edge reads as lit to a non-vulnerable agent: the rule
-   * {@code NightBehaviour.meanLightPasses} applies at
-   * {@link NightPars#nonVulnerableLightSensitivity}, including the unlit-gap test, falling back to
-   * the binary lit flag where no continuous measurement exists.
-   */
-  private static boolean isLitForNonVulnerable(EdgeGraph edge) {
-    var meanLuxAttr = edge.attributes.get("mean_lux");
-    if (meanLuxAttr == null) {
-      return SharedCognitiveMap.getLitEdges().contains(edge);
-    }
-    if (meanLuxAttr.getDouble() < NightPars.nonVulnerableLightSensitivity) {
-      return false;
-    }
-    var minLuxAttr = edge.attributes.get("min_lux");
-    return minLuxAttr == null || minLuxAttr.getDouble() >= NightPars.darkSpotLuxThreshold;
-  }
-
-  /** Drops the cached network sets, so a re-imported network is not answered from the old ones. */
+  /** Drops the cached network set, so a re-imported network is not answered from the old one. */
   public static void clearCachedNetworkSets() {
     edgesOutsideCommunityKnown = null;
-    unlitEdgesOutsideCommunityKnown = null;
   }
 
   /**
    * The edges this agent will not route through when bypassing the one that frightened it.
    *
-   * <p>A vulnerable agent keeps to familiar ground: everything outside the community-known network
-   * is avoided, less the streets this particular agent knows - a knowledge rule, not a lighting
-   * one, which is why a vulnerable agent frightened by darkness does not thereby detour toward
-   * light. A non-vulnerable one avoids only what is unlit and not community-known, unlit by the
-   * measured-lux rule its own lighting gate uses. Parks and water are added for the vulnerable, and
-   * for anyone currently avoiding them.
+   * <p><b>One rule, at two thresholds: avoid what is neither lit nor familiar.</b> A vulnerable
+   * agent retreats toward light or toward ground it personally knows - of the edges outside the
+   * community-known network it avoids those that also read as unlit at its <i>own</i> drawn
+   * sensitivity, less the streets it knows itself. A non-vulnerable one asks the same question with
+   * the community as its familiar set and {@link NightPars#nonVulnerableLightSensitivity} as its
+   * threshold. Parks and water are added for the vulnerable, and for anyone currently avoiding
+   * them.
+   *
+   * <p><b>The lighting term on the vulnerable branch is load-bearing.</b> Without it the avoid-set
+   * is knowledge-only, so an agent frightened by darkness detours toward <i>familiarity</i> and any
+   * improvement in the light it ends up under is a coincidence. What frightens an agent and what it
+   * detours around are the same measurement here - {@link NightLighting#isLit}, the rule its own
+   * gate uses - which is what makes the A/B's manipulated variable mean what it says.
    *
    * <p>The edge being fled is avoided by both, which is why it is added after the branch and after
    * the vulnerable branch's {@code removeAll} - inside the branch it would be subtracted straight
@@ -412,18 +375,21 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
   private void defineEdgesToAvoid() {
     edgesToAvoid.clear();
 
-    if (agent.isVulnerableBoolean()) {
-      edgesToAvoid.addAll(edgesOutsideCommunityKnown());
+    if (agent.isVulnerable()) {
+      edgesToAvoid.addAll(
+          NightLighting.unlitEdges(
+              edgesOutsideCommunityKnown(), ((NightAgent) agent).lightSensitivityThreshold));
       edgesToAvoid.removeAll(
           GraphUtils.getEdgesFromEdgeIDs(
               agent.getCognitiveMap().getAgentKnownEdges(), PedSimCity.edgesMap));
     } else {
-      edgesToAvoid.addAll(unlitEdgesOutsideCommunityKnown());
+      edgesToAvoid.addAll(
+          NightLighting.unlitEdgesOutsideCommunityKnown(edgesOutsideCommunityKnown()));
     }
 
     edgesToAvoid.add(currentEdge);
 
-    if (agent.isVulnerableBoolean() || nightBehaviour.avoidParksWater) {
+    if (agent.isVulnerable() || nightBehaviour.avoidParksWater) {
       edgesToAvoid.addAll(SharedCognitiveMap.getEdgesWithinParksOrAlongWater());
     }
 

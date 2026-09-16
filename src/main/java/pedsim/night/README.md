@@ -29,7 +29,7 @@ The 24h clock (`isDark`), workplace/night-POI data and time-of-day destination s
 | `agents/NightAgent` | inherits the 24h activity pattern; after dark plans a night trip and filters out park/water destinations |
 | `agents/NightAgentMovement` | movement layer; records measured lux, binary-lit fallback use and missing lighting data separately |
 | `agents/NightBehaviour` | vulnerability/light-sensitivity behaviour; evaluates mean edge lux and directional entrance lux at runtime |
-| `routing/pathfinder/RoadDistancePathFinder`, `routing/pathfinding/DijkstraRoadDistanceNight` | night route planning based on road distance, with vulnerable-agent avoidance of parks/water and unknown regions |
+| `routing/routers/RoadDistancePathFinder`, `routing/search/DijkstraRoadDistanceNight` | night route planning based on road distance, with vulnerable-agent avoidance of parks/water and unknown regions |
 | `parameters/NightPars` | light-sensitivity thresholds, crowdedness percentile, A/B-testing flag, directional lux statistic |
 
 ## Data layers
@@ -104,7 +104,7 @@ Module-specific REST parameters handled by `NightSimulationModule`:
 
 | Key | Type | Default / field |
 |---|---|---|
-| `enableAB` | boolean | `NightPars.enableLightABTesting` |
+| `enableLightABTesting` | boolean | `NightPars.enableLightABTesting` |
 | `crowdednessPercentile` | double | `NightPars.crowdednessPercentile` |
 | `directionalLuxStatistic` | `MIN` \| `MEAN` | default `MIN` |
 | `nonVulnerableLightSensitivity` | double | `NightPars.nonVulnerableLightSensitivity` |
