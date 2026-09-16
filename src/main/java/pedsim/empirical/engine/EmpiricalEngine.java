@@ -50,6 +50,7 @@ public class EmpiricalEngine extends Engine {
     // core's Engine performs, and a run produced no volumes and no routes.
     state.flowHandler.exportFlowsData(1);
 
+    recordJobTotals(job, seed, state);
     state.finish();
   }
 }

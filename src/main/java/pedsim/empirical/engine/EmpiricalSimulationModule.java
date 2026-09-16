@@ -7,7 +7,7 @@ import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.engine.SimulationModule;
 import pedsim.core.parameters.ParameterManager;
 import pedsim.core.parameters.Pars;
-import pedsim.empirical.agent.EmpiricalGroup;
+import pedsim.empirical.agents.EmpiricalGroup;
 import pedsim.empirical.parameters.EmpiricalPars;
 
 /**
