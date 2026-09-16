@@ -17,7 +17,7 @@ Read this before trusting an older figure.
 | before **13 Sep 2026** | cityImage and empirical per-edge volumes | `edgesWalkedSoFar` accumulated across an agent's trips, so each trip re-counted every earlier one: volumes were cumulative, not per trip |
 | since **March 2026** | region- and landmark-based *distance* route comparisons | `roadDistanceSequence` returned its last leg instead of the whole sequence |
 | before **14 Sep 2026** | any figure depending on where workplaces are | the per-purpose attraction maps iterated in identity-hash order, so the workplace draw picked differently per JVM build; a Torino day now reports workers 16.8% / students 38.3% |
-| any comparison spanning **two machines** | all of it | still open: trips and metres differ across machines by about 1% on one seed |
+| any comparison spanning **two machines** | ~~all of it~~ | **closed 14 Sep 2026**: core, night and activity give byte-identical per-leg traces on seed 20260912 across `gdsl1` and the laptop |
 | any learning run before **14 Sep 2026** | all of it — there are none | the module threw during agent creation without a dual graph, and routed seed memory by angular change regardless of route choice where it did not throw |
 | any cityImage or empirical result before **15 Sep 2026**, including the tables dated 14 Sep | all of it | region navigation returned the shortest path on 100% of OD pairs, barrier sub-goals were never generated, and on-route marks had never been inserted by any version of this code |
 | any `LOCAL_LANDMARKS_*` figure before **15 Sep 2026** | the local-only claim | a substring test turned distant landmarks on as well, so those scenarios were byte-identical to their bare `LANDMARKS_*` siblings |
@@ -25,10 +25,446 @@ Read this before trusting an older figure.
 | any cityImage or empirical run using local landmarks | routes and volumes | `getWayfindingEasinessThreshold` returned 0, so on-route marks were never inserted |
 | any **night** run before **15 Sep 2026** | park and waterside behaviour | `edgesWithinParks` and `edgesAlongWater` were never filled, so destination refusal, vulnerable-agent avoidance, the preference and its cost term all read empty sets |
 | any distant-landmark route over a sub-goal sequence | the route | `globalLandmarksPathSequence` corrected edge directions from the leg's far end |
+| any **night** run before **16 Sep 2026** | routes, and every A/B comparison | darkness now enters route planning for known edges, and the vulnerable avoid-set is lit-or-familiar rather than knowledge-only — which is the A/B's manipulated arm |
+| any **night A/B** before **16 Sep 2026** | the experiment's size | pairs were released across the whole day, so most departed into daylight where the manipulation does nothing |
+| any **activity** mode split | all of it | `egressStop` was never cleared, so one transit journey made every later leg of that agent's day a walk; and chained legs never reached the mode split at all |
+| every lux value in every city before **16 Sep 2026** | all of it | the pipeline fixes took effect, `FALLOFF_LAW` became `"isotropic"` and the utilisation factor became DLOR; Torino's layer is rebuilt, the five other cities are not |
+| every **night** run on full **Torino**, all of them | the directional lighting gate | `Torino_directional_lighting_lookup.csv` held 29,062 rows — 14,531 x 2, which is **`Torino_simplified`'s** edge count, under the full city's name. Two thirds of edge entrances fell back to the raw OSM `lit` tag, and the third that "hit" matched by node-ID collision between two different graphs |
+| any **night** run before **16 Sep 2026** | the perception noise | `DijkstraRoadDistanceNight` drew its own hardcoded 0.10 sigma, so `--perceptionErrorSD=0` did not pin the night router and a paired A/B was still separated by the dice |
 
 ---
 
 ## September 2026
+
+### 16 September (latest) — transit leaves the tree, and the routing packages are named apart
+
+**`routing/pathfinder` and `routing/pathfinding` are `routing/routers` and `routing/search`.** Two
+letters apart, and neither said which was which. The new names are the words this repository's own
+prose already used for the two tiers: a *router* builds a whole route for one route-choice model —
+choosing the search, running it once per sub-goal leg, correcting reversed edges, backtracking,
+widening to the full network, falling back to the shortest path and counting each of those — while a
+*search* is one Dijkstra between two nodes at one cost, which knows nothing about models. Both
+packages now carry a `package-info.java` naming the tier and the ones above and below it, and the
+locals that held a `Dijkstra*` under the name `pathfinder` are called `search`. The night module's
+two mirrors moved with them. Class names are unchanged.
+
+### 16 September — transit leaves the tree, and the night router matches its parent
+
+**`pedsim.transit` is out of `src/main/java`**, moved to the gitignored `obsolete/transit/` with a
+note beside it. It had never been wired into layer 4, and what layer 4 needs from transit is the
+*walking* — the access leg to the boarding stop and the egress leg from the alighting stop, which
+concentrate pedestrian volume around stations in a way nothing else in this model can produce.
+That is the part that did not exist. What did exist removed agents from the street, put vehicle
+fleets on the schedule, and carried a cycle: `TransitLoader` and `TransitVehicle` reached into
+`PedSimCityActivity`, which held the stop lists.
+
+Out with it: `ActivityAgent`'s `boardingStop` / `egressStop` / `ultimateDestinationNode`,
+`applyModeChoice()`, `findNearestStop()`, `clearTransitLegState()` and the `step()` override that
+intercepted arrival at a platform (`Agent.step` already returns early for a waiting agent);
+`PedSimCityActivity`'s six static stop collections, `agentTransitDestinations`, `tripsByMode`,
+`countTrip`, `printTransitSummary` and its `startMovingAgents` / `finish` overrides;
+`RouteChoicePars.usePublicTransport` and its `ActivitySimulationModule` wiring;
+`ActivityEnvironment`'s `TransitLoader.loadStops(null)`. **The data side is untouched** —
+`scripts/build_transit_layer.py` still builds `transit_stops.gpkg` from a GTFS feed.
+
+Two defects found inside it are recorded in `CLAUDE.md` under *Layer 4* rather than deleted with
+the code, because a straight restore would bring both back: a mode split has to sit on a seam both
+`planTrip()` and `startChainedTrip()` cross, or it is a split on first legs only; and per-leg
+transit state needs a writer that clears it, which `egressStop` never had.
+
+**The night router now matches its parent's relaxation loop.** `DijkstraRoadDistanceNight` was
+missing the three skips `DijkstraRoadDistance` applies — already-settled nodes, edges outside an
+individualised agent's known network, and the avoid-set. All three are no-ops on today's call path,
+and they are placed *after* the night filter so that `disregardedNodes` keeps its meaning: a node is
+disregarded when night's own constraints leave it no way out, not when its neighbours happen to be
+settled. The redundant `getBest(targetNode) > tentativeCost` wrapper came off the parent's
+`isBest` call, which already makes that comparison itself and was the only one of the four
+relaxation sites to test it twice.
+
+**Adding the known-network skip needed a fix underneath it.** `knownNodes` / `knownEdges` were
+loaded only in `initialisePrimal`, which the three-argument `dijkstraAlgorithm` deliberately skips —
+so an individualised agent on that path would have met `restrictToKnownNetwork()` true with the
+known sets still empty, rejecting every neighbour and returning **no route at all**. The load is now
+`initialiseKnownNetwork()`, called by `initialisePrimal` and by the three-argument overload. Nothing
+reaches it today (that path is the night module's, and night agents are not individualised), but
+"no route" is the wrong way for it to fail.
+
+### 16 September — `Torino_simplified` removed, and no script names a city
+
+**The city is the user's to name now.** `Torino_simplified` is deleted, and the three scripts that
+had it baked in take the name from outside instead: `scripts/build_transit_layer.py` and
+`scripts/run_day_night_comparison.py` gained a required `--city`, with new
+`scripts/build_transit_layer.bat` and `scripts/run_night_comparison.bat` prompting for it, and
+`scripts/dashboard.py` reads the cities off `src/main/resources/` rather than a hardcoded list that
+still offered `TorinoCentre`, a folder nobody has had for a long time.
+
+Two things fell out of doing it.
+
+- **`build_transit_layer.py` hardcoded EPSG:3003 in four places** — Monte Mario / Italy zone 1, right
+  for exactly one bundled city. Stops are snapped to street nodes by plane distance, so transforming
+  into the wrong CRS does not fail; it snaps every stop to the wrong node. It reads the CRS off the
+  node layer now, and the layer name out of `gpkg_contents` rather than off the filename — which is
+  how it came to read a table called `Torino_nodes` out of `Torino_simplified_nodes.gpkg`. It also
+  stopped mirroring one city's snapped stops into another city's folder.
+- **`run_day_night_comparison.py` had been comparing a run with itself.** Its two "modes" differed
+  only by `--DAY_START_HOUR`, `--NIGHT_START_HOUR` and `--enableAB`. None of the three is a
+  parameter: the hour constants are `TimePars` values nothing branches on (darkness is
+  `Daylight.isDark(time)`), and the A/B field is `enableLightABTesting`. `ParameterManager` drops an
+  unknown key silently, so both arms ran identical simulations and the script reported the seed
+  noise between them as a day/night effect. The arms are explicit arguments now
+  (`--baseline-args` / `--treatment-args`, defaulting the baseline to the documented
+  `--maxKnownDarkEdgeCostMultiplier=1.0` control), and the script refuses to run when they match.
+
+**What was measured on `Torino_simplified` is not deleted with it.** `RELEASE_BUDGET.md`,
+`COMMUTE_DISTANCE.md`, `OD_DISTANCE_FACTORS.md` and the activity and learning `TODO.md`s all cite
+runs on it — the 739 m/agent day, 2.41 legs per release against 2.40 predicted, the 13.3%
+no-WORK-tags commute control, the learning module's only clean run. Those numbers were measured;
+they are simply no longer reproducible, and that is a property of the evidence rather than a reason
+to remove it.
+
+### 16 September — the lighting layer is rebuilt, and step 3 is ten minutes
+
+**Step 3 is bulk array work, and the answer is unchanged.** `03_street_lights.py` built a
+`LineString` and queried the building index once per point-lamp pair, in Python, over Torino's 1.08M
+sample points — which is why nobody re-ran it and why every pipeline fix since 13 September had sat
+inert. It now does one vectorised `line_interpolate_point` for the sample points, one KD-tree query
+per block of points, and one bulk `STRtree` `crosses` query per block of sight lines.
+`pipeline/verify_step3.py` reruns the old per-pair loop beside the new one over a random slice of the
+real city and compares element by element: worst absolute difference 4.5e-12 lux over 59,643 points,
+which is summation order. A full Torino run went from about half an hour to **about ten minutes**, and
+five full-city runs were made the same afternoon.
+
+**The falloff law was chosen by running it, not by arguing: `FALLOFF_LAW = "isotropic"`.** All three
+options over the same 44,278 Torino edges — `mixed` 11.1 mean `pct_unlit` / 81.6% of edges fully lit,
+`isotropic` 24.3 / 56.3%, `lambertian` 29.3 / 44.5%. `isotropic` is `mixed` with the honest
+`F / (2 pi)` divisor and the same propagation, so it keeps the spatial pattern every layer in this
+repo already had and only halves a level; `lambertian` changes the *shape*, piling light under the
+pole and taking it from the mid-span between two poles, which is backwards for a cobra-head and is
+precisely the stretch `min_lux` measures.
+
+**The utilisation factor was the wrong quantity and is now DLOR.** `I_down = lamp_lumens * X / norm`
+wants the share of lamp lumens the *luminaire emits downward* — EN 13032-1's downward light output
+ratio — and had a *utilisation factor* in it, the share landing on the carriageway, which the
+propagation law already works out. 0.3-0.6 by free-text optics label became 1.00 / 0.85 / 0.80 / 0.55
+by technology and fixture class, bounded on one side by Regione Piemonte L.R. 31/2000 Allegato A
+punto 1(a) holding ULOR to ~0 and on the other by a LED luminaire's rated efficacy already being the
+luminaire's. Mean 0.898 against 0.470. **The two changes very nearly cancel**: Torino's canonical layer comes
+out at `mean_lux` 24.84 and 11.35 mean `pct_unlit`, against 25.57 / 11.09 for the same fixes under
+`"mixed"` plus the utilisation factor. The old level was roughly right for two wrong reasons
+pointing opposite ways; it is the same level now for reasons that can be checked separately, and
+nothing in `NightPars` moves with it.
+
+**`NO_POLE_HEIGHT_M` is bounded rather than sourced.** No standard fixes it — EN 13201 and UNI 11248
+prescribe no mounting height, CEI 64-8/7 section 714 gives only a 2.8 m reachability floor, and
+L.R. 31/2000 constrains the spacing-to-*height* ratio rather than either term. So it was measured
+instead: the whole pipeline re-run at 3.0 m and 6.0 m for the 38.2% of Turin's lamps that have no
+measured height moves the share of edges below the 5 lux service level by 9.8% -> 9.3%, and mean
+`pct_unlit` by 11.93 -> 10.79. A higher lamp has a lower peak and a wider spread, and on a dense
+network the two very nearly cancel. `--no-pole-height` is now a step-2 flag so the sweep is
+repeatable.
+
+**The directional lighting lookup was a different network's.** Re-running step 4 produced 88,556
+rows against the 44,278-edge Torino graph; the file it replaced had 29,062, which is
+`Torino_simplified` x 2. `NightBehaviour.directionalEntranceLuxOrNull` returns null on a miss and
+the gate then falls back to the binary OSM `lit` tag — the fallback meant for a city with no
+lighting pipeline at all — so on full Torino roughly two thirds of edge entrances were judged by
+that tag and the rest by lux belonging to node IDs that mean different places in the two graphs.
+Found by comparing the row count of the regenerated file against the committed one, which is worth
+doing to any derived layer that carries a node ID.
+
+**Barrier preferences are not part of route choice in core, activity, night or learning, and that is
+now stated where it is decided.** `Heuristics` builds every model it samples with
+`BarrierPreferences.NONE`, so `Dijkstra.costPerceptionError` has no barrier branch to take for any of
+those agents — nothing about darkness removes them and they are absent by day too. The note that said
+"absent after dark, undecided" was hiding a real defect underneath: `DijkstraRoadDistanceNight` drew
+its own `drawFromDistribution(1.0, 0.10, null)` rather than asking `costPerceptionError`, so it
+ignored `RouteChoicePars.perceptionErrorSD` and `--perceptionErrorSD=0` left the night router alone.
+It calls `costPerceptionError` now.
+
+### 16 September — darkness reaches the plan
+
+**A known dark street now costs more to walk through before the agent sets off.**
+`DijkstraRoadDistanceNight.lightingCostMultiplier` scales a **known** edge's cost from 1.0 at the
+travelling agent's own sensitivity threshold toward `NightPars.maxKnownDarkEdgeCostMultiplier` (1.5)
+at total darkness. Until now every lighting rule in the module fired only once an agent was standing
+on the edge, so night agents planned as though light did not exist. Unknown edges are untouched: the
+situated gate already handles those, and charging for them here as well would price the same darkness
+twice. This is the audit finding that had been parked in `obsolete/`, now reviewed and landed; 1.0
+restores the old planning and is the control a lighting experiment needs.
+
+**The vulnerable avoid-set reads light, not only knowledge.** It was "the whole city minus what I
+know", so an agent frightened by darkness detoured toward *familiarity* and the better-lit route was
+a coincidence. It is now **what is neither lit nor familiar**, which is the question the
+non-vulnerable branch already asked with the community as its familiar set - one rule at two
+thresholds. `NightLighting.darknessDepth` is the single measurement behind both the planning cost and
+the situated reroute-or-speed-up probability, which were two copies of the same four lines.
+
+**A/B pairs depart into darkness only.** One pair per release event across the whole day meant that
+with `abTestPairs = 72`, a 20-minute cadence and a Turin June date, only about 31 pairs departed
+after dark and the other 41 into daylight, where the manipulation does nothing - so the experiment's
+real size was a function of the date that nothing reported. Light events are skipped now, and
+`NightTravelDemand` counts the date's dark release events and logs the capacity at the start of the
+day, warning when the experiment is larger than its own night.
+
+**The lighting pipeline's audit findings are in the code, and none of them has taken effect.** They
+need `03_street_lights.py` re-run over Torino's 1.08M sample points, which supersedes every night
+result on the current layer.
+
+- Mounting height is imputed from `tipo_supporto` rather than `uso_ottica`, by a rule rather than a
+  label list: a support type with some measured heights supplies its own median; one with none has
+  no pole to measure and takes `NO_POLE_HEIGHT_M = 4.0`, an assumption stated rather than inherited
+  from the ~9 m pole median. Height is missing for 100% of `solo apparecchio in distinta` (31,435
+  lamps) and 100% of `non determinato` (6,661) against 11.7% of lamps that do have a pole, so the
+  optics grouping was mixing two populations. Every lamp carries an `altezza_source` column now, and
+  steps 2 and 3 print the breakdown, so the 45% of the inventory running on an assumption is counted.
+- A missing height **fails** in `03_street_lights.py` instead of silently becoming 9.0, matching the
+  guard already on `downward_intensity_cd`. Step 2 still ends its ladder with `DEFAULT_HEIGHT_M`
+  (9.0) so that a thin inventory produces a lighting layer rather than nothing, but it is counted in
+  `altezza_source`, warned about by name, and reported again by step 3 — what made the old behaviour
+  a defect was not the number but that it was invisible and reached 45% of Turin's lamps through the
+  wrong grouping, and both halves of that are closed.
+- **The falloff law is explicit.** `lighting.FALLOFF_LAW` names the pairing of normalisation and
+  propagation in force - `"mixed"` (the default and what every existing layer was built with:
+  `I = F/pi` propagated as `E = I h / D^3`, a Lambertian's peak intensity applied in every
+  direction), `"lambertian"` (`E = I0 h^2 / D^4`, which narrows the summation radius by about 38%)
+  or `"isotropic"` (`F/(2 pi)`, a uniform halving) - and both step 2 and step 3 print
+  `describe_law()`, so a lux value always says which physics produced it. The default is unchanged
+  deliberately: none of the three describes a real luminaire, and the choice wants the `pct_unlit`
+  comparison rather than an argument.
+
+**Mode choice is evaluated on every leg, not only a chain's first.** The transit split was the tail
+of `ActivityAgent.planTrip()`, which `startChainedTrip` never reaches because it plans its own route,
+so every intermediate leg of a trip chain was walked however long it was. It is `applyModeChoice()`
+now and both paths call it. The larger half of the same defect: **`egressStop` had no writer that
+cleared it** - the vehicle removes the agent from `agentTransitDestinations` on alighting and
+`boardingStop` is nulled at the platform, but the egress stop stayed set for the agent's whole life,
+and the split is gated on it being null. One transit journey therefore made every later leg of that
+agent's day a walk by construction. `clearTransitLegState()` runs at the start of each leg now.
+
+**`core.cognition.cityimage` is `core.cognition.elements`.** It holds `Barrier`, `Gateway` and
+`Region` - Lynch's city-image elements, used by core's own route choice - and read as the cityImage
+module leaking into core. It sits beside `core.routing.elements`, which holds the navigation
+strategies that consult them; the two package names differ by their parent, which is the distinction
+that matters.
+
+**`LoggerUtil` takes precedence over the console.** The 24 `System.out`/`System.err` calls are gone.
+The two that were tables - `CommuteCalibration`'s parameter sweep and `PedSimCityActivity`'s transit
+summary - are assembled into one string and logged once, because a table whose every row is prefixed
+with a level is not a table. `RemoteLauncher.USAGE` is the stated exception: help text is the
+program's output rather than a record of what it did, so `--help` prints and the failures beside it
+are logged.
+
+**`ActivityPars.distanceWeight` stays at 0.0012 against the measured circuity.** Only the product of
+it and `Pars.networkCircuityFactor` sets a choice probability, and measuring the factor from the
+network drifted that product by 8.4%. Rescaling to hold it invariant would re-import through the
+coefficient the circularity that measuring circuity removed, since the old 1.41 was itself measured
+on the superseded mechanism's trips. Recorded on the field.
+
+**The three slow tests exist, and writing them found two defects.** They are the ones no fast test
+can reach, because the defect they are for — a mechanism that runs without effect — is only visible
+against a real graph. `mvn test -Pslow-tests -Pall-modules` runs them in about a minute on Muenster;
+`mvn test` is unchanged at 32 tests in two seconds. Each was verified red before being kept.
+
+- **`-Pslow-tests` did not exist**, although `pom.xml`'s own comment said to use it.
+  `<excludedGroups>slow</excludedGroups>` was a literal element, which `-DexcludedGroups` cannot
+  override, so no `@Tag("slow")` test could be selected by any command line. It is a property with a
+  profile now.
+- **`PedSimCity.sightLines` was set to `null` to free memory and never restored**, so the *second*
+  run in one JVM died in `clearStaticData()` on `sightLines.clear()` before importing anything —
+  which is the REST dashboard's normal path, one process serving run after run. It is re-assigned an
+  empty layer instead, which frees the same memory. Found by a test that runs the same day twice.
+- **`ROAD_DISTANCE` is minimal on every OD pair** with `perceptionErrorSD` pinned to 0. Unpinning it
+  turns the test red and shows why the pin is not a formality: at the default 0.10, five models beat
+  the shortest path by 4–54 m on the same OD pairs, which is precisely the noise that two claims were
+  read out of and retracted on 15 September.
+- **Element scenarios differ from their siblings** on at least one of 40 OD pairs — all eight pairs
+  on Muenster, landmark models included, asserted as a floor so that a city quietly losing a layer
+  turns the test red.
+- **`CityImageImport.importFiles()` reads a different city per test design**, and a scenario whose
+  data the design did not load falls back rather than failing: the subdivisions design loads barriers
+  and no buildings or sight lines, so the full scenario list run under it gives every landmark model
+  no landmarks at all. In ordinary use the design and `TestPars.scenarios` are set together and
+  agree; the trap is armed only when the scenario list is set by hand. Found by doing exactly that.
+- **A seed reproduces a run**, checked as an identical per-leg trace — with a second assertion that a
+  *different* seed produces a *different* trace, so the first cannot pass on a trace that records
+  nothing a decision can move.
+
+**Beyond those two defects, nothing here has been run.** No simulation output was produced for the
+night or activity changes; the first run to make is the planning-cost control at
+`maxKnownDarkEdgeCostMultiplier=1.0`, over several jobs, since the replicate sd is 6.5% of planned
+metres.
+
+### 15 September — core stops knowing about night
+
+**Core no longer has a word for darkness, lighting or vulnerability.** Four things moved to the
+modules that own them, and each replaced a seam core had grown to carry them:
+
+- **Darkness.** `DarknessModel`, an interface core's exporter held and the activity tier filled
+  through a setter, is gone. `Exporter` offers two hooks - `extraHourlyHeaders`,
+  `extraHourlyValues` - meaning *a model may add columns*; `ActivityExporter` fills them with LIGHT
+  and DARK, and a model picks its exporter through `PedSimCity.createExporter`, the shape
+  `createTravelDemand` already used. `grep -i dark` over `pedsim/core` now finds one passing phrase.
+- **Vulnerability.** The `vulnerable` field, its setter and getter left `Agent` for `NightAgent`;
+  core declares `isVulnerable()` returning false, as it already did for `getTripMeanLux()`. The
+  `vulnerable` column in `trip_diagnostic.csv` and the REST payload is unchanged.
+- **The `lit` tag.** Core derived a lit-edge set in `SharedCognitiveMap` and normalised the raw
+  attribute while building the graph; both are in `NightLighting`, beside the measured-lux rule that
+  supersedes them. The tag stays as the fallback for the four bundled cities with no lighting layer.
+- **The A/B twin comparison**, which read a pairing only `NightPopulate` creates, moved from
+  `TripDiagnostic` to `NightDataExporter`.
+
+**`applyParameters` is a default no-op, and night's override is gone.** It re-parsed six parameters
+that `ParameterManager.initFromParams` had already written by reflection one line earlier - and
+re-parsed them *after*, so any difference in parsing would have won silently. The `enableAB` alias
+went with it: one name, `enableLightABTesting`, in the field, the command line, the dashboard and
+the REST payload.
+
+**Smaller edges made straight.** `Exporter.verifyOutputPath` no longer takes an argument it
+overwrote on its first line; `outputVolumesDirectory`, which was a directory until the first export
+and a file path afterwards, is `lastVolumesFile` and the other three path fields became locals.
+`StringEnum.Hour.clockHour()` states the convention its callers were reading off `ordinal()`.
+`empirical/agent` became `agents`, and `learning`/`social`'s `cognitiveMap` packages became
+`cognitivemap`, matching core.
+
+**The lighting pipeline stops blocking its own lamps.** A lamp up to 5 m inside a building footprint
+is mounted on it - a wall bracket, or a fixture under one of Turin's arcades - and that building no
+longer occludes it: **5,092 of Torino's 99,742 lamps**, which contributed nothing at all. Lamps
+deeper inside the block stay occluded, since their light does not reach the street. The occlusion
+test is `crosses()` rather than `intersects()`, so grazing a corner is not occlusion, and the
+directional visibility horizon is 15 m (Fotios, Yang & Uttley 2015) rather than 12 m. On a 300-edge
+sample the unlit share falls from 13.0% to 12.0%. **None of it takes effect until
+`03_street_lights.py` is re-run**, which invalidates every night result on the current lighting
+layer; what is still open before that re-run is in `pipeline/README.md`.
+
+### 15 September — light reaches route choice; darkness says where it came from
+
+**Four night-module fixes from an external audit** (branch `origin/night-fixes-eval`, Marcin
+Wozniak), taken onto current `main` rather than merged as proposed. Their common shape: the module
+measured illuminance carefully and then decided with something else. The lighting gate tests `min_lux`
+- written by the pipeline since it existed, read by nothing - against the pipeline's own 5 lux
+service level, so a street bright at both ends and dark in the middle stops passing on its average;
+reroute-or-speed-up is graded by how dark the edge is instead of a fixed coin flip; the
+non-vulnerable avoid-set is built from measured lux instead of the raw OSM `lit` tag, which means
+what frightens an agent and what it detours around are finally the same question; and
+`directionalLuxStatistic` defaults to `MEAN`, because a minimum over a 12 m horizon measures how
+far the entry node fell from the nearest lamp.
+
+**The audit's own version of the gate was not taken.** It tested `min_lux` against the *agent's*
+threshold, which since `min <= mean` swallows the mean test whole and, at a vulnerable agent's 15
+lux, fails nearly every street in Turin. Its 7-day run measured the consequence and reported it:
+vulnerable agents on worse-lit routes than before the fix.
+
+**The audit's fifth change is parked, not taken.** It put illuminance into the night Dijkstra's
+edge cost, so an agent could prefer a lit way round *before* setting off rather than only reacting
+once standing on a black street. Route cost is where a change reaches every night trip at once, so
+it waits for review: the code and its measurement are in
+`obsolete/DijkstraRoadDistanceNight_lightingCost.java`, and today a night agent still plans in
+distance and meets darkness only on arrival.
+
+`SharedCognitiveMap.getEdgesNonLitNonCommunityKnown` is gone with the change - core keeps the
+binary `lit` tag and holds no lux threshold.
+
+Measured, one Torino day at 423 agents on seed 20260912: on **7 December**, where 57 of 192 legs set
+off in the dark, the four changes leave planned metres alone (242,419 against 241,963) and raise
+walked metres 2.8% (343,016 against 333,566) - which is the signature of avoidance that is purely
+reactive, since nothing here touches the plan. On **1 June**, where only 9 legs of 201 set off in
+the dark, the two runs are identical to the metre. A night model has to be measured on a night.
+
+**The model measures where the city is, and stopped being told.** `CityLocation`, in core, takes
+the centre of the street network's minimum bounding circle and transforms it out of the CRS the
+`_nodes` layer declares: 45.0634, 7.6768 for Torino, and Muenster, Barcelona, Paris and Melbourne
+equally right, none of which has ever had a latitude configured. It replaces a `centroid_lat`
+census column that only Torino carried and only the activity module read - a city's position is a
+property of its geometry. No new dependency: the EPSG code comes through the GeoPackage reader the
+importer already uses and the transform from proj4j, both long since in the pom, and no geotools
+anywhere. A city whose network declares no usable CRS falls back to a stated
+`dayStartHour`/`nightStartHour` window rather than to a default latitude, which is what quietly gave
+every city Liverpool's 53.4.
+
+**And the sun is now read in clock time.** Longitude against the time zone's standard meridian, the
+equation of time, and the conventional -0.833 degree sunrise altitude: Turin's sunset lands within
+about six minutes of the published time in June and in December, where before it was 19:43 against
+a real 21:18 CEST. A model whose subject is what happens after dark had been starting the evening an
+hour and a half early. The zone itself cannot be measured - boundaries are political - so
+`ActivityPars.timeZoneId` states it, `Europe/Rome` for Turin; a city that names none keeps the
+standard time of its nearest meridian and loses summer time's hour, which the startup line says.
+Five tests pin the published sunset times, both regimes, and that hour.
+
+Left alone, deliberately: the branch's `distanceWeight` rescale, which edits a default that
+`Torino.properties` overrides anyway and which re-imports the circularity that measuring circuity
+removed; and its Python pipeline fixes, where the falloff-law correction changes every lux value in
+the city and needs its own decision and a full re-run.
+
+### 15 September ? run isolation and review fixes
+
+- Parse long seeds exactly, including `--seed=-1`; the dashboard sends the canonical `seed` key.
+- Use one CLI/REST configuration sequence. Night, learning and social now load their city settings.
+- Reserve a run before parameter setup; concurrent REST starts return HTTP 409 without changing
+  the active run. Failed parallel runs wait for their other jobs before releasing the reservation.
+- Store completed trips per job. Keep job 0's diagnostic filenames and suffix later jobs with
+  `_jobN`; night exports read the current job's volume file and A/B caches also use job-specific names.
+- Include every recorded A/B pair in comparison CSVs and merge worker totals into replicate reports.
+- Restrict dashboard file serving to its real document root and bind the REST server to localhost.
+- Stop collecting unused trajectory snapshots. Remove the day/night hour parameters and controls;
+  seasonal darkness still comes from the simulation date and city latitude.
+- Align test compilation and execution with Maven module profiles. Add regression coverage for
+  seed precision, city settings, run admission, trip isolation, CSV exports and parallel summaries.
+
+### 15 September (end) — one parameter order, and the first tests
+
+**Parameters have a declared precedence: module defaults → city file → command line → derived.**
+`applyMode()` became `applyDefaults(selectors)` and runs *first* instead of after the command line,
+so a default can be stated unconditionally. That deleted the three passes whose only job was undoing
+an earlier stage - `CityImageSimulationModule.writeOverrides`, called twice, and the
+`afterSetParameters` hooks in `CityImageEngine` and `EmpiricalEngine` - and the empirical module's
+"only where the command line was silent" conditionals with them. `setFieldValue` handles enums now,
+and `enableAB` is an alias rather than a special case, so a module's `applyParameters` is left with
+only what reflection cannot do. The rule that a derivation defers to an
+instruction sits on the derivation: `recomputeAgentCount()` returns early when `--numAgents` was
+given, so both its callers inherit it instead of each remembering to ask.
+`ParameterManager.wasGivenOnCommandLine` is the one question a later stage may ask, and that is its
+only caller.
+
+Every parameter defect this project has had was a later writer silently beating an earlier one, and
+the fixes were all local: a second pass, a restore hook, a flag. The order replaces them.
+
+**PedSimCity has tests.** There were none - no `src/test`, no JUnit, no surefire. 74 now, running in
+under a second, pinning what a simulation cannot check about itself: no two cityImage scenarios
+resolve to one model, the landmark names match their elements, a route-choice model cannot be built
+in the state that used to need a warning at plan time, an alias lands, a derived parameter does not
+overwrite one the command line set. They were verified by reintroducing the substring bug and
+watching two of them fail by name. Anything needing a city will carry `@Tag("slow")`.
+
+**One definition of darkness.** `Daylight.isDark(time)` — date and latitude — and nothing else.
+Removed with the alternatives: `TimePars.isNight(hour)`, the fixed 20:00–06:00 window; the
+`legsDarkOutsideNightWindow` counter and its CSV column, which compared the two and whose purpose
+nothing in the repo recorded; and `ActivityPars.useSeasonalDaylight`, whose only effect when false `ActivityPars.useSeasonalDaylight` defaulted to true and
+its only effect when false was to let a run's behaviour disagree with its own volume exports.
+`DAY_START_HOUR` / `NIGHT_START_HOUR` and their dashboard controls are removed as simulation
+parameters. The dashboard keeps its fixed shading boundaries locally. Night and activity days are unchanged to the metre, the default
+having been seasonal already.
+
+**The HTML dashboard moved to the night module.** `HtmlExporter` lived in `pedsim.core.website` and
+titled every run "Night Pedestrian Simulation", whatever module produced it. `Engine`'s export point
+is an overridable no-op now: core decides *when* a dashboard is wanted, the module decides *what* one
+is. Activity, core, cityImage and empirical export none and say so. Nothing in core names night any
+more, which is what had forced the night flag to reach it as a string.
+
+**`Pars.isNight` is gone.** Seven modules wrote it; one line of `HtmlExporter` read it. It said which
+model was running, which is a property of the module rather than a parameter a run can change. It
+briefly became `SimulationModule.isNightModel()`, which was no better — core has no concept of night
+and should not gain one to carry a dashboard field — and is now published by the night module in its
+`extraState()` and read through `moduleFlag`, the mechanism the dashboard already used for every
+other module flag. It was also the fourth thing in the codebase called night or dark, next to
+`TimePars.isNight(hour)` (the clock window) and `PedSimCityActivity.isDark` (recomputed every step,
+and the one agents actually consult). A night day is unchanged to the metre.
+
+**Nine build and publish scripts moved to `scripts/`**, with `git mv` so history follows. Each
+computed its root as its own folder, which had been the repo root; that is one level up now, in five
+`.bat` files and three `.py` ones, and `publish_site.bat` also reached its own `.py` through it.
+`dashboard.html` and `bg.png` stay at the root - `SimulationRestApi` serves them by filename from the
+working directory, so moving them needs the server to resolve them from the classpath first.
+`cp.txt` and `cp_*.txt` are gitignored.
 
 ### 15 September (after the refactor) — an audit of the eight modules
 
