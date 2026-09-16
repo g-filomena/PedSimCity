@@ -13,6 +13,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.agents.Agent;
+import pedsim.night.engine.NightDataExporter;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
 
@@ -48,7 +49,7 @@ class TripRecordingTest {
     record(recorder, 198);
     record(recorder, 199);
     Path csv = temp.resolve("ab.csv");
-    TripDiagnostic.saveABTestComparison(csv.toString(), recorder.getRecords());
+    NightDataExporter.saveABTestComparison(csv.toString(), recorder.getRecords());
     List<String> lines = Files.readAllLines(csv);
     assertEquals(2, lines.size());
     assertTrue(lines.get(1).startsWith("99,0,"));
