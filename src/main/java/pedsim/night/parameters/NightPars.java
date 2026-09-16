@@ -7,12 +7,11 @@ public class NightPars {
   }
 
   /**
-   * Which directional statistic {@code NightImport} reads for the entrance view of an edge. MEAN,
-   * not MIN: the minimum over the visibility horizon is about one lamp spacing wide (Torino's mean
-   * nearest-neighbour lamp spacing is 11.7 m), so it reduces to how far the entry node happens to
-   * fall from the nearest lamp rather than to how the street ahead is lit. Both columns are written
-   * by {@code 04_directional_lighting.py}, so switching this is a column choice, not a pipeline
-   * re-run.
+   * Which directional statistic {@code NightImport} reads for the entrance view of an edge. MEAN:
+   * the minimum over the visibility horizon is about one lamp spacing wide (Torino's mean
+   * nearest-neighbour spacing is 11.7 m), so it measures how far the entry node falls from the
+   * nearest lamp rather than how the street ahead is lit. Both columns are written by
+   * {@code 04_directional_lighting.py}, so this is a column choice, not a pipeline re-run.
    */
   public static DirectionalLuxStatistic directionalLuxStatistic = DirectionalLuxStatistic.MEAN;
 
@@ -30,13 +29,11 @@ public class NightPars {
   public static double litEdgeNominalLux = 5.0;
 
   /**
-   * A stretch of an edge below this illuminance counts as a genuinely unlit gap, and an edge
-   * carrying one fails the lighting gate however bright its average is. 5.0 lux is the pipeline's
-   * own service level ({@code lighting.MIN_LUX}: "is this stretch of pavement adequately lit?"),
-   * which is what {@code min_lux} is measured against - deliberately not the agent's personal
-   * sensitivity threshold. {@code min_lux} is the darkest 2 m sample point on the whole edge, so
-   * testing it against a threshold of up to 15 lux would fail nearly every street in the city and
-   * turn a mean-plus-floor gate into a minimum-only one.
+   * A stretch of an edge below this illuminance is an unlit gap, and an edge carrying one fails
+   * the lighting gate however bright its average is. 5.0 lux is the pipeline's service level
+   * ({@code lighting.MIN_LUX}), which is what {@code min_lux} is measured against. Not the agent's
+   * own sensitivity: {@code min_lux} is the darkest 2 m sample point on the whole edge, and asking
+   * an extreme value to clear a 15-lux threshold fails nearly every street in the city.
    */
   public static double darkSpotLuxThreshold = 5.0;
 
@@ -54,9 +51,21 @@ public class NightPars {
   /**
    * Upper bound on P(reroute) in {@code NightBehaviour.rerouteOrIncreaseSpeed()} as the current
    * edge approaches full darkness. P(reroute) is 0.5 at or above the agent's own sensitivity
-   * threshold - the fixed split this replaced - and rises linearly toward this value as the edge
-   * darkens below it, so how dark the street actually is decides whether the agent turns off it or
-   * merely walks it faster. A starting value, not a calibrated one.
+   * threshold and rises linearly toward this value as the edge darkens below it, so how dark the
+   * street is decides whether the agent turns off it or merely walks it faster. A starting value,
+   * not a calibrated one.
    */
   public static double maxRerouteProbabilityInDarkness = 0.9;
+
+  /**
+   * Ceiling on the route-planning cost multiplier applied to a <b>known</b> edge whose
+   * {@code mean_lux} falls below the travelling agent's own sensitivity threshold; 1.0 disables the
+   * penalty and restores planning that ignores light entirely. A starting value, not a calibrated
+   * one.
+   *
+   * <p>This is the one parameter in the module that moves the <i>plan</i> rather than the
+   * reaction, so it is also the one whose effect a lighting experiment most needs to state: with
+   * it at 1.0 a night agent only ever reacts to a dark street it has already reached.
+   */
+  public static double maxKnownDarkEdgeCostMultiplier = 1.5;
 }

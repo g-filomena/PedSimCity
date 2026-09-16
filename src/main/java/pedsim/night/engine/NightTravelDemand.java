@@ -1,6 +1,9 @@
 package pedsim.night.engine;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import pedsim.activity.engine.ActivityTravelDemand;
+import pedsim.activity.engine.Daylight;
 import pedsim.core.agents.Agent;
 import pedsim.core.parameters.TimePars;
 import pedsim.core.utilities.LoggerUtil;
@@ -12,6 +15,15 @@ public class NightTravelDemand extends ActivityTravelDemand {
 
   private final PedSimCityNight night;
 
+  /**
+   * How many dark release events have happened today, which is the index of the next pair to send
+   * out. Counted rather than derived from the step, because pairs are released into darkness only
+   * and the dark events are not the first {@code n} events of the day.
+   */
+  private int pairsReleased = 0;
+
+  private boolean announcedCapacity = false;
+
   public NightTravelDemand(PedSimCityNight state) {
     super(state);
     this.night = state;
@@ -19,8 +31,18 @@ public class NightTravelDemand extends ActivityTravelDemand {
 
   /**
    * With light A/B testing enabled, day 1 releases one vulnerable/non-vulnerable twin pair per
-   * release event (agents {@code 2i} and {@code 2i+1} for release event {@code i}, 72 pairs)
+   * <b>dark</b> release event (agents {@code 2i} and {@code 2i+1} for the {@code i}-th such event)
    * instead of the standard release.
+   *
+   * <p><b>Pairs depart into darkness only.</b> One pair per release event across the whole day left
+   * the majority of them setting off in daylight, where the lighting manipulation does nothing:
+   * with {@code releaseAgentsEveryMinutes = 20} a day holds 72 release events and, on a Turin June
+   * day, only about 31 of those are dark. The experiment's size was therefore not
+   * {@code abTestPairs} but whatever fraction of it happened to fall after sunset, and it moved
+   * with the date without anything saying so. Skipping the light events makes {@code abTestPairs}
+   * mean what it says, up to the number of dark events the date allows - which
+   * {@link #darkReleaseEventsToday} counts and logs at the start of the day, so an experiment too
+   * big for its night is reported rather than silently truncated.
    */
   @Override
   public int releaseAgentsOverride(double steps, int dayNumber) {
@@ -28,12 +50,15 @@ public class NightTravelDemand extends ActivityTravelDemand {
       return -1;
     }
 
-    // One pair per release event, in the order NightPopulate built them. The bound is the number
-    // of pairs that actually exist: it was hardcoded to 72, so raising abTestPairs left the extra
-    // pairs at home for the whole day, and lowering it sent every later event scanning the agent
-    // list for twins that were never built.
-    int pairIndex = (int) Math.round(steps / TimePars.releaseAgentsEverySteps) - 1;
-    if (pairIndex < 0 || pairIndex >= Math.max(1, NightPars.abTestPairs)) {
+    announceCapacityOnce(dayNumber);
+
+    // A pair released into daylight is a pair the manipulated variable cannot reach.
+    if (!night.isDark) {
+      return 0;
+    }
+
+    int pairIndex = pairsReleased;
+    if (pairIndex >= Math.max(1, NightPars.abTestPairs)) {
       return 0;
     }
 
@@ -49,6 +74,12 @@ public class NightTravelDemand extends ActivityTravelDemand {
       }
     }
     if (vulnAgent == null || normalAgent == null) {
+      // Advance past the gap rather than retrying it: the index is a counter now, not a function of
+      // the step, so a pair that was never built would otherwise consume every remaining dark event
+      // of the day and nothing would depart at all.
+      pairsReleased++;
+      LoggerUtil.getLogger()
+          .warning("A/B Testing: no twin pair at index " + pairIndex + "; skipping it.");
       return 0;
     }
 
@@ -60,6 +91,7 @@ public class NightTravelDemand extends ActivityTravelDemand {
     // destination does not already buy.
     vulnAgent.startWalkingAlone();
     normalAgent.startWalkingAlone();
+    pairsReleased++;
 
     LoggerUtil.getLogger()
         .fine(
@@ -72,5 +104,56 @@ public class NightTravelDemand extends ActivityTravelDemand {
                 + ") at step "
                 + steps);
     return 2;
+  }
+
+  /**
+   * States, once, how many pairs this date can actually send out after dark, so that an experiment
+   * sized beyond its own night is visible in the log rather than in a shortfall nobody counted.
+   */
+  private void announceCapacityOnce(int dayNumber) {
+    if (announcedCapacity) {
+      return;
+    }
+    announcedCapacity = true;
+    int darkEvents = darkReleaseEventsToday(dayNumber);
+    int requested = Math.max(1, NightPars.abTestPairs);
+    String message =
+        String.format(
+            "A/B light experiment: %d requested pairs, %d dark release events on %s"
+                + " (%d-minute cadence) - %d pairs will depart after dark.",
+            requested,
+            darkEvents,
+            dateOf(dayNumber),
+            TimePars.releaseAgentsEveryMinutes,
+            Math.min(requested, darkEvents));
+    if (requested > darkEvents) {
+      LoggerUtil.getLogger()
+          .warning(message + " The remaining " + (requested - darkEvents) + " stay at home.");
+    } else {
+      LoggerUtil.getLogger().info(message);
+    }
+  }
+
+  /**
+   * How many of the day's release events fall in darkness, by the same seasonal rule the engine
+   * uses to set {@code isDark}. A count of opportunities, not of departures: it is what bounds the
+   * experiment on this date.
+   */
+  private int darkReleaseEventsToday(int dayNumber) {
+    LocalDate date = dateOf(dayNumber);
+    int eventsPerDay = (24 * 60) / Math.max(1, TimePars.releaseAgentsEveryMinutes);
+    int dark = 0;
+    for (int event = 0; event < eventsPerDay; event++) {
+      LocalDateTime time =
+          date.atStartOfDay().plusMinutes((long) event * TimePars.releaseAgentsEveryMinutes);
+      if (Daylight.isDark(time)) {
+        dark++;
+      }
+    }
+    return dark;
+  }
+
+  private static LocalDate dateOf(int dayNumber) {
+    return TimePars.SIMULATION_START_DATE.plusDays(dayNumber - 1L);
   }
 }

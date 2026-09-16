@@ -3,6 +3,7 @@ package pedsim.night.agents;
 import ec.util.MersenneTwisterFast;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.Crowdness;
+import pedsim.night.engine.NightLighting;
 import pedsim.night.parameters.NightPars;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
@@ -18,10 +19,8 @@ public class NightBehaviour {
   protected MersenneTwisterFast random;
 
   /**
-   * P(reroute) at or above the agent's sensitivity threshold, and the value used wherever the
-   * darkness of the current edge cannot be graded (no continuous lux). Equal to the fixed split
-   * this whole method used before darkness entered it, so an edge with no measurement behaves
-   * exactly as it did.
+   * P(reroute) at or above the agent's sensitivity threshold, and wherever the darkness of the
+   * current edge cannot be graded because no continuous lux exists for it.
    */
   private static final double BASELINE_REROUTE_PROBABILITY = 0.5;
 
@@ -173,16 +172,15 @@ public class NightBehaviour {
   /**
    * Checks the current edge using explicit lighting pass/fail semantics.
    *
-   * <p>Mean-light passes if measured mean_lux exists, is above the agent's threshold, and the edge
-   * carries no unlit gap (see {@link #meanLightPasses}); or, with no measurement, if the binary lit
-   * fallback says the edge is lit. Entrance-light passes if directional lux exists and is above
+   * <p>Mean-light passes if {@link NightLighting#isLit} says the edge is bright enough on average
+   * and carries no unlit gap, or, with no measurement, if the binary lit tag claims it is lit. Entrance-light passes if directional lux exists and is above
    * threshold, or if the binary lit fallback says the edge is lit. Missing data without a
    * binary-lit fallback fails closed.
    */
   protected void checkLightLevel() {
     final double threshold = agent.lightSensitivityThreshold;
 
-    boolean meanLightPasses = meanLightPasses(threshold);
+    boolean meanLightPasses = NightLighting.isLit(nightMovement.currentEdge, threshold);
     boolean entranceLightPasses = entranceLightPasses(threshold);
 
     if (meanLightPasses && entranceLightPasses) {
@@ -192,37 +190,13 @@ public class NightBehaviour {
     }
   }
 
-  /**
-   * Whether the edge as a whole reads as lit to an agent with this threshold: bright enough on
-   * average <i>and</i> with no unlit gap along it.
-   *
-   * <p>The second test is what an average cannot see. {@code min_lux} is the darkest 2 m sample
-   * point on the edge, and a street that is bright at both ends and black in the middle passes on
-   * {@code mean_lux} alone. It is compared against {@link NightPars#darkSpotLuxThreshold}, the
-   * pipeline's own service level, not against the agent's personal threshold: the minimum over a
-   * whole edge is an extreme value, and asking it to clear a 15-lux threshold would fail nearly
-   * every street in the city.
-   */
-  private boolean meanLightPasses(double threshold) {
-    var meanLuxAttr = nightMovement.currentEdge.attributes.get("mean_lux");
-    if (meanLuxAttr == null) {
-      // No measured lux: pass only if the binary lit flag says the edge is lit.
-      return SharedCognitiveMap.getLitEdges().contains(nightMovement.currentEdge);
-    }
-    if (meanLuxAttr.getDouble() < threshold) {
-      return false;
-    }
-    var minLuxAttr = nightMovement.currentEdge.attributes.get("min_lux");
-    return minLuxAttr == null || minLuxAttr.getDouble() >= NightPars.darkSpotLuxThreshold;
-  }
-
   private boolean entranceLightPasses(double threshold) {
     Double entranceLux = directionalEntranceLuxOrNull();
     if (entranceLux != null) {
       return entranceLux >= threshold;
     }
-    // No directional value: pass only if the binary lit flag says the edge is lit.
-    return SharedCognitiveMap.getLitEdges().contains(nightMovement.currentEdge);
+    // No directional value: pass only if the binary lit tag claims the edge is lit.
+    return NightLighting.isTaggedLit(nightMovement.currentEdge);
   }
 
   /**
@@ -243,11 +217,10 @@ public class NightBehaviour {
   /**
    * Determines whether to reroute the agent or increase its speed.
    *
-   * <p>The split is graded by how dark the current edge is rather than fixed: it starts at
-   * {@link #BASELINE_REROUTE_PROBABILITY} at the agent's own sensitivity threshold and rises
-   * toward {@link NightPars#maxRerouteProbabilityInDarkness} as the edge approaches full darkness.
-   * Turning off a street and walking it faster are the two answers to the same fright, and which
-   * one is taken should depend on how dark the street is; the fixed 0.5 said it never did.
+   * <p>Turning off a street and walking it faster are two answers to the same fright, and how dark
+   * the street is decides between them: the probability starts at
+   * {@link #BASELINE_REROUTE_PROBABILITY} at the agent's own sensitivity threshold and rises toward
+   * {@link NightPars#maxRerouteProbabilityInDarkness} as the edge approaches full darkness.
    */
   protected void rerouteOrIncreaseSpeed() {
     double rerouteProbability =
@@ -265,20 +238,11 @@ public class NightBehaviour {
    * How far the current edge falls below the agent's sensitivity threshold, as a fraction: 0.0 at
    * or above the threshold (and wherever no continuous lux exists, so behaviour there is the one
    * the fixed split gave), 1.0 at 0 lux.
+   *
+   * <p>The same measure the route-planning cost uses, so what an agent detours around before
+   * setting off and what frightens it once standing there are graded identically.
    */
   private double darknessDepth() {
-    double threshold = agent.lightSensitivityThreshold;
-    if (threshold <= 0) {
-      return 0.0;
-    }
-    var meanLuxAttr = nightMovement.currentEdge.attributes.get("mean_lux");
-    if (meanLuxAttr == null) {
-      return 0.0;
-    }
-    double lux = meanLuxAttr.getDouble();
-    if (lux >= threshold) {
-      return 0.0;
-    }
-    return Math.min(1.0, (threshold - lux) / threshold);
+    return NightLighting.darknessDepth(nightMovement.currentEdge, agent.lightSensitivityThreshold);
   }
 }
