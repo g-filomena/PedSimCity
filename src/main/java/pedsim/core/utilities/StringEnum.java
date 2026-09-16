@@ -130,6 +130,15 @@ public class StringEnum {
     public static Hour of(int clockHour) {
       return values()[Math.floorMod(clockHour, 24)];
     }
+
+    /**
+     * The 0-23 clock hour this column covers: H01 is 00:00-01:00, H24 is 23:00-00:00.
+     *
+     * @return the clock hour
+     */
+    public int clockHour() {
+      return ordinal();
+    }
   }
 
   /** Single default agent type, used when a module does not enforce agent sub-types. */
