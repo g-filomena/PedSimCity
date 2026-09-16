@@ -8,7 +8,6 @@ package pedsim.core.parameters;
 public class RouteChoicePars {
 
   public static boolean useGravityModel = true;
-  public static boolean usePublicTransport = true;
   public static double thresholdTurn = 45;
 
   // Default route-choice split used when NO empirical (cluster) data drives the agent: how often
