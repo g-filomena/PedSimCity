@@ -79,48 +79,6 @@ public final class NightSimulationModule implements SimulationModule {
   }
 
   @Override
-  public void applyParameters(Map<String, Object> params) {
-    // The field, the applet checkbox and the dashboard's own instructions all say
-    // "enableLightABTesting"; the command line accepted only "enableAB", and a module parameter
-    // that is not picked up here is ignored in silence. The full name is canonical now, with the
-    // short one kept as an alias so existing scripts and saved configs keep working.
-    if (params.containsKey("enableLightABTesting")) {
-      NightPars.enableLightABTesting =
-          Boolean.parseBoolean(params.get("enableLightABTesting").toString());
-    } else if (params.containsKey("enableAB")) {
-      NightPars.enableLightABTesting = Boolean.parseBoolean(params.get("enableAB").toString());
-    }
-    if (params.containsKey("abTestPairs")) {
-      NightPars.abTestPairs = Integer.parseInt(params.get("abTestPairs").toString().trim());
-    }
-    if (params.containsKey("crowdednessPercentile")) {
-      NightPars.crowdednessPercentile =
-          Double.parseDouble(params.get("crowdednessPercentile").toString());
-    }
-    if (params.containsKey("directionalLuxStatistic")) {
-      NightPars.directionalLuxStatistic =
-          NightPars.DirectionalLuxStatistic.valueOf(
-              params.get("directionalLuxStatistic").toString().trim().toUpperCase());
-    }
-    if (params.containsKey("minVulnerableLightSensitivity")) {
-      NightPars.minVulnerableLightSensitivity =
-          Double.parseDouble(params.get("minVulnerableLightSensitivity").toString());
-    }
-    if (params.containsKey("maxVulnerableLightSensitivity")) {
-      NightPars.maxVulnerableLightSensitivity =
-          Double.parseDouble(params.get("maxVulnerableLightSensitivity").toString());
-    }
-    if (params.containsKey("nonVulnerableLightSensitivity")) {
-      NightPars.nonVulnerableLightSensitivity =
-          Double.parseDouble(params.get("nonVulnerableLightSensitivity").toString());
-    }
-    if (params.containsKey("useGravityModel")) {
-      pedsim.core.parameters.RouteChoicePars.useGravityModel =
-          Boolean.parseBoolean(params.get("useGravityModel").toString());
-    }
-  }
-
-  @Override
   public Map<String, Object> extraState() {
     return Map.of(
         "enableLightABTesting",

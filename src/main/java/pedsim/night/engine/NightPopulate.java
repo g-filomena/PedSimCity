@@ -4,6 +4,7 @@ import java.util.Map;
 import pedsim.activity.engine.ActivityPopulate;
 import pedsim.core.agents.Agent;
 import pedsim.core.engine.PedSimCity;
+import pedsim.core.utilities.LoggerUtil;
 import pedsim.night.agents.NightAgent;
 import pedsim.night.parameters.NightPars;
 import sim.graph.NodeGraph;
@@ -60,7 +61,8 @@ public class NightPopulate extends ActivityPopulate {
       registerAgent(vulnerableTwin);
       registerAgent(normalTwin);
     }
-    System.out.println("Spawned " + pairs + " A/B twin pairs (vulnerable vs non-vulnerable).");
+    LoggerUtil.getLogger()
+        .info("Spawned " + pairs + " A/B twin pairs (vulnerable vs non-vulnerable).");
   }
 
   private void registerAgent(NightAgent agent) {
