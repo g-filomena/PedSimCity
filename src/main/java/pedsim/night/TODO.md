@@ -30,6 +30,67 @@ The distinction the two gates encode is unchanged and still deliberate: refusing
 evening* in an unlit park applies to every night agent, avoiding those edges while *walking past*
 applies to vulnerable agents only.
 
+## Darkness reaches the plan, the avoid-set reads light, and pairs depart at night — 16 September 2026
+
+Four changes, and every one of them makes something in this module mean what it already said.
+**All four need a run before any of the numbers in this file can be trusted.** The lighting layer
+they read was rebuilt on 16 September — see below — so that part is no longer blocking.
+
+- **A known dark edge now costs more to plan through.** `DijkstraRoadDistanceNight` scales a known
+  edge's cost from 1.0 at the agent's own sensitivity threshold toward
+  `NightPars.maxKnownDarkEdgeCostMultiplier` (1.5, a starting value) at total darkness, so an agent
+  can prefer a lit way round *before setting off* instead of only reacting once it is standing on a
+  dark street. This is the audit's finding C2, which sat unreviewed in `obsolete/`; it is the only
+  change in the module that moves the **plan** rather than the reaction. **Known edges only** — an
+  unknown dark street is already handled by the situated gate, and charging for it here as well
+  would price the same darkness twice. A night agent's known edges are its simple activity bone, so
+  it bites in the home and work regions and nowhere else. Set the parameter to 1.0 to get the old
+  planning back, which is the control this change needs.
+- **The vulnerable avoid-set reads light, not only knowledge.** It used to be "the whole city minus
+  what I know", so an agent frightened by darkness detoured toward *familiarity* and any improvement
+  in the light it ended up under was a coincidence. It is now **what is neither lit nor familiar**:
+  of the edges outside the community-known network, those that also read as unlit at the agent's own
+  drawn threshold, less the streets it knows itself. One rule at two thresholds — the non-vulnerable
+  branch already asked exactly this question with the community as its familiar set. **This changes
+  the A/B's manipulated arm**, so it supersedes every paired result.
+- **`darknessDepth` is one measurement with two readers.** The situated reroute-or-speed-up
+  probability and the new planning cost grade darkness identically, from `NightLighting`, rather
+  than from two copies of the same four lines.
+- **A/B pairs depart into darkness only.** One pair per release event across the whole day meant
+  that with `abTestPairs = 72` and a 20-minute cadence, only the ~31 dark events of a Turin June day
+  carried a manipulated pair and the other 41 departed into daylight, where the manipulation does
+  nothing. The experiment's real size was therefore not `abTestPairs` but whatever fraction of it
+  fell after sunset — and it moved with the date with nothing saying so. Light events are now
+  skipped, so `abTestPairs` means what it says up to the number of dark events the date allows, and
+  `NightTravelDemand` counts those events for the date and **logs the capacity at the start of the
+  day**, warning when the experiment is bigger than its own night. On a December date the capacity
+  roughly doubles, which is another reason to run this module on a December date.
+
+### What is still not done
+
+- **Nothing is measured.** No run has been made with any of this. The first one to make is the
+  control — `maxKnownDarkEdgeCostMultiplier=1.0` against the default, one date, several jobs —
+  because planned metres is the quantity these changes are supposed to move and the replicate sd is
+  6.5% of it.
+- **The lighting layer underneath was rebuilt on 16 September, and everything before it is
+  superseded.** `03_street_lights.py` is vectorised (a full Torino run is about ten minutes, not
+  hours), the four pipeline fixes have taken effect, `FALLOFF_LAW` is `"isotropic"` — chosen by
+  running all three over the same 44,278 edges — and the uncited utilisation factor is now DLOR. The
+  last two cancel to within 3% on `mean_lux`, so **`NightPars.darkSpotLuxThreshold` and the drawn
+  `lightSensitivityThreshold` still sit where they sat relative to the city** and do not need
+  re-tuning. `NO_POLE_HEIGHT_M` remains unsourced but is now bounded: 3 m to 6 m moves the share of
+  edges below the service level by half a point. Numbers in `pipeline/README.md`.
+- **Only Torino has been re-run.** Any night result on another city is on a layer built under the
+  old physics, and the two are not comparable.
+- **The directional lookup shipped for Torino was `Torino_simplified`'s** — 29,062 rows, which is
+  14,531 x 2, against the full city's 44,278 edges. `directionalEntranceLuxOrNull` returns null on a
+  miss and the gate falls back to the binary OSM `lit` tag, so on full Torino about two thirds of
+  edge entrances never reached a measured lux value and the rest matched by node-ID collision
+  between two unrelated graphs. Regenerating step 4 on 16 September fixed it (88,556 rows).
+  **Every full-Torino night run this repo has made predates that.** The general lesson: a derived
+  layer keyed on node IDs is silently wrong when it comes from another network, and the row count is
+  the cheapest check.
+
 ## Where it stands
 
 Verified on 13 Sep. **The commute figures in this table are superseded** — the workplace draw changed
@@ -55,10 +116,10 @@ Full write-up of that run: `analysis/validation/Torino/night_torino_2026-09-13.m
 
 The server tree is current again: `classes_new` under `/mnt/home/gabriele/PedSimCity-wip` carries the
 12-14 Sep code and the 12 Sep `Torino_censusData.gpkg`. **The census there had been July's**, which is
-the vintage drift this file warns about below, and it matters to this module specifically: the current
-one carries `centroid_lat`, so the run logs `city latitude from census: 45.0691 degrees` instead of
-falling back to `ActivityPars.latitudeDegrees = 53.4` - Liverpool's - which sets every sunset in a
-model about darkness.
+the vintage drift this file warns about below, and it matters to this module specifically: the census
+vintage no longer reaches darkness at all, since 15 Sep 2026: the city's position is measured from
+the street network (`city position from the network (EPSG:3003): 45.0634, 7.6768 degrees`), not read
+from the census `centroid_lat` column.
 
 - one day, 4,232 agents (0.5%): **1 m 25 s**, clean ledger;
 - the A/B path: 72 pairs spawned, 158 paired trips written to `ab_test_comparison.csv`, twins sharing
@@ -109,15 +170,14 @@ it. A lighting study that reports a June day is reporting the easiest case there
   measurement, two jobs on `Torino_simplified` at 169 agents: **sd 6.5% of planned metres, 12.9% of
   legs**. Any effect smaller than that needs more replicates before it is an effect — and note it is
   several times the ~1% cross-machine disagreement, which puts that in proportion.
-- **How many A/B pairs, and when they depart — decided: size the experiment on the pairs that
-  actually depart at night, and leave the release mechanism as it is.** Pairs are released **one per
-  release event**, and a day holds 72 events (`releaseAgentsEveryMinutes = 20`). Two consequences:
-  - `abTestPairs > 72` leaves the extra pairs at home all day;
-  - the night window is `[20:00, 06:00)`, which is about **31 of those 72 events**, so with
-    `abTestPairs = 72` roughly 43% of pairs depart in darkness and the rest depart into daylight,
-    where the lighting manipulation does nothing. Size the experiment on the pairs that actually
-    depart at night, not on `abTestPairs`.
-  - A/B releases run on **day 1 only** (`releaseAgentsOverride` returns −1 for any other day).
+- **How many A/B pairs — settled 16 Sep 2026 in the release mechanism rather than in the
+  arithmetic.** Pairs used to be released one per release event across the whole day, so with a day
+  of 72 events (`releaseAgentsEveryMinutes = 20`) and roughly 31 of them dark, more than half of
+  `abTestPairs` departed into daylight where the manipulation does nothing. Light events are now
+  skipped, so a pair always departs after dark and `abTestPairs` is the experiment's size — capped
+  by the dark events the date allows, which is counted and logged at the start of the day. Two
+  things still hold: `abTestPairs` above that capacity leaves the extra pairs at home, and A/B
+  releases run on **day 1 only** (`releaseAgentsOverride` returns −1 for any other day).
 - **Sample size against the effect you want to detect.** 0.5% of Torino is 4,232 agents and ~2,054
   trips a day. How many of those cross unlit edges decides whether a lighting difference is
   measurable at all.
@@ -134,7 +194,7 @@ longer refuses to draw a departure into darkness. The persona's start window say
 off; the season says whether it is light when they do. Turin's sunset is before 17:00 through
 December, so the guard had been deleting the winter commute — the most routine walking there is,
 by the population most exposed to unlit streets. **Two consequences for this module:** mandatory
-legs now fall inside the `[20:00, 06:00)` aggregation window in winter, which is what threat 6 below
+legs now fall inside the `[20:00, 06:00)` aggregation window in winter, which is what threat 7 below
 was asking about; and the daylight-only assumption no longer has to appear in a write-up.
 
 **2. Relative comparisons only — decided 14 Sep 2026.** The A/B design reports
@@ -145,23 +205,38 @@ unlit street per night" inherits that coefficient whole while a difference betwe
 cancels it. `choiceSetRadiusMetres` stays at 3,000 m, truncating the mean leg by a measured ~4%,
 which is reported with any trip-length figure rather than tuned away. State both in the write-up.
 
-**3. Barrier preferences are absent after dark.** `roadDistanceNight` reaches the three-argument
-`dijkstraAlgorithm`, which does not call `initialisePrimal`, so no region subgraph is built and
-`directedEdgesToAvoid` is not consulted. Night also replaces `costPerceptionError` with a plain draw.
-The first is a decision; the second is undecided rather than intended. Either way, night routing is
-not day routing plus lighting.
+**3. Darkness now reaches planning, for known edges only.** Until 16 Sep 2026 no lighting rule in
+this module touched route choice: agents reacted to a dark street they were standing on and planned
+as though light did not exist. `DijkstraRoadDistanceNight.lightingCostMultiplier` changes that for
+the edges an agent knows, which for a night agent is its home and work regions. State which value of
+`NightPars.maxKnownDarkEdgeCostMultiplier` a run used; 1.0 is the old behaviour and is the control.
 
-**4. Night agents are not individualised.** `NightAgent.step` builds
+**4. Barrier preferences are not part of night route choice, and that is now a decision — 16 Sep
+2026.** `roadDistanceNight` reaches the three-argument `dijkstraAlgorithm`, which does not call
+`initialisePrimal`, so no region subgraph is built and `directedEdgesToAvoid` is not consulted; that
+half was already deliberate. The other half — "night replaces `costPerceptionError` with a plain
+draw" — was never a removal. `Heuristics` builds every core, activity, night and learning model with
+`BarrierPreferences.NONE`, so the parent's barrier branch is unreachable for a night agent and
+`costPerceptionError` already returns the plain perception error. Barrier perception is survey-derived
+route-choice data and belongs to the two modules that hold it.
+
+What the hand-written draw *did* do was hardcode a 0.10 sigma, so `--perceptionErrorSD=0` did not
+pin the night router. It calls `costPerceptionError` now. **Any night A/B run before 16 Sep 2026
+carried perception noise that a pinned run was meant to have removed** — and a paired experiment is
+exactly where that noise does the most damage. Either way, night routing is not day routing plus
+lighting.
+
+**5. Night agents are not individualised.** `NightAgent.step` builds
 `CognitiveMap.buildSimpleActivityBone()`, so `individualised` stays false: their known edges are a
 *preference* signal — what `NightBehaviour` scores, what a vulnerable agent avoids — and not a
 statement about what is reachable. The full-network escalation therefore never fires for them.
 Anything that flips that flag for a simple-bone agent breaks destination choice too.
 
-**5. A/B vulnerability proportions are not population shares.** With `enableLightABTesting` the twins
+**6. A/B vulnerability proportions are not population shares.** With `enableLightABTesting` the twins
 are spawned by construction, not sampled from the census `vulnerability_pct`. The run logs this
 itself; do not read the outputs as a population.
 
-**6. ~~Unmeasured: whether structural commutes disturb night statistics.~~ Measured 14 Sep 2026 —
+**7. ~~Unmeasured: whether structural commutes disturb night statistics.~~ Measured 14 Sep 2026 —
 and the answer is the other way round.** Commutes do not pollute the night window; the night window
 misses the dark. Mandatory legs run 06:30-19:30 (worker start window 6.5-10.5, a 6-9 h stay), so
 they never fall inside `[20:00, 06:00)`. What they do now fall inside, with the darkness guard gone,
@@ -190,6 +265,10 @@ on 1 June and 56% on 7 December**.
 
 ## Do not change these casually — they define what the A/B measures
 
+- **The vulnerable avoid-set is now lighting-aware, and that is the manipulated variable.** "Avoid
+  what is neither lit nor familiar" is what makes a vulnerable agent's detour a detour *toward
+  light*. Reverting it to the knowledge-only set turns the A/B back into a comparison of how much
+  unfamiliar ground two agents cover.
 - **Park and water avoidance has one rule and two gates, deliberately.** Refusing a park or waterside
   *destination* after dark applies to **every** night agent; avoiding those edges while *routing*
   applies to **vulnerable agents only**. Spending an evening in an unlit park and walking past one
@@ -210,66 +289,21 @@ on 1 June and 56% on 7 December**.
 
 ---
 
-## A seed does not fully reproduce a run across machines — partly fixed 14 Sep 2026
+## Cross-machine reproducibility is CLOSED — 14 September 2026
 
-Established by running the identical command on both machines. **Each machine replays itself
-exactly**; the two did not agree with each other.
+The long section that stood here, tracking a ~1% disagreement between `gdsl1` and the laptop on one
+seed, is gone because the disagreement is gone. A seed replays byte-for-byte on both machines: core,
+night and activity give identical per-leg traces on seed 20260912. It needed two things and neither
+was sufficient alone — core's release draw and agent scheduling ordered deterministically, *and*
+GeoMason-light 2.2.1's `hashCode` on `NodeGraph` and `EdgeGraph`. The mechanism is in `CLAUDE.md`;
+the general rule it left behind is in `../core/TODO.md` under the invariants.
 
-| | mandatory legs | workers walking | trips | planned metres |
-|---|---|---|---|---|
-| before, `gdsl1` (×3 runs) | 1163 | 14.9% | 2064 | 2,746,498 |
-| before, Windows laptop (×2 runs) | 1143 | 15.0% | 2049 | 2,663,226 |
-| **after the fix, both machines** | **1254** | **16.8%** | 2036 / 2058 | 2,649,251 / 2,733,620 |
+**What survives from it, because it is still true:** every figure this module measured before
+14 September 2026 is superseded, since the workplace draw moved when the attraction maps stopped
+iterating in identity-hash order. The machine still belongs in a write-up beside the seed and the
+jar — not because they disagree now, but because that is how you would notice if they ever did
+again.
 
-Same seed (20260912), same code, same resources, same `GeoMason-light-2.2.0.jar` at 117,232 bytes.
-
-**The cause is identity hash codes, not floating point.** A probe running `Math.exp`, `log`, `pow`,
-`sin` and `sqrt` over 200,000 inputs produced bit-identical results on both machines, so the
-transcendental functions are not responsible. What is: `NodeGraph` and `EdgeGraph` override neither
-`hashCode` nor `equals`, so any `HashMap` or `HashSet` keyed on them iterates in identity-hash order —
-and HotSpot generates identity hashes from a per-JVM generator whose values differ between JVM
-builds. Stable within a machine, different across them, exactly as observed.
-
-`PoiClassifier` built the per-purpose attraction maps as `HashMap<NodeGraph, Double>`, and
-`WorkplaceChoice.draw` walks those entries into a cumulative distribution and then picks by
-position — so the same random number selected a different workplace on each machine, which moved the
-commute distance, which moved `walksToWork`. Those maps are now `LinkedHashMap`, and **the whole
-population layer is now identical across the two machines**: mandatory legs, walked commute share for
-both workers and students, and the length bands. The same change was made to the known-network edge
-sets in `NetworkBuilder` and `CognitiveMap.deriveOtherKnownRegions`, which feed
-`Islands.mergeConnectedIslands`; that matters to the activity and learning tiers rather than to night,
-whose agents build a simple bone and never reach it.
-
-**What is still open.** Trips and metres still differ by about 1% (2036 against 2058). The remaining
-path is downstream of population, in destination choice or routing, and has not been found. Candidate
-shape: another object-keyed collection whose iteration order reaches a draw. `DestinationChoice`
-itself indexes lists and is clean.
-
-Swept since, with the night path specifically in mind (the full list, and the proposed one-line fix
-in GeoMason-light, are in `../core/TODO.md` item 5):
-
-- `PedSimCityNight.nodesVulnerabilityWeight` is a `HashMap<NodeGraph, Double>` and looks like exactly
-  the defect that was just fixed, but it is only ever `getOrDefault`-ed per home node and never
-  iterated. Clean — **do not "fix" it and expect the 1% to move.**
-- `Agent.defineRandomDestination`, `selectWeightedDestination` and `Dijkstra`'s known/visited sets are
-  clean for the same kind of reason: filtering without reordering, indexing by position, membership
-  and lookup only.
-- **`Islands.mergeConnectedIslands` is genuinely order-dependent and does not reach this module.** The
-  library re-wraps the caller's carefully ordered edge set into a `HashSet`, so which bridge joins two
-  islands is machine-dependent — but night agents build a simple bone and never call `Islands`. It
-  bears on the activity and learning tiers instead.
-- The one open candidate that *does* reach night is `NodeGraph.getDualNodes`, which builds a
-  `HashMap` and sorts it stably, so dual nodes at exactly equal cost come back in identity-hash order.
-  Ties only, and only on angular routes.
-
-**What follows for an experiment, until that is closed:** every run of a comparison has to come from
-one machine, and the machine belongs in the write-up beside the seed and the jar. A condition run on
-the laptop against a control run on `gdsl1` differs by roughly the size of the effects this module
-looks for.
-
-Note that the fix **changes results** on both machines — the workplace draw now selects differently.
-Any figure in this file measured before 14 Sep 2026 is superseded; the current Torino day reports
-`workers 16.8% (ISTAT 16.3%), students 38.3% (ISTAT 38.0%)`.
 
 ## Comparisons that are already void
 

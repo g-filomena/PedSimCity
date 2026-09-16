@@ -12,10 +12,10 @@ lighting, vulnerability or learning — those live in the modules that extend co
 | `engine` | `PedSimCity` (simulation state, GIS layers, scheduling), `Engine` (job loop, day/agent-release, flow & cognitive-map export), `Import` (graph/landmark/barrier GPKG loading), `Environment` (graph/buildings/gateways/dual-graph/barriers/regions preparation), `Populate` (agent creation + home/work assignment), `TravelDemand` + `BaselineTravelDemand` (release policy), `RouteTrace` (per-day measurement plus the opt-in per-leg record), `FlowHandler`, `ScenarioConfig`, `SimulationModule`, `SimulationLauncher`, recorders/exporters |
 | `agents` | `Agent` (trip planning, movement lifecycle), `AgentMovement`, `AgentProperties`, `Heuristics`, `OdAgent` |
 | `cognition.cognitivemap` | `CognitiveMap`, `SharedCognitiveMap` (the community/primal network) |
-| `cognition.cityimage` | `Barrier`, `Gateway`, `Region` (the city-image elements) |
+| `cognition.elements` | `Barrier`, `Gateway`, `Region` - Lynch's city-image elements, used by core's own route choice. Not to be confused with `routing.elements`, which holds the navigation strategies that consult them. |
 | `cognition.metrics` | `Landmarkness`, `LandmarkIntegration`, `BarrierIntegration`, `Complexity` |
 | `cognition.network` | `NetworkBuilder` |
-| `routing` | `RoutePlanner`, navigation `elements/*`, `pathfinder/*`, `pathfinding/*` (Dijkstra variants) |
+| `routing` | `RoutePlanner` (picks the router), `routers/*` (a whole route for one model), `search/*` (one Dijkstra between two nodes), `elements/*` (sub-goals) |
 | `parameters` | `Pars`, `RouteChoicePars`, `TimePars`, `ParameterManager`, `CityConfig` |
 | `utilities` | `RouteData`, `StringEnum`, `LoggerUtil` |
 | `website` | `SimulationRestApi`, `GeoJsonExporter`, `HtmlExporter` (dashboard) |
