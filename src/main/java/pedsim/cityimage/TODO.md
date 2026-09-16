@@ -87,3 +87,31 @@ java -Xmx24g -Dpedsim.trace=runs/ci.csv -cp "target/classes:$(cat cp.txt)" \
   --stringMode="Testing Urban Subdivisions" --numberTripsPerAgent=150 --jobs=1 \
   --perceptionErrorSD=0
 ```
+
+## The importer decides what the city is, from the test design — 16 September 2026
+
+`CityImageImport.importFiles()` branches on which design is running, and the branches read different
+cities:
+
+| design | reads |
+|---|---|
+| Testing Landmarks | distances, buildings, sight lines — **no barriers** |
+| Testing Urban Subdivisions | barriers — **no buildings, no sight lines** |
+| Testing Specific Route Choice Models | buildings, sight lines, barriers |
+
+That is defensible as a loading optimisation — London's sight lines are 361,398 rows — and it is a
+trap, because **a scenario whose data the design did not load does not fail; it falls back**. Run the
+full `Scenario.values()` list under the subdivisions design and every landmark model routes with no
+landmarks at all and reports a route, which is exactly the run-without-effect failure this module
+keeps having. In ordinary use the design and `TestPars.scenarios` agree, because `defineMode()` sets
+both together; the trap is only armed when someone sets `scenarios` by hand, which is what
+`RouteChoiceOnACityTest` did on its first draft and which is why it is now pinned to the design that
+loads everything.
+
+**Worth considering:** have the importer read what the *scenario list* needs rather than what the
+design name implies, so the two cannot disagree. `CityImageAgent.modelFor` already knows which
+elements a scenario uses.
+
+`RouteChoiceOnACityTest` (`mvn test -Pslow-tests -Pall-modules`) now covers all eight
+element-versus-sibling pairs on Muenster, landmark models included, and asserts that count as a floor
+so a city or a design that quietly stops loading a layer turns it red.
