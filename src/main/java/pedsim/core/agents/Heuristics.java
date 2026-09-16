@@ -99,6 +99,13 @@ public final class Heuristics {
       elements.add(RouteChoiceElement.REGION_BASED_NAVIGATION);
     }
 
+    // BarrierPreferences.NONE, and that is the decision rather than a gap. How an agent perceives
+    // barriers - which kinds it notices, what they do to an edge's cost - is survey-derived
+    // route-choice data, and the two modules that have it are the ones that configure their own
+    // model: cityImage names a BarrierPreferences per scenario, empirical draws one from its
+    // cluster. A core, activity, night or learning agent has no such data behind it, so it gets
+    // none, and Dijkstra.costPerceptionError falls straight through to the plain perception error
+    // for every one of them. Barrier *sub-goals* are a separate mechanism and are sampled above.
     return RouteChoiceModel.usingElements(
         localHeuristic, elements, null, RouteChoiceModel.BarrierPreferences.NONE);
   }
