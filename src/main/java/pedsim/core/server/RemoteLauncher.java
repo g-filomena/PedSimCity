@@ -188,6 +188,13 @@ public class RemoteLauncher {
   /**
    * Runs the simulation on the server from the command line.
    *
+   * <p><b>Console versus log, in the one class where both are right.</b> Everything this launcher
+   * observes - the command it issued, the remote PID, the server's own output, an SSH failure -
+   * goes to {@link LoggerUtil}, like every other run. {@link #USAGE} is the exception: help text is
+   * the program's output rather than a record of what it did, and a thirty-line reference prefixed
+   * {@code INFO:} on every row is not help. So the diagnosis is logged and the reference text is
+   * printed.
+   *
    * @param args launcher options, then the run's own arguments
    */
   public static void main(String[] args) throws Exception {
@@ -231,7 +238,8 @@ public class RemoteLauncher {
     }
 
     if (mainClass == null || mainClass.isBlank()) {
-      System.out.println("--remoteMainClass is required." + System.lineSeparator() + USAGE);
+      LoggerUtil.getLogger().severe("--remoteMainClass is required.");
+      System.out.println(USAGE);
       return;
     }
 
@@ -252,9 +260,10 @@ public class RemoteLauncher {
     }
 
     if (launcher.getServer().isBlank()) {
-      System.out.println(
-          "No server configured: set server.host in server.properties, or pass"
-              + " --server=user@host.");
+      LoggerUtil.getLogger()
+          .severe(
+              "No server configured: set server.host in server.properties, or pass"
+                  + " --server=user@host.");
       return;
     }
 
