@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import pedsim.activity.parameters.ActivityPars;
-import pedsim.core.parameters.Pars;
 import pedsim.testing.ParameterSnapshot;
 
 /**
@@ -28,7 +27,7 @@ public class DaylightTest {
 
   @Test
   void sunsetMatchesThePublishedTimesForTurin() throws Exception {
-    try (var saved = new ParameterSnapshot(ActivityPars.class, Pars.class)) {
+    try (var saved = new ParameterSnapshot(ActivityPars.class)) {
       turin();
       // Published: 21:18 on 21 June, 16:52 on 21 December (Turin, local clock).
       assertEquals(21.30, Daylight.sunriseSunsetHours(JUNE_EVENING)[1], 0.1);
@@ -41,7 +40,7 @@ public class DaylightTest {
 
   @Test
   void withAPositionDarknessFollowsTheSeason() throws Exception {
-    try (var saved = new ParameterSnapshot(ActivityPars.class, Pars.class)) {
+    try (var saved = new ParameterSnapshot(ActivityPars.class)) {
       turin();
       assertTrue(Daylight.hasPosition());
       assertFalse(Daylight.isDark(JUNE_EVENING), "Turin is still light at 21:00 in June");
@@ -52,7 +51,7 @@ public class DaylightTest {
 
   @Test
   void withoutATimeZoneSummerEveningsArriveAnHourEarly() throws Exception {
-    try (var saved = new ParameterSnapshot(ActivityPars.class, Pars.class)) {
+    try (var saved = new ParameterSnapshot(ActivityPars.class)) {
       turin();
       double withZone = Daylight.sunriseSunsetHours(JUNE_EVENING)[1];
       ActivityPars.timeZoneId = "";
@@ -63,9 +62,9 @@ public class DaylightTest {
 
   @Test
   void withoutAPositionTheFixedWindowDecidesAndHasNoSeason() throws Exception {
-    try (var saved = new ParameterSnapshot(ActivityPars.class, Pars.class)) {
-      Pars.cityLatitude = Double.NaN;
-      Pars.cityLongitude = Double.NaN;
+    try (var saved = new ParameterSnapshot(ActivityPars.class)) {
+      ActivityPars.cityLatitude = Double.NaN;
+      ActivityPars.cityLongitude = Double.NaN;
       assertFalse(Daylight.hasPosition());
       // 21:00 and 17:30 sit on opposite sides of the fixed boundary, whatever the season.
       assertTrue(Daylight.isDark(JUNE_EVENING));
@@ -79,9 +78,9 @@ public class DaylightTest {
 
   @Test
   void theFixedWindowIsAnInputNotAConstant() throws Exception {
-    try (var saved = new ParameterSnapshot(ActivityPars.class, Pars.class)) {
-      Pars.cityLatitude = Double.NaN;
-      Pars.cityLongitude = Double.NaN;
+    try (var saved = new ParameterSnapshot(ActivityPars.class)) {
+      ActivityPars.cityLatitude = Double.NaN;
+      ActivityPars.cityLongitude = Double.NaN;
       ActivityPars.dayStartHour = 8.0;
       ActivityPars.nightStartHour = 22.0;
       assertTrue(Daylight.isDark(LocalDateTime.of(2026, 6, 21, 7, 30)));
@@ -92,8 +91,8 @@ public class DaylightTest {
   }
 
   private void turin() {
-    Pars.cityLatitude = TURIN_LAT;
-    Pars.cityLongitude = TURIN_LON;
+    ActivityPars.cityLatitude = TURIN_LAT;
+    ActivityPars.cityLongitude = TURIN_LON;
     ActivityPars.timeZoneId = "Europe/Rome";
     ActivityPars.twilightBufferMinutes = 30;
     ActivityPars.dayStartHour = 6.0;
