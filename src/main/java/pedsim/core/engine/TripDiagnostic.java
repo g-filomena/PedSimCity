@@ -46,7 +46,7 @@ public class TripDiagnostic {
   }
 
   /** Resolves relative filenames under outputs/, or preserves an explicit absolute path. */
-  static String outputsPath(String filename) {
+  public static String outputsPath(String filename) {
     if (java.nio.file.Path.of(filename).isAbsolute()) return filename;
     File dir = new File("outputs");
     if (!dir.exists()) dir.mkdirs();
@@ -111,7 +111,7 @@ public class TripDiagnostic {
   /**
    * Converts a simulation step number into a human-readable "Day D HH:mm" string.
    */
-  private static String stepToTime(double step) {
+  public static String stepToTime(double step) {
     try {
       LocalDateTime dt = TimePars.getTime(step);
       // Day number: count from 1
@@ -128,7 +128,7 @@ public class TripDiagnostic {
    * Coordinates are in a projected CRS (EPSG:3003), so units are already metres.
    * Raw Euclidean distance is used directly – no degree-to-metre conversion needed.
    */
-  private static double computeDistanceMetres(List<Coordinate> coords) {
+  public static double computeDistanceMetres(List<Coordinate> coords) {
     if (coords == null || coords.size() < 2) return 0.0;
     double total = 0.0;
     for (int i = 0; i < coords.size() - 1; i++) {
@@ -142,7 +142,7 @@ public class TripDiagnostic {
   }
 
   /** Joins a list of integers with semicolons. */
-  private static String joinInts(List<Integer> ids) {
+  public static String joinInts(List<Integer> ids) {
     if (ids == null || ids.isEmpty()) return "";
     StringBuilder sb = new StringBuilder();
     for (int i = 0; i < ids.size(); i++) {
@@ -150,106 +150,5 @@ public class TripDiagnostic {
       sb.append(ids.get(i));
     }
     return sb.toString();
-  }
-
-  /**
-   * Generates a side-by-side comparison of vulnerable and normal twins routes, durations, distances.
-   */
-  public static void saveABTestComparison(
-      String filename, List<TripRouteRecorder.TripRecord> allTrips) {
-    String path = outputsPath(filename);
-    logger.info("[TripDiagnostic] Writing A/B test comparison to " + path);
-
-    try (FileWriter fw = new FileWriter(path)) {
-      // Header
-      fw.write(
-          "pair_id,trip_index,start_node,dest_node,vuln_start_time,vuln_end_time,vuln_duration_min,vuln_distance_m,vuln_route,normal_start_time,normal_end_time,normal_duration_min,normal_distance_m,normal_route,routes_differ\n");
-
-      // Derive pair IDs from recorded agents so configured populations are never truncated.
-      java.util.SortedSet<Integer> pairIds = new java.util.TreeSet<>();
-      for (TripRouteRecorder.TripRecord trip : allTrips) {
-        pairIds.add(trip.agentId / 2);
-      }
-      for (int pairId : pairIds) {
-        final int vId = pairId * 2;
-        final int nId = pairId * 2 + 1;
-
-        java.util.List<TripRouteRecorder.TripRecord> vulnTrips = new java.util.ArrayList<>();
-        java.util.List<TripRouteRecorder.TripRecord> normalTrips = new java.util.ArrayList<>();
-
-        for (TripRouteRecorder.TripRecord t : allTrips) {
-          if (t.agentId == vId) {
-            vulnTrips.add(t);
-          } else if (t.agentId == nId) {
-            normalTrips.add(t);
-          }
-        }
-
-        vulnTrips.sort(java.util.Comparator.comparingDouble(t -> t.startStep));
-        normalTrips.sort(java.util.Comparator.comparingDouble(t -> t.startStep));
-
-        int maxTrips = Math.max(vulnTrips.size(), normalTrips.size());
-        for (int k = 0; k < maxTrips; k++) {
-          TripRouteRecorder.TripRecord vt = k < vulnTrips.size() ? vulnTrips.get(k) : null;
-          TripRouteRecorder.TripRecord nt = k < normalTrips.size() ? normalTrips.get(k) : null;
-
-          int startNode = -1;
-          int destNode = -1;
-          if (vt != null) {
-            startNode = vt.originNodeId;
-            destNode = vt.destNodeId;
-          } else if (nt != null) {
-            startNode = nt.originNodeId;
-            destNode = nt.destNodeId;
-          }
-
-          String vStart = vt != null ? stepToTime(vt.startStep) : "";
-          String vEnd = vt != null ? stepToTime(vt.endStep) : "";
-          long vDur =
-              vt != null
-                  ? Math.round((vt.endStep - vt.startStep) * TimePars.STEP_DURATION / 60.0)
-                  : -1;
-          double vDist = vt != null ? computeDistanceMetres(vt.pathCoords) : -1.0;
-          String vRoute = vt != null ? joinInts(vt.nodeIds) : "";
-
-          String nStart = nt != null ? stepToTime(nt.startStep) : "";
-          String nEnd = nt != null ? stepToTime(nt.endStep) : "";
-          long nDur =
-              nt != null
-                  ? Math.round((nt.endStep - nt.startStep) * TimePars.STEP_DURATION / 60.0)
-                  : -1;
-          double nDist = nt != null ? computeDistanceMetres(nt.pathCoords) : -1.0;
-          String nRoute = nt != null ? joinInts(nt.nodeIds) : "";
-
-          boolean routesDiffer = true;
-          if (vt != null && nt != null) {
-            routesDiffer = !vt.nodeIds.equals(nt.nodeIds);
-          }
-
-          fw.write(
-              String.format(
-                  java.util.Locale.ROOT,
-                  "%d,%d,%d,%d,%s,%s,%s,%.1f,%s,%s,%s,%s,%.1f,%s,%b%n",
-                  pairId,
-                  k,
-                  startNode,
-                  destNode,
-                  vStart,
-                  vEnd,
-                  vDur >= 0 ? String.valueOf(vDur) : "",
-                  vDist >= 0 ? vDist : 0.0,
-                  vRoute,
-                  nStart,
-                  nEnd,
-                  nDur >= 0 ? String.valueOf(nDur) : "",
-                  nDist >= 0 ? nDist : 0.0,
-                  nRoute,
-                  routesDiffer));
-        }
-      }
-      logger.info("[TripDiagnostic] A/B test comparison saved successfully → " + filename);
-    } catch (IOException e) {
-      logger.severe("[TripDiagnostic] Failed to write A/B comparison: " + e.getMessage());
-    }
   }
 }
