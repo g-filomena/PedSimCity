@@ -1,4 +1,4 @@
-package pedsim.empirical.agent;
+package pedsim.empirical.agents;
 
 /**
  * Calibration parameters for one empirical agent group.
