@@ -1,4 +1,4 @@
-package pedsim.core.routing.pathfinder;
+package pedsim.core.routing.routers;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -8,8 +8,8 @@ import java.util.stream.Collectors;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.agents.Agent;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
-import pedsim.core.routing.pathfinding.DijkstraAngularChange;
-import pedsim.core.routing.pathfinding.DijkstraRoadDistance;
+import pedsim.core.routing.search.DijkstraAngularChange;
+import pedsim.core.routing.search.DijkstraRoadDistance;
 import sim.graph.EdgeGraph;
 import sim.graph.Graph;
 import sim.graph.NodeGraph;
@@ -172,7 +172,7 @@ public class PathFinder {
   }
 
   /**
-   * Performs backtracking in the context of dual graph-based pathfinding (angular change). When the
+   * Performs backtracking in the context of a dual-graph search (angular change). When the
    * agent gets stuck due to the "centroidsToAvoid" set, this method iterates back across nodes and
    * retries to compute the path towards the given tmpDestinationNode.
    */
@@ -205,10 +205,10 @@ public class PathFinder {
     List<NodeGraph> dualNodesDestination = getDualNodes(tmpDestination, previousJunction);
     for (final NodeGraph tmpDualOrigin : dualNodesOrigin) {
       for (final NodeGraph tmpDualDestination : dualNodesDestination) {
-        final DijkstraAngularChange pathfinder = new DijkstraAngularChange();
+        final DijkstraAngularChange search = new DijkstraAngularChange();
         Set<NodeGraph> centroidsToAvoidSet = new HashSet<>(centroidsToAvoid);
         partialSequence =
-            pathfinder.dijkstraAlgorithm(
+            search.dijkstraAlgorithm(
                 tmpDualOrigin,
                 tmpDualDestination,
                 destinationNode,

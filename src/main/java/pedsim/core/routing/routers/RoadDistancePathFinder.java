@@ -1,16 +1,16 @@
-package pedsim.core.routing.pathfinder;
+package pedsim.core.routing.routers;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.agents.Agent;
-import pedsim.core.routing.pathfinding.DijkstraRoadDistance;
+import pedsim.core.routing.search.DijkstraRoadDistance;
 import sim.graph.NodeGraph;
 import sim.routing.Route;
 
 /**
- * A pathfinder for road-distance based route calculations. This class extends
+ * Router for road-distance route calculations. This class extends
  * the functionality of the base class PathFinder.
  */
 public class RoadDistancePathFinder extends PathFinder {
@@ -29,10 +29,10 @@ public class RoadDistancePathFinder extends PathFinder {
     this.originNode = originNode;
     this.destinationNode = destinationNode;
     this.agent = agent;
-    final DijkstraRoadDistance pathfinder = new DijkstraRoadDistance();
+    final DijkstraRoadDistance search = new DijkstraRoadDistance();
 
     partialSequence =
-        pathfinder.dijkstraAlgorithm(
+        search.dijkstraAlgorithm(
             originNode, destinationNode, destinationNode, directedEdgesToAvoid, this.agent);
 
     if (partialSequence.isEmpty()) {
