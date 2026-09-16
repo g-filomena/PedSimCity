@@ -14,8 +14,6 @@ import pedsim.core.parameters.Pars;
 import pedsim.core.parameters.TimePars;
 import pedsim.core.utilities.StringEnum;
 import pedsim.core.utilities.StringEnum.AgentStatus;
-import pedsim.transit.TransitStop;
-import sim.engine.SimState;
 import sim.graph.Graph;
 import sim.graph.NodeGraph;
 import sim.graph.NodesLookup;
@@ -38,8 +36,6 @@ import sim.routing.Route;
  *   <li><b>Habitual places</b>: a small set of favourite destinations per purpose is revisited,
  *       with a probability that grows as the agent's map fills and a preference for the places it
  *       already visits most, so agents develop routine geographies;
- *   <li><b>Multi-modal transit</b>: long-distance city trips (&gt; 800m) may switch to METRO, TRAM
- *       or BUS routing when the transit network is active.
  * </ul>
  *
  * <p>The working day is part of it: an agent with a workplace goes there once a day, stays for its
@@ -57,11 +53,6 @@ public class ActivityAgent extends Agent {
 
   /** Whether the commute has already been made today. Cleared when the agent gets home. */
   protected boolean hasWorkedToday = false;
-
-  // Multi-modal transit tracking fields
-  public NodeGraph ultimateDestinationNode;
-  public TransitStop boardingStop;
-  public TransitStop egressStop;
 
   /** Socio-demographic persona; {@code null} for agents created outside {@code ActivityPopulate}. */
   protected Persona persona;
@@ -86,122 +77,6 @@ public class ActivityAgent extends Agent {
     super(state, registerSpatial);
   }
 
-  @Override
-  public void step(SimState state) {
-    if (isWaiting()) {
-      return;
-    }
-
-    // Check if agent arrived at the transit boarding platform (Leg 1 completed)
-    if (boardingStop != null && status == AgentStatus.WALKING_ALONE) {
-      boolean atPlatform =
-          reachedDestination.get()
-              || (destinationNode != null && destinationNode.getID() == boardingStop.snappedNodeId)
-              || (currentLocation != null
-                  && currentLocation
-                          .getGeometry()
-                          .getCoordinate()
-                          .distance(boardingStop.snappedNodeGraph.getCoordinate())
-                      < 20.0);
-
-      if (atPlatform) {
-        reachedDestination.set(false);
-        destinationNode = ultimateDestinationNode;
-        TransitStop platformStop = boardingStop;
-        boardingStop = null;
-
-        setStatus(AgentStatus.WAITING);
-        platformStop.waitingPassengers.add(this);
-        return;
-      }
-    }
-
-    super.step(state);
-  }
-
-  @Override
-  protected void planTrip() {
-    super.planTrip();
-
-    if (reachedDestination.get() || destinationNode == null || originNode == null) {
-      return;
-    }
-
-    // Evaluate multi-modal transit for trips longer than ~800 meters when transit network is active
-    if (pedsim.core.parameters.RouteChoicePars.usePublicTransport
-        && !PedSimCityActivity.allTransitStops.isEmpty()
-        && boardingStop == null
-        && egressStop == null) {
-      double tripDist = originNode.getCoordinate().distance(destinationNode.getCoordinate());
-      if (tripDist > 800.0) {
-        TransitStop bStop = findNearestStop(originNode, 600.0);
-        TransitStop eStop = findNearestStop(destinationNode, 600.0);
-
-        if (bStop != null
-            && eStop != null
-            && bStop != eStop
-            && bStop.snappedNodeGraph != null
-            && eStop.snappedNodeGraph != null) {
-
-          double transitDist =
-              bStop
-                  .snappedNodeGraph
-                  .getCoordinate()
-                  .distance(eStop.snappedNodeGraph.getCoordinate());
-          if (transitDist > 400.0) {
-            String sharedMode = null;
-            double splitProbability = 0.0;
-
-            if (bStop.servesMode("METRO") && eStop.servesMode("METRO")) {
-              sharedMode = "METRO";
-              splitProbability = 0.45; // 45% Metro capture rate along M1 corridor
-            } else if (bStop.servesMode("TRAM") && eStop.servesMode("TRAM")) {
-              sharedMode = "TRAM";
-              splitProbability = 0.35; // 35% Tram capture rate along tram lines
-            } else if (bStop.servesMode("BUS") && eStop.servesMode("BUS")) {
-              sharedMode = "BUS";
-              splitProbability = 0.30; // 30% Bus capture rate across urban bus network
-            }
-
-            if (sharedMode != null && random.nextDouble() < splitProbability) {
-              // Agent chooses transit -> Execute Leg 1 (Walk to boarding station)
-              ultimateDestinationNode = destinationNode;
-              boardingStop = bStop;
-              egressStop = eStop;
-              destinationNode = bStop.snappedNodeGraph;
-              PedSimCityActivity.agentTransitDestinations.put(this, eStop);
-              if (originNode != null
-                  && destinationNode != null
-                  && originNode.getID() == destinationNode.getID()) {
-                reachedDestination.set(true);
-              } else {
-                reinitializeMovementPath();
-              }
-              return;
-            }
-          }
-        }
-      }
-    }
-
-    PedSimCityActivity.countTrip("WALK");
-  }
-
-  private TransitStop findNearestStop(NodeGraph node, double maxRadius) {
-    TransitStop bestStop = null;
-    double bestDist = maxRadius;
-    for (TransitStop stop : PedSimCityActivity.allTransitStops) {
-      if (stop.snappedNodeGraph != null) {
-        double d = node.getCoordinate().distance(stop.snappedNodeGraph.getCoordinate());
-        if (d < bestDist) {
-          bestDist = d;
-          bestStop = stop;
-        }
-      }
-    }
-    return bestStop;
-  }
-
   // ----------------------------------------------------------------
   // Persona
   // ----------------------------------------------------------------
@@ -221,8 +96,9 @@ public class ActivityAgent extends Agent {
    * imposed on the agents. {@code ActivityTravelDemand.prepare} logs it against the ISTAT figures
    * once per simulated day; a poor match is a finding about the curve, not a number to adjust.
    *
-   * <p>The commuters who do not walk are, for the moment, absent from the street: their access and
-   * egress walks around transit stops are real pedestrian metres this model does not yet produce.
+   * <p>The commuters who do not walk are absent from the street entirely: their access and egress
+   * walks around stops are real pedestrian metres this model does not produce. The model has no
+   * transit, so there is nothing here that represents the non-walked part of a journey.
    */
   protected boolean walksToWork = true;
 
@@ -336,16 +212,18 @@ public class ActivityAgent extends Agent {
     if (route != null && state instanceof PedSimCityActivity activityState) {
       if (isDark()) {
         activityState.legsInDarkness.increment();
-        if (!TimePars.isNight(TimePars.getTime(state.schedule.getSteps()).toLocalTime())) {
-          activityState.legsDarkOutsideNightWindow.increment();
-        }
       }
     }
     super.initialiseRoute(route);
   }
 
-  /** Reads the activity 24h clock so destination selection and work-targeting follow time of day. */
-  @Override
+  /**
+   * Whether it is dark now, from the activity tier's 24h clock.
+   *
+   * <p>Not a core seam: core has no clock, so a core agent has no answer to give rather than a
+   * {@code false} one. Darkness starts at {@link PedSimCityActivity#isDark}, which
+   * {@code ActivityEngine} recomputes each step from {@code Daylight.isDark}.
+   */
   protected boolean isDark() {
     return state instanceof PedSimCityActivity activityState && activityState.isDark;
   }
@@ -457,11 +335,7 @@ public class ActivityAgent extends Agent {
       return true;
     }
 
-    planRoute();
-    spookLocations.clear();
-    tripStartStep = state.schedule.getSteps();
-    agentMovement = createMovement();
-    agentMovement.initialisePath(getRoute());
+    reinitializeMovementPath();
     return true;
   }
 
