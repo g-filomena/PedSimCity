@@ -222,12 +222,15 @@ public class AgentMovement {
     state.trace().recordWalkedRoute(agent.getRoute().getLength());
     state.flowHandler.updateFlowsData(
         agent, agent.getRoute(), agent.getAgentScenario(), agent.getSimulationScenario());
-    pedsim.core.engine.TripRouteRecorder.recordTrip(
-        agent,
-        agent.tripStartStep,
-        state.schedule.getSteps(),
-        edgesWalkedSoFar,
-        agent.isVulnerableBoolean());
+    agent
+        .getState()
+        .tripRecorder
+        .recordTrip(
+            agent,
+            agent.tripStartStep,
+            state.schedule.getSteps(),
+            edgesWalkedSoFar,
+            agent.isVulnerable());
   }
 
   /**

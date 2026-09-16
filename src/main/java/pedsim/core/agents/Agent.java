@@ -327,14 +327,6 @@ public class Agent implements Steppable {
   }
 
   /**
-   * Whether the simulation currently considers it "night" for this agent. Core agents have no
-   * day/night cycle and always return {@code false}; modules with a 24h clock override this.
-   */
-  protected boolean isDark() {
-    return false;
-  }
-
-  /**
    * Returns the POI-based selection weight for a candidate destination node.
    *
    * <p>Core agents have no destination data, so every node weighs 0.0 (uniform selection).
@@ -594,9 +586,9 @@ public class Agent implements Steppable {
    * point; city-image survived only because the two models usually run, road distance and angular
    * change, never consult landmarkness.
    *
-   * @param nightTime whether to define the heuristics for after dark
+   * @param onlyDistanceMinimisation route by plain shortest path, sampling no model at all
    */
-  protected void initialiseHeuristics(boolean nightTime) {
+  protected void initialiseHeuristics(boolean onlyDistanceMinimisation) {
     heuristics = new Heuristics(this);
     if (agentProperties == null) {
       return;
@@ -605,7 +597,8 @@ public class Agent implements Steppable {
     // trip. Either way the working copy is rebuilt from a model here, so whatever the previous
     // trip's planners switched off is back on.
     RouteChoiceModel assigned = assignedRouteChoice();
-    agentProperties.applyModel(assigned != null ? assigned : heuristics.defineHeuristic(nightTime));
+    agentProperties.applyModel(
+        assigned != null ? assigned : heuristics.defineHeuristic(onlyDistanceMinimisation));
   }
 
   /**
@@ -855,14 +848,14 @@ public class Agent implements Steppable {
     return workNode;
   }
 
-  protected boolean vulnerable = false;
-
-  public boolean isVulnerableBoolean() {
-    return vulnerable;
-  }
-
-  public void setVulnerable(boolean vulnerable) {
-    this.vulnerable = vulnerable;
+  /**
+   * Whether this agent is vulnerable after dark. False for every agent core can build; the night
+   * module carries the trait and overrides this. Recorded per trip by {@link TripRouteRecorder}.
+   *
+   * @return whether the agent is vulnerable
+   */
+  public boolean isVulnerable() {
+    return false;
   }
 
   public void setReachedDestination(boolean reached) {
