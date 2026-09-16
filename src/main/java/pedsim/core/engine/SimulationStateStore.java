@@ -138,11 +138,7 @@ public final class SimulationStateStore {
     agents.put(
         agent.agentID,
         new AgentSnapshot(
-            agent.agentID,
-            coord.x,
-            coord.y,
-            agent.getStatus().toString(),
-            agent.isVulnerableBoolean()));
+            agent.agentID, coord.x, coord.y, agent.getStatus().toString(), agent.isVulnerable()));
   }
 
   public void removeAgent(int agentId) {
@@ -278,7 +274,7 @@ public final class SimulationStateStore {
 
     /**
      * Module-specific live state from {@link SimulationModule#extraState()}. For night: includes
-     * {@code enableAB} and {@code crowdednessPercentile}. Empty map for core.
+     * {@code enableLightABTesting} and {@code crowdednessPercentile}. Empty map for core.
      *
      * <p>If {@code extraState()} throws for any reason the field is an empty map so that {@code
      * /api/state} never fails due to a module implementation bug.

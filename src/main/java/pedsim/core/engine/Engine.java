@@ -1,7 +1,5 @@
 package pedsim.core.engine;
 
-import java.awt.Desktop;
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -11,17 +9,13 @@ import pedsim.core.parameters.Pars;
 import pedsim.core.parameters.TimePars;
 import pedsim.core.utilities.LoggerUtil;
 import pedsim.core.website.GeoJsonExporter;
-import pedsim.core.website.HtmlExporter;
 
 public class Engine {
 
-  private static final Logger logger = LoggerUtil.getLogger();
+  protected static final Logger logger = LoggerUtil.getLogger();
 
   protected final StateFactory stateFactory;
   protected final long baseSeed;
-
-  /** Records a compact agent-position snapshot at every simulation step. */
-  private TrajectoryRecorder trajectoryRecorder;
 
   @FunctionalInterface
   public interface StateFactory {
@@ -45,69 +39,78 @@ public class Engine {
     this.baseSeed = baseSeed;
   }
 
-  public synchronized void runJobs(ScenarioConfig scenarioConfig, boolean parallel)
+  public void runJobs(ScenarioConfig scenarioConfig, boolean parallel) throws Exception {
+    try (var reservation = SimulationStateStore.getInstance().tryReserveRun()) {
+      if (reservation == null) {
+        logger.warning("Simulation is already running! Ignoring new run request.");
+        return;
+      }
+      runJobs(scenarioConfig, parallel, reservation);
+    }
+  }
+
+  /** Runs under the launcher's reservation, which includes parameter setup and final cleanup. */
+  public void runJobs(
+      ScenarioConfig scenarioConfig,
+      boolean parallel,
+      SimulationStateStore.RunReservation reservation)
       throws Exception {
-    if (SimulationStateStore.getInstance().running) {
-      logger.warning("Simulation is already running! Ignoring new run request.");
+    reservation.requireActive();
+    clearStaticData();
+    Pars.setSimulationParameters();
+    afterSetParameters();
+
+    createImporter().importFiles();
+
+    // Export road network as GeoJSON once so the browser map can draw it
+    SimulationStateStore.getInstance()
+        .setRoadsGeoJson(GeoJsonExporter.exportRoads(PedSimCity.roads));
+
+    prepareEnvironment();
+    logger.info("Environment prepared. About to start simulation (base seed " + baseSeed + ")");
+
+    // Module hook: a diagnostic that needs the prepared city but no simulated days. Calibrating
+    // where workplaces go, for instance, depends on the census homes and the WORK tags and on
+    // nothing a simulated day produces - running one to find out costs minutes and adds noise.
+    if (runDiagnosticsInstead()) {
       return;
     }
 
-    try {
-      SimulationStateStore.getInstance().reset();
-      SimulationStateStore.getInstance().running = true;
-
-      clearStaticData();
-      Pars.setSimulationParameters();
-      afterSetParameters();
-
-      createImporter().importFiles();
-
-      // Export road network as GeoJSON once so the browser map can draw it
-      SimulationStateStore.getInstance()
-          .setRoadsGeoJson(GeoJsonExporter.exportRoads(PedSimCity.roads));
-
-      prepareEnvironment();
-      logger.info("Environment prepared. About to start simulation (base seed " + baseSeed + ")");
-
-      // Module hook: a diagnostic that needs the prepared city but no simulated days. Calibrating
-      // where workplaces go, for instance, depends on the census homes and the WORK tags and on
-      // nothing a simulated day produces - running one to find out costs minutes and adds noise.
-      if (runDiagnosticsInstead()) {
-        return;
-      }
-
-      jobTotals.clear();
-      boolean runParallel = parallel && supportsParallel();
-      if (parallel && !runParallel) {
-        logger.info("This module does not support parallel jobs; running them sequentially.");
-      }
-
-      if (runParallel) {
-        IntStream.range(0, Pars.jobs)
-            .parallel()
-            .forEach(
-                jobNr -> {
-                  try {
-                    Engine engine = createWorkerEngine(); // one engine per worker
-                    logger.info("Executing Job nr.: " + jobNr);
-                    engine.executeJob(jobNr, scenarioConfig);
-                  } catch (Exception e) {
-                    throw new RuntimeException("Error executing parallel job " + jobNr, e);
-                  }
-                });
-      } else {
-        for (int jobNr = 0; jobNr < Pars.jobs; jobNr++) {
-          logger.info("Executing Job nr.: " + jobNr);
-          executeJob(jobNr, scenarioConfig);
-        }
-      }
-
-      reportReplicates();
-
-    } finally {
-      SimulationStateStore.getInstance().running = false;
-      SimulationStateStore.getInstance().finished = true;
+    jobTotals.clear();
+    boolean runParallel = parallel && supportsParallel();
+    if (parallel && !runParallel) {
+      logger.info("This module does not support parallel jobs; running them sequentially.");
     }
+
+    if (runParallel) {
+      var failures = new java.util.concurrent.ConcurrentLinkedQueue<Exception>();
+      IntStream.range(0, Pars.jobs)
+          .parallel()
+          .forEach(
+              jobNr -> {
+                try {
+                  Engine engine = createWorkerEngine(); // one engine per worker
+                  logger.info("Executing Job nr.: " + jobNr);
+                  engine.executeJob(jobNr, scenarioConfig);
+                  jobTotals.addAll(engine.jobTotals);
+                } catch (Exception e) {
+                  failures.add(new RuntimeException("Error executing parallel job " + jobNr, e));
+                }
+              });
+      // All workers must finish before the run reservation can be released.
+      if (!failures.isEmpty()) {
+        Exception failure = failures.remove();
+        failures.forEach(failure::addSuppressed);
+        throw failure;
+      }
+    } else {
+      for (int jobNr = 0; jobNr < Pars.jobs; jobNr++) {
+        logger.info("Executing Job nr.: " + jobNr);
+        executeJob(jobNr, scenarioConfig);
+      }
+    }
+
+    reportReplicates();
   }
 
   protected void clearStaticData() {
@@ -153,10 +156,6 @@ public class Engine {
     long seed = seedForJob(job);
     PedSimCity state = stateFactory.create(seed, job, scenarioConfig);
 
-    // Clear and initialise the trajectory recorders for this job
-    TripRouteRecorder.clear();
-    trajectoryRecorder = new TrajectoryRecorder(state);
-
     state.start();
 
     onJobStarted(job, state, scenarioConfig);
@@ -194,10 +193,6 @@ public class Engine {
         SimulationStateStore.getInstance()
             .updateStep(
                 (int) steps, simTime, state.agentsWalking.size(), state.agentsAtHome.size(), 0);
-
-        if (Pars.exportHtmlDashboard) {
-          trajectoryRecorder.record((long) steps);
-        }
 
         if (isNextDay(steps, currentDay)) {
           state.flowHandler.exportFlowsData(currentDay + 1);
@@ -239,8 +234,9 @@ public class Engine {
     recordJobTotals(job, seed, state);
     state.finish();
 
-    TripRouteRecorder.saveToFile("test_trips.csv");
-    TripDiagnostic.save("trip_diagnostic.csv");
+    state.tripRecorder.saveToFile(TripDiagnostic.jobFilename("test_trips.csv", job));
+    TripDiagnostic.save(
+        TripDiagnostic.jobFilename("trip_diagnostic.csv", job), state.tripRecorder.getRecords());
 
     // Module-specific plain-data exports (CSV / GeoPackage), independent of the HTML dashboard.
     onJobExport(job, state, currentDay + 1, finalVolumesMap);
@@ -253,29 +249,25 @@ public class Engine {
     }
   }
 
-  private void generateAndOpenHtmlDashboard(
+  /**
+   * Writes the module's self-contained HTML dashboard, if it has one.
+   *
+   * <p>No-op by default. The dashboard is the night module's: it is titled for night, shades its
+   * time axis by the light model and carries the A/B tethers, so there is nothing in it a core,
+   * activity or cityImage run could use. Core owns the trigger — {@code Pars.exportHtmlDashboard}
+   * and the end-of-job point to call it — and nothing else.
+   *
+   * @param job the job that has just finished
+   * @param state its final state
+   * @param currentDay the 0-based day
+   * @param finalVolumesMap per-edge volumes by scenario
+   */
+  protected void generateAndOpenHtmlDashboard(
       int job,
       PedSimCity state,
       int currentDay,
       java.util.Map<Integer, java.util.Map<String, Integer>> finalVolumesMap) {
-    try {
-      logger.info("[Engine] Compiling HTML dashboard for job " + job + "…");
-
-      String htmlPath =
-          HtmlExporter.export(
-              currentDay + 1, // day (1-based)
-              job,
-              TripRouteRecorder.getRecords(),
-              finalVolumesMap);
-
-      if (htmlPath != null && Desktop.isDesktopSupported()) {
-        Desktop.getDesktop().browse(new File(htmlPath).toURI());
-        logger.info("[Engine] Opened dashboard in browser: " + htmlPath);
-      }
-
-    } catch (Exception e) {
-      logger.warning("[Engine] Could not open HTML dashboard: " + e.getMessage());
-    }
+    logger.info("[Engine] This module has no HTML dashboard; nothing exported.");
   }
 
   protected long seedForJob(int job) {
@@ -288,7 +280,7 @@ public class Engine {
    */
   private final List<double[]> jobTotals = Collections.synchronizedList(new ArrayList<>());
 
-  private void recordJobTotals(int job, long seed, PedSimCity state) {
+  protected final void recordJobTotals(int job, long seed, PedSimCity state) {
     jobTotals.add(
         new double[] {
           job,

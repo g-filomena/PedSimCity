@@ -29,10 +29,9 @@ public class Exporter {
   private String userName = System.getProperty("user.name");
   // Constants for file paths and directories
   public String outputDirectory;
-  public String outputRoutesDirectory;
-  public String outputVolumesDirectory;
-  public String outputCognitiveMapDirectory;
-  private String outputLandmarkCognitiveMapDirectory;
+
+  /** The volumes CSV written by the latest daily export, or null before the first one. */
+  public String lastVolumesFile;
 
   protected static final Logger logger = LoggerUtil.getLogger();
   protected int job;
@@ -60,9 +59,16 @@ public class Exporter {
   public <E extends Enum<E>> void savePedestrianVolumes(int day, String[] scenarios)
       throws Exception {
 
-    outputVolumesDirectory = verifyOutputPath(outputVolumesDirectory, "streetVolumes");
-    outputVolumesDirectory += File.separator + currentDate + "_" + job + "_" + day + ".csv";
-    final FileWriter writerVolumesData = new FileWriter(outputVolumesDirectory);
+    lastVolumesFile =
+        verifyOutputPath("streetVolumes")
+            + File.separator
+            + currentDate
+            + "_"
+            + job
+            + "_"
+            + day
+            + ".csv";
+    final FileWriter writerVolumesData = new FileWriter(lastVolumesFile);
 
     Map<Integer, Map<String, Integer>> volumesMap = new HashMap<>(flowHandler.volumesMap);
 
@@ -76,9 +82,6 @@ public class Exporter {
     boolean perAgent = !(agents.length == 1 && agents[0] == StringEnum.Default.DEFAULT);
     boolean hourly =
         simValues != null && simValues.length > 0 && simValues[0] instanceof StringEnum.Hour;
-    // No light/dark columns unless the running module says what dark means; core does not.
-    boolean splitByDarkness = hourly && flowHandler.darknessModel() != null;
-
     // ---- Header ----
     List<String> headers = new ArrayList<>();
     headers.add("edgeID");
@@ -89,17 +92,8 @@ public class Exporter {
         }
       }
       for (Enum<?> s : simValues) headers.add(s.toString()); // hourly, summed over agent types
-      if (splitByDarkness) {
-        headers.add("LIGHT");
-        headers.add("DARK"); // by the running module's own definition of a dark hour
-      }
+      headers.addAll(extraHourlyHeaders(agents, simValues, perAgent));
       if (perAgent) {
-        if (splitByDarkness) {
-          for (Enum<?> a : agents) {
-            headers.add(a + "_LIGHT");
-            headers.add(a + "_DARK");
-          }
-        }
         for (Enum<?> a : agents) headers.add(a.toString()); // per agent type, over all hours
       }
     } else if (perAgent) {
@@ -125,33 +119,8 @@ public class Exporter {
           for (Enum<?> a : agents) t += cellVolume(ev, a, s);
           row.add(Integer.toString(t));
         }
-        if (splitByDarkness) {
-          int lightVol = 0;
-          int darkVol = 0;
-          for (Enum<?> a : agents) {
-            for (Enum<?> s : simValues) {
-              int v = cellVolume(ev, a, s);
-              if (isDarkHour(s, day)) darkVol += v;
-              else lightVol += v;
-            }
-          }
-          row.add(Integer.toString(lightVol));
-          row.add(Integer.toString(darkVol));
-        }
+        row.addAll(extraHourlyValues(ev, agents, simValues, perAgent, day));
         if (perAgent) {
-          if (splitByDarkness) {
-            for (Enum<?> a : agents) {
-              int light = 0;
-              int dark = 0;
-              for (Enum<?> s : simValues) {
-                int v = cellVolume(ev, a, s);
-                if (isDarkHour(s, day)) dark += v;
-                else light += v;
-              }
-              row.add(Integer.toString(light));
-              row.add(Integer.toString(dark));
-            }
-          }
           for (Enum<?> a : agents) {
             int t = 0;
             for (Enum<?> s : simValues) t += cellVolume(ev, a, s);
@@ -179,22 +148,43 @@ public class Exporter {
     logger.info("Day nr " + day + ": Pedestrian volumes successfully exported.");
   }
 
-  /** Volume in one agent x scenario cell; key is "<agent>_<scenario>" (or "<agent>" with no scenario). */
-  private static int cellVolume(Map<String, Integer> edgeVolumes, Enum<?> agent, Enum<?> scenario) {
-    String key = (scenario != null) ? agent + "_" + scenario : agent.toString();
-    return edgeVolumes.getOrDefault(key, 0);
+  /**
+   * Columns a module adds to the hourly volumes file, after the hour totals and before the
+   * per-agent totals. None here: the generic file is hours, agent types and totals.
+   *
+   * @param agents the agent types being exported
+   * @param hours the hour columns
+   * @param perAgent whether the file carries per-agent columns
+   * @return the extra headers, in file order
+   */
+  protected List<String> extraHourlyHeaders(Enum<?>[] agents, Enum<?>[] hours, boolean perAgent) {
+    return List.of();
   }
 
   /**
-   * Whether an {@code Hour} column is dark on the day being exported. A seasonal model makes a 17:00
-   * column dark in December and light in June, so two dates are not comparable on the LIGHT/DARK
-   * columns; the hourly columns are.
+   * One edge's values for {@link #extraHourlyHeaders}, in the same order and of the same length.
+   *
+   * @param edgeVolumes that edge's cells, keyed "&lt;agent&gt;_&lt;hour&gt;"
+   * @param agents the agent types being exported
+   * @param hours the hour columns
+   * @param perAgent whether the file carries per-agent columns
+   * @param day the simulated day, from 1
+   * @return the extra values, in file order
    */
-  private boolean isDarkHour(Enum<?> hour, int day) {
-    DarknessModel darkness = flowHandler.darknessModel();
-    return darkness != null
-        && hour instanceof StringEnum.Hour
-        && darkness.isDark(((StringEnum.Hour) hour).ordinal(), day);
+  protected List<String> extraHourlyValues(
+      Map<String, Integer> edgeVolumes,
+      Enum<?>[] agents,
+      Enum<?>[] hours,
+      boolean perAgent,
+      int day) {
+    return List.of();
+  }
+
+  /** Volume in one agent x scenario cell; key is "<agent>_<scenario>" (or "<agent>" with no scenario). */
+  protected static int cellVolume(
+      Map<String, Integer> edgeVolumes, Enum<?> agent, Enum<?> scenario) {
+    String key = (scenario != null) ? agent + "_" + scenario : agent.toString();
+    return edgeVolumes.getOrDefault(key, 0);
   }
 
   /**
@@ -205,8 +195,8 @@ public class Exporter {
    */
   public void saveRoutes(int day) throws Exception {
 
-    outputRoutesDirectory = verifyOutputPath(outputRoutesDirectory, "routes");
-    outputRoutesDirectory += File.separator + currentDate + "_" + job + "_" + day;
+    String routesFile =
+        verifyOutputPath("routes") + File.separator + currentDate + "_" + job + "_" + day;
     VectorLayer routes = new VectorLayer();
 
     for (RouteData routeData : flowHandler.routesData) {
@@ -225,24 +215,36 @@ public class Exporter {
     // Single-file GeoPackage (was a 3-file ESRI shapefile). GeoPackage TEXT columns have no length
     // limit, so the full edgeIDs sequence lives in a single column (the old shapefile format had to
     // split it across edgeIDs_0..n to stay under the 254-char DBF field limit).
-    VectorLayer.writeGPKG(outputRoutesDirectory, routes);
+    VectorLayer.writeGPKG(routesFile, routes);
   }
 
   public void saveCognitiveMapsData(int day, String[] scenarios) throws Exception {
-    outputCognitiveMapDirectory = verifyOutputPath(outputCognitiveMapDirectory, "knownEdges");
-    outputCognitiveMapDirectory += File.separator + currentDate + "_" + day + "_" + job + ".csv";
-    try (FileWriter writer = new FileWriter(outputCognitiveMapDirectory)) {
+    String knownEdgesFile =
+        verifyOutputPath("knownEdges")
+            + File.separator
+            + currentDate
+            + "_"
+            + day
+            + "_"
+            + job
+            + ".csv";
+    try (FileWriter writer = new FileWriter(knownEdgesFile)) {
       writeKnownByCsv(writer, "edgeID", new HashMap<>(flowHandler.knownEdgesMap));
     }
     logger.info("Day nr " + day + ": Cognitive Maps Data successfully exported.");
   }
 
   public void saveKnownLandmarksData(int day, String[] scenarios) throws Exception {
-    outputLandmarkCognitiveMapDirectory =
-        verifyOutputPath(outputLandmarkCognitiveMapDirectory, "knownLandmarks");
-    outputLandmarkCognitiveMapDirectory +=
-        File.separator + currentDate + "_" + day + "_" + job + ".csv";
-    try (FileWriter writer = new FileWriter(outputLandmarkCognitiveMapDirectory)) {
+    String knownLandmarksFile =
+        verifyOutputPath("knownLandmarks")
+            + File.separator
+            + currentDate
+            + "_"
+            + day
+            + "_"
+            + job
+            + ".csv";
+    try (FileWriter writer = new FileWriter(knownLandmarksFile)) {
       writeKnownByCsv(writer, "buildingID", new HashMap<>(flowHandler.knownLandmarksMap));
     }
     logger.info("Day nr " + day + ": Landmarks Cognitive Maps Data successfully exported.");
@@ -291,10 +293,14 @@ public class Exporter {
    * @param directory The directory path to be created.
    * @return
    */
-  private String verifyOutputPath(String directory, String specifier) {
-
-    directory = outputDirectory + File.separator + specifier;
-    directory = String.format(directory, userName);
+  /**
+   * The directory results of one kind go in, created if it does not exist.
+   *
+   * @param specifier the subfolder name, e.g. "streetVolumes"
+   * @return the directory path
+   */
+  private String verifyOutputPath(String specifier) {
+    String directory = String.format(outputDirectory + File.separator + specifier, userName);
 
     File outputCheck = new File(directory);
     if (!outputCheck.exists()) {

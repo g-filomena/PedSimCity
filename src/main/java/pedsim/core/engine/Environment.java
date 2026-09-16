@@ -11,10 +11,10 @@ import org.javatuples.Pair;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import org.locationtech.jts.planargraph.DirectedEdgeStar;
-import pedsim.core.cognition.cityimage.Barrier;
-import pedsim.core.cognition.cityimage.Gateway;
-import pedsim.core.cognition.cityimage.Region;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
+import pedsim.core.cognition.elements.Barrier;
+import pedsim.core.cognition.elements.Gateway;
+import pedsim.core.cognition.elements.Region;
 import pedsim.core.cognition.metrics.BarrierIntegration;
 import pedsim.core.utilities.StringEnum;
 import pedsim.core.utilities.StringEnum.BarrierType;
@@ -231,20 +231,6 @@ public class Environment {
     List<EdgeGraph> edges = PedSimCity.network.getEdges();
     for (EdgeGraph edge : edges) {
       int edgeID = edge.attributes.get("edgeID").getInteger();
-
-      // Robust conversion of "lit" attribute.
-      // If it's an Integer (1/0), convert to Boolean.
-      // If it's already a Boolean, keep it.
-      AttributeValue litAttr = edge.attributes.get("lit");
-      if (litAttr != null) {
-        Object val = litAttr.getValue();
-        if (val instanceof Integer i) {
-          edge.attributes.put("lit", new AttributeValue(i != 0));
-        } else if (!(val instanceof Boolean)) {
-          // Fallback or ignore if it's something else
-          edge.attributes.put("lit", new AttributeValue(false));
-        }
-      }
 
       edge.attributes.put("roadType", edge.attributes.get("highway"));
       edge.setID(edgeID);

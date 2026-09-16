@@ -108,17 +108,20 @@ public interface SimulationModule {
   ScenarioConfig scenarioConfig();
 
   /**
-   * Applies module-specific parameters from a REST body or CLI argument map. Common parameters
-   * (cityName, days, actualPopulation, percentage, jobs) are already applied by the caller before
-   * this method is invoked.
+   * Applies what reflection cannot: a value that has to be written into a class this module does
+   * not list in {@link #parameterClasses()}, or a report of what a run was given. Runs after
+   * {@link pedsim.core.parameters.ParameterManager#initFromParams}, which has already set every
+   * field of every listed class, so a module that lists its own parameter class needs nothing here.
+   *
+   * @param params the run's explicit parameters, from a REST body or the command line
    */
-  void applyParameters(Map<String, Object> params);
+  default void applyParameters(Map<String, Object> params) {}
 
   /**
    * Returns a live snapshot of module-specific state merged into the REST {@code /api/state}
    * response under the {@code "moduleState"} key. Called on every state poll — keep it cheap.
    *
-   * <p>Example keys: {@code enableAB}, {@code crowdednessPercentile}.
+   * <p>Example keys: {@code enableLightABTesting}, {@code crowdednessPercentile}.
    *
    * <p><b>Implementation contract:</b> all values in the returned map must be JSON-serializable by
    * Jackson (primitives, strings, booleans, numbers, nested maps/lists of the same). Do not return

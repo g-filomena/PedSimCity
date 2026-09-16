@@ -1,7 +1,6 @@
 package pedsim.core.engine;
 
 import java.util.Map;
-import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.StringEnum;
 
 /**
@@ -28,9 +27,7 @@ public final class CoreSimulationModule implements SimulationModule {
   }
 
   @Override
-  public void applyMode() {
-    Pars.isNight = false;
-  }
+  public void applyDefaults(java.util.Map<String, String> selectors) {}
 
   @Override
   public void clearStaticData() {

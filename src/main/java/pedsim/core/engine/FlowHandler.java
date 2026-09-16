@@ -1,5 +1,6 @@
 package pedsim.core.engine;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -58,18 +59,7 @@ public class FlowHandler {
 
     initializeEdgeVolumes();
     initializeCognitiveMapCollector();
-    exporter = new Exporter(this, appName);
-  }
-
-  /** The module's definition of darkness, or null: with none set there is no light/dark split. */
-  private DarknessModel darknessModel;
-
-  public void setDarknessModel(DarknessModel darknessModel) {
-    this.darknessModel = darknessModel;
-  }
-
-  public DarknessModel darknessModel() {
-    return darknessModel;
+    exporter = state.createExporter(this, appName);
   }
 
   public Enum<?>[] getAgentScenarioValues() {
@@ -193,6 +183,11 @@ public class FlowHandler {
         buildingMap.put(attribute, buildingMap.getOrDefault(attribute, 0) + 1);
       }
     }
+  }
+
+  /** Exact volume file written by this job's latest daily export. */
+  public Path lastVolumesFile() {
+    return exporter.lastVolumesFile == null ? null : Path.of(exporter.lastVolumesFile);
   }
 
   /**
