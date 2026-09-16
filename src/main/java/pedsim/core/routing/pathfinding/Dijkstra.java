@@ -179,14 +179,32 @@ public abstract class Dijkstra {
    */
   protected void initialisePrimal(Set<DirectedEdge> segmentsToAvoid) {
 
-    if (restrictToKnownNetwork()) {
-      knownNodes = agent.getCognitiveMap().getNodesInKnownNetwork();
-      knownEdges = agent.getCognitiveMap().getEdgesInKnownNetwork();
-    }
+    initialiseKnownNetwork();
     if (segmentsToAvoid != null && !segmentsToAvoid.isEmpty()) {
       collectEdgesToAvoid(segmentsToAvoid);
     }
     subGraphInitialisation();
+  }
+
+  /**
+   * Loads the primal known-network sets that {@link #isNodeKnown} and {@link #isEdgeKnown} read.
+   *
+   * <p>Separate from {@link #initialisePrimal} because a primal search can begin without one: the
+   * three-argument {@code dijkstraAlgorithm} deliberately skips the region subgraph and the
+   * avoid-set, and must still load this. <b>An individualised agent whose search never loads it
+   * meets {@code restrictToKnownNetwork()} true with {@code knownEdges} empty, which rejects every
+   * neighbour and yields no route at all</b> - a harder failure than the unrestricted search it is
+   * meant to fall back to. Every primal entry point therefore calls it.
+   *
+   * <p>{@link #initialiseDual} does not, because it loads the dual sets it actually uses: both
+   * getters allocate a fresh set per call, so loading the primal ones on a dual search would be
+   * paid on every angular relaxation for nothing.
+   */
+  protected void initialiseKnownNetwork() {
+    if (restrictToKnownNetwork()) {
+      knownNodes = agent.getCognitiveMap().getNodesInKnownNetwork();
+      knownEdges = agent.getCognitiveMap().getEdgesInKnownNetwork();
+    }
   }
 
   /**

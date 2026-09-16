@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import pedsim.core.agents.Agent;
-import pedsim.core.cognition.cityimage.Region;
+import pedsim.core.cognition.elements.Region;
 import pedsim.core.cognition.metrics.Complexity;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.parameters.RouteChoicePars;
