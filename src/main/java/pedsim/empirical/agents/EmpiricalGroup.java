@@ -1,4 +1,4 @@
-package pedsim.empirical.agent;
+package pedsim.empirical.agents;
 
 /** Agent-group labels used by the empirical ABM calibration. */
 public enum EmpiricalGroup {

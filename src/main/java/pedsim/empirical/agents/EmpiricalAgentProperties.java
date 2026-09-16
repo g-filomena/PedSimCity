@@ -1,4 +1,4 @@
-package pedsim.empirical.agent;
+package pedsim.empirical.agents;
 
 import ec.util.MersenneTwisterFast;
 import java.util.Arrays;

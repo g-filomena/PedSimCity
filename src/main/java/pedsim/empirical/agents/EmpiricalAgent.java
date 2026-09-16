@@ -1,4 +1,4 @@
-package pedsim.empirical.agent;
+package pedsim.empirical.agents;
 
 import pedsim.core.agents.AgentMovement;
 import pedsim.core.agents.OdAgent;
