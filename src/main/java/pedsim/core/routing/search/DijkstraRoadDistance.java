@@ -1,4 +1,4 @@
-package pedsim.core.routing.pathfinding;
+package pedsim.core.routing.search;
 
 import java.util.ArrayList;
 import java.util.Collections;

@@ -1,4 +1,4 @@
-package pedsim.core.routing.pathfinder;
+package pedsim.core.routing.routers;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -7,13 +7,13 @@ import java.util.Set;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.agents.Agent;
 import pedsim.core.engine.PedSimCity;
-import pedsim.core.routing.pathfinding.DijkstraAngularChange;
+import pedsim.core.routing.search.DijkstraAngularChange;
 import sim.graph.NodeGraph;
 import sim.routing.Route;
 import sim.routing.RoutingUtils;
 
 /**
- * A pathfinder for least cumulative angular change based route calculations.
+ * Router for least-cumulative-angular-change route calculations.
  * This class extends the functionality of the base class PathFinder.
  */
 public class AngularChangePathFinder extends PathFinder {
@@ -287,10 +287,10 @@ public class AngularChangePathFinder extends PathFinder {
           if (commonJunction != null) {
             addEdgesCommonJunction(commonJunction);
           } else {
-            final DijkstraAngularChange pathfinder = new DijkstraAngularChange();
+            final DijkstraAngularChange search = new DijkstraAngularChange();
             Set<NodeGraph> centroidsToAvoidSet = new HashSet<>(centroidsToAvoid);
             partialSequence =
-                pathfinder.dijkstraAlgorithm(
+                search.dijkstraAlgorithm(
                     tmpDualOrigin,
                     tmpDualDestination,
                     destinationNode,
