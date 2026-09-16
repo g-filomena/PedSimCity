@@ -1,7 +1,7 @@
-package pedsim.night.routing.pathfinder;
+package pedsim.night.routing.routers;
 
 import pedsim.night.agents.NightAgent;
-import pedsim.night.routing.pathfinding.DijkstraRoadDistanceNight;
+import pedsim.night.routing.search.DijkstraRoadDistanceNight;
 import sim.graph.NodeGraph;
 import sim.routing.Route;
 
@@ -14,7 +14,7 @@ import sim.routing.Route;
  * agents route on the whole community network, which is also why {@code buildSimpleActivityBone}
  * leaves their cognitive map un-individualised.
  */
-public class RoadDistancePathFinder extends pedsim.core.routing.pathfinder.RoadDistancePathFinder {
+public class RoadDistancePathFinder extends pedsim.core.routing.routers.RoadDistancePathFinder {
 
   /**
    * Formulates a night-time route based on road distance between origin and destination.
