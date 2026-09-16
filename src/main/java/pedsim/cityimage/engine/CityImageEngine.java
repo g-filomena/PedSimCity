@@ -75,6 +75,7 @@ public class CityImageEngine extends Engine {
     state.flowHandler.exportFlowsData(1);
     LOGGER.info("[cityImage] job " + job + ": pedestrian volumes and routes exported.");
 
+    recordJobTotals(job, seed, state);
     state.finish();
   }
 
