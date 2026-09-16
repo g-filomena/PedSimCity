@@ -1,9 +1,9 @@
-package pedsim.core.routing.pathfinder;
+package pedsim.core.routing.routers;
 
 import java.util.HashSet;
 import java.util.List;
 import pedsim.core.agents.Agent;
-import pedsim.core.routing.pathfinding.DijkstraGlobalLandmarks;
+import pedsim.core.routing.search.DijkstraGlobalLandmarks;
 import sim.graph.NodeGraph;
 import sim.routing.Route;
 
@@ -20,9 +20,9 @@ public class GlobalLandmarksPathFinder extends PathFinder {
     this.agent = agent;
     this.originNode = originNode;
     this.destinationNode = destinationNode;
-    DijkstraGlobalLandmarks pathfinder = new DijkstraGlobalLandmarks();
+    DijkstraGlobalLandmarks search = new DijkstraGlobalLandmarks();
     partialSequence =
-        pathfinder.dijkstraAlgorithm(
+        search.dijkstraAlgorithm(
             originNode, destinationNode, destinationNode, directedEdgesToAvoid, agent);
     partialSequence = sequenceOnCommunityNetwork(partialSequence);
     if (partialSequence.isEmpty()) {
