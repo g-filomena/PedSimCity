@@ -1,17 +1,18 @@
 package pedsim.activity.engine;
 
 import java.time.DateTimeException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import pedsim.activity.parameters.ActivityPars;
-import pedsim.core.parameters.Pars;
+import pedsim.core.parameters.TimePars;
 
 /**
  * Whether it is dark. One definition, for every module and for the exports.
  *
  * <p><b>Darkness comes from where the city is and what day it is.</b> Sunrise and sunset are
- * computed for the simulation date at {@link Pars#cityLatitude} / {@link Pars#cityLongitude}, which
- * {@link pedsim.core.engine.CityLocation} measures from the street network at startup, so a
+ * computed for the simulation date at {@link ActivityPars#cityLatitude} / {@link ActivityPars#cityLongitude}, which
+ * {@link CityLocation} measures from the street network at startup, so a
  * December evening is dark hours before a June one. {@link ActivityPars#twilightBufferMinutes}
  * keeps it light for a margin either side.
  *
@@ -33,8 +34,11 @@ import pedsim.core.parameters.Pars;
  * <p><b>This is the only place that decides.</b> {@code ActivityEngine} recomputes {@code
  * PedSimCityActivity.isDark} from it each step and the exporter splits its volumes by it, so a
  * run's behaviour and its outputs cannot disagree. The night module inherits that field and never
- * recomputes darkness; core holds only the {@code DarknessModel} seam, and has no answer of its own
- * to give - it knows where the city is, but it has no clock and no date.
+ * recomputes darkness. Core declares two overridable methods on {@code PedSimCity} -
+ * {@code splitsVolumesByDarkness()} and {@code isDarkHour(hour, day)} - and answers false to both,
+ * which is all the answer it has: no clock, no date, and no latitude, since the position is
+ * measured by {@link CityLocation}, in this package, for this model. {@code PedSimCityActivity}
+ * overrides the pair; the exporter asks the running model rather than being handed a definition.
  *
  * <p>The solar geometry is the standard set: Cooper's declination, the hour-angle sunrise equation
  * taken at the conventional -0.833 degree altitude (refraction and the sun's own radius), and the
@@ -62,9 +66,22 @@ public final class Daylight {
     return hour < sunriseSunset[0] - buffer || hour > sunriseSunset[1] + buffer;
   }
 
+  /**
+   * Whether a whole clock hour of a simulated day counts as dark, taken at the middle of the hour
+   * since an hour straddles the boundary.
+   *
+   * @param clockHour the hour of day, 0-23
+   * @param dayNumber the simulated day, from 1
+   * @return whether that hour is dark
+   */
+  public static boolean isDarkHour(int clockHour, int dayNumber) {
+    LocalDate date = TimePars.SIMULATION_START_DATE.plusDays((long) dayNumber - 1);
+    return isDark(date.atTime(clockHour, 30));
+  }
+
   /** Whether the city's position is known, and so whether darkness follows the sun. */
   public static boolean hasPosition() {
-    return !Double.isNaN(Pars.cityLatitude) && !Double.isNaN(Pars.cityLongitude);
+    return !Double.isNaN(ActivityPars.cityLatitude) && !Double.isNaN(ActivityPars.cityLongitude);
   }
 
   /** One line naming which of the two regimes decides darkness, for the startup log. */
@@ -80,7 +97,10 @@ public final class Daylight {
             : ActivityPars.timeZoneId;
     return String.format(
         "darkness: sunrise/sunset at %.4f, %.4f degrees, %s, %.0f min twilight buffer",
-        Pars.cityLatitude, Pars.cityLongitude, zone, ActivityPars.twilightBufferMinutes);
+        ActivityPars.cityLatitude,
+        ActivityPars.cityLongitude,
+        zone,
+        ActivityPars.twilightBufferMinutes);
   }
 
   /**
@@ -91,7 +111,7 @@ public final class Daylight {
     int dayOfYear = time.getDayOfYear();
     double declination =
         Math.toRadians(23.44) * Math.sin(2.0 * Math.PI * (284.0 + dayOfYear) / 365.0);
-    double latitude = Math.toRadians(Pars.cityLatitude);
+    double latitude = Math.toRadians(ActivityPars.cityLatitude);
 
     double cosHourAngle =
         (Math.sin(Math.toRadians(SUNRISE_ALTITUDE_DEGREES))
@@ -115,7 +135,7 @@ public final class Daylight {
    */
   private static double timeCorrectionMinutes(LocalDateTime time) {
     double standardMeridian = 15.0 * utcOffsetHours(time);
-    return 4.0 * (Pars.cityLongitude - standardMeridian) + equationOfTimeMinutes(time);
+    return 4.0 * (ActivityPars.cityLongitude - standardMeridian) + equationOfTimeMinutes(time);
   }
 
   /**
@@ -124,13 +144,13 @@ public final class Daylight {
    */
   private static double utcOffsetHours(LocalDateTime time) {
     if (ActivityPars.timeZoneId.isBlank()) {
-      return Math.round(Pars.cityLongitude / 15.0);
+      return Math.round(ActivityPars.cityLongitude / 15.0);
     }
     try {
       return ZoneId.of(ActivityPars.timeZoneId).getRules().getOffset(time).getTotalSeconds()
           / 3600.0;
     } catch (DateTimeException e) {
-      return Math.round(Pars.cityLongitude / 15.0);
+      return Math.round(ActivityPars.cityLongitude / 15.0);
     }
   }
 
