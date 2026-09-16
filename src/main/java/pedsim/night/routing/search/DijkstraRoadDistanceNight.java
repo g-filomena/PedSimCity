@@ -1,4 +1,4 @@
-package pedsim.night.routing.pathfinding;
+package pedsim.night.routing.search;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -7,7 +7,11 @@ import java.util.List;
 import java.util.Set;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
-import pedsim.core.routing.pathfinding.DijkstraRoadDistance;
+import pedsim.core.routing.search.DijkstraRoadDistance;
+import pedsim.night.agents.NightAgent;
+import pedsim.night.engine.NightLighting;
+import pedsim.night.engine.PedSimCityNight;
+import pedsim.night.parameters.NightPars;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
 
@@ -24,6 +28,11 @@ import sim.graph.NodeGraph;
  *
  * <p>Both constrained attempts apply only to vulnerable agents; for non-vulnerable agents the
  * filter is a no-op and night avoidance is left to situated navigation.
+ *
+ * <p><b>Darkness reaches the plan here, and only here.</b> Every other lighting rule in this module
+ * fires once the agent is standing on the edge; {@link #lightingCostMultiplier} is what lets it
+ * prefer a lit way round before setting off. It applies to <b>known</b> edges only, so planning and
+ * situated reaction cannot charge for the same darkness twice.
  *
  * <p><b>Deliberately narrower than the destination rule.</b>
  * {@code NightAgent.chooseDestinationAvoidingParksAfterDark} refuses a park or waterside
@@ -49,14 +58,21 @@ public class DijkstraRoadDistanceNight extends DijkstraRoadDistance {
    * which yields the target node, the undirected edge and the directed edge in one object — no
    * {@code getEdgeBetween}/{@code getDirectedEdgeBetween} map lookups are needed. The cost noise
    * comes from the job's own seeded RNG (see {@code Dijkstra.drawFromDistribution}) instead of the
-   * shared static generator in GeoMason.
+   * shared static generator in GeoMason, and at {@code RouteChoicePars.perceptionErrorSD}, which is
+   * the sigma a pinned comparison sets to zero.
    *
-   * <p>Barrier preferences do not apply at night. The parent asks {@code costPerceptionError},
-   * which raises the cost of edges along barriers the agent dislikes and lowers it along ones it
-   * likes; this draws a plain perception error instead, so a night agent's aversion to severing
-   * barriers and preference for natural ones are absent from its routing. Whether that is right is
-   * undecided - it has never been stated either way - but the omission is deliberate here rather
-   * than an oversight in the override.
+   * <p><b>Barrier preferences are not part of route choice in this module, and the decision is
+   * made upstream.</b> Core, activity, night and learning agents take their model from {@link
+   * pedsim.core.agents.Heuristics}, which builds every one with {@code BarrierPreferences.NONE} -
+   * so for a night agent {@code costPerceptionError} has no barrier branch to take and already
+   * reduces to the plain perception error. Barrier perception is an OD-module mechanism: cityImage
+   * configures it per scenario and empirical draws it from a survey cluster, and neither kind of
+   * agent walks after dark.
+   *
+   * <p>It asks {@code costPerceptionError} rather than drawing the error itself so that the sigma
+   * is {@code RouteChoicePars.perceptionErrorSD} and nothing else. That is what
+   * {@code --perceptionErrorSD=0} pins, and a paired A/B whose one manipulated variable is lighting
+   * is exactly where an unpinned draw does the most damage.
    *
    * @param currentNode the current node in the primal graph
    */
@@ -72,8 +88,20 @@ public class DijkstraRoadDistanceNight extends DijkstraRoadDistance {
       }
       anyValidNeighbour = true;
 
-      double error = drawFromDistribution(1.0, 0.10, null);
-      double edgeCost = commonEdge.getLength() * error;
+      // The parent's three skips, and they come *after* anyValidNeighbour on purpose: a node is
+      // disregarded when night's own constraints leave it no way out, not when its neighbours
+      // happen to be settled already. Each is a no-op on today's call path - the search settles
+      // every node once, night agents are not individualised, and the three-argument entry builds
+      // no avoid-set - and each stops this override from meaning something different from its
+      // parent the day one of those stops being true.
+      if (visitedNodes.contains(targetNode)
+          || (restrictToKnownNetwork() && !isEdgeKnown(commonEdge))
+          || edgesToAvoid.contains(commonEdge)) {
+        continue;
+      }
+
+      double error = costPerceptionError(targetNode, commonEdge, false);
+      double edgeCost = commonEdge.getLength() * error * lightingCostMultiplier(commonEdge);
       computeTentativeCost(currentNode, targetNode, edgeCost);
       isBest(currentNode, targetNode, outEdge);
     }
@@ -81,6 +109,37 @@ public class DijkstraRoadDistanceNight extends DijkstraRoadDistance {
     if (!anyValidNeighbour) {
       disregardedNodes.add(currentNode);
     }
+  }
+
+  /**
+   * Planning cost multiplier for a <b>known</b> edge, by how far its measured {@code mean_lux}
+   * falls below the travelling agent's own sensitivity threshold: 1.0 at or above it, rising
+   * linearly toward {@link NightPars#maxKnownDarkEdgeCostMultiplier} at total darkness.
+   *
+   * <p>1.0 - no penalty - in daylight, for a caller that is not a {@link NightAgent}, for an edge
+   * the agent does not know, and for an edge with no continuous lux reading. The agent's own
+   * threshold does the vulnerable/non-vulnerable split, since a vulnerable agent already draws a
+   * higher one.
+   *
+   * <p><b>Only while it is dark</b>, by the same {@code isDark} the situated gate in
+   * {@code NightAgentMovement.setupEdge} consults - a night agent's day is a whole 24 hours and it
+   * plans plenty of trips in daylight, where how brightly a street is lit decides nothing. Without
+   * this the module's one planning rule would be the only lighting rule in it that fired at noon.
+   *
+   * <p><b>Known edges only, deliberately.</b> An agent reacts to an unknown dark street when it
+   * reaches one ({@code NightBehaviour}); charging for it here as well would price the same
+   * darkness twice, once in the plan and once in the reaction. A night agent's known edges are its
+   * simple activity bone - the home and work regions - so this bites there and nowhere else.
+   */
+  private double lightingCostMultiplier(EdgeGraph edge) {
+    if (!(agent instanceof NightAgent nightAgent)
+        || !(nightAgent.getState() instanceof PedSimCityNight night)
+        || !night.isDark
+        || !nightAgent.getCognitiveMap().isEdgeKnown(edge)) {
+      return 1.0;
+    }
+    double depth = NightLighting.darknessDepth(edge, nightAgent.lightSensitivityThreshold);
+    return 1.0 + (NightPars.maxKnownDarkEdgeCostMultiplier - 1.0) * depth;
   }
 
   /**
@@ -108,7 +167,7 @@ public class DijkstraRoadDistanceNight extends DijkstraRoadDistance {
    * @return true if the agent may move onto {@code targetNode} at night
    */
   private boolean canMoveToNodeAtNight(NodeGraph targetNode, EdgeGraph edge) {
-    return (!agent.isVulnerableBoolean() || !shouldAvoidEdgeAtNight(edge, secondAttempt))
+    return (!agent.isVulnerable() || !shouldAvoidEdgeAtNight(edge, secondAttempt))
         && !disregardedNodes.contains(targetNode);
   }
 
