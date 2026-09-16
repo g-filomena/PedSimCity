@@ -95,12 +95,10 @@ public class Pars {
   // for development/testing purposes only
   public static boolean parallel = false;
 
-  public static boolean isNight = false;
-
   // Self-contained HTML dashboard export at the end of each job. It embeds every trip path, so its
   // size grows with the trip count (~29 MB at 5.8k trips); switch it off with
-  // --exportHtmlDashboard=false for large runs, which also skips the trajectory snapshots that only
-  // feed it. The plain data exports (volumes CSV, routes GeoPackage, module data files) are
+  // --exportHtmlDashboard=false for large runs, which avoids generating the embedded playback data.
+  // The plain data exports (volumes CSV, routes GeoPackage, module data files) are
   // unaffected.
   public static boolean exportHtmlDashboard = true;
 
@@ -126,18 +124,20 @@ public class Pars {
     setRoadTypeMap();
   }
 
-  /** Whether {@code numAgents} was given on the command line, in which case nothing derives over it. */
-  public static boolean agentCountGiven = false;
-
   /**
    * Derives the agent count from {@code population * percentagePopulationAgent}.
    *
-   * <p>Called only by a module that samples a population: core and night, and
-   * {@code ActivityEnvironment} again once the census gives a real headcount. cityImage sizes its run
-   * by the number of route-choice models and empirical by its survey cohort, so neither calls it.
+   * <p>Called where a population is sampled: once from the command line, and again from
+   * {@code ActivityEnvironment} once the census replaces {@code population} with a real headcount.
+   * An explicit {@code --numAgents} beats both, so the size of a run is {@code --percentage} unless
+   * a count was asked for. cityImage sizes its run by the number of scenarios and empirical by its
+   * survey cohort, so neither calls this at all.
    */
   public static void recomputeAgentCount() {
-    if (agentCountGiven) {
+    // A derivation never overwrites an instruction. Enforced here rather than at each caller: this
+    // runs once from the command line and again once the census replaces population, and only the
+    // second could overwrite something the user asked for.
+    if (ParameterManager.wasGivenOnCommandLine("numAgents")) {
       return;
     }
     numAgents = (int) (population * percentagePopulationAgent);

@@ -65,9 +65,8 @@ public class TimePars {
   public static double fridayBackgroundVolume = 0.15;
 
   /**
-   * Defines the simulation mode and sets simulation parameters based on the
-   * selected mode. Called at the beginning of the simulation to configure
-   * simulation settings.
+   * Defines the simulation mode and sets simulation parameters based on the selected mode. Called
+   * at the beginning of the simulation to configure simulation settings.
    */
   public static void setTemporalPars() {
     MINUTE_TO_STEPS = 60 / STEP_DURATION;
@@ -97,11 +96,12 @@ public class TimePars {
    * volume into the night, and the weekend has no morning commute, a later flatter morning, and a
    * larger night share.
    *
-   * <p>The curve is a density over the day integrating to 1.0, so the share is its area over the
-   * interval between release events — {@link #releaseAgentsEveryMinutes}, NOT {@link
-   * #STEP_DURATION}. Integrating over the wrong one scales the whole day by their ratio without any
-   * error to show for it: the shares stop summing to 1.0 and that fraction of the day's departures
-   * is never released.
+   * <p>
+   * The curve is a density over the day integrating to 1.0, so the share is its area over the
+   * interval between release events — {@link #releaseAgentsEveryMinutes}, NOT
+   * {@link #STEP_DURATION}. Integrating over the wrong one scales the whole day by their ratio
+   * without any error to show for it: the shares stop summing to 1.0 and that fraction of the day's
+   * departures is never released.
    */
   public static double computeTimeStepShare(LocalDateTime currentTime) {
     LocalTime localTime = currentTime.toLocalTime();
@@ -164,12 +164,12 @@ public class TimePars {
   }
 
   public static LocalDateTime getTime(double totalSteps) {
-    long totalMinutes =
-        (long) (totalSteps * (TimePars.STEP_DURATION / 60)); // Convert steps to minutes based on
+    long totalMinutes = (long) (totalSteps * (TimePars.STEP_DURATION / 60)); // Convert steps to
+    // minutes based on
     // the stepTimeUnit
     long totalDays = totalMinutes / (24 * 60); // Calculate total days
-    long remainingMinutes =
-        totalMinutes % (24 * 60); // Calculate remaining minutes in the current day
+    long remainingMinutes = totalMinutes % (24 * 60); // Calculate remaining minutes in the current
+    // day
 
     long hours = remainingMinutes / 60; // Convert remaining minutes to hours
     long minutes = remainingMinutes % 60; // Calculate remaining minutes
