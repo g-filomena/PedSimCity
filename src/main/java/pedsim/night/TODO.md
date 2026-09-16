@@ -136,6 +136,30 @@ java -Xmx32g -cp "classes_new:lib/*" pedsim.night.launcher.NightLauncher   --hea
 `ssh.key` in `server.properties` still points at a `C:` path that no longer exists; pass
 `-i id_ed25519` from the repo root, as above.
 
+## A night run's cost is a function of how dark the period is
+
+Measured 16 September 2026, on the first runs this module has made away from 1 June: four weeks on
+full Torino, 3,386 agents, three replicates each, each week containing its own solstice or equinox.
+
+| week | legs departing in darkness | simulated days per hour |
+|---|---|---|
+| 15 June (solstice) | ~75 / 1,500 — 5% | 3.3 |
+| 16 March (equinox) | ~180 / 1,500 — 12% | 0.9 |
+| 21 September (equinox) | ~188 / 1,650 — 11% | 0.9 |
+| 21 December (solstice) | ~400 / 1,490 — 27% | 0.7 |
+
+**A December week costs about five times a June week**, and the ordering follows the dark share
+exactly. `jstack` says where it goes and it is not a defect: `NightAgent.step` ->
+`NightAgentMovement.keepWalking` -> `transitionToNextEdge` -> `setupEdge` -> `checkLightLevel` ->
+`whenLitVulnerable` -> `computeAlternativeRoute` -> `Astar.astarRoute`. Every entry onto a dark edge
+runs the lighting gate, and a darkness-graded fraction of those buys a fresh A* bypass. There is no
+bypass cache, deliberately — a key wide enough to be correct carries the destination and the current
+edge, so it would almost never hit.
+
+**Budget by the date, not by the agent count.** A seven-day December run at 3,386 agents with three
+replicates is roughly a day and a half of wall time; the same run in June is six hours. This was
+invisible while every run was 1 June, the brightest week of the year and the cheapest.
+
 ## Pick the date. It has always been 1 June
 
 `TimePars.SIMULATION_START_DATE` was only reachable by editing the class and rebuilding, so every run

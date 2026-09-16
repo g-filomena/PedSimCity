@@ -82,6 +82,11 @@ desktop.ini
 /src/main/java/pedsim/social/
 /src/main/java/pedsim/learning/
 
+# Their tests go with them. A tracked test for an untracked module means a fresh clone
+# cannot run `mvn -Pall-modules test`: the test compiles against source that is not there.
+/src/test/java/pedsim/social/
+/src/test/java/pedsim/learning/
+
 # -------------------------------------------------------------------
 # Notebooks / analysis outputs
 # -------------------------------------------------------------------
