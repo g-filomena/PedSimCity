@@ -3,6 +3,7 @@ import requests
 import pandas as pd
 import json
 import time
+from pathlib import Path
 
 st.set_page_config(layout="wide", page_title="PedSimCity Dashboard")
 
@@ -41,7 +42,26 @@ def fetch_available_modules():
 available_modules = fetch_available_modules()
 module = st.sidebar.selectbox("Module", available_modules, index=0)
 
-city_name = st.sidebar.selectbox("City Name", ["Torino", "Torino_simplified", "TorinoCentre", "Muenster"], index=0)
+# Cities are read off the resources folder rather than listed here: a hardcoded list goes stale
+# silently the moment a city is added or removed, and offers a name the simulation cannot load.
+def available_cities():
+    resources = Path(__file__).resolve().parent.parent / "src" / "main" / "resources"
+    if not resources.is_dir():
+        return []
+    return sorted(
+        d.name for d in resources.iterdir()
+        if d.is_dir() and (d / f"{d.name}_nodes.gpkg").exists()
+    )
+
+
+cities = available_cities()
+if cities:
+    city_name = st.sidebar.selectbox("City Name", cities, index=0)
+else:
+    st.sidebar.warning(
+        "No city found under src/main/resources/ (looking for <City>/<City>_nodes.gpkg)."
+    )
+    city_name = st.sidebar.text_input("City Name", value="")
 duration = st.sidebar.number_input("Duration (days)", 1, 30, 7)
 population = st.sidebar.number_input("Actual Population", 1000, 500000, 100000)
 percentage = st.sidebar.slider("% Represented", 0.001, 1.0, 0.01, format="%.3f")
@@ -65,7 +85,7 @@ if st.sidebar.button("Run Simulation", use_container_width=True):
             "jobs": jobs,
         }
         if module == "night":
-            params["enableAB"] = enable_ab
+            params["enableLightABTesting"] = enable_ab
         r = requests.post(f"{BASE_URL}/api/start", json=params)
         if r.status_code == 200:
             st.sidebar.success(f"Simulation started — module={module}, city={city_name}")
@@ -105,7 +125,7 @@ while True:
     if data:
         # Module-specific state — read from moduleState with backward compat for older server
         module_state = data.get("moduleState") or {}
-        enable_ab_live = module_state.get("enableAB", data.get("enableAB", False))
+        enable_ab_live = module_state.get("enableLightABTesting", False)
         active_module = data.get("module", "core")
 
         # Update Stats
