@@ -1,5 +1,6 @@
 package pedsim.core.routing.pathfinder;
 
+import java.util.HashSet;
 import java.util.List;
 import pedsim.core.agents.Agent;
 import pedsim.core.routing.pathfinding.DijkstraGlobalLandmarks;
@@ -65,9 +66,14 @@ public class GlobalLandmarksPathFinder extends PathFinder {
     routeSequence(
         sequenceNodes,
         agent,
-        () ->
-            new DijkstraGlobalLandmarks()
-                .dijkstraAlgorithm(tmpOrigin, tmpDestination, destinationNode, null, agent));
+        () -> {
+          // The edges already in the route are off limits, as they are for the distance router: a
+          // leg that re-uses one doubles back over ground the agent has walked.
+          directedEdgesToAvoid = new HashSet<>(completeSequence);
+          return new DijkstraGlobalLandmarks()
+              .dijkstraAlgorithm(
+                  tmpOrigin, tmpDestination, destinationNode, directedEdgesToAvoid, agent);
+        });
 
     if (completeSequence.isEmpty()) {
       return distanceFallback(originNode, destinationNode, agent);

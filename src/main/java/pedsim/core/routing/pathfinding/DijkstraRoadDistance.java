@@ -50,10 +50,17 @@ public class DijkstraRoadDistance extends Dijkstra {
     return reconstructSequence();
   }
 
+  /**
+   * The unconstrained primal search: no region subgraph and no edges to avoid.
+   *
+   * <p>It still loads the known network, because what the agent knows is not one of the
+   * constraints this overload drops - see {@link Dijkstra#initialiseKnownNetwork()}.
+   */
   public List<DirectedEdge> dijkstraAlgorithm(
       NodeGraph originNode, NodeGraph destinationNode, Agent agent) {
 
     initialise(originNode, destinationNode, destinationNode, agent);
+    initialiseKnownNetwork();
     runDijkstra();
     return reconstructSequence();
   }
@@ -117,10 +124,9 @@ public class DijkstraRoadDistance extends Dijkstra {
       double error = costPerceptionError(targetNode, commonEdge, false);
       double edgeCost = commonEdge.getLength() * error;
       computeTentativeCost(currentNode, targetNode, edgeCost);
-
-      if (getBest(targetNode) > tentativeCost) {
-        isBest(currentNode, targetNode, outEdge);
-      }
+      // isBest makes the getBest/tentativeCost comparison itself, so no relaxation site guards
+      // the call: one shape across all four of them.
+      isBest(currentNode, targetNode, outEdge);
     }
   }
 
