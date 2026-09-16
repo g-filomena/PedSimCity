@@ -1,16 +1,33 @@
 """
-PedSimCity Automated Day vs. Night Comparison Script
-Runs the night module on Torino_simplified with 2% census population in both:
-1. Daytime mode (shortest path, no lighting penalties)
-2. Nighttime mode (lighting avoidance, vulnerable agents seek lit roads)
+PedSimCity paired night-module comparison.
 
-Calculates and reports key statistics:
-- Average route distance (m) & detour %
+Runs the night module twice on one city and diffs the trip diagnostics:
+
+- Average route distance (m) and detour %
 - Average travel duration (min)
 - Average illuminance (mean_lux) experienced
-- Disparity between Vulnerable and Non-Vulnerable agents
+- Disparity between vulnerable and non-vulnerable agents
+
+**What the two arms are is an argument now, because the old ones stopped existing.** This script
+used to switch "day mode" and "night mode" with `--DAY_START_HOUR` and `--NIGHT_START_HOUR`, plus
+`--enableAB`. None of those three is a parameter any more:
+
+- `TimePars.DAY_START_HOUR` / `NIGHT_START_HOUR` are constants nothing branches on. Darkness is
+  `Daylight.isDark(time)`, from the date and the city's measured latitude, and there is no switch.
+- The A/B flag is `enableLightABTesting`; `enableAB` never matched a field.
+
+`ParameterManager` ignores an unknown key silently, so the old invocation ran **two identical
+simulations** and reported the difference between them as a day/night effect. The arms are stated
+explicitly now and go straight onto the command line.
+
+The default baseline is `--maxKnownDarkEdgeCostMultiplier=1.0`, which `CLAUDE.md` and
+`night/TODO.md` both name as the control for the planning-cost mechanism - 1.0 is the behaviour
+before darkness reached route planning. Pass your own arms if you are isolating something else.
+
+`--city` names the folder under `src/main/resources/`; no city is named in this file.
 """
 
+import argparse
 import os
 import sys
 import shutil
@@ -25,37 +42,43 @@ OUTPUTS_DIR = ROOT_DIR / "outputs"
 OUTPUTS_DIR.mkdir(exist_ok=True)
 
 DIAGNOSTIC_CSV = OUTPUTS_DIR / "trip_diagnostic.csv"
-DAY_CSV = OUTPUTS_DIR / "trip_diagnostic_day.csv"
-NIGHT_CSV = OUTPUTS_DIR / "trip_diagnostic_night.csv"
-REPORT_TXT = OUTPUTS_DIR / "day_night_comparison_report.txt"
+BASELINE_CSV = OUTPUTS_DIR / "trip_diagnostic_baseline.csv"
+TREATMENT_CSV = OUTPUTS_DIR / "trip_diagnostic_treatment.csv"
+REPORT_TXT = OUTPUTS_DIR / "night_comparison_report.txt"
 
-def run_simulation(mode_name: str, day_start_hour: int, night_start_hour: int):
-    print(f"\n==========================================================")
-    print(f"[{mode_name}] Running PedSimCity Simulation (2% Census Pop)...")
-    print(f"==========================================================")
-    
-    cmd = [
-        "mvn", "compile", "exec:java@night",
-        f"-Dexec.args=--headless --cityName=Torino_simplified --percentage=0.02 --percentagePopulationAgent=0.02 --enableAB=false --durationDays=1 --DAY_START_HOUR={day_start_hour} --NIGHT_START_HOUR={night_start_hour}"
-    ]
-    
-    # Set MAVEN_OPTS to provide sufficient heap memory (up to 8GB) for 16,931 agents
+# Filled by main() from the command line, and read by the report so it always states its own arms.
+CONFIG = {"city": "", "percentage": 0.0, "days": 0, "baseline_args": "", "treatment_args": ""}
+
+def run_simulation(arm: str, target_csv: Path, extra_args: str):
+    print("\n==========================================================")
+    print(f"[{arm}] night module on {CONFIG['city']} "
+          f"({CONFIG['percentage']:.1%} of census, {CONFIG['days']} day(s))")
+    print(f"       arm args: {extra_args or '(model defaults)'}")
+    print("==========================================================")
+
+    exec_args = (
+        f"--headless --cityName={CONFIG['city']} --percentage={CONFIG['percentage']}"
+        f" --days={CONFIG['days']}"
+    )
+    if extra_args:
+        exec_args += " " + extra_args
+    cmd = ["mvn", "compile", "exec:java@night", f"-Dexec.args={exec_args}"]
+
+    # Set MAVEN_OPTS to provide sufficient heap memory for a large agent count.
     env = os.environ.copy()
     env["MAVEN_OPTS"] = "-Xms2g -Xmx8g"
-    
-    # Run maven command
+
     result = subprocess.run(cmd, cwd=ROOT_DIR, shell=True, env=env)
     if result.returncode != 0:
-        print(f"ERROR: Simulation failed for mode {mode_name} with exit code {result.returncode}")
+        print(f"ERROR: simulation failed for arm {arm} with exit code {result.returncode}")
         sys.exit(1)
-        
+
     if not DIAGNOSTIC_CSV.exists():
-        print(f"ERROR: Expected output file {DIAGNOSTIC_CSV} was not created!")
+        print(f"ERROR: expected output file {DIAGNOSTIC_CSV} was not created!")
         sys.exit(1)
-        
-    target_csv = DAY_CSV if mode_name == "DAYTIME" else NIGHT_CSV
+
     shutil.copy(DIAGNOSTIC_CSV, target_csv)
-    print(f"[{mode_name}] Saved results to: {target_csv.name}")
+    print(f"[{arm}] saved results to: {target_csv.name}")
 
 def analyze_csv(filepath: Path):
     if not filepath.exists():
@@ -97,21 +120,23 @@ def analyze_csv(filepath: Path):
         "all_lux": avg(trips, "mean_lux")
     }
 
-def generate_report(day_stats, night_stats):
-    if not day_stats or not night_stats:
+def generate_report(baseline_stats, treatment_stats):
+    if not baseline_stats or not treatment_stats:
         print("ERROR: Could not load stats for comparison.")
         return
         
     lines = []
     lines.append("=========================================================================")
-    lines.append("           PEDSIMCITY DAY vs. NIGHT COMPARISON REPORT            ")
+    lines.append("           PEDSIMCITY PAIRED NIGHT-MODULE COMPARISON            ")
     lines.append("=========================================================================")
-    lines.append(f"City Network       : Torino_simplified")
-    lines.append(f"Population Share   : 2% (Census-derived)")
-    lines.append(f"Total Trips        : Day = {day_stats['total_trips']} | Night = {night_stats['total_trips']}")
-    lines.append(f"Vulnerable Agents  : Day = {day_stats['vuln_count']} | Night = {night_stats['vuln_count']}")
+    lines.append(f"City Network       : {CONFIG['city']}")
+    lines.append(f"Population Share   : {CONFIG['percentage']:.1%} (Census-derived)")
+    lines.append(f"Baseline arm       : {CONFIG['baseline_args'] or '(model defaults)'}")
+    lines.append(f"Treatment arm      : {CONFIG['treatment_args'] or '(model defaults)'}")
+    lines.append(f"Total Trips        : Baseline = {baseline_stats['total_trips']} | Treatment = {treatment_stats['total_trips']}")
+    lines.append(f"Vulnerable Agents  : Baseline = {baseline_stats['vuln_count']} | Treatment = {treatment_stats['vuln_count']}")
     lines.append("-------------------------------------------------------------------------")
-    lines.append(f"{'METRIC':<30} | {'DAY (Baseline)':<15} | {'NIGHT (Lit Mode)':<16} | {'CHANGE (%)':<10}")
+    lines.append(f"{'METRIC':<30} | {'BASELINE':<15} | {'TREATMENT':<16} | {'CHANGE (%)':<10}")
     lines.append("-------------------------------------------------------------------------")
     
     def row(label, d_val, n_val, unit=""):
@@ -119,30 +144,34 @@ def generate_report(day_stats, night_stats):
         sign = "+" if diff > 0 else ""
         lines.append(f"{label:<30} | {d_val:>11.1f} {unit:<3} | {n_val:>12.1f} {unit:<3} | {sign}{diff:>7.1f}%")
 
-    row("All Agents - Avg Distance", day_stats["all_dist"], night_stats["all_dist"], "m")
-    row("Vulnerable - Avg Distance", day_stats["vuln_dist"], night_stats["vuln_dist"], "m")
-    row("Normal     - Avg Distance", day_stats["norm_dist"], night_stats["norm_dist"], "m")
+    row("All Agents - Avg Distance", baseline_stats["all_dist"], treatment_stats["all_dist"], "m")
+    row("Vulnerable - Avg Distance", baseline_stats["vuln_dist"], treatment_stats["vuln_dist"], "m")
+    row("Normal     - Avg Distance", baseline_stats["norm_dist"], treatment_stats["norm_dist"], "m")
     lines.append("-------------------------------------------------------------------------")
-    row("All Agents - Avg Duration", day_stats["all_dur"], night_stats["all_dur"], "min")
-    row("Vulnerable - Avg Duration", day_stats["vuln_dur"], night_stats["vuln_dur"], "min")
-    row("Normal     - Avg Duration", day_stats["norm_dur"], night_stats["norm_dur"], "min")
+    row("All Agents - Avg Duration", baseline_stats["all_dur"], treatment_stats["all_dur"], "min")
+    row("Vulnerable - Avg Duration", baseline_stats["vuln_dur"], treatment_stats["vuln_dur"], "min")
+    row("Normal     - Avg Duration", baseline_stats["norm_dur"], treatment_stats["norm_dur"], "min")
     lines.append("-------------------------------------------------------------------------")
-    row("All Agents - Avg Illuminance", day_stats["all_lux"], night_stats["all_lux"], "lx")
-    row("Vulnerable - Avg Illuminance", day_stats["vuln_lux"], night_stats["vuln_lux"], "lx")
-    row("Normal     - Avg Illuminance", day_stats["norm_lux"], night_stats["norm_lux"], "lx")
+    row("All Agents - Avg Illuminance", baseline_stats["all_lux"], treatment_stats["all_lux"], "lx")
+    row("Vulnerable - Avg Illuminance", baseline_stats["vuln_lux"], treatment_stats["vuln_lux"], "lx")
+    row("Normal     - Avg Illuminance", baseline_stats["norm_lux"], treatment_stats["norm_lux"], "lx")
     lines.append("=========================================================================")
     
     # Key insights
-    vuln_detour = ((night_stats["vuln_dist"] - day_stats["vuln_dist"]) / day_stats["vuln_dist"] * 100.0) if day_stats["vuln_dist"] > 0 else 0.0
-    vuln_lux_gain = ((night_stats["vuln_lux"] - day_stats["vuln_lux"]) / day_stats["vuln_lux"] * 100.0) if day_stats["vuln_lux"] > 0 else 0.0
+    vuln_detour = ((treatment_stats["vuln_dist"] - baseline_stats["vuln_dist"]) / baseline_stats["vuln_dist"] * 100.0) if baseline_stats["vuln_dist"] > 0 else 0.0
+    vuln_lux_gain = ((treatment_stats["vuln_lux"] - baseline_stats["vuln_lux"]) / baseline_stats["vuln_lux"] * 100.0) if baseline_stats["vuln_lux"] > 0 else 0.0
     sign_detour = "+" if vuln_detour > 0 else ""
     sign_lux = "+" if vuln_lux_gain > 0 else ""
     
-    lines.append("\nKEY BEHAVIOURAL INSIGHTS:")
-    lines.append(f"1. Safety Detour Tax : Vulnerable pedestrians walk an average of {sign_detour}{vuln_detour:.1f}% farther at night")
-    lines.append(f"                       to remain on well-lit corridors and avoid dark/park areas.")
-    lines.append(f"2. Lighting Seeking  : At night, vulnerable pedestrians experienced {sign_lux}{vuln_lux_gain:.1f}% change in average")
-    lines.append(f"                       route illuminance compared to daytime shortest paths.")
+    lines.append("")
+    lines.append("VULNERABLE AGENTS, TREATMENT AGAINST BASELINE:")
+    lines.append(f"1. Distance  : {sign_detour}{vuln_detour:.1f}% on average.")
+    lines.append(f"2. Route lux : {sign_lux}{vuln_lux_gain:.1f}% on average.")
+    lines.append("")
+    lines.append("What either number MEANS depends on what the two arms were; this script does")
+    lines.append("not know and does not guess. Read them against the arm arguments printed")
+    lines.append("above, and against a replicate: on a one-day night run the replicate sd is")
+    lines.append("about 6.5% of planned metres, so a smaller difference is not a result.")
     lines.append("=========================================================================\n")
     
     report_text = "\n".join(lines)
@@ -153,20 +182,44 @@ def generate_report(day_stats, night_stats):
     print(f"Report saved to: {REPORT_TXT}")
 
 def main():
-    print("Starting Day vs Night Comparison Pipeline...")
-    
-    # 1. Run Daytime Baseline (DAY_START_HOUR=0, NIGHT_START_HOUR=24 => isDark is always false)
-    run_simulation("DAYTIME", day_start_hour=0, night_start_hour=24)
-    
-    # 2. Run Nighttime Lit Environment (DAY_START_HOUR=24, NIGHT_START_HOUR=0 => isDark is always true)
-    run_simulation("NIGHTTIME", day_start_hour=24, night_start_hour=0)
-    
-    # 3. Analyze and compare
+    parser = argparse.ArgumentParser(
+        description="Run the night module twice on one city and diff the trip diagnostics."
+    )
+    parser.add_argument("--city", required=True,
+                        help="City name: folder under src/main/resources/ and the <City>_* prefix.")
+    parser.add_argument("--percentage", type=float, default=0.02,
+                        help="Share of the census resident total to release as agents.")
+    parser.add_argument("--days", type=int, default=1, help="Simulated days per arm.")
+    parser.add_argument("--baseline-args", default="--maxKnownDarkEdgeCostMultiplier=1.0",
+                        help="Extra command-line args for the baseline arm. The default is the "
+                             "documented control for the planning-cost mechanism; pass an empty "
+                             "string to run the model's defaults on both arms.")
+    parser.add_argument("--treatment-args", default="",
+                        help="Extra command-line args for the treatment arm (default: none, i.e. "
+                             "the model's own defaults).")
+    args = parser.parse_args()
+
+    CONFIG.update(
+        city=args.city,
+        percentage=args.percentage,
+        days=args.days,
+        baseline_args=args.baseline_args.strip(),
+        treatment_args=args.treatment_args.strip(),
+    )
+
+    if CONFIG["baseline_args"] == CONFIG["treatment_args"]:
+        print("REFUSING: both arms carry the same arguments, so this would compare a run with "
+              "itself and report the seed noise as an effect. Give --baseline-args and "
+              "--treatment-args that differ.")
+        sys.exit(2)
+
+    print(f"Starting paired night comparison on {CONFIG['city']}...")
+    run_simulation("BASELINE", BASELINE_CSV, CONFIG["baseline_args"])
+    run_simulation("TREATMENT", TREATMENT_CSV, CONFIG["treatment_args"])
+
     print("\nAnalyzing trip results...")
-    day_stats = analyze_csv(DAY_CSV)
-    night_stats = analyze_csv(NIGHT_CSV)
-    
-    generate_report(day_stats, night_stats)
+    generate_report(analyze_csv(BASELINE_CSV), analyze_csv(TREATMENT_CSV))
+
 
 if __name__ == "__main__":
     main()

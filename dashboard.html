@@ -229,7 +229,7 @@
     /* ── Advanced Settings Strip ────────────────────────── */
     .adv-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 1.5rem;
       align-items: start;
     }
@@ -609,22 +609,7 @@
             </div>
           </div>
 
-          <!-- Column 2: Environment & Time -->
-          <div>
-            <div class="adv-section-title">Environment &amp; Time</div>
-
-            <div class="form-group">
-              <label class="field-label" for="dayStartHour">Day Start Hour</label>
-              <input type="number" id="dayStartHour" value="6" min="4" max="10"/>
-            </div>
-
-            <div class="form-group">
-              <label class="field-label" for="nightStartHour">Night Start Hour</label>
-              <input type="number" id="nightStartHour" value="20" min="18" max="23"/>
-            </div>
-          </div>
-
-          <!-- Column 3: Agent Behaviour -->
+          <!-- Column 2: Agent Behaviour -->
           <div>
             <div class="adv-section-title">Agent Behaviour</div>
 
@@ -752,13 +737,11 @@
         useToblerPenalty:      document.getElementById('useToblerPenalty').checked,
         useLightWeighting:     document.getElementById('useLightWeighting').checked,
         useFrontageBias:       document.getElementById('useFrontageBias').checked,
-        nightStartHour:        parseInt(document.getElementById('nightStartHour').value),
-        dayStartHour:          parseInt(document.getElementById('dayStartHour').value),
         vulnerableRatio:       parseFloat(document.getElementById('vulnerableRatio').value),
         maxRouteLength:        parseInt(document.getElementById('maxRouteLength').value),
-        enableABTest:          document.getElementById('enableABTest').checked,
+        enableLightABTesting:  document.getElementById('enableABTest').checked,
         useCensusVulnerability:document.getElementById('useCensusVulnerability').checked,
-        randomSeed:            parseInt(document.getElementById('randomSeed').value),
+        seed:                  document.getElementById('randomSeed').value.trim(),
         exportTrips:           document.getElementById('exportTrips').checked,
         exportTraces:          document.getElementById('exportTraces').checked,
         verboseLog:            document.getElementById('verboseLog').checked,
