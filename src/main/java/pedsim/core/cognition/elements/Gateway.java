@@ -1,4 +1,4 @@
-package pedsim.core.cognition.cityimage;
+package pedsim.core.cognition.elements;
 
 import org.javatuples.Pair;
 import sim.graph.NodeGraph;
