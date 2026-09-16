@@ -147,3 +147,7 @@ server.properties
 
 node_modules/
 .wrangler/
+
+# Generated classpath files (mvn dependency:build-classpath)
+cp.txt
+cp_*.txt

@@ -27,6 +27,10 @@
 	</developers>
 
     <properties>
+		<!-- Which JUnit tags surefire runs. `mvn test` excludes 'slow' (anything needing a city);
+		     `mvn test -Pslow-tests` runs those and nothing else. -->
+		<test.excludedGroups>slow</test.excludedGroups>
+		<test.groups></test.groups>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
     </properties>
@@ -178,10 +182,33 @@
 			<artifactId>jackson-annotations</artifactId>
 			<version>2.22</version>
 		</dependency>
+		<!-- Tests. JUnit 5; the slow end-to-end checks carry @Tag("slow") and are
+		     excluded from `mvn test` by default (run them with -Pslow-tests). -->
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<version>5.10.2</version>
+			<scope>test</scope>
+		</dependency>
     </dependencies>
 
     <build>
         <plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>3.2.5</version>
+				<configuration>
+					<!--
+					  A property, not a literal, so the slow tests can actually be run. They were
+					  excluded and unreachable: nothing could select a @Tag("slow") test, because
+					  -DexcludedGroups does not override a hardcoded element. Defaults to 'slow',
+					  which keeps `mvn test` the sub-second suite it has to stay.
+					-->
+					<excludedGroups>${test.excludedGroups}</excludedGroups>
+					<groups>${test.groups}</groups>
+				</configuration>
+			</plugin>
 			<!-- UTF -->
 			<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -519,6 +546,24 @@
                                 <exclude>pedsim/empirical/**</exclude>
                                 <exclude>pedsim/social/**</exclude>
                             </excludes>
+                            <testExcludes>
+                                <testExclude>pedsim/learning/**</testExclude>
+                                <testExclude>pedsim/cityimage/**</testExclude>
+                                <testExclude>pedsim/empirical/**</testExclude>
+                                <testExclude>pedsim/social/**</testExclude>
+                            </testExcludes>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <excludes>
+                                <exclude>pedsim/learning/**</exclude>
+                                <exclude>pedsim/cityimage/**</exclude>
+                                <exclude>pedsim/empirical/**</exclude>
+                                <exclude>pedsim/social/**</exclude>
+                            </excludes>
                         </configuration>
                     </plugin>
                 </plugins>
@@ -533,6 +578,24 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <excludes>
+                                <exclude>pedsim/night/**</exclude>
+                                <exclude>pedsim/cityimage/**</exclude>
+                                <exclude>pedsim/empirical/**</exclude>
+                                <exclude>pedsim/social/**</exclude>
+                            </excludes>
+                            <testExcludes>
+                                <testExclude>pedsim/night/**</testExclude>
+                                <testExclude>pedsim/cityimage/**</testExclude>
+                                <testExclude>pedsim/empirical/**</testExclude>
+                                <testExclude>pedsim/social/**</testExclude>
+                            </testExcludes>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <excludes>
                                 <exclude>pedsim/night/**</exclude>
@@ -560,6 +623,22 @@
                                 <exclude>pedsim/learning/**</exclude>
                                 <exclude>pedsim/social/**</exclude>
                             </excludes>
+                            <testExcludes>
+                                <testExclude>pedsim/night/**</testExclude>
+                                <testExclude>pedsim/learning/**</testExclude>
+                                <testExclude>pedsim/social/**</testExclude>
+                            </testExcludes>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <excludes>
+                                <exclude>pedsim/night/**</exclude>
+                                <exclude>pedsim/learning/**</exclude>
+                                <exclude>pedsim/social/**</exclude>
+                            </excludes>
                         </configuration>
                     </plugin>
                 </plugins>
@@ -581,6 +660,24 @@
                                 <exclude>pedsim/cityimage/**</exclude>
                                 <exclude>pedsim/empirical/**</exclude>
                             </excludes>
+                            <testExcludes>
+                                <testExclude>pedsim/night/**</testExclude>
+                                <testExclude>pedsim/learning/**</testExclude>
+                                <testExclude>pedsim/cityimage/**</testExclude>
+                                <testExclude>pedsim/empirical/**</testExclude>
+                            </testExcludes>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <excludes>
+                                <exclude>pedsim/night/**</exclude>
+                                <exclude>pedsim/learning/**</exclude>
+                                <exclude>pedsim/cityimage/**</exclude>
+                                <exclude>pedsim/empirical/**</exclude>
+                            </excludes>
                         </configuration>
                     </plugin>
                 </plugins>
@@ -594,6 +691,25 @@
               'night' profile leaves the base compiler config (no excludes),
               so every source file under src/main/java is compiled.
             -->
+        </profile>
+
+        <!--
+          The slow tests: the ones that need a city imported and prepared, and so cannot run in the
+          sub-second suite. They are the only tests that can see a mechanism running without effect,
+          which is the defect this project keeps having, so they exist to be run deliberately -
+          before a release, and after anything that touches route choice, the cognitive map or the
+          order of a collection keyed on a graph object.
+
+              mvn test -Pslow-tests -Pall-modules
+
+          -Pall-modules because the default profile compiles neither cityImage nor its tests.
+        -->
+        <profile>
+            <id>slow-tests</id>
+            <properties>
+                <test.excludedGroups></test.excludedGroups>
+                <test.groups>slow</test.groups>
+            </properties>
         </profile>
 
     </profiles>
