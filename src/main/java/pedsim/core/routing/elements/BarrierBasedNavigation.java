@@ -13,8 +13,8 @@ import org.javatuples.Pair;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import pedsim.core.agents.Agent;
-import pedsim.core.cognition.cityimage.Barrier;
-import pedsim.core.cognition.cityimage.Region;
+import pedsim.core.cognition.elements.Barrier;
+import pedsim.core.cognition.elements.Region;
 import pedsim.core.cognition.metrics.BarrierIntegration;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.utilities.StringEnum.BarrierType;
@@ -196,13 +196,11 @@ public class BarrierBasedNavigation implements NavigationElement {
       Coordinate destinationCoordinate) {
 
     // TODO WORKOUT
-    //// System.out.println("currentCorrdinate " + currentCoordinate + "viewField -- " + viewField);
     // intersectingBarriers.parallelStream().filter(barrierID ->
     //// !visitedBarriers.contains(barrierID))
     // .forEach(barrierID -> {
     // MasonGeometry barrierGeometry = PedSimCity.barriersMap.get(barrierID).masonGeometry;
     //
-    //// System.out.println("barrierID " + barrierID + " barrierGeo " + barrierGeometry);
     // Coordinate[] intersections =
     //// viewField.intersection(barrierGeometry.geometry).getCoordinates();
     //
@@ -210,7 +208,6 @@ public class BarrierBasedNavigation implements NavigationElement {
     // .mapToDouble(intersection -> GraphUtils.euclideanDistance(currentCoordinate, intersection))
     // .min().orElse(Double.MAX_VALUE);
     //
-    //// System.out.println("barrierID " + barrierID + " minDistance min " + minDistance);
     //
     // if (minDistance <= GraphUtils.euclideanDistance(currentCoordinate, destinationCoordinate)) {
     // validBarriers.put(barrierID, minDistance);
@@ -266,7 +263,6 @@ public class BarrierBasedNavigation implements NavigationElement {
     // barrier, if any, or, otherwise, the farthest viable severing barrier.
 
     // sorted by distance (further away first, as it leads your further away)
-    // System.out.println("-- valid " + validBarriers);
     Map<Integer, Double> validSorted = Utilities.sortByValue(validBarriers, true);
 
     List<Integer> barrierIDs = new ArrayList<>();
