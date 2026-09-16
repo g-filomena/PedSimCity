@@ -16,7 +16,7 @@ import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.locationtech.jts.index.strtree.STRtree;
 import pedsim.core.agents.Agent;
-import pedsim.core.cognition.cityimage.Region;
+import pedsim.core.cognition.elements.Region;
 import pedsim.core.cognition.network.NetworkBuilder;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.parameters.Pars;

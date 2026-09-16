@@ -12,8 +12,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.javatuples.Pair;
 import org.locationtech.jts.geom.Geometry;
-import pedsim.core.cognition.cityimage.Gateway;
-import pedsim.core.cognition.cityimage.Region;
+import pedsim.core.cognition.elements.Gateway;
+import pedsim.core.cognition.elements.Region;
 import pedsim.core.cognition.metrics.BarrierIntegration;
 import pedsim.core.cognition.metrics.LandmarkIntegration;
 import pedsim.core.engine.PedSimCity;
@@ -80,8 +80,6 @@ public class SharedCognitiveMap {
   // night relevant sets
   protected static Set<EdgeGraph> edgesWithinParks = new HashSet<>();
   protected static Set<EdgeGraph> edgesAlongWater = new HashSet<>();
-  protected static Set<EdgeGraph> litEdges = new HashSet<>();
-  protected static Set<EdgeGraph> nonLitNonKnown = new HashSet<>();
 
   public static Map<Pair<NodeGraph, NodeGraph>, Route> routesSubNetwork = new ConcurrentHashMap<>();
   public static Map<Pair<NodeGraph, NodeGraph>, Route> forcedRoutesSubNetwork =
@@ -151,8 +149,6 @@ public class SharedCognitiveMap {
 
     edgesWithinParks.clear();
     edgesAlongWater.clear();
-    litEdges.clear();
-    nonLitNonKnown.clear();
 
     roadTypeMap.clear();
 
@@ -289,17 +285,6 @@ public class SharedCognitiveMap {
             .filter(entry -> entry.getValue() == RoadType.UNKNOWN)
             .map(Map.Entry::getKey)
             .collect(Collectors.toSet());
-
-    setLitNonLitEdges();
-  }
-
-  /**
-   * Gets the set of lit edges.
-   *
-   * @return A set of lit edges.
-   */
-  public static Set<EdgeGraph> getLitEdges() {
-    return litEdges;
   }
 
   /**
@@ -331,34 +316,6 @@ public class SharedCognitiveMap {
     }
     List<Integer> barrierIDs = value.getArray();
     return barrierIDs != null && !barrierIDs.isEmpty();
-  }
-
-  /**
-   * Sets the lit and non-lit edges based on their attributes.
-   */
-  private static void setLitNonLitEdges() {
-    // Filter lit edges
-    litEdges =
-        communityNetwork.getEdges().stream()
-            .filter(
-                edge ->
-                    edge.attributes.get("lit") != null && edge.attributes.get("lit").getBoolean())
-            .collect(Collectors.toSet());
-
-    nonLitNonKnown =
-        communityNetwork.getEdges().stream()
-            .filter(
-                edge -> !getLitEdges().contains(edge) && !getCommunityKnownEdges().contains(edge))
-            .collect(Collectors.toSet());
-  }
-
-  /**
-   * Gets the set of non-lit, non-community-known edges.
-   *
-   * @return A set of non-lit, non-community-known edges.
-   */
-  public static Set<EdgeGraph> getEdgesNonLitNonCommunityKnown() {
-    return nonLitNonKnown;
   }
 
   /**
@@ -438,8 +395,12 @@ public class SharedCognitiveMap {
     List<Integer> globalLandmarksID = globalLandmarks.getIntColumn("buildingID");
     VectorLayer sightLinesLight =
         PedSimCity.sightLines.selectFeatures("buildingID", globalLandmarksID, true);
-    // free up memory
-    PedSimCity.sightLines = null;
+    // Free the full sight-line layer - London's is 361,398 rows - by dropping this run's reference
+    // to it, not by nulling the static. Nulling it left the field null for the rest of the JVM's
+    // life, so a second run in one process died in PedSimCity.clearStaticData() on
+    // `sightLines.clear()` before it imported anything. That is the REST dashboard's normal path,
+    // where one process serves run after run.
+    PedSimCity.sightLines = new VectorLayer();
     LandmarkIntegration.setLocalLandmarksAtJunctions();
     LandmarkIntegration.assignAnchoringLandmarksToNodes();
     LandmarkIntegration.assignVisibileGlobalLandmakrsToNodes(sightLinesLight);
