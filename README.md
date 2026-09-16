@@ -125,11 +125,16 @@ Each runnable module has Maven exec profiles (headless run, and REST + browser d
 | learning | `mvn -Plearning compile exec:java@learning` | `mvn -Plearning compile exec:java@learning-website` |
 | cityImage / empirical | `mvn -Pcityimage-empirical compile …` | — |
 
+`mvn test` runs the unit suite (JUnit 5, under a second). Checks that need a city carry
+`@Tag("slow")` and are excluded by default.
+
 ## Repository layout
 
 | Path | Contents |
 |---|---|
 | `src/main/java/pedsim/<module>/` | Java source, one folder per module (each with a README) |
+| `src/test/java/` | unit tests; anything needing a city is tagged `slow` |
+| `scripts/` | build, publish and dashboard launchers (`build_city.bat`, `publish_site.py`, …) |
 | `src/main/resources/<City>/` | per-city GIS input layers read by the simulation (`<City>_*.gpkg`) |
 | `inputData/<City>/` | raw preparation material (DTM/DEM rasters, detailed building layers, source notes); `00_city_preparation.py` searches it automatically after the resources folder |
 | `pipeline/` | Python data-prep scripts + `build_lighting*.py` orchestrators — see [`pipeline/README.md`](pipeline/README.md) |
@@ -143,8 +148,11 @@ what you staged and `pre-push` refuses a push that is not clean. `mvn spotless:a
 hand. The hooks are not installed by cloning — `cp .githooks/pre-commit .git/hooks/` and likewise for
 `pre-push`.
 
-**Preparing a city's data** — on Windows double-click `build_city.bat` (base layers +
-POIs), `build_census.bat` (ISTAT census) or `build_lighting.bat` (street lighting from
+**Every launcher prompts for the city; no script names one.** A city is a folder under
+`src/main/resources/` and a `<City>_` filename prefix, and that is the only place the name lives.
+
+**Preparing a city's data** — on Windows double-click `scripts/build_city.bat` (base layers +
+POIs), `scripts/build_census.bat` (ISTAT census) or `scripts/build_lighting.bat` (street lighting from
 the lamp inventory) and enter the city; or run e.g.
 `python pipeline/build_lighting.py --city <City>`. Raw material goes in
 `inputData/<City>/`; the pipeline writes what the sim reads to `src/main/resources/<City>/`.
@@ -156,7 +164,7 @@ maps) under `outputs/<appName>/`, with trip diagnostics and the HTML dashboard a
 root.
 
 **Publishing results** — the result pages under `outputs/results/` are self-contained HTML.
-`python publish_site.py` (or `publish_site.bat`) stages them into `outputs/site/` — an overview
+`python scripts/publish_site.py` (or `scripts/publish_site.bat`) stages them into `outputs/site/` — an overview
 page plus one sub-page per city — and deploys to Cloudflare Pages (project `inclusivestreets`),
 served at [pedsimcity.inclusivestreets.org](https://pedsimcity.inclusivestreets.org), with each
 city at `pedsimcity.inclusivestreets.org/<City>`. The site lives at the root of its own
