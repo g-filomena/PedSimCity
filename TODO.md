@@ -10,7 +10,7 @@ trusting an old result.
 |---|---|
 | [core](src/main/java/pedsim/core/TODO.md) | the remote-run route has no caller; escalation length error; `departuresPerPersonPerDay`; the rest of the cross-machine divergence; `RoutePlanner` on unconfigured properties; the invariants not to break |
 | [activity](src/main/java/pedsim/activity/TODO.md) | **its commute figures are superseded** — layer 2's invented interior and two microdata requests to start now; `distanceWeight`; `choiceSetRadiusMetres`; the lost commuting check; the long commute tail |
-| [night](src/main/java/pedsim/night/TODO.md) | **read before running experiments** — what to commit or ship first, A/B design, threats to validity, void comparisons |
+| [night](src/main/java/pedsim/night/TODO.md) | **the four seasonal runs are void** — vulnerable agents looped until 17 Sep; A/B design, threats to validity, void comparisons |
 | [cityImage](src/main/java/pedsim/cityimage/TODO.md) | **regions, barrier sub-goals and on-route marks all ran without effect until 15 Sep** and are now measured; cumulative landmarkness still unimplemented; London's two networks |
 | [empirical](src/main/java/pedsim/empirical/TODO.md) | **the clusters walk disjoint OD sets, so they cannot be compared to each other**; only Muenster has cluster data; what not to re-add after `PopulationPars` |
 | [learning](src/main/java/pedsim/learning/TODO.md) | **it ran for the first time on 14 Sep** — three fixes, the decay-threshold decision still open, and what makes it slow |
@@ -18,6 +18,20 @@ trusting an old result.
 Social has no list of its own; it inherits the activity tier's.
 
 ## Cross-cutting
+
+- **`gdsl1` cannot build the current tree.** It holds GeoMason-light 2.2.1 and a pre-17-September
+  checkout; the night reroute needs 2.2.2's `Astar` predicate and multi-target searches. After
+  fetching 2.2.2, delete the version folder from that `~/.m2` first and compare `sha256sum` — same
+  version string, two builds is the failure mode this project has already been bitten by.
+
+- **The four seasonal night runs have to be redone**; see the night list.
+
+- **The per-agent memory slope has never been measured**, so what a 50% population would need is
+  unknown. At 3,386 agents the live heap is ~4.5 GB and the histogram says most of that is fixed
+  graph cost — 5.9M `AttributeValue`, 4.8M `Coordinate`, 2.35M adjacency-matrix `Pair`s, plus the
+  spatial indices. Every run so far has used the same agent count, so the per-agent part cannot be
+  differenced out. Two short runs at different `--percentage` settle it, and give the CPU slope too.
+  Do that before quoting a figure for 423,283 agents. Routing is no longer the constraint.
 
 - **Two modules are not in the repository.** `.gitignore` excludes
   `/src/main/java/pedsim/social/` and `/src/main/java/pedsim/learning/`, so both exist only on the
