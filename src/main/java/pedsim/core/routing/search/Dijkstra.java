@@ -489,7 +489,7 @@ public abstract class Dijkstra {
    * Whether the agent knows this node, mapping it back to the parent graph first when the search is
    * running inside a region subgraph.
    *
-   * <p>The mapping is the whole point. `SubGraph` gives a child node the parent's `nodeID`,
+   * <p>`SubGraph` gives a child node the parent's `nodeID`,
    * coordinate and attributes, so the two look identical in a debugger, but they are distinct
    * objects and `NodeGraph` has no value equality - so `knownNodes.contains(childNode)` is false for
    * every node the agent knows perfectly well.

@@ -576,15 +576,9 @@ public class Agent implements Steppable {
    * Builds this agent's route-choice heuristics <b>and stores them</b>, so that the routing code can
    * reach them through {@link #getHeuristics()}.
    *
-   * <p>Storing is the part that gets forgotten. {@code Dijkstra.computeTentativeCost} and
-   * {@code computeTentativeCostDual} call {@code agent.getHeuristics().getGlobalLandmarkWeight(...)}
-   * unguarded, so an agent that has heuristics but never assigned them throws a
-   * {@code NullPointerException} the moment a landmark-weighted cost is evaluated — and only then,
-   * which is why it stayed hidden. Every subclass that overrides {@link #planRoute()} must call this:
-   * {@code EmpiricalAgent} and {@code CityImageAgent} did not, and {@code NightAgent} built a
-   * {@code Heuristics} without keeping it. Empirical failed outright once it had a headless entry
-   * point; city-image survived only because the two models usually run, road distance and angular
-   * change, never consult landmarkness.
+   * <p>Every override of {@link #planRoute()} must call this. {@code Dijkstra} reads
+   * {@link #getHeuristics()} unguarded when it evaluates a landmark-weighted cost, so an agent that
+   * never stored its heuristics throws there and nowhere earlier.
    *
    * @param onlyDistanceMinimisation route by plain shortest path, sampling no model at all
    */
