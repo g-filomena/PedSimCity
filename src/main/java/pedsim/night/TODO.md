@@ -5,6 +5,18 @@ Repo-wide state is in `/TODO.md`; this is what bears on the night module specifi
 
 ---
 
+## The four seasonal runs are void — redo them
+
+Summer, autumn, winter and spring (16-17 September) ran on the pre-17 September reroute, where
+vulnerable agents backtracked and re-walked their own routes: 3.9% of trips carried about 60% of all
+walked metres, so every volume and every A/B magnitude from them is wrong. Route *shape* is not —
+distinct edges per trip never moved. Details in `CHANGELOG.md`.
+
+To relaunch, `gdsl1` needs the current code and GeoMason-light 2.2.2; it holds 2.2.1 and the
+pre-fix checkout.
+
+---
+
 ## Park and waterside avoidance was reading empty sets — fixed 15 September 2026
 
 `SharedCognitiveMap.edgesWithinParks` and `edgesAlongWater` had no writer anywhere in the tree, so
