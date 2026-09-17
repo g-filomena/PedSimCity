@@ -32,7 +32,7 @@ import sim.graph.NodeGraph;
  *
  * <p><b>The trip-length distribution is now an output.</b> Nothing here targets a length;
  * {@code distanceWeight} shapes one, and whether the shape matches what travel surveys observe is
- * a result to be checked rather than an input to be honoured. That is the whole point of the
+ * a result to be checked rather than an input to be honoured. It is the reason the
  * change, and it is also its cost: that coefficient has to be calibrated against an observed
  * distribution, where the mechanism it replaces needed no calibration because it was handed the
  * answer.

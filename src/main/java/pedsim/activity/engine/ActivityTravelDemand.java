@@ -54,7 +54,7 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
    *
    * <p>The budget is {@code walkedTripsPerPersonPerDay}, an ISFORT count of walked <i>legs</i>, and
    * it is divided by the chain length the agendas will actually produce - computed here from the
-   * realised persona mix, not from a constant. That is the whole reason the figure in
+   * realised persona mix, not from a constant. It is why the figure in
    * {@code ActivityPars} is now the survey's 0.51 rather than 0.21: a chain length belongs to the
    * model and changes when the agenda probabilities change, so it has no business being baked into
    * a number attributed to a travel survey.
