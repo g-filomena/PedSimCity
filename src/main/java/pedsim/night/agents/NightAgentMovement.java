@@ -1,9 +1,15 @@
 package pedsim.night.agents;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
@@ -50,6 +56,14 @@ import sim.routing.Route;
  */
 public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
 
+  /**
+   * The IDs of {@link #edgesToAvoid}, kept in step with it by {@code defineEdgesToAvoid}.
+   *
+   * <p>A* takes IDs rather than edges, and the translation is over the whole avoid-set, so it is
+   * done once where the set is built rather than at each call.
+   */
+  private final Set<Integer> edgeIDsToAvoid = new HashSet<>();
+
   private final NightBehaviour nightBehaviour;
   private final PedSimCityNight state;
   private final Graph network;
@@ -71,6 +85,9 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
    * {@link #setupEdge}.
    */
   private int originalRouteIndex = 0;
+
+  /** Bypasses taken on the current leg, against {@link NightPars#maxReroutesPerLeg}. */
+  private int reroutesThisLeg = 0;
 
   public NightAgentMovement(NightAgent agent) {
     super(agent);
@@ -97,6 +114,7 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
 
     indexOnSequence = 0;
     originalRouteIndex = 0;
+    reroutesThisLeg = 0;
     this.directedEdgesSequence = route.directedEdgesSequence;
     // Keep an independent copy of the original planned route so bypasses cannot
     // mutate it.
@@ -226,8 +244,8 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
         return;
       }
     }
-    // Current edge is part of a bypass: leave the pointer marking the last original
-    // edge walked.
+    // Current edge is part of a bypass: leave the pointer marking the agent's committed progress
+    // along the original route, which is the re-entry position the bypass is heading for.
   }
 
   /**
@@ -239,7 +257,8 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
    * rules, builds a new path consisting of the bypass to that re-entry node
    * followed by the untouched remainder of the original route. The earliest
    * reachable re-entry point is preferred because it minimises the deviation from
-   * the original plan.
+   * the original plan. The destination is the last candidate, so reaching it
+   * leaves no remainder to splice and the agent arrives by the bypass itself.
    *
    * <p>
    * If no node on the remaining original route can be reached safely, the agent
@@ -249,57 +268,132 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
     final NodeGraph routeOrigin = (NodeGraph) currentDirectedEdge.getFromNode();
     agent.spookLocations.add(routeOrigin.getCoordinate());
 
-    defineEdgesToAvoid();
-    final Set<Integer> edgeIDsToAvoid = new HashSet<>(GraphUtils.getEdgeIDs(edgesToAvoid));
-    final Astar aStar = new Astar();
+    final Predicate<EdgeGraph> edgeAllowed = edgeAllowedForBypass();
 
-    // Scan the remaining original route for the earliest safely-reachable re-entry
-    // point.
+    // Candidate re-entry points, in route order, each mapped to the earliest position it occupies:
+    // a node the route visits twice is rejoined at the first opportunity.
+    final Map<NodeGraph, Integer> positionOf = new LinkedHashMap<>();
     for (int idx = originalRouteIndex + 1; idx < originalEdgesSequence.size(); idx++) {
-      final DirectedEdge reentryEdge = originalEdgesSequence.get(idx);
-      final NodeGraph reentryNode = (NodeGraph) reentryEdge.getFromNode();
-
+      final NodeGraph reentryNode = (NodeGraph) originalEdgesSequence.get(idx).getFromNode();
       // A bypass to where we already are makes no progress.
-      if (reentryNode.equals(routeOrigin)) {
-        continue;
-      }
-
-      // No cache, and a (origin, reentry) key is not enough to add one: the route depends on the
-      // agent's own avoid-set, built from its known edges, the edge it is fleeing and its
-      // destination. Sharing on that key hands agents each other's routes, across the
-      // vulnerable/non-vulnerable split included. A key wide enough to be correct carries the
-      // destination and the current edge, which vary per trip, so
-      // it would almost never hit.
-      List<DirectedEdge> bypassEdges = null;
-      final Route bypass = aStar.astarRoute(routeOrigin, reentryNode, network, edgeIDsToAvoid);
-      if (isValidRoute(bypass)) {
-        bypassEdges = new ArrayList<>(bypass.directedEdgesSequence);
-      }
-
-      if (bypassEdges != null) {
-        // New path: safe bypass to the re-entry node + untouched remainder of the
-        // original route.
-        final List<DirectedEdge> newPath = new ArrayList<>(bypassEdges);
-        newPath.addAll(originalEdgesSequence.subList(idx, originalEdgesSequence.size()));
-
-        edgesToAvoid.clear();
-        nightBehaviour.avoidParksWater = false;
-        // originalRouteIndex is intentionally NOT advanced here: it is updated
-        // organically by
-        // syncOriginalRouteIndex() once the agent actually reaches the re-entry edge,
-        // so that a
-        // further reroute while still on this bypass still sees the full remaining
-        // original route.
-        resetPath(newPath);
-        return;
+      if (!reentryNode.equals(routeOrigin)) {
+        positionOf.putIfAbsent(reentryNode, idx);
       }
     }
 
-    // No safe re-entry point anywhere ahead: keep to the current edge, just walk
-    // faster.
+    // The loop above takes each remaining edge's from-node, which leaves out the route's final
+    // to-node. The destination is a re-entry point like any other and is added here, at position
+    // size() - past every other candidate, so it is reached for only when nothing earlier can be,
+    // and the preference for rejoining the plan is unchanged. A bypass that ends there leaves an
+    // empty remainder to splice: the agent arrives by its own way rather than rejoining, which is
+    // the only way the last edge of a route can be avoided. putIfAbsent keeps the earlier position
+    // for a route that already passes through its destination.
+    if (!originalEdgesSequence.isEmpty()) {
+      final NodeGraph finalNode =
+          (NodeGraph) originalEdgesSequence.get(originalEdgesSequence.size() - 1).getToNode();
+      if (!finalNode.equals(routeOrigin)) {
+        positionOf.putIfAbsent(finalNode, originalEdgesSequence.size());
+      }
+    }
+
+    final Astar aStar = new Astar();
+    Route bestBypass = null;
+    int bestPosition = Integer.MAX_VALUE;
+    Collection<NodeGraph> candidates = positionOf.keySet();
+
+    // A* settles the CHEAPEST target first, and the rule here is the EARLIEST one on the remaining
+    // route, so one multi-target search is not enough on its own. Each search does, however, rule
+    // out everything at or beyond the position it reaches, so re-searching over just the earlier
+    // candidates converges on the earliest reachable one - in a handful of searches rather than one
+    // per candidate, and, when none is reachable, in a single search rather than one exhaustive
+    // failure per candidate.
+    while (!candidates.isEmpty()) {
+      final Route bypass = aStar.astarRouteAllowing(routeOrigin, candidates, network, edgeAllowed);
+      if (!isValidRoute(bypass)) {
+        break;
+      }
+      final Integer position = positionOf.get(aStar.reachedTarget());
+      if (position == null || position >= bestPosition) {
+        break;
+      }
+      bestBypass = bypass;
+      bestPosition = position;
+
+      final int earlierThan = bestPosition;
+      candidates =
+          positionOf.entrySet().stream()
+              .filter(entry -> entry.getValue() < earlierThan)
+              .map(Map.Entry::getKey)
+              .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    if (bestBypass != null) {
+      // New path: safe bypass to the re-entry node + untouched remainder of the original route.
+      final List<DirectedEdge> newPath = new ArrayList<>(bestBypass.directedEdgesSequence);
+      newPath.addAll(originalEdgesSequence.subList(bestPosition, originalEdgesSequence.size()));
+
+      edgesToAvoid.clear();
+      nightBehaviour.avoidParksWater = false;
+      // The agent has committed to rejoining the original route at bestPosition, so that is its
+      // progress along it: everything before it lies behind. Advancing the pointer here is what
+      // confines a further reroute - taken while still on this bypass, from a node off the original
+      // route - to re-entry points beyond the one already chosen. Left where the agent departed the
+      // route, the pointer offers those earlier positions back, and the earliest-re-entry rule
+      // prefers them precisely because they are earliest, turning the agent around.
+      originalRouteIndex = bestPosition;
+      reroutesThisLeg++;
+      resetPath(newPath);
+      return;
+    }
+
+    // No safe re-entry point anywhere ahead: keep to the current edge, just walk faster.
     edgesToAvoid.clear();
     nightBehaviour.avoidParksWater = false;
     nightBehaviour.increaseSpeedAtNight = true;
+  }
+
+  /**
+   * Which edges a bypass may use, as a test applied to the edges the search actually reaches.
+   *
+   * <p>The same rule {@code defineEdgesToAvoid} states as a set, asked one edge at a time. A* reaches
+   * a few hundred edges; enumerating the rule over the whole network first is tens of thousands of
+   * set operations per reroute, and the sets it draws on are already held elsewhere.
+   */
+  private Predicate<EdgeGraph> edgeAllowedForBypass() {
+
+    final Set<EdgeGraph> unlit =
+        agent.isVulnerable()
+            ? NightLighting.unlitEdgesOutsideCommunityKnown(
+                edgesOutsideCommunityKnown(), ((NightAgent) agent).lightSensitivityThreshold)
+            : NightLighting.unlitEdgesOutsideCommunityKnown(edgesOutsideCommunityKnown());
+
+    // A set, not the list the lookup returns: this is a membership test per expanded edge.
+    final Set<EdgeGraph> agentKnown =
+        agent.isVulnerable()
+            ? new HashSet<>(
+                GraphUtils.getEdgesFromEdgeIDs(
+                    agent.getCognitiveMap().getAgentKnownEdges(), PedSimCity.edgesMap))
+            : Set.of();
+
+    final Set<EdgeGraph> parksAndWater =
+        (agent.isVulnerable() || nightBehaviour.avoidParksWater)
+            ? SharedCognitiveMap.getEdgesWithinParksOrAlongWater()
+            : Set.of();
+
+    final EdgeGraph fledEdge = currentEdge;
+    final Set<EdgeGraph> destinationEdges = new HashSet<>(agent.destinationNode.getEdges());
+
+    return edge -> {
+      // Edges incident to the destination are never avoided, so the tail of the route stays
+      // reachable. This is tested first because it overrides everything below it.
+      if (destinationEdges.contains(edge)) {
+        return true;
+      }
+      if (edge.equals(fledEdge) || parksAndWater.contains(edge)) {
+        return false;
+      }
+      return !unlit.contains(edge) || agentKnown.contains(edge);
+    };
   }
 
   /**
@@ -377,7 +471,7 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
 
     if (agent.isVulnerable()) {
       edgesToAvoid.addAll(
-          NightLighting.unlitEdges(
+          NightLighting.unlitEdgesOutsideCommunityKnown(
               edgesOutsideCommunityKnown(), ((NightAgent) agent).lightSensitivityThreshold));
       edgesToAvoid.removeAll(
           GraphUtils.getEdgesFromEdgeIDs(
@@ -396,23 +490,32 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
     // Never avoid edges incident to the destination, so the tail of the route stays
     // reachable.
     edgesToAvoid.removeAll(agent.destinationNode.getEdges());
+
+    // A* takes IDs, so fill them here in one pass over the set just built. Deriving them at the
+    // call site cost a List and a Set on top of this one, per reroute.
+    edgeIDsToAvoid.clear();
+    for (EdgeGraph edge : edgesToAvoid) {
+      edgeIDsToAvoid.add(edge.getID());
+    }
   }
 
   /**
    * Checks whether the agent may attempt a situated reroute.
    *
    * <p>
-   * A local bypass may be attempted any number of times; this does not gate on whether the agent is
-   * still on its original route. The constraints are purely structural — there is nothing to bypass
-   * into if the current edge leads straight to the destination, on the very first edge, or when no
-   * original route remains ahead to rejoin.
+   * Three of the four constraints are structural — there is nothing to bypass into if the current
+   * edge leads straight to the destination, on the very first edge, or when no original route
+   * remains ahead to rejoin. The fourth is {@link NightPars#maxReroutesPerLeg}, a bound on how many
+   * bypasses one leg may take; past it the agent keeps to its route and walks faster. Being on a
+   * bypass rather than on the original route is not itself a constraint.
    *
    * @return true if the agent can reroute; false otherwise
    */
   protected boolean canReroute() {
     return !currentEdge.getNodes().contains(agent.destinationNode)
         && indexOnSequence != 0
-        && hasRemainingOriginalRoute();
+        && hasRemainingOriginalRoute()
+        && reroutesThisLeg < NightPars.maxReroutesPerLeg;
   }
 
   /**
