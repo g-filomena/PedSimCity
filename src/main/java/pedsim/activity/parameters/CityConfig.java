@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 import pedsim.activity.agents.ActivityPurpose;
+import pedsim.activity.agents.Persona;
 import pedsim.core.parameters.ParameterManager;
 import pedsim.core.utilities.LoggerUtil;
 
@@ -110,6 +111,7 @@ public final class CityConfig {
     // Before anything is read: a second city in the same JVM must not inherit the first's opening
     // hours, and a city with no file must run on the built-in ones.
     ActivityPurpose.resetToDefaults();
+    Persona.resetWeightsToDefaults();
     if (cityName == null || cityName.isBlank()) {
       return;
     }
@@ -150,6 +152,14 @@ public final class CityConfig {
         }
         continue;
       }
+      if (key.startsWith(PERSONA_PREFIX)) {
+        if (writePersonaWeight(key, raw)) {
+          applied.put(key, raw);
+        } else {
+          unplaced.add(key);
+        }
+        continue;
+      }
       if (writeInto(targets, key, raw)) {
         applied.put(key, raw);
       } else {
@@ -183,6 +193,29 @@ public final class CityConfig {
 
   /** Prefix for the opening-window keys, e.g. {@code purpose.DINING.open}. */
   private static final String PURPOSE_PREFIX = "purpose.";
+
+  /** Prefix for the persona preference keys, e.g. {@code persona.RETIREE.ERRANDS}. */
+  private static final String PERSONA_PREFIX = "persona.";
+
+  /**
+   * Writes one {@code persona.<PERSONA>.<PURPOSE>} weight. Like the purpose settings, these are not
+   * fields on a parameter class: they live on the {@link Persona} enum, one per discretionary
+   * purpose. A key left out keeps the built-in value, so a partial block is meaningful.
+   *
+   * @return whether the key named a persona and a discretionary purpose that exist, and parsed as a
+   *     number
+   */
+  private static boolean writePersonaWeight(String key, String raw) {
+    String[] parts = key.split("\\.");
+    if (parts.length != 3) {
+      return false;
+    }
+    try {
+      return Persona.applyCityWeight(parts[1], parts[2], Double.parseDouble(raw));
+    } catch (NumberFormatException e) {
+      return false;
+    }
+  }
 
   /**
    * Writes one {@code purpose.<NAME>.<setting>} key. These are the only city parameters that are not

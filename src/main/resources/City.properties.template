@@ -1,0 +1,114 @@
+# PedSimCity — per-city configuration template
+#
+# Copy to <City>/<City>.properties and edit. Nothing reads this file: CityConfig looks up
+# <cityName>/<cityName>.properties on the flat resource path, so a city without one runs on the
+# Java defaults, which are the values reproduced below.
+#
+# Every key is reported at startup as applied, refused or unplaced. Run switches
+# (useDestinationChoice, useWeather, calibrateCommute, seed, jobs, parallel) are refused with a
+# warning: they choose a model or an experiment, not a place, and a city file that set one would let
+# two cities differ in mechanism while appearing to differ in geography.
+#
+# Core parameters are not settable here either — this file holds ActivityPars keys, plus the two
+# blocks below, which are the only city settings that are not fields on a parameter class.
+
+# ---------------------------------------------------------------------------
+# Discretionary purpose mix, per persona — GENERIC FALLBACK
+# ---------------------------------------------------------------------------
+# persona.<PERSONA>.<PURPOSE> — the relative weight of that purpose for that persona.
+# Personas: WORKER, STUDENT, RETIREE, FLEX.
+# Purposes: SHOPPING, ERRANDS, DINING, NIGHTLIFE, LEISURE, STROLL.
+#
+# NOT SOURCED. The values below are the built-in defaults on the Persona enum, reproduced here so a
+# new city can see what it is starting from. They were invented — no survey stands behind any of
+# them, and they are city-blind, which for a mix of daily activities is a strong assumption.
+#
+# What belongs here is a travel survey's purpose split for *walking* trips. Every discretionary trip
+# this model produces is walked, so these weights are the purpose mix of walked trips, not of all
+# trips; a time-use split counts activities regardless of how people travelled to them and is the
+# wrong quantity. Such surveys publish one national row rather than four personas, so even once
+# sourced the differences between the rows stay invented.
+#
+# A key left out keeps the Java default, so a partial block is meaningful. The realised mix is
+# logged at the end of each simulated day and will not match this table: the opening windows below
+# renormalise the weights at every draw, and a purpose that is rarely open is rarely chosen however
+# heavily it is weighted.
+
+persona.WORKER.SHOPPING    = 0.25
+persona.WORKER.ERRANDS     = 0.15
+persona.WORKER.DINING      = 0.20
+persona.WORKER.NIGHTLIFE   = 0.10
+persona.WORKER.LEISURE     = 0.25
+persona.WORKER.STROLL      = 0.05
+
+persona.STUDENT.SHOPPING   = 0.15
+persona.STUDENT.ERRANDS    = 0.05
+persona.STUDENT.DINING     = 0.20
+persona.STUDENT.NIGHTLIFE  = 0.20
+persona.STUDENT.LEISURE    = 0.30
+persona.STUDENT.STROLL     = 0.10
+
+persona.RETIREE.SHOPPING   = 0.25
+persona.RETIREE.ERRANDS    = 0.30
+persona.RETIREE.DINING     = 0.05
+persona.RETIREE.NIGHTLIFE  = 0.00
+persona.RETIREE.LEISURE    = 0.20
+persona.RETIREE.STROLL     = 0.20
+
+persona.FLEX.SHOPPING      = 0.25
+persona.FLEX.ERRANDS       = 0.15
+persona.FLEX.DINING        = 0.15
+persona.FLEX.NIGHTLIFE     = 0.10
+persona.FLEX.LEISURE       = 0.25
+persona.FLEX.STROLL        = 0.10
+
+# ---------------------------------------------------------------------------
+# Opening windows and stay durations, per activity purpose — GENERIC FALLBACK
+# ---------------------------------------------------------------------------
+# purpose.<NAME>.open / .close  — hours of the day; a close before an open wraps past midnight
+# purpose.<NAME>.stayMinutes    — mean of the lognormal stay
+# purpose.<NAME>.staySigma      — its log sigma
+#
+# Purposes: WORK, EDUCATION, SHOPPING, ERRANDS, DINING, NIGHTLIFE, LEISURE, STROLL.
+#
+# NOT SOURCED, and city-blind in a way that matters more than it looks: the defaults say dining runs
+# 11:00-23:00 and nightlife starts at 18:00 everywhere on earth, which is not an Italian day, nor a
+# Spanish one. WORK and EDUCATION are left open 0-24 on purpose — the destination is the agent's own
+# work or study node and the duration comes from the persona, so the window does nothing there.
+#
+# The sourced version is an aggregation of the OSM `opening_hours` tags for the city, or a local
+# retail and hospitality schedule. The OSM route is one column away:
+# pipeline/00_city_preparation.py downloads every POI with its full tag set and then keeps only
+# POI_TAG_COLUMNS — amenity, shop, leisure, tourism, sport, office. Add `opening_hours` there and
+# re-run `--stages pois`. The tag is patchy and free-text, so the aggregation is the work; the
+# download is not.
+
+purpose.SHOPPING.open        = 8.0
+purpose.SHOPPING.close       = 20.0
+purpose.SHOPPING.stayMinutes = 35
+purpose.SHOPPING.staySigma   = 0.55
+
+purpose.ERRANDS.open         = 8.0
+purpose.ERRANDS.close        = 18.0
+purpose.ERRANDS.stayMinutes  = 20
+purpose.ERRANDS.staySigma    = 0.50
+
+purpose.DINING.open          = 11.0
+purpose.DINING.close         = 23.0
+purpose.DINING.stayMinutes   = 75
+purpose.DINING.staySigma     = 0.40
+
+purpose.NIGHTLIFE.open       = 18.0
+purpose.NIGHTLIFE.close      = 2.0
+purpose.NIGHTLIFE.stayMinutes = 100
+purpose.NIGHTLIFE.staySigma  = 0.45
+
+purpose.LEISURE.open         = 7.0
+purpose.LEISURE.close        = 23.0
+purpose.LEISURE.stayMinutes  = 60
+purpose.LEISURE.staySigma    = 0.55
+
+purpose.STROLL.open          = 0.0
+purpose.STROLL.close         = 24.0
+purpose.STROLL.stayMinutes   = 30
+purpose.STROLL.staySigma     = 0.40

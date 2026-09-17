@@ -5,6 +5,7 @@ import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.LongAdder;
 import pedsim.activity.parameters.ActivityPars;
 
 /**
@@ -42,7 +43,11 @@ public enum Persona {
   private final double mandatoryStartLatest;
   private final int mandatoryStayMinMinutes;
   private final int mandatoryStayMaxMinutes;
-  private final double[] purposeWeights;
+  // Not final: the arrays on the constants above are generic defaults, replaceable per city
+  // through the persona.<PERSONA>.<PURPOSE> keys CityConfig reads. The defaults are kept alongside
+  // so a second city in the same JVM does not inherit the first's mix.
+  private double[] purposeWeights;
+  private final double[] defaultPurposeWeights;
 
   Persona(
       double speedFactor,
@@ -56,7 +61,8 @@ public enum Persona {
     this.mandatoryStartLatest = mandatoryStartLatest;
     this.mandatoryStayMinMinutes = mandatoryStayMinMinutes;
     this.mandatoryStayMaxMinutes = mandatoryStayMaxMinutes;
-    this.purposeWeights = purposeWeights;
+    this.purposeWeights = purposeWeights.clone();
+    this.defaultPurposeWeights = purposeWeights.clone();
   }
 
   /** Earliest hour this persona's mandatory activity can start; NaN when it has none. */
@@ -133,9 +139,17 @@ public enum Persona {
   }
 
   /**
-   * Samples a discretionary purpose from this persona's preference mix, restricted to purposes
-   * whose opening window contains the given hour. Falls back to {@link ActivityPurpose#STROLL}
-   * (always open) when nothing else is available.
+   * Samples a discretionary purpose from this persona's weights, restricted to purposes whose
+   * opening window contains the given hour. Falls back to {@link ActivityPurpose#STROLL} (always
+   * open) when nothing else is available.
+   *
+   * <p>Every discretionary purpose in the model is drawn here, and every discretionary trip the
+   * model produces is walked. The weights are therefore the purpose mix of <b>walked</b> trips, not
+   * of all trips: the quantity to fill them from is a travel survey's purpose split for walking
+   * trips, not a time-use survey's split of activities. The two differ by each purpose's walk share,
+   * and the model has no other place where that share is applied.
+   *
+   * <p>The draw is tallied so a day can report the mix it realised; see {@link #mixSummary()}.
    */
   public ActivityPurpose sampleDiscretionaryPurpose(double hourOfDay, MersenneTwisterFast random) {
     double total = 0.0;
@@ -145,7 +159,7 @@ public enum Persona {
       }
     }
     if (total <= 0.0) {
-      return ActivityPurpose.STROLL;
+      return tally(ActivityPurpose.STROLL);
     }
     double r = random.nextDouble() * total;
     double cumulative = 0.0;
@@ -155,10 +169,108 @@ public enum Persona {
       }
       cumulative += purposeWeights[i];
       if (r <= cumulative) {
-        return DISCRETIONARY[i];
+        return tally(DISCRETIONARY[i]);
       }
     }
-    return ActivityPurpose.STROLL;
+    return tally(ActivityPurpose.STROLL);
+  }
+
+  /**
+   * Draws taken per purpose since the last {@link #resetMix()}, indexed as {@link #DISCRETIONARY}.
+   *
+   * <p>Static because the question is about the run rather than about one persona, and every draw in
+   * the model passes through the method above. Agents step concurrently, hence the adders.
+   */
+  private static final LongAdder[] MIX = new LongAdder[DISCRETIONARY.length];
+
+  static {
+    for (int i = 0; i < MIX.length; i++) {
+      MIX[i] = new LongAdder();
+    }
+  }
+
+  /** Records a draw and returns it, so every return path in the sampler counts. */
+  private static ActivityPurpose tally(ActivityPurpose purpose) {
+    for (int i = 0; i < DISCRETIONARY.length; i++) {
+      if (DISCRETIONARY[i] == purpose) {
+        MIX[i].increment();
+        break;
+      }
+    }
+    return purpose;
+  }
+
+  /**
+   * Writes one {@code persona.<PERSONA>.<PURPOSE>} weight from a city file.
+   *
+   * @return whether the key named a persona and a discretionary purpose that exist
+   */
+  public static boolean applyCityWeight(String personaName, String purposeName, double value) {
+    Persona persona;
+    try {
+      persona = valueOf(personaName.toUpperCase(java.util.Locale.ROOT));
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
+    for (int i = 0; i < DISCRETIONARY.length; i++) {
+      if (DISCRETIONARY[i].name().equalsIgnoreCase(purposeName)) {
+        persona.purposeWeights[i] = value;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Restores the built-in weights, so one city's file cannot reach the next city in the JVM. */
+  public static void resetWeightsToDefaults() {
+    for (Persona persona : values()) {
+      persona.purposeWeights = persona.defaultPurposeWeights.clone();
+    }
+  }
+
+  /** The weights as they stand, for logging what a city file did. */
+  public String describeWeights() {
+    StringBuilder out = new StringBuilder(name()).append(' ');
+    for (int i = 0; i < DISCRETIONARY.length; i++) {
+      if (i > 0) {
+        out.append(' ');
+      }
+      out.append(String.format("%s=%.2f", DISCRETIONARY[i], purposeWeights[i]));
+    }
+    return out.toString();
+  }
+
+  /** Clears the tally; called at the start of each simulated day. */
+  public static void resetMix() {
+    for (LongAdder adder : MIX) {
+      adder.reset();
+    }
+  }
+
+  /**
+   * The realised purpose mix as shares, or null when nothing was drawn.
+   *
+   * <p>The weights behind it are unsourced, and nothing in the model checks an output against them,
+   * so this line is the only thing that would show a mix coming out wrong — the hour windows
+   * renormalise the weights at every draw, so the realised mix is not the configured one and cannot
+   * be read off it.
+   */
+  public static String mixSummary() {
+    long total = 0;
+    for (LongAdder adder : MIX) {
+      total += adder.sum();
+    }
+    if (total == 0) {
+      return null;
+    }
+    StringBuilder out = new StringBuilder();
+    for (int i = 0; i < DISCRETIONARY.length; i++) {
+      if (i > 0) {
+        out.append(" | ");
+      }
+      out.append(String.format("%s %.1f%%", DISCRETIONARY[i], 100.0 * MIX[i].sum() / total));
+    }
+    return out + String.format("  (%d draws)", total);
   }
 
   /**

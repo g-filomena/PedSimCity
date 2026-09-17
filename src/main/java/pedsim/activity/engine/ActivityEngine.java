@@ -1,5 +1,7 @@
 package pedsim.activity.engine;
 
+import java.util.logging.Logger;
+import pedsim.activity.agents.Persona;
 import pedsim.core.engine.Engine;
 import pedsim.core.engine.Import;
 import pedsim.core.engine.PedSimCity;
@@ -14,6 +16,8 @@ import pedsim.core.parameters.TimePars;
  * {@code PedSimCity → PedSimCityActivity} and {@code Populate → ActivityPopulate} hierarchies.
  */
 public class ActivityEngine extends Engine {
+
+  private static final Logger LOGGER = pedsim.core.utilities.LoggerUtil.getLogger();
 
   public ActivityEngine(StateFactory stateFactory) {
     super(stateFactory);
@@ -64,6 +68,14 @@ public class ActivityEngine extends Engine {
   @Override
   protected void onDayFinished(PedSimCity state, int job, int day) {
     DaySummary.append(state, state.appName(), job, day);
+    // The purpose weights are unsourced and no output is compared against them, so the mix a day
+    // actually produced is otherwise invisible. Reported rather than checked: there is no observed
+    // split to check it against yet.
+    String mix = Persona.mixSummary();
+    if (mix != null) {
+      LOGGER.info("day " + day + " discretionary purpose mix: " + mix);
+    }
+    Persona.resetMix();
   }
 
   @Override
