@@ -139,11 +139,13 @@
         </dependency>
 
 	
-       <!-- GeoMason-light (published to Maven Central) -->
+       <!-- GeoMason-light, from Maven Central. 2.2.2 carries the Astar rewrite - the predicate
+            and multi-target searches that pedsim.night.agents.NightAgentMovement depends on - so
+            2.2.1 does not compile this tree. -->
 		<dependency>
 			<groupId>uk.ac.liv.gdsl</groupId>
 			<artifactId>GeoMason-light</artifactId>
-			<version>2.2.1</version>
+			<version>2.2.2</version>
         </dependency>
 
        <!-- Mason: not on Maven Central; resolved from the vendored jar so `mvn compile` works
