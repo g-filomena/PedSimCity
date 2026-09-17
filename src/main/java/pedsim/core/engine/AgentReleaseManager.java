@@ -273,7 +273,8 @@ public class AgentReleaseManager implements AutoCloseable {
     logger.info(
         String.format(
             "Day %d: planned %.0f m, walked %.0f m on completed legs "
-                + "(%d route lengths unusable), %d band widenings, "
+                + "(%d route lengths unusable), revisit %.2fx (worst leg %.1fx), "
+                + "%d band widenings, "
                 + "%d fallbacks to any node, %d/%d angular routes served as shortest path "
                 + "(%d no dual path, %d trimmed away, %d with an unknown dual endpoint); "
                 + "%d landmark routes served as shortest path; "
@@ -283,6 +284,8 @@ public class AgentReleaseManager implements AutoCloseable {
             state.trace().plannedRouteMeters(),
             state.trace().walkedRouteMeters(),
             state.trace().unusableRouteLengths(),
+            state.trace().revisitFactor(),
+            state.trace().worstLegRevisit(),
             state.trace().destinationWidenings(),
             state.trace().destinationFallbacks(),
             state.trace().angularFallbacks(),
