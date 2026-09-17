@@ -260,6 +260,28 @@ public class RouteTrace {
     }
   }
 
+  /**
+   * Records how much of a finished leg was repetition: the edges it traversed against the distinct
+   * edges among them.
+   *
+   * <p>A leg that walks its route once reports a ratio of 1.0. The two totals are kept separately
+   * rather than as a running mean because the day's figure is the ratio of the sums, which a mean of
+   * per-leg ratios does not give. {@code worstLegRevisit} is kept alongside because the distribution
+   * is what matters: a day whose legs are almost all 1.0 and whose worst is 90 is a day with a
+   * handful of agents walking in circles, and a mean near 1.3 hides that entirely.
+   *
+   * @param traversals edges the leg walked, counting repeats
+   * @param distinctEdges distinct edges among them
+   */
+  public void recordWalkedEdges(int traversals, int distinctEdges) {
+    if (traversals <= 0 || distinctEdges <= 0) {
+      return;
+    }
+    edgeTraversals.add(traversals);
+    distinctEdgesWalked.add(distinctEdges);
+    worstLegRevisit.accumulate((double) traversals / distinctEdges);
+  }
+
   /** Records that a destination search widened its band the given number of times. */
   public void recordDestinationWidening(int widenings) {
     if (widenings > 0) {
@@ -307,6 +329,20 @@ public class RouteTrace {
     return unusableRouteLengths.sum();
   }
 
+  /**
+   * How many times over the day's finished legs walked their own streets: edges traversed divided by
+   * distinct edges among them. 1.0 means every leg walked its route once.
+   */
+  public double revisitFactor() {
+    long distinct = distinctEdgesWalked.sum();
+    return distinct > 0 ? (double) edgeTraversals.sum() / distinct : 1.0;
+  }
+
+  /** The highest revisit factor any single leg reached today. */
+  public double worstLegRevisit() {
+    return worstLegRevisit.get();
+  }
+
   /** Total band widenings so far today. */
   public long destinationWidenings() {
     return destinationWidenings.sum();
@@ -328,6 +364,11 @@ public class RouteTrace {
   private final java.util.concurrent.atomic.LongAdder legsPlanned =
       new java.util.concurrent.atomic.LongAdder();
 
+  private final LongAdder edgeTraversals = new LongAdder();
+  private final LongAdder distinctEdgesWalked = new LongAdder();
+  private final java.util.concurrent.atomic.DoubleAccumulator worstLegRevisit =
+      new java.util.concurrent.atomic.DoubleAccumulator(Math::max, 1.0);
+
   /** Clears the day's ledgers and counters. */
   public void reset() {
     plannedRouteMeters.reset();
@@ -343,6 +384,9 @@ public class RouteTrace {
     angularEndpointUnknown.reset();
     fullNetworkEscalations.reset();
     fullNetworkEscalationsAngular.reset();
+    edgeTraversals.reset();
+    distinctEdgesWalked.reset();
+    worstLegRevisit.reset();
   }
 
   // ---------------------------------------------------------------------------------------------

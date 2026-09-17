@@ -220,6 +220,12 @@ public class AgentMovement {
     // The route now holds what was walked, not what was planned. Recording it here is what lets a
     // day tell the two apart: a leg still under way when the day ends never reaches this line.
     state.trace().recordWalkedRoute(agent.getRoute().getLength());
+    // What was walked against how much of it was distinct: a leg that rejoins its own streets
+    // reports more traversals than edges. Taken here because this is the only place holding the
+    // full list; the route has already been reduced to it above.
+    state
+        .trace()
+        .recordWalkedEdges(edgesWalkedSoFar.size(), new HashSet<>(edgesWalkedSoFar).size());
     state.flowHandler.updateFlowsData(
         agent, agent.getRoute(), agent.getAgentScenario(), agent.getSimulationScenario());
     agent

@@ -8,6 +8,7 @@ import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.utilities.StringEnum.Vulnerable;
 import pedsim.night.engine.PedSimCityNight;
+import pedsim.night.parameters.NightPars;
 import pedsim.night.routing.routers.RoadDistancePathFinder;
 import sim.engine.SimState;
 import sim.graph.Graph;
@@ -57,15 +58,25 @@ public class NightAgent extends ActivityAgent {
   /**
    * Sets the light-sensitivity threshold: a random draw in [min, max] for vulnerable agents, the
    * fixed non-vulnerable value otherwise.
+   *
+   * <p>The draw is snapped to {@link NightPars#lightSensitivityQuantumLux}, so the set of edges
+   * that read as unlit to this agent is shared with every agent on the same step of the grid and
+   * is computed once for all of them.
    */
   public void initSensitivity() {
     if (isVulnerable()) {
       double min = state.getMinVulnerableLightSensitivity();
       double max = state.getMaxVulnerableLightSensitivity();
-      this.lightSensitivityThreshold = min + random.nextDouble() * (max - min);
+      this.lightSensitivityThreshold = quantise(min + random.nextDouble() * (max - min));
     } else {
       this.lightSensitivityThreshold = state.getNonVulnerableLightSensitivity();
     }
+  }
+
+  /** Rounds to the nearest multiple of {@link NightPars#lightSensitivityQuantumLux}. */
+  private static double quantise(double lux) {
+    double quantum = NightPars.lightSensitivityQuantumLux;
+    return quantum > 0.0 ? Math.round(lux / quantum) * quantum : lux;
   }
 
   /** Called every tick: plans a trip when idle, otherwise advances along the night-aware path. */

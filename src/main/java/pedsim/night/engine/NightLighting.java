@@ -1,7 +1,10 @@
 package pedsim.night.engine;
 
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.night.parameters.NightPars;
 import sim.graph.EdgeGraph;
@@ -21,7 +24,18 @@ public final class NightLighting {
 
   private static volatile Set<EdgeGraph> taggedLitEdges;
 
-  private static volatile Set<EdgeGraph> unlitEdgesOutsideCommunityKnown;
+  /**
+   * One unlit set per sensitivity threshold, over the edges outside the community-known network.
+   *
+   * <p>Which edges read as unlit depends on the threshold and nothing else, so agents sharing one
+   * share the answer. Vulnerable thresholds are drawn onto the
+   * {@link NightPars#lightSensitivityQuantumLux} grid, which is what makes them shareable; the
+   * non-vulnerable threshold is a single value and is just another key here.
+   *
+   * <p>Keyed on the threshold alone, which is only safe because the candidate set is itself one
+   * per network. {@code NightAgentMovement.clearCachedNetworkSets} drops both together.
+   */
+  private static final Map<Double, Set<EdgeGraph>> unlitByThreshold = new ConcurrentHashMap<>();
 
   private NightLighting() {}
 
@@ -111,20 +125,32 @@ public final class NightLighting {
    */
   public static Set<EdgeGraph> unlitEdgesOutsideCommunityKnown(
       Set<EdgeGraph> outsideCommunityKnown) {
-    Set<EdgeGraph> cached = unlitEdgesOutsideCommunityKnown;
-    if (cached == null) {
-      cached = unlitEdges(outsideCommunityKnown, NightPars.nonVulnerableLightSensitivity);
-      unlitEdgesOutsideCommunityKnown = cached;
-    }
-    return cached;
+    return unlitEdgesOutsideCommunityKnown(
+        outsideCommunityKnown, NightPars.nonVulnerableLightSensitivity);
+  }
+
+  /**
+   * Those of {@code outsideCommunityKnown} that read as unlit at {@code threshold}, computed once
+   * per threshold.
+   *
+   * <p>The returned set is shared and must not be modified; callers copy it into their own
+   * avoid-set.
+   *
+   * @param outsideCommunityKnown the edges no one in the city is taken to know
+   * @param threshold the agent's light-sensitivity threshold, in lux
+   */
+  public static Set<EdgeGraph> unlitEdgesOutsideCommunityKnown(
+      Set<EdgeGraph> outsideCommunityKnown, double threshold) {
+    return unlitByThreshold.computeIfAbsent(
+        threshold, lux -> Collections.unmodifiableSet(unlitEdges(outsideCommunityKnown, lux)));
   }
 
   /**
    * Those of {@code candidates} that read as unlit to an agent with this sensitivity threshold.
    *
-   * <p>Not cached: a vulnerable agent's threshold is drawn per agent, so there is no one answer to
-   * keep. The cost is one {@link #isLit} test per candidate, against the {@code addAll} of the same
-   * set that the caller was already paying.
+   * <p>One {@link #isLit} test per candidate, so it is O(candidates). Callers that ask repeatedly
+   * over the whole network go through
+   * {@link #unlitEdgesOutsideCommunityKnown(Set, double)}, which keeps one answer per threshold.
    */
   public static Set<EdgeGraph> unlitEdges(Set<EdgeGraph> candidates, double threshold) {
     Set<EdgeGraph> unlit = new HashSet<>();
@@ -154,6 +180,6 @@ public final class NightLighting {
   /** Drops the derived sets, so a re-imported network is not answered from the old one. */
   public static void clearCaches() {
     taggedLitEdges = null;
-    unlitEdgesOutsideCommunityKnown = null;
+    unlitByThreshold.clear();
   }
 }

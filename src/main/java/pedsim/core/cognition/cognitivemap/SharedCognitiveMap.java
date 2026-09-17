@@ -2,8 +2,10 @@ package pedsim.core.cognition.cognitivemap;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -81,6 +83,19 @@ public class SharedCognitiveMap {
   protected static Set<EdgeGraph> edgesWithinParks = new HashSet<>();
   protected static Set<EdgeGraph> edgesAlongWater = new HashSet<>();
 
+  /**
+   * The union of the two, built with them and read by everything that asks whether an edge is in a
+   * park or by water.
+   *
+   * <p>Held rather than assembled per call: {@code DijkstraRoadDistanceNight} asks per neighbour
+   * per relaxation, so assembling it there is one full-size copy of both sets per edge considered.
+   *
+   * <p>A {@link LinkedHashSet}, not {@code Set.copyOf}: Java's immutable sets salt their iteration
+   * order per JVM, and this is enumerated into per-agent avoid-sets.
+   */
+  private static Set<EdgeGraph> edgesWithinParksOrAlongWater =
+      Collections.unmodifiableSet(new LinkedHashSet<>());
+
   public static Map<Pair<NodeGraph, NodeGraph>, Route> routesSubNetwork = new ConcurrentHashMap<>();
   public static Map<Pair<NodeGraph, NodeGraph>, Route> forcedRoutesSubNetwork =
       new ConcurrentHashMap<>();
@@ -149,6 +164,7 @@ public class SharedCognitiveMap {
 
     edgesWithinParks.clear();
     edgesAlongWater.clear();
+    edgesWithinParksOrAlongWater = Collections.unmodifiableSet(new LinkedHashSet<>());
 
     roadTypeMap.clear();
 
@@ -303,6 +319,10 @@ public class SharedCognitiveMap {
         communityNetwork.getEdges().stream()
             .filter(edge -> touchesBarrierOfKind(edge, "waterBodies"))
             .collect(Collectors.toSet());
+
+    Set<EdgeGraph> union = new LinkedHashSet<>(edgesWithinParks);
+    union.addAll(edgesAlongWater);
+    edgesWithinParksOrAlongWater = Collections.unmodifiableSet(union);
   }
 
   /**
@@ -362,9 +382,7 @@ public class SharedCognitiveMap {
    * @return The set of edges located in parks or along water.
    */
   public static Set<EdgeGraph> getEdgesWithinParksOrAlongWater() {
-    Set<EdgeGraph> edges = new HashSet<>(edgesWithinParks);
-    edges.addAll(edgesAlongWater);
-    return edges;
+    return edgesWithinParksOrAlongWater;
   }
 
   /**

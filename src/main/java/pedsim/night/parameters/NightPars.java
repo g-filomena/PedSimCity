@@ -15,6 +15,19 @@ public class NightPars {
    */
   public static DirectionalLuxStatistic directionalLuxStatistic = DirectionalLuxStatistic.MEAN;
 
+  /**
+   * Grid the drawn vulnerable light sensitivity is snapped to, in lux.
+   *
+   * <p>The threshold decides which edges an agent reads as unlit, and that answer is the same for
+   * every agent sharing a threshold, so it is cached per threshold. Snapping the draw rather than
+   * the cache key keeps one value per agent: what is cached is what the agent uses, and
+   * {@code darknessDepth}, the planning cost multiplier and the situated gate cannot disagree.
+   *
+   * <p>At 0.25 over the 5-15 lux range this is 41 distinct sensitivities. Set it to 0 to draw from
+   * the continuous range, at the cost of a cache that never hits.
+   */
+  public static double lightSensitivityQuantumLux = 0.25;
+
   // GUI Configurable parameters for light sensitivity (Lux)
   public static double minVulnerableLightSensitivity = 5.0;
   public static double maxVulnerableLightSensitivity = 15.0;
@@ -68,4 +81,16 @@ public class NightPars {
    * it at 1.0 a night agent only ever reacts to a dark street it has already reached.
    */
   public static double maxKnownDarkEdgeCostMultiplier = 1.5;
+
+  /**
+   * Bypasses one agent may take on one leg, after which it keeps to its route and walks faster
+   * instead.
+   *
+   * <p>Set well above what a leg plausibly needs, because it is a bound on the pathological case
+   * rather than part of the behaviour: a leg crossing a few dark streets reroutes a handful of
+   * times, so the cap does not bind and the model is unchanged. What it removes is the tail, where
+   * repeated rerouting walks an agent over its own route many times and a single leg contributes
+   * more distance than a hundred ordinary ones. Raise it to study that tail; it cannot be disabled.
+   */
+  public static int maxReroutesPerLeg = 10;
 }
