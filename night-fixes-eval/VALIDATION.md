@@ -1,5 +1,11 @@
 # Empirical validation, 15 Sep
 
+**Update, 18 Sep:** see [Empirical validation, 18 Sep](#empirical-validation-18-sep--isolating-the-c1-join-fix)
+at the end of this file. `main` has since independently absorbed C1's gate logic, C2, C3 and C5
+(and fixed an unrelated reroute-loop bug that inflated detour numbers on both sides of the run
+below) — so the comparison below no longer reflects current upstream behaviour. The 18-Sep run
+isolates the one thing that's still actually unmerged: the C1 `min_lux` join.
+
 The six fixes on this branch (C1, C5, C6, B1, C2, C3) were shadow-compiled
 clean against the real classpath while being written, but shadow-compiling
 only proves the code builds — it says nothing about what it actually does at
@@ -118,3 +124,100 @@ cd ../PedSimCity-fixed   && mvn -o compile && \
 
 Both worktrees are local-only (the `-fixed` one has five uncommitted file
 overlays by design) — nothing here was pushed.
+
+---
+
+# Empirical validation, 18 Sep — isolating the C1 join fix
+
+## Why a new run, not a repeat of the one above
+
+Between 15 and 18 Sep, `main` independently absorbed C1's gate logic (`NightLighting.isLit()`),
+C2 (`DijkstraRoadDistanceNight.lightingCostMultiplier()`), C3
+(`NightAgentMovement.defineEdgesToAvoid()`, lux-based on *both* the vulnerable and non-vulnerable
+branches — going further than this branch's own C3 proposed) and C5
+(`NightBehaviour.rerouteOrIncreaseSpeed()`), plus fixed a real reroute-loop bug where vulnerable
+agents backtracked and re-walked their own routes (3.9% of trips carrying ~60% of all walked
+metres in the affected runs). Overlaying this branch's original five proposal files — written
+against the pre-`main`-reimplementation codebase — onto current `main` would silently regress all
+of that. See the README's Status table for the finding-by-finding detail.
+
+The one thing not independently fixed upstream: `NightEnvironment.joinIlluminatedEdges()` never
+attached `min_lux` to graph edges, only `mean_lux`, so every reader of `min_lux` (`NightLighting.isLit()`
+included) fell through its `minLuxAttr == null` fallback on every edge, unconditionally. This run
+isolates that one fix.
+
+## Method
+
+Two worktrees off `main` @ `5b9dea1`:
+
+- **baseline** — untouched.
+- **fixed** — `night-fixes-eval/src/main/java/pedsim/night/engine/NightEnvironment.java` copied
+  onto its real path, nothing else.
+
+Both compiled with `mvn compile` (online — this environment's `.m2` cache had neither
+`GeoMason-light:2.2.2`, which `main`'s reroute rewrite now needs, nor the test-scope JUnit
+dependencies `exec:java` also resolves; `-o` fails on both without a prior online compile) and run
+with `mvn exec:java@night -Dexec.args="--cityName=Torino --durationDays=7"`. Same fixed seed
+(`20260912`) and the same 846-agent draw as the 15-Sep run.
+
+## Results
+
+| | Baseline (`main`, unmodified) | Fixed (`main` + C1 join) |
+|---|---|---|
+| Total legs, 7 days | 2,847 | 2,838 |
+| Planned → walked distance | 3,803,328 → 3,935,169 m (**+3.5%**) | 3,779,856 → 3,897,531 m (**+3.1%**) |
+| Night-window legs | 419 | 415 |
+| Night avg `mean_lux`, all agents | 22.05 | **23.85** (+8.2%) |
+| Night avg `mean_lux`, non-vulnerable | 21.01 | **22.88** (+8.9%) |
+| Night avg `mean_lux`, vulnerable | 22.46 | **24.27** (+8.1%) |
+| Night legs under 10 lux | 8 (1.9%) | 7 (1.7%) |
+
+## Reading it
+
+**Detour overhead is far lower on both sides than the 15-Sep run's (15.0% / 17.5%).** Consistent
+with `main`'s reroute-loop fix (landed 17 Sep, unrelated to anything on this branch) actually
+working network-wide — not an artefact of this particular comparison.
+
+**The join fix lifts realized night-lux exposure for *both* populations this time (+8-9% each),
+not just non-vulnerable like the 15-Sep run found.** That run's headline finding was that C3 helped
+non-vulnerable agents but left vulnerable agents worse off, because the vulnerable-agent avoid-set
+wasn't lighting-based at all back then. `main` has since closed that gap independently (C3, beyond
+what this branch proposed). With both avoid-sets now lighting-based, correctly gating out
+patchy-but-bright-on-average edges via the join benefits whichever population walks them —
+vulnerable and non-vulnerable alike.
+
+**Total legs differ by 9 (2,847 vs 2,838, ~0.3%) despite an identical seed and population draw.**
+Not a daytime regression — both logs show identical walked-commute-share and commute-length
+figures against the ISTAT targets on every one of the 7 days. The join only touches night-specific
+lighting attributes, so a handful of night reroute/bypass decisions landing differently, cascading
+into a different number of completed legs for a few agents, is the plausible mechanism.
+
+## Caveats
+
+Same as the 15-Sep run: one seed, one city, 7 days, 846 agents — directional evidence, not a
+calibration-grade or significance-tested result. The effect size here is smaller than the 15-Sep
+bundle, which is expected (one join fix, not six behavioural changes stacked together), but it's
+consistent in direction across both vulnerable and non-vulnerable populations, which the 15-Sep
+run's finding was not.
+
+## Reproducing
+
+```bash
+# from a clean checkout of main:
+git worktree add ../PedSimCity-baseline main
+git worktree add --detach ../PedSimCity-fixed main
+
+cp night-fixes-eval/src/main/java/pedsim/night/engine/NightEnvironment.java \
+   ../PedSimCity-fixed/src/main/java/pedsim/night/engine/NightEnvironment.java
+
+cd ../PedSimCity-baseline && mvn compile && \
+  mvn exec:java@night -Dexec.args="--cityName=Torino --durationDays=7"
+cd ../PedSimCity-fixed   && mvn compile && \
+  mvn exec:java@night -Dexec.args="--cityName=Torino --durationDays=7"
+
+# trip-level lux lands in outputs/trip_diagnostic.csv on each side, same columns as the 15-Sep run
+```
+
+`mvn compile` (online, not `-o`) only needs to run once per worktree to populate the local `.m2`
+cache with `GeoMason-light:2.2.2` and the test-scope JUnit dependencies; nothing else needs
+network access, and neither worktree's changes were pushed.
