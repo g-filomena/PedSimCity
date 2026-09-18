@@ -40,9 +40,9 @@ real Python install, so these are tested against real Torino data, not just prop
 
 The issues these files address come from an independent audit of the
 lighting-computation pipeline and night behavioural layer, written up in
-`night_model_issues.html` (shared separately, not part of this repo). Each
-proposed fix below is expected to reference the specific finding ID (e.g.
-"A3", "C5") it addresses.
+[`night_model_issues.html`](night_model_issues.html), included directly in this folder as of
+18 Sep so it travels with the branch. Each proposed fix below is expected to reference the
+specific finding ID (e.g. "A3", "C5") it addresses.
 
 ## Status
 

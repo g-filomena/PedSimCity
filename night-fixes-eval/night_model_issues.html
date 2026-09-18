@@ -1,0 +1,1588 @@
+<title>Night Model Issue Register</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #F4F6F8;
+    --surface: #FFFFFF;
+    --surface-sunk: #EDF0F4;
+    --ink: #151A23;
+    --ink-soft: #454E5E;
+    --ink-mute: #6B7484;
+    --rule: #D8DDE5;
+    --rule-soft: #E6EAF0;
+    --lamp: #B0710F;
+    --lamp-tint: #F6EBD8;
+    --high: #A33A21;
+    --high-tint: #F6E3DD;
+    --med: #8A6412;
+    --med-tint: #F4EAD5;
+    --low: #616B7C;
+    --low-tint: #E4E8EE;
+    --ok: #1B6A5E;
+    --ok-tint: #DCEDE9;
+
+    --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --f-body: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --f-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #10141B;
+      --surface: #171C25;
+      --surface-sunk: #1D232E;
+      --ink: #E7EAF0;
+      --ink-soft: #B7BFCC;
+      --ink-mute: #8B94A3;
+      --rule: #2C3441;
+      --rule-soft: #232A35;
+      --lamp: #E5A44E;
+      --lamp-tint: #2E2415;
+      --high: #E58367;
+      --high-tint: #33201A;
+      --med: #D8AA55;
+      --med-tint: #2E2716;
+      --low: #939DAC;
+      --low-tint: #232A35;
+      --ok: #63C4B2;
+      --ok-tint: #16302C;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #10141B;
+    --surface: #171C25;
+    --surface-sunk: #1D232E;
+    --ink: #E7EAF0;
+    --ink-soft: #B7BFCC;
+    --ink-mute: #8B94A3;
+    --rule: #2C3441;
+    --rule-soft: #232A35;
+    --lamp: #E5A44E;
+    --lamp-tint: #2E2415;
+    --high: #E58367;
+    --high-tint: #33201A;
+    --med: #D8AA55;
+    --med-tint: #2E2716;
+    --low: #939DAC;
+    --low-tint: #232A35;
+    --ok: #63C4B2;
+    --ok-tint: #16302C;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1020px;
+    margin: 0 auto;
+    padding: 40px 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead { display: flex; flex-direction: column; gap: 18px; }
+
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--lamp);
+  }
+
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(32px, 5vw, 48px);
+    line-height: 1.06;
+    letter-spacing: -0.02em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    font-size: 19px;
+    color: var(--ink-soft);
+    max-width: 64ch;
+    margin: 0;
+  }
+
+  .facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    padding: 14px 0;
+    margin-top: 6px;
+  }
+  .fact {
+    flex: 1 1 140px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-right: 20px;
+  }
+  .fact b {
+    font-family: var(--f-mono);
+    font-weight: 500;
+    font-size: 19px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .fact span {
+    font-family: var(--f-display);
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+
+  /* ---------- sections ---------- */
+
+  section { display: flex; flex-direction: column; gap: 16px; }
+
+  h2 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 23px;
+    letter-spacing: -0.01em;
+    margin: 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--ink);
+    text-wrap: balance;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  h2 .tag {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--lamp);
+    letter-spacing: 0.08em;
+  }
+
+  p { margin: 0; max-width: 68ch; color: var(--ink-soft); font-size: 15.5px; }
+
+  code, .mono {
+    font-family: var(--f-mono);
+    font-size: 0.86em;
+  }
+  code {
+    background: var(--surface-sunk);
+    padding: 0.1em 0.34em;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+
+  /* ---------- priority pills ---------- */
+
+  .pri {
+    display: inline-block;
+    font-family: var(--f-display);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .pri.high { color: var(--high); background: var(--high-tint); }
+  .pri.med  { color: var(--med);  background: var(--med-tint); }
+  .pri.low  { color: var(--low);  background: var(--low-tint); }
+  .pri.free { color: var(--ok);   background: var(--ok-tint); }
+  .pri.src  { color: var(--ok);   background: var(--ok-tint); }
+  .pri.resolved { color: var(--ok); background: var(--ok-tint); }
+  .pri.revised { color: var(--med); background: var(--med-tint); }
+  .pri.rejected { color: var(--high); background: var(--high-tint); }
+  .pri.broken { color: var(--high); background: var(--high-tint); }
+
+  a { color: var(--lamp); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 22px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--lamp);
+  }
+  .legend div { display: flex; align-items: baseline; gap: 9px; font-size: 15px; color: var(--ink-soft); }
+
+  /* ---------- tables ---------- */
+
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--rule);
+    background: var(--surface);
+  }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; min-width: 820px; }
+  th {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 11.5px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    text-align: left;
+    color: var(--ink-mute);
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+    background: var(--surface-sunk);
+  }
+  td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+    color: var(--ink-soft);
+  }
+  tr:last-child td { border-bottom: none; }
+
+  td.id {
+    font-family: var(--f-mono);
+    font-size: 13px;
+    color: var(--lamp);
+    white-space: nowrap;
+  }
+  td.issue { color: var(--ink); width: 27%; }
+  td.evidence { font-size: 14px; color: var(--ink-mute); width: 26%; }
+  td.fix { width: 30%; }
+  td.pri-cell { white-space: nowrap; }
+  .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+
+  /* ---------- callout ---------- */
+
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--high);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .callout h3 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 15px;
+    margin: 0;
+    color: var(--high);
+  }
+  .callout.note { border-left-color: var(--lamp); }
+  .callout.note h3 { color: var(--lamp); }
+
+  ul {
+    margin: 0;
+    padding-left: 1.15em;
+    max-width: 72ch;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 15.5px;
+    color: var(--ink-soft);
+  }
+  li { padding-left: 2px; }
+  li strong { color: var(--ink); }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 18px;
+    font-size: 14px;
+    color: var(--ink-mute);
+    max-width: 68ch;
+  }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <div class="eyebrow">PedSimCity &middot; night module &middot; Torino</div>
+    <h1>Night Model Issue Register</h1>
+    <p class="standfirst">Seventeen findings in the lighting pipeline and the night behavioural layer &mdash;
+      what each one is, the evidence for it, and the fix &mdash; followed by a sourcing pass over the twelve
+      constants nobody had traced. Companion to <em>Punti Luce to Lux</em>, which documents the chain these
+      defects sit in. Every fix here was originally a <strong>proposal for the code owner</strong>, not applied by
+      this register &mdash; but as of 18&nbsp;September, <strong>nine have since landed upstream</strong> on
+      <span class="mono">main</span> itself, marked <span class="pri resolved">resolved</span> where they occur,
+      two more were addressed with a <em>different</em> fix than proposed here, marked
+      <span class="pri revised">revised upstream</span>, one was considered and explicitly
+      <span class="pri rejected">rejected upstream</span>, and one (<span class="mono">C1</span>) that read as
+      resolved from the diff alone turned out, on direct code review, to be <span class="pri broken">still
+      broken</span> &mdash; see Section H. Section G adds a second thread: a nine-city search for a validated
+      second case study, won by Lyon.</p>
+    <div class="facts">
+      <div class="fact"><b>17</b><span>findings</span></div>
+      <div class="fact"><b>9</b><span>resolved upstream</span></div>
+      <div class="fact"><b>2</b><span>revised upstream</span></div>
+      <div class="fact"><b>1</b><span>rejected upstream</span></div>
+      <div class="fact"><b>1</b><span>still broken (H)</span></div>
+      <div class="fact"><b>12</b><span>constants audited</span></div>
+      <div class="fact"><b>2</b><span>still arbitrary</span></div>
+      <div class="fact"><b>9</b><span>cities checked (Section G)</span></div>
+    </div>
+  </header>
+
+  <div class="callout">
+    <h3>Re-verified against a running build &mdash; 14 September</h3>
+    <p>The register was first written against a GitHub ZIP of <span class="mono">g-filomena/PedSimCity</span>
+      (3&nbsp;September), before the model had been run end to end. It has now been cross-checked line-by-line
+      against a full clone with real data &mdash; <span class="mono">Documents\GitHub\PedSimCity</span>, HEAD
+      <span class="mono">b2692d2</span> (13&nbsp;September) &mdash; and against Gabriele's own
+      <span class="mono">bug_changelog.md</span> and <span class="mono">pedsim/night/TODO.md</span>, both new in
+      that window. <strong>A1, A2, A3, A4, A5, A7, A8, B1, C1, C2, C3, C5 and C6 were re-read in the current
+      source and confirmed unchanged</strong> (A6, C4 and D1 were not &mdash; see below).
+      <span class="mono">D2</span> was not re-checked.</p>
+    <p>One striking cross-check: Gabriele ran his own audit of the lighting chain on
+      <strong>10&nbsp;September</strong> &mdash; the same week &mdash; and independently found
+      <span class="mono">C1</span>, <span class="mono">C2</span>, <span class="mono">A2</span> and
+      <span class="mono">A5</span> in almost identical terms, recorded in <span class="mono">bug_changelog.md</span>
+      under &ldquo;Found in the lighting chain, not fixed.&rdquo; Nothing here should be read as catching
+      something the code owner missed; it is corroboration.</p>
+    <p><span class="mono">g-filomena/pedsimcityNight</span>, the repo the manuscript names, is still a February
+      snapshot with no Torino data &mdash; <span class="mono">PedSimCity</span> is the live one.</p>
+  </div>
+
+  <div class="callout">
+    <h3>Superseded upstream &mdash; 17 September</h3>
+    <p><span class="mono">main</span> has moved to <span class="mono">892cf72</span> (16&nbsp;Sep, 90 commits past
+      this register's <span class="mono">b2692d2</span> baseline). Two same-day commits from the code owner,
+      <span class="mono">f740c29</span> / <span class="mono">9877978</span> (Java, 15&ndash;16 Sep) and
+      <span class="mono">71e06b2</span> (Python pipeline, 16 Sep), independently land fixes for most of this
+      register's high-priority findings &mdash; in several cases with the same parameter names and default
+      values as the <span class="mono">night-fixes-eval</span> branch prepared in parallel, in one case
+      (<span class="mono">A3</span>) with a <em>different</em> answer than either this register or that branch
+      proposed, and in one case (<span class="mono">distanceWeight</span>, Section F) with an explicit,
+      reasoned rejection of the fix this register itself suggested.</p>
+    <p><strong>Resolved, matching this register's recommendation:</strong>
+      <span class="mono">C2</span> (known-edge routing cost now scales with darkness),
+      <span class="mono">C3</span> (non-vulnerable avoid-set rebuilt on measured lux),
+      <span class="mono">C5</span> (50/50 reroute split now scales with darkness),
+      <span class="mono">B1</span> statistic half (MIN&nbsp;&rarr;&nbsp;MEAN default),
+      <span class="mono">A1</span> (lamp/building occlusion reworked with an arcade-depth test), and
+      <span class="mono">A2</span> (height now grouped by <span class="mono">tipo_supporto</span>, not
+      <span class="mono">uso_ottica</span>).</p>
+    <p><strong>Looked resolved, turned out still broken &mdash; <span class="mono">C1</span>:</strong> the diff
+      adds exactly the <span class="mono">min_lux</span> gate this register asked for in
+      <span class="mono">NightBehaviour.meanLightPasses()</span>, and reading that diff alone is what led this
+      register to mark it resolved above on 17&nbsp;September. A direct code review the same day found the gate
+      is unreachable: <span class="mono">NightEnvironment.joinIlluminatedEdges()</span> only ever joins
+      <span class="mono">mean_lux</span> onto graph edges, never <span class="mono">min_lux</span>, even though
+      the Python pipeline computes and writes that column. <span class="mono">min_lux</span> is <code>null</code>
+      on every edge the Java side ever sees, so the new check's own null-fallback
+      (<code>minLuxAttr&nbsp;==&nbsp;null&nbsp;||&nbsp;&hellip;</code>) makes it pass unconditionally. See
+      <span class="mono">C1</span>'s row and Section H for the full trace.</p>
+    <p><strong>New this pass, not a register finding &mdash; the dashboard:</strong> the same review found
+      <span class="mono">HtmlExporter.java</span> throws on load (two called functions are never defined) and
+      mislabels time by 4&times; throughout. See Section H.</p>
+    <p><strong>Addressed, but with a different fix than proposed &mdash; see the rows below:</strong>
+      <span class="mono">A3</span> (chose the <em>isotropic</em> falloff law over the Lambertian one this
+      register recommended, after running both against real Torino data) and
+      <span class="mono">A8</span> (height fill is now logged and sourced rather than silent, but still fills
+      rather than failing loudly, by stated design choice).</p>
+    <p><strong>Rejected outright, with stated reasoning:</strong> the Section F
+      <span class="mono">distanceWeight</span> rescaling &mdash; <span class="mono">ActivityPars.java</span>'s
+      new Javadoc calls holding the distance&times;circuity product invariant a way of
+      &ldquo;re-importing the circularity that measuring circuity from the network removes,&rdquo; and asks that
+      it not be done.</p>
+    <p><strong>Still open, unaffected by this window:</strong> <span class="mono">A4</span>'s canopy half,
+      <span class="mono">A5</span>, <span class="mono">A7</span>, <span class="mono">B1</span>'s horizon half
+      (still 12&nbsp;m, not the 15&nbsp;m Fotios figure), <span class="mono">C6</span>, and both constants marked
+      arbitrary in Section E. The <span class="mono">night-fixes-eval</span> branch's own VALIDATION.md finding
+      &mdash; that these lighting fixes improve non-vulnerable agents' night-lux exposure (+8.7%) but worsen
+      vulnerable agents' (&minus;6.7%) &mdash; has not been re-checked against main's version of the same fixes,
+      and should be before either is presented as settled.</p>
+  </div>
+
+  <div class="callout">
+    <h3>Further movement upstream &mdash; 18 September</h3>
+    <p><span class="mono">main</span> has moved again, to <span class="mono">5b9dea1</span> (6 more commits,
+      17&nbsp;Sep, on top of <span class="mono">892cf72</span>). None of the six touch the Python pipeline &mdash;
+      <span class="mono">71e06b2</span> (16&nbsp;Sep) remains the latest word there, so every pipeline finding
+      above (<span class="mono">A1&ndash;A8</span>, <span class="mono">B1</span>) is unchanged from the
+      17&nbsp;September pass. Two things moved:</p>
+    <p><strong>Resolved, matching this register's recommendation &mdash; <span class="mono">C6</span>:</strong>
+      <span class="mono">NightAgent.java</span>'s class Javadoc now states, in the code owner's own words, that a
+      night agent walks its whole trip, that the model has no transit, and that the resulting bias &ldquo;runs
+      both ways and does not cancel&rdquo; &mdash; long journeys walked that would not be, and the access/egress
+      walk around a stop, missing entirely. Docs-only, exactly this finding's scope and fix.</p>
+    <p><strong><span class="mono">D2</span>, answered, not just resolved:</strong> the coverage log this finding
+      asked to be read now has a real run behind it (18&nbsp;Sep, current <span class="mono">main</span>, 846
+      agents, 7 days): <span class="mono">mean_lux set on 44278 / 44278 graph edges (0 with no matching graph
+      edge)</span> and <span class="mono">Directional lighting: loaded 88556 rows (0 skipped)</span>. Full
+      coverage on both the edge-level and directional lookups for Torino &mdash; the binary
+      <span class="mono">lit</span>-tag fallback this register worried about is, on this data, a path that never
+      actually fires.</p>
+    <p><strong><span class="mono">A4</span>, clarified:</strong> the 17-September callout's "still open" list
+      above names only A4's canopy half, which reads as if the height half might have landed alongside
+      <span class="mono">A1</span>'s arcade fix. It didn't: <span class="mono">71e06b2</span>'s
+      <span class="mono">blocked_sight_lines()</span> is still a pure 2D <span class="mono">crosses</span> test
+      against building footprints, with no comparison against the ray's height at the crossing point. Both
+      halves of <span class="mono">A4</span> remain proposal-only, in <span class="mono">night-fixes-eval</span>'s
+      own <span class="mono">pipeline/03_street_lights.py</span>.</p>
+    <p>Nothing else moved: <span class="mono">C1</span> remains <span class="pri broken">still broken</span> as
+      Section H describes &mdash; the <span class="mono">min_lux</span> join gap now has a proposed one-line fix
+      on <span class="mono">night-fixes-eval</span>, empirically validated 18&nbsp;Sep against current
+      <span class="mono">main</span> (night-lux exposure up 8&ndash;9% for both vulnerable and non-vulnerable
+      agents, 7-day/846-agent Torino run) but still not merged. <span class="mono">A5</span>,
+      <span class="mono">A7</span>, <span class="mono">B1</span>'s horizon half and the two Section&nbsp;E
+      constants remain exactly as the 17-September callout describes.</p>
+  </div>
+
+  <div class="callout note">
+    <h3>How much each fix is worth depends on C1</h3>
+    <p>The pipeline produces a continuous illuminance surface and the model then reduces it to
+      <strong>one bit per edge</strong> &mdash; above or below the agent's threshold. So a change to the physics
+      only changes behaviour where it moves an edge across that line; an edge that stays on the same side
+      produces identical agent decisions no matter how much its computed lux shifts.</p>
+    <p>Two consequences worth holding while reading the rest. The physics findings
+      (<span class="mono">A1&ndash;A3</span>) matter less to the behavioural results than their magnitudes
+      suggest &mdash; but the claim that the model uses modelled illuminance rather than a binary flag is
+      correspondingly weaker, because it re-binarises immediately. Fixing <span class="mono">C1</span> is what
+      makes the rest of the precision count.</p>
+    <p>The line is also where most of the network sits. In the pipeline's actual directional output,
+      <span class="num">20.5%</span> of entrances are dark by <span class="mono">MIN</span> and
+      <span class="num">46%</span> lie in the [5,&nbsp;15) band that only vulnerable agents can see as dark
+      &mdash; so how many entrances any fix pushes across a threshold is directly measurable, and should be the
+      yardstick for every change below.</p>
+  </div>
+
+  <div class="legend">
+    <div><span class="pri high">high</span> changes every lux value, or blocks replication</div>
+    <div><span class="pri med">medium</span> material but bounded</div>
+    <div><span class="pri low">low</span> document, or tidy when convenient</div>
+    <div><span class="pri free">free</span> no new parameters, no pipeline re-run</div>
+  </div>
+
+  <section>
+    <h2>Lux computation <span class="tag">A &middot; pipeline steps 2&ndash;3</span></h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Issue</th><th>Evidence</th><th>Suggested fix</th><th>Priority</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="id">A1</td>
+            <td class="issue">Lamps inside building footprints are <strong>permanently dark</strong>. The sight
+              line ends at the lamp's ground coordinate, so containment means blocked from every sample
+              point, in every direction.</td>
+            <td class="evidence"><span class="num">4,243&ndash;25,852</span> lamps (4&ndash;26%) fall inside
+              building bboxes. <span class="mono">stradale</span> optics and freestanding poles dominate &mdash;
+              consistent with Turin's porticoes rather than fa&ccedil;ade mounting.<br><br>Possible
+              fingerprint: <span class="num">11.2%</span> of directed entrances in the pipeline's own lookup read
+              <em>exactly</em> 0&nbsp;lux. Test against lamp containment once geometry is loaded &mdash; real
+              geometry is now available (see the callout above) but this test has not yet been run.
+              Occlusion logic itself confirmed unchanged 13&nbsp;Sep.</td>
+            <td class="fix">Exclude a lamp's own containing polygon from the test. Trim the line ~0.5&nbsp;m at
+              each end, or use <code>crosses</code> rather than <code>intersects</code>, so a graze stops
+              counting as occlusion.<br><br><strong>Resolved upstream, 16&nbsp;Sep</strong>
+              (<span class="mono">71e06b2</span>): a lamp within <span class="mono">ARCADE_DEPTH_M&nbsp;=&nbsp;5.0&nbsp;m</span>
+              of a building footprint is treated as mounted on it (not occluded by it); deeper stays occluded.
+              5,873 Torino lamps sit inside a footprint; 87% within 5&nbsp;m.</td>
+            <td class="pri-cell"><span class="pri high">high</span> <span class="pri resolved">resolved</span></td>
+          </tr>
+          <tr>
+            <td class="id">A2</td>
+            <td class="issue">Mounting height is a <strong>category error</strong> &mdash; a pole-height median
+              is assigned to fixtures that have no pole.</td>
+            <td class="evidence"><span class="mono">altezza_palo_m</span> is 100% absent for every non-pole
+              <span class="mono">tipo_supporto</span>. The <span class="num">5.6&nbsp;m</span> median of
+              <span class="mono">non determinato</span> reaches <span class="num">21,163</span> non-pole lamps;
+              <span class="mono">DEFAULT_HEIGHT_M&nbsp;=&nbsp;9.0</span> never executes. Confirmed unchanged
+              13&nbsp;Sep, and independently recorded in <span class="mono">bug_changelog.md</span>'s own
+              10&nbsp;Sep audit.</td>
+            <td class="fix">Group by <span class="mono">tipo_supporto</span>, not
+              <span class="mono">uso_ottica</span>. Poles &rarr; same-street median (65% coverage,
+              &plusmn;0.65&nbsp;m), then the global pole median of 9.0&nbsp;m. Non-poles &rarr; assumed by
+              support type, with a <span class="mono">height_source</span> column so provenance survives
+              downstream.<br><br><strong>Resolved upstream, 16&nbsp;Sep</strong> (<span class="mono">71e06b2</span>):
+              grouped by <span class="mono">tipo_supporto</span> as recommended &mdash; support types with any
+              measured height take that type's median; support types with none (no pole to measure) take a
+              stated <span class="mono">NO_POLE_HEIGHT_M&nbsp;=&nbsp;4.0&nbsp;m</span> assumption instead of the
+              pole median. Provenance tracked in <span class="mono">altezza_source</span>.</td>
+            <td class="pri-cell"><span class="pri high">high</span> <span class="pri resolved">resolved</span></td>
+          </tr>
+          <tr>
+            <td class="id">A3</td>
+            <td class="issue"><strong>The &pi; normalisation still contradicts the falloff law &mdash; now
+              inside a well-documented shared module, which makes the mismatch harder to spot, not easier.</strong></td>
+            <td class="evidence">As of 12&nbsp;Sep the physics moved into a new <span class="mono">pipeline/lighting.py</span>,
+              shared by both step-2 adapters and step 3. Its docstring correctly derives
+              <code>&Phi; = &pi;I&#8320;</code> for a Lambertian hemisphere, then states the result is
+              &ldquo;the inverse-square law with the cosine correction for the surface tilt&rdquo; and applies
+              <code>E&nbsp;=&nbsp;I&middot;h/(h&sup2;+d&sup2;)^1.5</code> with <code>I</code> held constant across
+              angle. That is the isotropic falloff, not the Lambertian one &mdash; a true Lambertian intensity
+              attenuates as <code>I&#8320;cos&nbsp;&theta;</code> off-axis, giving
+              <code>I&#8320;h&sup2;/(h&sup2;+d&sup2;)&sup2;</code> instead. Same <span class="num">~4.6&times;</span>
+              divergence at the tail as before, just centralised and now reading as deliberate.</td>
+            <td class="fix">Unchanged recommendation, more urgent to state precisely given how authoritative the
+              new module reads: keep <code>&divide;&pi;</code>, switch to the consistent Lambertian falloff. The
+              &pi; is <em>scale</em> (absorbable into one coefficient, observationally equivalent to moving the
+              5&nbsp;lux threshold); the exponent is <em>shape</em>, and only shape moves the spatial pattern.
+              <br><br><strong>Addressed upstream, 16&nbsp;Sep, but not this way</strong> (<span class="mono">71e06b2</span>):
+              the code owner ran <code>mixed</code>/<code>lambertian</code>/<code>isotropic</code> against all
+              44,278 Torino edges and chose <strong>isotropic</strong> (<code>E&nbsp;=&nbsp;Ih/D&sup3;</code>,
+              <code>F/2&pi;</code> normalisation) over the Lambertian fix this register asked for &mdash;
+              reasoning that Lambertian's <code>cos&nbsp;&theta;</code> piles light under the pole and starves
+              the mid-span, which is backwards for a cobra-head luminaire's lateral throw. Consistent
+              normalisation+exponent either way, so the internal contradiction this finding named is gone; which
+              of the two consistent laws is more correct for Turin's fixtures remains a real open question, not
+              settled by this register.</td>
+            <td class="pri-cell"><span class="pri high">high</span> <span class="pri revised">revised upstream</span></td>
+          </tr>
+          <tr>
+            <td class="id">A4</td>
+            <td class="issue">Occlusion ignores lamp height, and street trees are absent entirely.</td>
+            <td class="evidence">Building heights are complete (zero nulls), min <span class="num">6.0&nbsp;m</span>,
+              mean <span class="num">15.1&nbsp;m</span>, against a mean lamp height of
+              <span class="num">8.2&nbsp;m</span> &mdash; so 2D blocking is roughly right for buildings and
+              wrong for canopy.</td>
+            <td class="fix">Add height to the sight-line test; the data supports it today. Trees need a canopy
+              layer that doesn't exist &mdash; document as a limitation rather than approximating it.</td>
+            <td class="pri-cell"><span class="pri med">medium</span></td>
+          </tr>
+          <tr>
+            <td class="id">A5</td>
+            <td class="issue"><span class="mono">braccio_l_m_max</span> is read, zero-filled and
+              <strong>never used</strong>, so every luminaire sits over its pole rather than above the
+              carriageway &mdash; while sample points run down the street centreline.</td>
+            <td class="evidence">Recorded for only <span class="num">7.2%</span> of lamps; typical arms are
+              1&ndash;2.5&nbsp;m and point toward the road. Confirmed unchanged 13&nbsp;Sep, and independently
+              recorded in <span class="mono">bug_changelog.md</span>'s own 10&nbsp;Sep audit.</td>
+            <td class="fix">Offset the lamp by the arm where it is recorded; otherwise drop the column so it
+              stops implying the geometry is modelled.</td>
+            <td class="pri-cell"><span class="pri low">low</span></td>
+          </tr>
+          <tr>
+            <td class="id">A6</td>
+            <td class="issue"><span class="pri resolved">resolved &middot; 12 Sep</span> &nbsp;
+              <span class="mono">radius_m</span> and the flat 40&nbsp;m are both gone, replaced by one derived,
+              city-wide cutoff.</td>
+            <td class="evidence"><span class="mono">lighting.summation_radius_m()</span> finds the distance at
+              which the <em>strongest</em> lamp in the inventory falls below a new
+              <span class="mono">NEGLIGIBLE_LUX&nbsp;=&nbsp;0.05</span> and uses that single radius for every
+              KD-tree query. The module's own docstring separates the two questions this register kept
+              separate too: <span class="mono">MIN_LUX</span> (5&nbsp;lux, a service level) is not the same
+              question as how far to search when summing.</td>
+            <td class="fix">Nothing left to propose &mdash; this is a cleaner solution than either option
+              originally suggested here (a per-lamp cutoff, or deletion): one principled, derived radius that
+              generalises to any city's lamp inventory instead of a Turin-tuned constant.</td>
+            <td class="pri-cell"><span class="pri resolved">resolved</span></td>
+          </tr>
+          <tr>
+            <td class="id">A7</td>
+            <td class="issue"><span class="mono">potenza_w_max</span> is a <strong>maximum</strong>. No dimming
+              and no maintenance factor, so every lamp is modelled as new and at full rated power.</td>
+            <td class="evidence">Field name; no light-loss factor anywhere in the pipeline. Turin's LED
+              programme includes smart control.</td>
+            <td class="fix">Not fixable from this inventory &mdash; state both in the methods.</td>
+            <td class="pri-cell"><span class="pri low">low</span></td>
+          </tr>
+          <tr>
+            <td class="id">A8</td>
+            <td class="issue">Step 3 silently re-fills missing heights with 9.0&nbsp;m, while failing loudly for
+              missing intensity &mdash; inconsistent guarding of the same class of error.</td>
+            <td class="evidence"><code>03_street_lights.py:65-68</code> versus the deliberate
+              <code>KeyError</code> at <code>:72-76</code>.</td>
+            <td class="fix">Make it fail loudly too, matching the existing guard's stated reasoning.
+              <br><br><strong>Addressed upstream, 16&nbsp;Sep, but not this way</strong> (<span class="mono">71e06b2</span>):
+              the fill is no longer silent &mdash; every row's height now records how it was set in
+              <span class="mono">altezza_source</span> (measured / support-type median / no-pole assumption /
+              global fallback), and step 3 prints the imputed share. It still fills rather than fails, by a
+              stated design choice: a pipeline that refuses to run on a thin inventory produces no lighting
+              layer at all, which the code owner judges worse than a declared assumption.</td>
+            <td class="pri-cell"><span class="pri low">low</span> <span class="pri revised">revised upstream</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Directional lighting <span class="tag">B &middot; pipeline step 4</span></h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Issue</th><th>Evidence</th><th>Suggested fix</th><th>Priority</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="id">B1</td>
+            <td class="issue">The <strong>estimator is noisy, not the horizon.</strong> The 12&nbsp;m window is
+              about one lamp spacing wide, and taking <span class="mono">MIN</span> across it reduces the
+              statistic to &ldquo;how far is the entry node from the nearest lamp&rdquo; &mdash; a property of
+              where the junction falls in the lighting rhythm rather than of the street. This feeds the
+              entrance-light gate.</td>
+            <td class="evidence">Mean nearest-neighbour spacing <span class="num">11.7&nbsp;m</span>;
+              <span class="num">39%</span> of lamps have no neighbour within 12&nbsp;m and
+              <span class="num">~66%</span> have two or fewer.<br><br>Measured on the pipeline's own
+              directional lookup (<span class="num">29,062</span> directed edges): switching
+              <span class="mono">MIN</span>&nbsp;&rarr;&nbsp;<span class="mono">MEAN</span> relabels
+              <span class="num">1,400</span> entrances (<span class="num">4.8%</span>) from dark to lit, and
+              <span class="num">13.7%</span> of two-way edges classify differently by direction &mdash; so the
+              directional statistic earns its place.<br><br>The horizon itself is well supported:
+              <a href="https://journals.sagepub.com/doi/10.1177/1477153514529299">Fotios, Yang &amp; Uttley
+              (2015)</a> measured pedestrian fixation on other people at <span class="num">10.3&nbsp;m</span>,
+              revised to <span class="num">15&nbsp;m</span> as the recommended observation distance.<br><br>
+              Confirmed unchanged 13&nbsp;Sep: <span class="mono">VISIBILITY_HORIZON_M&nbsp;=&nbsp;12.0</span> and
+              <span class="mono">directionalLuxStatistic&nbsp;=&nbsp;MIN</span> are both exactly as before.</td>
+            <td class="fix">Keep the horizon at 12&ndash;15&nbsp;m and cite Fotios &mdash; moving to
+              <span class="num">15&nbsp;m</span> would match the recommended distance exactly. Change the
+              statistic instead: <span class="mono">MIN</span> &rarr; <span class="mono">MEAN</span>, or a
+              distance-weighted mean. Already configurable via
+              <span class="mono">directionalLuxStatistic</span>.
+              <br><br><strong>Statistic half resolved upstream, 15&nbsp;Sep</strong> (<span class="mono">f740c29</span>):
+              default switched <span class="mono">MIN&nbsp;&rarr;&nbsp;MEAN</span>. Horizon half (12m&nbsp;&rarr;&nbsp;15m)
+              is still open &mdash; <span class="mono">VISIBILITY_HORIZON_M</span> unchanged on <span class="mono">main</span>.</td>
+            <td class="pri-cell"><span class="pri med">medium</span> <span class="pri revised">partly resolved</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Behavioural layer <span class="tag">C &middot; pedsim.night</span></h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Issue</th><th>Evidence</th><th>Suggested fix</th><th>Priority</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="id">C1</td>
+            <td class="issue"><strong>Lux is binarised at the threshold and then discarded.</strong> The two
+              statistics that carry how dark, and how much of the edge is dark, are computed, shipped in the
+              GeoPackage, and never read.</td>
+            <td class="evidence">Only <span class="mono">mean_lux</span> and one directional value reach the
+              agent. <span class="mono">min_lux</span> and <span class="mono">pct_unlit</span> are written and
+              unused. Confirmed unchanged 13&nbsp;Sep, and independently recorded in
+              <span class="mono">bug_changelog.md</span>'s own 10&nbsp;Sep audit, in the same terms.</td>
+            <td class="fix">Put <span class="mono">min_lux</span> or <span class="mono">pct_unlit</span> into
+              the gate. An edge bright at both ends and black in the middle currently passes the mean test
+              &mdash; and that is the street a pedestrian avoids.
+              <br><br><strong>Looked resolved upstream, 15&ndash;16&nbsp;Sep</strong> (<span class="mono">f740c29</span>,
+              <span class="mono">9877978</span>): <span class="mono">meanLightPasses()</span> (moved to
+              <span class="mono">NightLighting.isLit()</span> by <span class="mono">9877978</span>) does now
+              require <span class="mono">min_lux &ge; NightPars.darkSpotLuxThreshold</span> &mdash; exactly this
+              finding's fix, on paper.
+              <br><br><strong>Still broken, found 17&nbsp;Sep by direct code review:</strong>
+              <span class="mono">NightEnvironment.joinIlluminatedEdges()</span> joins only
+              <span class="mono">mean_lux</span> from the illuminated-edges GeoPackage onto graph edges;
+              <span class="mono">min_lux</span> is never joined, even though
+              <span class="mono">03_street_lights.py</span> computes and writes it to that same file. So
+              <span class="mono">edge.attributes.get("min_lux")</span> is always <code>null</code>, and
+              <span class="mono">isLit()</span>'s own fallback (<code>minLuxAttr&nbsp;==&nbsp;null&nbsp;||&nbsp;&hellip;</code>)
+              makes the new check pass unconditionally on every edge. The gate this finding asked for exists in
+              the code and has never once fired. Fix is a one-line addition to
+              <span class="mono">joinIlluminatedEdges()</span> alongside the existing
+              <span class="mono">mean_lux</span> join &mdash; not attempted here, since this register doesn't
+              apply fixes.</td>
+            <td class="pri-cell"><span class="pri high">high</span> <span class="pri free">free</span> <span class="pri broken">still broken</span></td>
+          </tr>
+          <tr>
+            <td class="id">C2</td>
+            <td class="issue"><strong>Light never enters route planning</strong> &mdash; yet prospective
+              avoidance already exists for parks, water and unknown regions, so lux's absence is an
+              inconsistency rather than a cognitive stance.</td>
+            <td class="evidence"><span class="mono">DijkstraRoadDistanceNight</span> contains no lux at all,
+              only a &ldquo;Possible to do&rdquo; comment. Agents react only once already standing on the dark
+              edge. Confirmed unchanged 13&nbsp;Sep, and independently recorded in
+              <span class="mono">bug_changelog.md</span>'s own 10&nbsp;Sep audit: &ldquo;an agent cannot prefer a
+              lit route in advance &mdash; only react once it is on a dark edge.&rdquo;</td>
+            <td class="fix">Add lux to the Dijkstra cost <strong>for known edges only</strong>, leaving situated
+              reaction for unknown ones. That uses the existing cognitive map, avoids giving agents citywide
+              omniscience, and rules out double-counting by construction.
+              <br><br><strong>Resolved upstream, 16&nbsp;Sep</strong> (<span class="mono">dd8b3cc</span>):
+              <span class="mono">DijkstraRoadDistanceNight.lightingCostMultiplier()</span> scales a known edge's
+              cost up toward <span class="mono">NightPars.maxKnownDarkEdgeCostMultiplier&nbsp;=&nbsp;1.5</span> as
+              <span class="mono">NightLighting.darknessDepth</span> increases &mdash; known edges only, matching
+              this finding's exact scoping.</td>
+            <td class="pri-cell"><span class="pri high">high</span> <span class="pri resolved">resolved</span></td>
+          </tr>
+          <tr>
+            <td class="id">C3</td>
+            <td class="issue">Half-changed. The reroute avoid-set is <strong>still binary-flag-based for
+              non-vulnerable agents</strong>; for vulnerable agents it was rebuilt around knowledge instead, which
+              sidesteps this finding rather than fixing it.</td>
+            <td class="evidence">Non-vulnerable path unchanged:
+              <span class="mono">SharedCognitiveMap.setLitNonLitEdges()</span> still builds
+              <span class="mono">nonLitNonKnown</span> from <code>edge.attributes.get("lit")</code>, the raw OSM
+              tag. Vulnerable path rewritten (12&nbsp;Sep): <span class="mono">NightAgentMovement.defineEdgesToAvoid</span>
+              now avoids everything outside community knowledge minus what the agent itself knows &mdash; no
+              lighting attribute enters it at all. <span class="mono">pedsim/night/TODO.md</span> flags this
+              construction as an open question in its own right: for a vulnerable agent the edge it is fleeing is
+              itself avoided only when it falls outside both known networks.</td>
+            <td class="fix">For non-vulnerable agents, build the avoid-set from lux instead of the binary flag,
+              consistent with the gate that triggered the reroute. The vulnerable-agent question is now a separate
+              one &mdash; whether knowledge-based avoidance is the intended design &mdash; and belongs with the
+              code owner, not this register.
+              <br><br><strong>Resolved upstream, 15&ndash;16&nbsp;Sep</strong> (<span class="mono">f740c29</span>,
+              then centralised into <span class="mono">NightLighting</span> by <span class="mono">9877978</span>):
+              the non-vulnerable avoid-set is now built from measured lux, matching this finding's fix. Vulnerable
+              agents' knowledge-based avoidance is untouched, as scoped.</td>
+            <td class="pri-cell"><span class="pri med">medium</span> <span class="pri resolved">resolved</span></td>
+          </tr>
+          <tr>
+            <td class="id">C4</td>
+            <td class="issue"><span class="pri resolved">resolved &middot; 10&ndash;12 Sep</span> &nbsp;
+              <strong>Unseeded RNG</strong> &mdash; fixed, and more thoroughly than this register asked for.</td>
+            <td class="evidence"><span class="mono">NightPopulate.populate()</span> now calls
+              <span class="mono">seedFrom(state)</span>; <span class="mono">NightBehaviour.random =
+              agent.getRandom()</span>. Documented in <span class="mono">bug_changelog.md</span> under
+              &ldquo;No run was reproducible from its seed&rdquo;, which names <span class="mono">NightBehaviour</span>
+              explicitly and reports every remaining <code>java.util.Random</code> in the simulation path replaced
+              with a per-agent seeded <span class="mono">MersenneTwisterFast</span> &mdash; the five
+              <span class="mono">core</span> sites this register flagged as a residual gap included.
+              <span class="mono">state.random</span> from <span class="mono">NightAgent.initSensitivity</span>
+              was itself folded into that generator, so the population draw and the threshold draw now come from
+              the same reproducible source.<br><br>Why it mattered: <span class="num">46%</span> of directed
+              entrances sit in the [5,&nbsp;15) lux band, exactly where vulnerable and non-vulnerable agents
+              disagree &mdash; so this draw decided outcomes on nearly half the network's entrances.</td>
+            <td class="fix">Nothing left to propose. Worth re-running anything reported from before
+              12&nbsp;September: <span class="mono">bug_changelog.md</span> is explicit that no two headless runs
+              before that date shared a seed.</td>
+            <td class="pri-cell"><span class="pri resolved">resolved</span></td>
+          </tr>
+          <tr>
+            <td class="id">C5</td>
+            <td class="issue">The 50/50 reroute-versus-speed-up split is arbitrary and uncorrelated with how
+              dark the edge actually is. Confirmed unchanged 13&nbsp;Sep &mdash; the value is now drawn from a
+              seeded generator (see <span class="mono">C4</span>), so this is at least reproducible, but the
+              literal <code>0.5</code> and its independence from darkness depth are untouched.</td>
+            <td class="evidence"><span class="mono">NightBehaviour.java:219</span>:
+              <code>random.nextDouble()&nbsp;&lt;&nbsp;0.5</code>. Effective P(reroute) is
+              &le;&nbsp;0.5, degrading to speed-up whenever rerouting is blocked.</td>
+            <td class="fix">Let the probability rise as the edge falls further below threshold &mdash; one
+              parameter, replacing one that has no justification at all.
+              <br><br><strong>Resolved upstream, 15&nbsp;Sep</strong> (<span class="mono">f740c29</span>):
+              P(reroute) now rises from 0.5 toward a new
+              <span class="mono">NightPars.maxRerouteProbabilityInDarkness&nbsp;=&nbsp;0.9</span> as the edge
+              darkens, matching this finding's fix.</td>
+            <td class="pri-cell"><span class="pri med">medium</span> <span class="pri resolved">resolved</span></td>
+          </tr>
+          <tr>
+            <td class="id">C6</td>
+            <td class="issue">Night agents <strong>never board transit</strong>. All night trips walk end to
+              end, while the phone-data validation counts metro and bus riders too.</td>
+            <td class="evidence"><span class="mono">NightAgent.step()</span> overrides
+              <span class="mono">ActivityAgent.step()</span> without calling
+              <code>super</code>, so the boarding gate is unreachable. Zero transit references in
+              <span class="mono">pedsim/night/</span>. Confirmed unchanged 13&nbsp;Sep.</td>
+            <td class="fix">Don't enable the existing transit code &mdash; three hardcoded archetype lines,
+              all-stops loops, one tick per hop would distort more than walk-only does. Document, with the
+              direction of the bias.
+              <br><br><strong>Resolved upstream, 17&nbsp;Sep</strong>: <span class="mono">NightAgent.java</span>'s
+              class Javadoc now states this exact finding &mdash; no transit, bias runs both ways, access/egress
+              walks missing &mdash; in the code owner's own words. Nothing left to propose.</td>
+            <td class="pri-cell"><span class="pri low">low</span> <span class="pri resolved">resolved</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Metrics and diagnostics <span class="tag">D</span></h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Issue</th><th>Evidence</th><th>Suggested fix</th><th>Priority</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="id">D1</td>
+            <td class="issue"><span class="pri resolved">resolved</span> &nbsp;
+              <span class="mono">getTripMeanLux</span> is now length-weighted, exactly as recommended, and the
+              fix is stated in the code's own docstring.</td>
+            <td class="evidence"><span class="mono">NightAgentMovement.recordLightingMetric</span> was rewritten:
+              <code>accumulatedLuxMetres += lux * metres; metresWalkedForLux += metres</code>, integrated over
+              every edge walked. Its docstring: <em>&ldquo;Dark metres count, which is what lets the per-trip
+              figure fall on a dark route.&rdquo;</em> That also settles, in the code owner's own words, the
+              question this register raised about whether the metric could fall at all.</td>
+            <td class="fix">Nothing left to propose.</td>
+            <td class="pri-cell"><span class="pri resolved">resolved</span></td>
+          </tr>
+          <tr>
+            <td class="id">D2</td>
+            <td class="issue">Lighting-coverage diagnostics already exist and have never been read.</td>
+            <td class="evidence"><span class="mono">NightEnvironment:77-80</span> logs
+              <code>mean_lux set on X / Y graph edges</code>, plus directional-lookup misses and binary-fallback
+              use.</td>
+            <td class="fix">Capture those lines on the first successful run. They settle how much of the network
+              is on modelled lux versus the binary fallback &mdash; a number currently unknown.
+              <br><br><strong>Answered, 18&nbsp;Sep</strong> (current <span class="mono">main</span>, real 7-day
+              Torino run): <span class="mono">mean_lux set on 44278 / 44278 graph edges (0 with no matching graph
+              edge)</span>; <span class="mono">Directional lighting: loaded 88556 rows (0 skipped)</span>. Full
+              coverage both ways &mdash; the binary fallback is a path that never fires on this data.</td>
+            <td class="pri-cell"><span class="pri low">low</span> <span class="pri resolved">answered</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Constants, re-audited <span class="tag">E &middot; sourcing pass</span></h2>
+    <p>The twelve parameters <em>Punti Luce to Lux</em> lists as &ldquo;nobody has sourced&rdquo;. Most of them
+      do have anchors &mdash; two in the road-lighting standard, one in the pedestrian-lighting literature, two
+      recoverable from the inventory itself. Two are genuinely arbitrary, and those are the two that should be
+      swept rather than defended.</p>
+    <div class="legend">
+      <div><span class="pri src">sourced</span> traceable to a standard, a paper, or this dataset</div>
+      <div><span class="pri med">partial</span> right magnitude, questionable method</div>
+      <div><span class="pri low">derive</span> compute it from the data rather than asserting it &mdash; or
+        delete it, where nothing depends on it</div>
+      <div><span class="pri high">arbitrary</span> no source exists &mdash; sweep it</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Constant</th><th>Value</th><th>Source</th><th>Action</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="issue">Lit / unlit threshold</td>
+            <td class="evidence"><span class="num">5 lux</span></td>
+            <td class="evidence"><strong>EN 13201-2 class P4</strong> &mdash; average illuminance
+              <span class="num">5.0&nbsp;lux</span>
+              (<a href="https://www.bega.com/en/knowledge/lighting-theory/reference-values-for-illumination/maintained-illuminance-according-to-dinen13201/">class table</a>)</td>
+            <td class="fix">Cite the standard. This is the pedestrian class boundary, not a chosen number.</td>
+            <td class="pri-cell"><span class="pri src">sourced</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Vulnerable light sensitivity</td>
+            <td class="evidence">uniform <span class="num">[5, 15]</span> lux</td>
+            <td class="evidence"><strong>EN 13201-2 P4 &rarr; P1</strong> &mdash; P4 = 5.0, P1 = 15.0 lux: the
+              complete span of the pedestrian classes</td>
+            <td class="fix">Reframe from &ldquo;an assumed range&rdquo; to &ldquo;spans the P-class range&rdquo;.
+              The heterogeneity also gives the population a graded response from a binary rule. And it is the
+              most consequential parameter in the model: <span class="num">46%</span> of directed entrances in
+              the pipeline's output fall inside this band.</td>
+            <td class="pri-cell"><span class="pri src">sourced</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Visibility horizon</td>
+            <td class="evidence"><span class="num">12 m</span></td>
+            <td class="evidence"><a href="https://journals.sagepub.com/doi/10.1177/1477153514529299">Fotios,
+              Yang &amp; Uttley (2015)</a> &mdash; fixation on other pedestrians at
+              <span class="num">10.3&nbsp;m</span>, <span class="num">15&nbsp;m</span> recommended</td>
+            <td class="fix">Keep. Consider 15&nbsp;m to match the recommended distance. Already in your
+              bibliography via <span class="mono">fotios2019evaluation</span>.</td>
+            <td class="pri-cell"><span class="pri src">sourced</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Sample spacing</td>
+            <td class="evidence"><span class="num">2 m</span></td>
+            <td class="evidence"><strong>EN 13201-3 / CIE 140</strong> calculation grid &mdash; standard
+              longitudinal spacing <span class="num">3&nbsp;m</span>
+              (<a href="https://standards.iteh.ai/catalog/standards/cen/3b3f153c-192f-486e-ba81-d0a6dbb114c4/en-13201-3-2015">standard</a>)</td>
+            <td class="fix">Say &ldquo;finer than the 3&nbsp;m grid of EN 13201-3&rdquo;. Being conservative
+              against a standard is a defence, not an assumption.</td>
+            <td class="pri-cell"><span class="pri src">sourced</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Luminous efficacy by technology</td>
+            <td class="evidence"><span class="num">120 / 90 / 70</span> lm/W</td>
+            <td class="evidence">LED road luminaires ~100&nbsp;lm/W typical, to 160
+              (<a href="https://www.sciencedirect.com/science/article/abs/pii/S0360544222012026">comparison
+              study</a>). But HPS spans 50&ndash;150, CDM 70&ndash;90, HQL far lower.</td>
+            <td class="fix">LED 120 is defensible &mdash; specify <em>luminaire</em>, not chip, efficacy. The
+              discharge figure is the weak one: <span class="mono">scarica/HID-CDM-HQL</span> merges
+              technologies that differ by more than the value itself.</td>
+            <td class="pri-cell"><span class="pri med">partial</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Utilisation factor by optic</td>
+            <td class="evidence"><span class="num">0.6 / 0.4 / 0.35 / 0.3</span></td>
+            <td class="evidence">The concept is standard &mdash; CIE 140 utilisation factor, typically
+              0.3&ndash;0.5 for road lighting</td>
+            <td class="fix">Right magnitude, wrong method: real UF is read off a luminaire's utilisation curve
+              as a function of road width &divide; mounting height, not assigned by optic class. Fold into a
+              single fitted coefficient rather than presenting it as derived.
+              <br><br><strong>Superseded upstream, 16&nbsp;Sep</strong> (<span class="mono">71e06b2</span>):
+              the utilisation-factor slot is removed entirely, replaced by DLOR (downward light output ratio), a
+              defined photometric quantity bounded by Piemonte's ULOR&asymp;0 regulation and LED luminaires'
+              LOR&asymp;1.0 convention &mdash; this register's own objection (charging for delivery geometry
+              twice) no longer applies.</td>
+            <td class="pri-cell"><span class="pri resolved">resolved</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Lumens &rarr; candela divisor</td>
+            <td class="evidence"><span class="num">&pi;</span></td>
+            <td class="evidence">Exact normalisation for a Lambertian source (&Phi; = &pi;I&#8320;)</td>
+            <td class="fix"><strong>Remove from this list</strong> &mdash; it was never arbitrary. The defect is
+              that the falloff law doesn't match it; that belongs to <span class="mono">A3</span>.
+              <br><br><strong>Overtaken by A3's resolution, 16&nbsp;Sep:</strong> the divisor is no longer fixed
+              at &pi; &mdash; it is set by whichever <span class="mono">FALLOFF_LAW</span> is configured
+              (<span class="mono">2&pi;</span> for the now-default <code>isotropic</code>, &pi; for
+              <code>lambertian</code>/<code>mixed</code>), so this row's premise (one constant divisor) no longer
+              describes the code.</td>
+            <td class="pri-cell"><span class="pri src">not arbitrary</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Group-median defaults</td>
+            <td class="evidence"><span class="num">100 W</span> &middot; <span class="num">9 m</span></td>
+            <td class="evidence">The global pole median in this inventory is <strong>exactly
+              9.0&nbsp;m</strong>; the power median is computable the same way</td>
+            <td class="fix">Compute both from the data instead of hardcoding. They then stop being assumptions
+              and become statistics &mdash; and stay correct for any other city.</td>
+            <td class="pri-cell"><span class="pri low">derive</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Lamp search radius</td>
+            <td class="evidence"><span class="num">40 m</span></td>
+            <td class="evidence">No standard exists &mdash; it is a numerical truncation, not a physical
+              quantity</td>
+            <td class="fix">Derive it: the distance at which truncated contribution falls below a stated
+              fraction of the 5 lux threshold. Or use the per-lamp <span class="mono">radius_m</span> already
+              computed in step 2 &mdash; but not both.
+              <br><br><strong>Resolved</strong> (see <span class="mono">A6</span> above) &mdash; and the derived
+              value moves with the falloff-law choice: 112.5&nbsp;m under the old <code>mixed</code> law,
+              88.7&nbsp;m under the now-default <code>isotropic</code>, 67.7&nbsp;m under <code>lambertian</code>.</td>
+            <td class="pri-cell"><span class="pri resolved">resolved</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Nominal lux for binary-lit edges</td>
+            <td class="evidence"><span class="num">5.0</span></td>
+            <td class="evidence">&mdash;</td>
+            <td class="fix"><strong>Probably removable.</strong> Step 3's <code>fillna(0.0)</code> gives every
+              Torino edge a <span class="mono">mean_lux</span>, so this branch may never execute. Confirm with
+              the <span class="mono">D2</span> coverage log, then delete.</td>
+            <td class="pri-cell"><span class="pri low">remove</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Reroute vs. walk faster</td>
+            <td class="evidence"><span class="num">50 / 50</span></td>
+            <td class="evidence">None exists</td>
+            <td class="fix">Genuinely arbitrary, and it governs the entire behavioural response to darkness.
+              Replace with a probability monotone in depth below threshold, and sweep it.</td>
+            <td class="pri-cell"><span class="pri high">arbitrary</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Crowdedness percentile</td>
+            <td class="evidence"><span class="num">80th</span></td>
+            <td class="evidence">None exists</td>
+            <td class="fix">Model-internal calibration rather than a physical constant. Label it as such and
+              sweep it; don't imply an empirical basis it doesn't have.</td>
+            <td class="pri-cell"><span class="pri high">arbitrary</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Net: four sourced outright, one reclassified as correct physics, two partial, two derivable from data you
+      already hold, one removable &mdash; leaving <strong>two genuinely arbitrary constants</strong>, both
+      behavioural. That is a very different table to defend than the original twelve.</p>
+  </section>
+
+  <section>
+    <h2>Sequencing</h2>
+    <p>Grouped by what each stage costs, since the pipeline items share a re-run and the behavioural ones
+      don't. As of 17&nbsp;September, <span class="mono">A6, C2, C3, C4, C5, D1</span> and the statistic half
+      of <span class="mono">B1</span> have dropped out of the stages below since they're resolved upstream,
+      matching this register's own recommendation &mdash; see their rows above. <span class="mono">A1</span> and
+      <span class="mono">A2</span> have also dropped out, resolved upstream the same way. <span class="mono">A3</span>
+      has dropped out too, but resolved with a <em>different</em> choice than this register proposed (isotropic,
+      not Lambertian) &mdash; see its row above; whether that choice is right for Turin's fixtures is a live
+      question again, just no longer one this register needs to sequence. <span class="mono">C1</span> is back
+      <em>in</em> the table below, not out of it: the upstream diff added the right check but wired it to a
+      column that's never joined, so it has never actually run &mdash; see Section H.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Stage</th><th>Items</th><th>Why grouped this way</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="id">1 &middot; free</td>
+            <td class="issue"><span class="mono">C1</span> (join the fix, not just gate on it) &middot;
+              <span class="mono">D2</span></td>
+            <td class="fix">No pipeline re-run and no new parameters &mdash; <span class="mono">C1</span> needs one
+              added line in <span class="mono">NightEnvironment.joinIlluminatedEdges()</span> to join
+              <span class="mono">min_lux</span> the same way <span class="mono">mean_lux</span> already is; the
+              data the fix needs is already sitting in the GeoPackage.</td>
+          </tr>
+          <tr>
+            <td class="id">2 &middot; decide, then re-run</td>
+            <td class="issue">Horizon half of <span class="mono">B1</span></td>
+            <td class="fix">Still open: whether to move <span class="mono">VISIBILITY_HORIZON_M</span> from
+              12&nbsp;m to the 15&nbsp;m Fotios recommends. Needs a step-4 re-run once decided.</td>
+          </tr>
+          <tr>
+            <td class="id">3 &middot; document</td>
+            <td class="issue"><span class="mono">A5 &middot; A7 &middot; C6</span> and the canopy half of
+              <span class="mono">A4</span></td>
+            <td class="fix">Not fixable from the data available. State them as limitations with the direction of
+              bias.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Beyond this register <span class="tag">F &middot; from the upstream audit, 10&ndash;13 Sep</span></h2>
+    <p>Not lighting-pipeline findings, but things the 10 days of commits surfaced that bear directly on any
+      lighting study run on this model. Recorded here so they travel with the register rather than staying
+      buried in <span class="mono">bug_changelog.md</span> and <span class="mono">pedsim/night/TODO.md</span>.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Item</th><th>What it is</th><th>Why it belongs here</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="issue"><span class="pri resolved">resolved &middot; 14 Sep</span> &nbsp;
+              Nobody commutes in the dark &mdash; fixed.</td>
+            <td class="evidence"><span class="mono">CommuterAgent</span> is gone, folded into
+              <span class="mono">ActivityAgent</span> (commit <span class="mono">f646722</span>,
+              &ldquo;Fix commute darkness and city purpose config&rdquo;), and its unsourced
+              <code>!isDark()</code> guard went with it: <em>&ldquo;removes the daylight gate from commute
+              routing so work departures follow the persona schedule and seasonal lighting, not a separate
+              night check.&rdquo;</em> Verified directly against <span class="mono">main</span> at
+              <span class="mono">08063cf</span> &mdash; this register's own clone was at
+              <span class="mono">b2692d2</span>, five commits behind.</td>
+            <td class="fix">Nothing left to propose. Worth checking separately that the persona-schedule
+              replacement doesn't reintroduce the same effect indirectly (e.g. if work-start windows turn out
+              themselves daylight-biased) &mdash; that's a new question, not this one.</td>
+          </tr>
+          <tr>
+            <td class="issue">Route-planning avoidance is barrier-blind at night</td>
+            <td class="evidence"><span class="mono">roadDistanceNight</span> reaches the three-argument
+              <span class="mono">dijkstraAlgorithm</span>, which skips <span class="mono">initialisePrimal</span>
+              &mdash; so <span class="mono">directedEdgesToAvoid</span> is never consulted, and night also
+              swaps in a plain draw for <span class="mono">costPerceptionError</span>.</td>
+            <td class="fix">Compounds <span class="mono">C2</span>: night routing was already found to ignore
+              lux, and per <span class="mono">pedsim/night/TODO.md</span> it also ignores barrier preferences
+              that daytime routing respects. &ldquo;Night routing is not day routing plus lighting&rdquo; is the
+              module's own framing.</td>
+          </tr>
+          <tr>
+            <td class="issue">GeoMason-light 2.2.0 is two different builds</td>
+            <td class="evidence">The server's jar was 115,882 bytes against 117,232 locally &mdash; an older
+              build sharing the same version tag, predating a null-safety fix. Already caused one
+              <span class="mono">NullPointerException</span> on <span class="mono">gdsl1</span> that did not
+              reproduce locally.</td>
+            <td class="fix">Not a lighting defect, but a silent threat to any result run on the server: compare
+              jar byte sizes before trusting a server/local discrepancy is data, not build drift.</td>
+          </tr>
+          <tr>
+            <td class="issue">Melbourne and Barcelona: base layers only, no lighting inventory</td>
+            <td class="evidence"><span class="mono">Melbourne_buildings/_edges/_nodes/_sight_lines2D.gpkg</span>
+              and the Barcelona equivalents are real data in the 13&nbsp;Sep clone. Neither city has a
+              <span class="mono">_puntiLuce.gpkg</span> or <span class="mono">_streetlights.gpkg</span>.</td>
+            <td class="fix">Consistent with the council-data survey done separately for this project: Melbourne's
+              own published lux dataset covers council-owned lights only (~19% of the network) and predates the
+              2014 LED changeover, so it can't simply be dropped in as the missing inventory. A full inventory
+              (comparable to what the Cities of Casey or Greater Geelong publish) is still the blocker.
+              <span class="mono">pedsim/night/TODO.md</span> separately notes Melbourne's pedestrian counts are
+              wired to the city-image module only so far &mdash; &ldquo;no clock &mdash; spatial pattern
+              only&rdquo; &mdash; not yet to night.</td>
+          </tr>
+          <tr>
+            <td class="issue"><span class="mono">distanceWeight</span> is stale for Torino's real circuity</td>
+            <td class="evidence">The network-circuity fix above (self-measured, now
+              <span class="num">1.292</span> for Torino) exposed a second constant that doesn't track it.
+              <span class="mono">DestinationChoice.choose()</span> weighs discretionary destinations by
+              <code>metres&nbsp;=&nbsp;straight-line&nbsp;&times;&nbsp;Pars.networkCircuityFactor</code>, linearly
+              &mdash; so only the <em>product</em> <code>distanceWeight&nbsp;&times;&nbsp;circuity</code> sets the
+              choice probabilities, per the method's own docstring (&ldquo;the scaling is absorbed into the
+              coefficient&rdquo;). <span class="mono">ActivityPars.distanceWeight&nbsp;=&nbsp;0.0012</span> is a
+              static constant, fixed &mdash; per <span class="mono">CHANGELOG.md</span> &mdash; while circuity sat
+              at <span class="num">1.41</span>. Circuity now self-corrects to 1.292 every run; the coefficient
+              does not, so the product silently dropped <span class="num">8.4%</span> the moment the circuity
+              measurement was fixed, with nobody having decided that.</td>
+            <td class="fix">Re-derived by holding the product invariant:
+              <code>0.0012&nbsp;&times;&nbsp;(1.41&nbsp;/&nbsp;1.292)&nbsp;&approx;&nbsp;<strong>0.0013096</strong></code>.
+              This is a <strong>consistency fix, not a calibration</strong> &mdash;
+              <span class="mono">pedsim/activity/TODO.md</span> is explicit that
+              <span class="mono">distanceWeight</span> has never been fitted to real data (Audimob microdata via
+              ISFORT is a separate, still-open request); this only stops the circuity correction being applied
+              twice and preserves the shape the model already produced. Scoped to
+              <span class="mono">DestinationChoice.java</span> alone &mdash;
+              <span class="mono">ActivityAgent.decideCommuteMode()</span>/<span class="mono">commuteMetres()</span>
+              and <span class="mono">CommuteCalibration</span> already read
+              <span class="mono">Pars.networkCircuityFactor</span> live at call time and need no equivalent
+              fix.
+              <p style="margin-top:10px;"><span class="pri rejected">rejected upstream</span>
+              <strong>16&nbsp;Sep</strong> (<span class="mono">1d149a4</span>): <span class="mono">ActivityPars.java</span>'s
+              new Javadoc explicitly instructs against this rescaling &mdash; &ldquo;compensating pins this
+              coefficient to a circuity figure derived from a set of trips, and re-imports through the coefficient
+              exactly the circularity that measuring circuity from the network removes.&rdquo; The code owner's
+              stated position is to leave <span class="mono">distanceWeight&nbsp;=&nbsp;0.0012</span> as an
+              unfitted constant rather than adjust it for the circuity re-measurement, treating the drift this
+              row flags as acceptable rather than a defect to correct.</p></td>
+          </tr>
+          <tr>
+            <td class="issue">~100 files still uncommitted</td>
+            <td class="evidence"><span class="mono">pedsim/night/TODO.md</span>, written after the 13&nbsp;Sep
+              clean run, opens with: <em>&ldquo;Commit. Around a hundred files are uncommitted, and they include
+              release, destination choice, routing and the A/B itself.&rdquo;</em></td>
+            <td class="fix">This register's &ldquo;confirmed unchanged&rdquo; notes above are against HEAD
+              <span class="mono">b2692d2</span> specifically &mdash; expect more movement, and re-diff before
+              relying on any row here.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Second city: Lyon <span class="tag">G &middot; candidate-city search, 11&ndash;14 Sep</span></h2>
+    <p>A separate thread from the lighting-chain audit: which city could join Torino as a second case study.
+      Two conditions, both required &mdash; a street-lighting inventory rich enough to drive real per-lamp
+      physics, and a genuine automated pedestrian-counting network to validate against. Nine cities were
+      checked against real downloaded data, not metadata pages.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>City</th><th>Lighting</th><th>Pedestrians</th><th>Verdict</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="issue">Lyon</td>
+            <td class="evidence">77,923 pts &middot; wattage 97.1% &middot; height 98.2%</td>
+            <td class="evidence">267 channels / 104 sites, 94% permanent, hourly, live 2026</td>
+            <td class="pri-cell"><span class="pri resolved">both confirmed &mdash; strongest</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Madrid</td>
+            <td class="evidence">233,309 pts &middot; technology only, no wattage/height</td>
+            <td class="evidence">30 permanent stations, hourly, since 2019</td>
+            <td class="pri-cell"><span class="pri resolved">both confirmed &mdash; runner-up</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Dublin</td>
+            <td class="evidence">45,017 pts &middot; mounting category only</td>
+            <td class="evidence">Hourly footfall counters, ongoing</td>
+            <td class="pri-cell"><span class="pri med">partial match</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Prague</td>
+            <td class="evidence">145,592 pts &middot; pole-type categories, no wattage/height</td>
+            <td class="evidence">Not found (searched directly; inconclusive, not confirmed absent)</td>
+            <td class="pri-cell"><span class="pri low">lighting-only</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Nantes</td>
+            <td class="evidence">97,473 pts &middot; wattage, height, arm length, technology &mdash; richest single-city schema found</td>
+            <td class="evidence">Counting network confirmed bicycle-only</td>
+            <td class="pri-cell"><span class="pri low">lighting-only</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Camden (London)</td>
+            <td class="evidence">10,658 pts &middot; wattage, lamp type, height &mdash; 100% complete</td>
+            <td class="evidence">Not found &mdash; only periodic surveys / commercial mobility indices citywide</td>
+            <td class="pri-cell"><span class="pri low">lighting-only</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Zurich</td>
+            <td class="evidence">42,421 pts &middot; location + orientation only, zero categorical variation</td>
+            <td class="evidence">15-min permanent stations since 2012</td>
+            <td class="pri-cell"><span class="pri low">pedestrians-only</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Bordeaux</td>
+            <td class="evidence">30,301 pts, stale (2019/2020)</td>
+            <td class="evidence">14 sites, mostly tourism-tagged &mdash; uncertain fit</td>
+            <td class="pri-cell"><span class="pri low">both weak</span></td>
+          </tr>
+          <tr>
+            <td class="issue">Sydney, Mechelen, Ghent/Fluvius</td>
+            <td class="evidence">Thin, stale, or non-existent on inspection despite promising marketing copy</td>
+            <td class="evidence">Trial ended (Sydney) or unmatched by the actual portal (Mechelen)</td>
+            <td class="pri-cell"><span class="pri high">ruled out</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>Lyon wins on both axes at once</strong> &mdash; the only city in the search with lighting data
+      more complete than Torino's own <em>and</em> the largest confirmed pedestrian-counting network of any
+      city checked, European or otherwise.</p>
+
+    <h3>Lyon vs. Torino &mdash; street lighting</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Field</th><th>Torino (<span class="mono">puntiLuce</span>)</th><th>Lyon (SIGERLy, EclExt standard)</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="issue">Total records</td>
+            <td class="evidence">99,742</td>
+            <td class="evidence">77,923</td>
+          </tr>
+          <tr>
+            <td class="issue">Technology (<span class="mono">tecnologia</span> / <span class="mono">typeSource</span>)</td>
+            <td class="evidence"><span class="num">93.8%</span> complete &mdash; LED 60.0% &middot; discharge
+              33.8% &middot; undetermined 6.2%</td>
+            <td class="evidence"><span class="num">100%</span> complete &mdash; LED 41.9% &middot; sodium (SHP)
+              37.8% &middot; metal halide 15.9% &middot; mercury vapour 2.1% &middot; other 2.2%</td>
+          </tr>
+          <tr>
+            <td class="issue">Wattage</td>
+            <td class="evidence"><span class="mono">potenza_w_max</span>: <span class="num">89.6%</span>
+              complete</td>
+            <td class="evidence"><span class="mono">puissance</span>: <span class="num">97.1%</span> complete
+              (only 79 records at zero)</td>
+          </tr>
+          <tr>
+            <td class="issue">Mounting height</td>
+            <td class="evidence"><span class="mono">altezza_palo_m</span>: <span class="num">54.5%</span>
+              complete</td>
+            <td class="evidence"><span class="mono">hauteurFeu</span>: <span class="num">98.2%</span> complete</td>
+          </tr>
+          <tr>
+            <td class="issue">Manufacturer</td>
+            <td class="evidence">no field</td>
+            <td class="evidence"><span class="mono">fabricant</span>: 97.1% complete</td>
+          </tr>
+          <tr>
+            <td class="issue">Colour temperature</td>
+            <td class="evidence">no field</td>
+            <td class="evidence"><span class="mono">temperatur</span> (present, not independently profiled)</td>
+          </tr>
+          <tr>
+            <td class="issue">Per-record provenance</td>
+            <td class="evidence">no field</td>
+            <td class="evidence"><span class="mono">datemaj</span> (last updated), <span class="mono">valideDe</span> (valid from)</td>
+          </tr>
+          <tr>
+            <td class="issue">Arm / projection</td>
+            <td class="evidence"><span class="mono">braccio_l_m_max</span>: 7.2% complete, unused (A5)</td>
+            <td class="evidence">no equivalent field found</td>
+          </tr>
+          <tr>
+            <td class="issue">Format / currency</td>
+            <td class="evidence">GeoPackage, EPSG:3003, current municipal feed</td>
+            <td class="evidence">Shapefile, CRS not independently re-verified this pass; dataset dated
+              31&nbsp;Aug 2023 &mdash; ~3 years stale against today</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Lyon is smaller in count but <strong>more complete on every field the actual physics runs on</strong>.
+      Wattage and height both clear 97%, against Torino's 89.6% and 54.5% &mdash; Lyon could plausibly need
+      <em>less</em> imputation than Torino's own pipeline currently carries, and it adds two fields
+      (manufacturer, colour temperature) Torino has no equivalent for at all.</p>
+
+    <h3>Lyon vs. Torino &mdash; pedestrian validation</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Field</th><th>Torino (Vodafone Smart Locator)</th><th>Lyon (<span class="mono">comptage-mobilites</span>)</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="issue">What it measures</td>
+            <td class="evidence">Unique SIM presence &mdash; all modes, indoors included</td>
+            <td class="evidence">Direct pedestrian counts; <span class="mono">mobility_type</span> is an
+              explicit per-channel field, distinct from 741 BIKE / 250 E-SCOOTER / 62 CAR / 45 BUS / 37 TRUCK
+              channels in the same system</td>
+          </tr>
+          <tr>
+            <td class="issue">Coverage</td>
+            <td class="evidence">Cell grid, citywide, continuous</td>
+            <td class="evidence"><span class="num">104</span> distinct sites, <span class="num">267</span>
+              channels (point coverage, multiple directions/sidewalks per site)</td>
+          </tr>
+          <tr>
+            <td class="issue">Temporal resolution</td>
+            <td class="evidence">Aggregated over dwell-time buckets</td>
+            <td class="evidence">Hourly (176 channels) or 15-min (87 channels)</td>
+          </tr>
+          <tr>
+            <td class="issue">Permanence &amp; currency</td>
+            <td class="evidence">4-month window used for validation</td>
+            <td class="evidence"><span class="num">251 / 267 (94%)</span> permanent installations;
+              <span class="num">171</span> channels updated within 2026</td>
+          </tr>
+          <tr>
+            <td class="issue">Mode purity</td>
+            <td class="evidence">Cannot separate pedestrians from vehicles at short dwell (a car crosses a
+              216&nbsp;m cell in ~26 s vs. a pedestrian's ~2.8 min)</td>
+            <td class="evidence">Pure by construction &mdash; active/passive infrared, radar, video and
+              inductive-loop sensors, each tagged by mode</td>
+          </tr>
+          <tr>
+            <td class="issue">Provider</td>
+            <td class="evidence">Vodafone</td>
+            <td class="evidence">Grand Lyon (168 channels) &middot; EcoCounter (51) &middot; JCDecaux (48)</td>
+          </tr>
+          <tr>
+            <td class="issue">What it validates</td>
+            <td class="evidence"><strong>Shape only</strong> &mdash; diurnal, spatial, compositional; never
+              absolute volume (stated explicitly in <span class="mono">pedsim/night/TODO.md</span>)</td>
+            <td class="evidence">Absolute counts at 104 real locations, continuously, mode-pure</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>No contest here. Lyon's network is roughly <strong>3.5&times; Madrid's station count</strong> (104 vs.
+      30), mode-pure the way neither Torino's nor Zurich's data is, and comes from a genuinely heterogeneous
+      multi-vendor deployment actively maintained through the current year &mdash; not a single pilot or a
+      biennial survey.</p>
+
+    <div class="callout note">
+      <h3>What integrating Lyon would actually take</h3>
+      <p>None of this is wired into the pipeline yet &mdash; these are findings, not a build. Concretely:
+        (1) a step-0 city-preparation run for Lyon (OSM network, buildings, districts &mdash; the same
+        pipeline Torino, Melbourne and Barcelona already went through); (2) a French census adapter
+        (<span class="mono">01_census_insee.py</span> or similar), on the same pattern the pipeline's own
+        README already anticipates for a UK adapter &mdash; the ISTAT-specific
+        <span class="mono">01_census_istat.py</span> has no French equivalent; (3) a lighting adapter for the
+        EclExt schema, most likely a genuinely rich one given the completeness numbers above, alongside
+        Torino's rather than replacing it; (4) ingestion of the <span class="mono">comptage-mobilites</span>
+        channel data as a new validation source, parallel to the Vodafone comparison already in
+        <span class="mono">analysis/validation/Torino/</span>. And the currency gap is worth stating plainly:
+        Lyon's lighting snapshot is from August 2023 &mdash; check whether SIGERLy has published a fresher
+        one before committing to it.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Direct code review of the upstream landing <span class="tag">H &middot; 17 September</span></h2>
+    <p>Section G's supersession pass read diffs and commit messages. This section is different: a direct,
+      line-by-line review of the resulting source on <span class="mono">main</span> at
+      <span class="mono">892cf72</span> &mdash; not what the commits say they do, but what the code actually
+      does when traced end to end. Ten findings, ranked by severity; the headline one corrects this register's
+      own 17&nbsp;September entry for <span class="mono">C1</span>, above.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Item</th><th>What it is</th><th>Why it belongs here</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="issue"><span class="pri broken">still broken</span> &nbsp;
+              <span class="mono">C1</span>'s fix is wired to a column nobody joins</td>
+            <td class="evidence">See <span class="mono">C1</span>'s row above and the callout up top for the full
+              trace. <span class="mono">NightEnvironment.joinIlluminatedEdges()</span> joins
+              <span class="mono">mean_lux</span> only; <span class="mono">min_lux</span> is computed by the
+              pipeline and never reaches the graph.</td>
+            <td class="fix">Highest priority in this section &mdash; it silently reverts a finding this register,
+              the code owner, and the <span class="mono">night-fixes-eval</span> branch all separately agreed
+              needed fixing, and a diff-only check (this register's own 17&nbsp;Sep pass, before this section
+              existed) cannot catch it.</td>
+          </tr>
+          <tr>
+            <td class="issue">Dashboard throws on load; two called functions don't exist</td>
+            <td class="evidence"><span class="mono">HtmlExporter.java:1463,1465</span> call
+              <span class="mono">initTimeline()</span> and <span class="mono">startAnim()</span>; neither is
+              defined anywhere in the file. Confirmed by direct grep &mdash; zero matches for either as a
+              function definition.</td>
+            <td class="fix">Uncaught <span class="mono">ReferenceError</span> on every dashboard load, aborting
+              the top-level script before the tab/animation setup that follows it runs. Any figure or check that
+              depends on opening this dashboard is affected.</td>
+          </tr>
+          <tr>
+            <td class="issue">Dashboard time labels wrong by 4&times;</td>
+            <td class="evidence">Five separate places in <span class="mono">HtmlExporter.java</span> (lines 794,
+              838, 871, 1124, 1196) hardcode a 20-minutes-per-step conversion; the real step duration
+              (<span class="mono">TimePars.STEP_DURATION</span>) is 5 minutes.</td>
+            <td class="fix">Every timeline label, the day/night trip classification, and the hourly-volume charts
+              read the wrong clock hour &mdash; e.g. step 72 (6:00 at the real 5-min step) displays as hour 0.</td>
+          </tr>
+          <tr>
+            <td class="issue">Dashboard day/night boundary disagrees with the model three different ways</td>
+            <td class="evidence">Three separate hardcodes, not two: <span class="mono">6/20</span> (baked into
+              a template placeholder at lines 246&ndash;247 and reused elsewhere in the file),
+              <span class="mono">6.85/18.5</span> (line 971), and <span class="mono">7/18</span> in the volumes
+              tab (line 1284). None reads the new configurable
+              <span class="mono">ActivityPars.dayStartHour</span>/<span class="mono">nightStartHour</span> that
+              the simulation itself now uses via seasonal daylight.</td>
+            <td class="fix">A trip the model correctly treats as after-dark (via
+              <span class="mono">CityLocation</span>/<span class="mono">Daylight.isDark</span>) can display as
+              &ldquo;day&rdquo; on the dashboard, and the three dashboard boundaries can disagree with each other
+              as well as with the sim.</td>
+          </tr>
+          <tr>
+            <td class="issue">Dashboard hardcodes &ldquo;Torino&rdquo; and a Torino fallback centre-point</td>
+            <td class="evidence"><span class="mono">HtmlExporter.java:1420</span> prints the literal string
+              <span class="mono">"Torino"</span> on the volume-flow chart regardless of which city is loaded;
+              <span class="mono">computeCentre()</span> (line 210) takes a raw MBR midpoint as if it were WGS84
+              lat/lon, with a hardcoded Torino fallback, instead of using this diff's own new
+              <span class="mono">ActivityPars.cityLatitude</span>/<span class="mono">cityLongitude</span>.</td>
+            <td class="fix">Cosmetic for Torino-only runs today, but <span class="mono">TODO.md</span> already
+              anticipates other cities, and Section G of this register is actively evaluating one (Lyon). Either
+              would mislabel its own chart and mis-centre its own map.</td>
+          </tr>
+          <tr>
+            <td class="issue"><span class="mono">--enableAB</span> CLI alias silently dropped</td>
+            <td class="evidence"><span class="mono">NightSimulationModule.applyParameters()</span> was deleted
+              with no replacement entry in <span class="mono">ParameterManager.ALIASES</span>.</td>
+            <td class="fix">A saved config or script still passing <span class="mono">--enableAB=true</span> hits
+              a <span class="mono">NoSuchFieldException</span> logged only at <span class="mono">FINE</span>
+              level &mdash; the run reports success with A/B testing silently never enabled.</td>
+          </tr>
+          <tr>
+            <td class="issue">A/B setup and caveat logging moved from stdout to stderr</td>
+            <td class="evidence"><span class="mono">NightPopulate</span>/<span class="mono">NightEngine</span>'s
+              <span class="mono">System.out.println</span> calls were replaced with
+              <span class="mono">LoggerUtil</span>, whose default handler writes to stderr.</td>
+            <td class="fix">Any script capturing only stdout (no <span class="mono">2&gt;&amp;1</span>) to
+              confirm the spawned A/B pair count or surface the census-sampling caveat stops seeing those
+              lines with no error.</td>
+          </tr>
+          <tr>
+            <td class="issue">Vulnerable-agent unlit-edge set recomputed on every reroute &mdash; deliberately,
+              but a cheaper cache still looks possible</td>
+            <td class="evidence"><span class="mono">NightLighting.unlitEdges(candidates, threshold)</span> is
+              uncached; its own Javadoc gives the reason &mdash; a vulnerable agent's threshold is drawn per
+              agent, so there is no single citywide answer to keep the way
+              <span class="mono">unlitEdgesOutsideCommunityKnown()</span> keeps one for non-vulnerable agents.
+              A real constraint, not an oversight.</td>
+            <td class="fix">Performance, not correctness &mdash; but the constraint above rules out a citywide
+              cache, not a per-agent one. An agent's own (candidates, threshold) pair is fixed for its whole run,
+              and <span class="mono">TODO.md</span> notes reroute can fire on up to 90% of dark-edge encounters,
+              so a per-agent cache looks like it would still pay for itself.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Reviewed by a direct line-by-line pass over <span class="mono">src/main/java/pedsim/night/</span>,
+      <span class="mono">ActivityPars.java</span>, and the four Python pipeline files this window touched,
+      cross-checked against source rather than inferred from commit messages. Cut for this table (lower
+      severity, cleanup/reuse/efficiency rather than correctness): duplicated colour-ramp and path-length math in
+      the dashboard JS, hand-rolled JSON construction where the codebase already has a shared serializer,
+      duplicated field-derivation blocks and an O(pairs&nbsp;&times;&nbsp;trips) scan in
+      <span class="mono">NightDataExporter.saveABTestComparison</span>, a missing animation-frame throttle on
+      one dashboard canvas's pan handler, <span class="mono">ARCADE_DEPTH_M</span> having no CLI override unlike
+      its sibling <span class="mono">NO_POLE_HEIGHT_M</span>, and <span class="mono">NightAgentMovement</span>
+      now unconditionally avoiding an agent's current edge for vulnerable agents too (stated as deliberate, but
+      changes previously-reachable routes in sparse-graph corner cases).</p>
+  </section>
+
+  <section>
+    <h2>Sources</h2>
+    <p>Standards and literature the constants in section E are traced to. None of this was cited in the
+      repository before this pass.</p>
+    <ul>
+      <li><strong><span class="mono">bug_changelog.md</span></strong> &mdash; the code owner's own defect log,
+        March&ndash;September 2026. Its 10&nbsp;September entry &ldquo;Found in the lighting chain, not
+        fixed&rdquo; independently corroborates <span class="mono">A2</span>, <span class="mono">A5</span>,
+        <span class="mono">C1</span> and <span class="mono">C2</span>; its RNG entries document the
+        <span class="mono">C4</span> fix. Repo root, <span class="mono">PedSimCity</span>.</li>
+      <li><strong><span class="mono">pedsim/night/TODO.md</span></strong> &mdash; written 13&nbsp;September,
+        after the first clean full-Torino run of the post-refactor code. Source for
+        <span class="mono">D1</span>'s fix, the <span class="mono">C3</span> open question, and every item in
+        Section F.</li>
+      <li><strong>EN 13201-2:2015</strong> &mdash; <em>Road lighting, Part 2: Performance requirements.</em>
+        Defines the P classes for pedestrian areas and their maintained average illuminance:
+        <span class="mono">P1 = 15 &middot; P2 = 10 &middot; P3 = 7.5 &middot; P4 = 5.0 &middot; P5 = 3.0
+        &middot; P6 = 2.0 lux</span>. Anchors both the 5 lux threshold (P4) and the [5, 15] vulnerable
+        sensitivity range (P4&nbsp;&rarr;&nbsp;P1).</li>
+      <li><strong>EN 13201-3:2015</strong> &mdash; <em>Road lighting, Part 3: Calculation of performance.</em>
+        Specifies the calculation grid; standard longitudinal point spacing is 3&nbsp;m, against which the
+        pipeline's 2&nbsp;m is conservative rather than arbitrary.</li>
+      <li><strong>CIE 140</strong> &mdash; <em>Road lighting calculations.</em> Origin of the
+        utilisation-factor concept and of the grid conventions EN 13201-3 adopts. Real utilisation is a curve
+        in road width &divide; mounting height, not a per-optic constant &mdash; which is why the utilisation
+        table is marked <em>partial</em> rather than sourced.</li>
+      <li><strong>UNI 11248</strong> &mdash; the Italian selection standard that assigns a lighting class to a
+        given road, and therefore how Turin's own streets acquire their P or M class. Relevant if the modelled
+        surface is ever compared against compliance criteria.</li>
+      <li><strong><span class="mono">data.grandlyon.com</span></strong> &mdash; source for Section G's Lyon
+        figures: <a href="https://data.grandlyon.com/portail/fr/jeux-de-donnees/points-lumineux-eclairage-public-de-la-metropole-de-lyon-sigerly/info">points
+        lumineux SIGERLy</a> (lighting, EclExt national schema) and the
+        <a href="https://data.grandlyon.com/portail/fr/jeux-de-donnees/comptage-des-mobilites-de-la-metropole-de-lyon/info">comptage-mobilites</a>
+        site/channel/measure collection (pedestrian counting), both downloaded and profiled directly rather
+        than read from metadata.</li>
+      <li><strong>Géostandard EclExt</strong> (COVADIS / CNIG) &mdash; the French national data model for
+        exterior lighting that both Lyon's and Nantes's datasets conform to, which is why both carry wattage,
+        height and technology fields Torino's own schema lacks a full equivalent for.</li>
+      <li><strong><span class="mono">datos.madrid.es</span></strong> &mdash; Madrid's runner-up figures:
+        <a href="https://datos.madrid.es/dataset/300573-0-unidades-luminosas-farolas">Unidades luminosas
+        (farolas)</a> and <a href="https://datos.madrid.es/dataset/300321-0-aforos-peatones-bicicletas">Aforos
+        de peatones y bicicletas</a>, both downloaded directly.</li>
+      <li>Fotios, S., Yang, B. &amp; Uttley, J. (2015).
+        <a href="https://journals.sagepub.com/doi/10.1177/1477153514529299"><em>Observing other pedestrians:
+        investigating the typical distance and duration of fixation.</em></a> Lighting Research &amp;
+        Technology. Fixation on other pedestrians measured at <span class="num">10.3&nbsp;m</span>, revised to
+        <span class="num">15&nbsp;m</span> as the recommended observation distance &mdash; the anchor for the
+        12&nbsp;m visibility horizon, and already in the manuscript bibliography via
+        <span class="mono">fotios2019evaluation</span>.</li>
+      <li><a href="https://www.sciencedirect.com/science/article/abs/pii/S0360544222012026">Comparison of energy
+        efficiency and costs related to conventional and LED road lighting installations</a>,
+        <em>Energy</em> (2022). Luminaire-level efficacy benchmarks used to check the 120 / 90 / 70&nbsp;lm/W
+        figures.</li>
+    </ul>
+    <div class="callout">
+      <h3>Cite the right half of EN 13201</h3>
+      <p>The standard specifies <strong>luminance</strong> (cd/m&sup2;) for traffic routes and
+        <strong>illuminance</strong> (lux) only for pedestrian areas, conflict areas and residential streets.
+        This pipeline produces horizontal illuminance, so the <strong>P classes are the right half to
+        invoke</strong> &mdash; and the M classes are not. Comparing modelled lux against an M-class criterion
+        would need a road-surface reflectance assumption the model doesn't make.</p>
+    </div>
+  </section>
+
+  <footer>
+    Counts derived from <span class="mono">Torino_puntiLuce.gpkg</span> (99,742 fixtures) and
+    <span class="mono">Torino_buildings.gpkg</span> (20,701 footprints), both EPSG:3003. Building-containment
+    figures are bounding-box tests: the upper bound counts any building bbox, the lower bound only compact
+    footprints under 1,000&nbsp;m&sup2; where the bbox approximates the polygon. Spacing statistics are
+    nearest-neighbour distances on a 1-in-50 sample, which understate along-street pole spacing.
+    <br><br>
+    Constant sourcing in section E is traced to the standards and papers listed above; lamp-density and
+    spacing statistics are computed from the inventory, not cited.
+    <br><br>
+    Compiled 11 September 2026 against <span class="mono">g-filomena/PedSimCity</span> <span class="mono">main</span>
+    (last commit 3 September 2026; sampled source files verified byte-identical). Directional figures come from
+    <span class="mono">Torino_directional_lighting_lookup.csv</span>, the pipeline's own output (29,062 directed
+    edges).
+    <br><br>
+    <strong>Updated 14 September 2026</strong> against a full local clone with real LFS data
+    (<span class="mono">Documents\GitHub\PedSimCity</span>, HEAD <span class="mono">b2692d2</span>, 13 September
+    2026) and against <span class="mono">bug_changelog.md</span> / <span class="mono">pedsim/night/TODO.md</span>,
+    both new in that window. Nothing in either clone was modified. Supersede this against the next commit.
+    <br><br>
+    Section G's city figures were downloaded and profiled directly between 11 and 14 September 2026 (DBF/CSV/JSON
+    parsed from source, not read from portal metadata). Lyon's lighting file itself is dated 31 August 2023 by
+    its publisher; check for a fresher release before integration.
+    <br><br>
+    <strong>Re-checked 17 September 2026</strong> by fetching <span class="mono">g-filomena/PedSimCity</span>
+    directly (no local build run) &mdash; <span class="mono">main</span> at <span class="mono">892cf72</span>,
+    90 commits past this register's <span class="mono">b2692d2</span> baseline. Findings marked
+    <span class="pri resolved">resolved</span>, <span class="pri revised">revised upstream</span> or
+    <span class="pri rejected">rejected upstream</span> above were confirmed by reading the actual diffs
+    (<span class="mono">f740c29</span>, <span class="mono">9877978</span>, <span class="mono">dd8b3cc</span>,
+    <span class="mono">71e06b2</span>, <span class="mono">1d149a4</span>), not by running the code. The
+    <span class="mono">night-fixes-eval</span> branch's own empirical validation (vulnerable-agent lux exposure
+    regressing under its version of these same fixes) has not been re-run against main's version. Supersede this
+    against the next commit.
+    <br><br>
+    <strong>Section H added 17 September 2026</strong> from a direct line-by-line code review of
+    <span class="mono">main</span> at <span class="mono">892cf72</span> (not a diff/commit-message read like the
+    rest of this pass) &mdash; the finding that reopened <span class="mono">C1</span> above came from this
+    review, not from the earlier upstream-tracking pass, and the dashboard findings are new, not part of the
+    original 17 register findings.
+    <br><br>
+    <strong>Updated 18 September 2026</strong> against <span class="mono">main</span> at
+    <span class="mono">5b9dea1</span> (6 more commits past <span class="mono">892cf72</span>, none touching the
+    Python pipeline &mdash; <span class="mono">71e06b2</span>, 16&nbsp;Sep, remains the latest word there). Two
+    findings moved upstream, <span class="mono">C6</span> and <span class="mono">D2</span>; see the callout near
+    the top of the page. Separately, the <span class="mono">C1</span> join gap Section H identified now has a
+    proposed one-line fix on <span class="mono">night-fixes-eval</span> (not this register &mdash; that branch
+    remains a proposal, not applied here), empirically validated the same day against current
+    <span class="mono">main</span> itself: a 7-day, 846-agent Torino run with only that one line changed shows
+    night-lux exposure up 8&ndash;9% for both vulnerable and non-vulnerable agents. Still not merged, so
+    <span class="mono">C1</span> stays <span class="pri broken">still broken</span> on <span class="mono">main</span>
+    as stated above. Supersede this against the next commit.
+  </footer>
+
+</div>
