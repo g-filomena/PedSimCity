@@ -5,7 +5,7 @@ This script is **ISTAT-specific**: it reads the raw Italian census-section layer
 variables) and writes the enriched <city>_censusData.gpkg the Java side loads.
 
 The census is **population structure only** — it drives home spawning, the absolute
-population size and the night module's vulnerability sampling. Destination
+population size, the persona mix and each agent's sex. Destination
 attraction (work/leisure/night places) is *not* a census matter: it comes from the
 OSM use tags on `<City>_POIs.gpkg` and the buildings layer, both produced by
 `00_city_preparation.py`.
@@ -15,7 +15,7 @@ adapter must produce (a future UK adapter, e.g. 01_census_uk.py from ONS output
 areas, would emit the same columns from different inputs):
 - residence_pct       share of the city's residents living in the zone
 - residents           absolute per-zone headcount
-- vulnerability_pct   share of residents who are female, under 15, or 65+ (counted once each)
+- female_pct          share of the zone's ADULT (15+) residents who are women
 - retiree_pct         share of the zone's ADULT (15+) residents aged 65+   (optional)
 - student_pct         share of the zone's ADULT (15+) residents aged 15-24 (optional)
 - worker_pct          share of the zone's ADULT (15+) residents employed, 15-64 (optional)
@@ -60,15 +60,18 @@ import paths
 # Total resident population of the census section.
 ISTAT_POPULATION_COL = "P1"
 
-# Vulnerability: the vulnerable set is the union  all females U males under 15 U males 65+.
-# Taking every female once, then only the *male* children and *male* elderly, avoids
-# double-counting the female children / female elderly already inside "all females".
+# Sex: women aged 15 and over, as a share of the zone's adults (15+). Which groups a model
+# then treats as vulnerable is the model's judgement, not the census's; the night module makes
+# that call in NightPopulate.
 #   P3           females (all ages)
-#   P30,P31,P32  males aged <5 / 5-9 / 10-14   -> males under 15
-#   P43,P44,P45  males aged 65-69 / 70-74 / >74 -> males 65+
-# NOTE: the ISTAT census-section dataset has no disability variable, so disability cannot
-# be included here; add its column(s) if a future dataset provides them.
-ISTAT_VULNERABLE_COLS = ["P3", "P30", "P31", "P32", "P43", "P44", "P45"]
+#   P14,P15,P16  residents aged <5 / 5-9 / 10-14, both sexes -> under 15
+#   P30,P31,P32  males aged <5 / 5-9 / 10-14                 -> males under 15
+# Female under-15s are the difference between the two age blocks, so women 15+ is
+# P3 - (under 15 - males under 15), and the denominator is P1 - under 15.
+#
+# The denominator is the adult population because every agent the model builds is an adult:
+# the persona shares are drawn on the same 15+ base, so no agent can be a child.
+ISTAT_SEX_COLS = ["P3", "P14", "P15", "P16", "P30", "P31", "P32"]
 
 # Age structure (both sexes, 5-year bands): P14 <5 ... P29 75+. Used to condition the
 # activity model's persona mix per zone; optional — skipped when the bands are absent.
@@ -178,23 +181,30 @@ def main() -> None:
     # so the sampling fraction applies to the real census headcount instead of a user-entered number.
     gdf["residents"] = pop.round().astype("int64")
 
-    missing_vulnerable_cols = sorted(set(ISTAT_VULNERABLE_COLS) - set(gdf.columns))
-    if missing_vulnerable_cols:
+    missing_sex_cols = sorted(set(ISTAT_SEX_COLS) - set(gdf.columns))
+    if missing_sex_cols:
         raise ValueError(
-            "Missing required ISTAT vulnerability census columns in "
-            f"{raw_census}: {missing_vulnerable_cols}. "
-            "Expected columns are: P3 all females; P30/P31/P32 male under-15; "
-            "P43/P44/P45 male 65+."
+            "Missing required ISTAT sex/age census columns in "
+            f"{raw_census}: {missing_sex_cols}. "
+            "Expected columns are: P3 all females; P14/P15/P16 under-15 both sexes; "
+            "P30/P31/P32 male under-15."
         )
 
-    vulnerable = sum(
-        (
-            pd.to_numeric(gdf[c], errors="coerce").fillna(0.0)
-            for c in ISTAT_VULNERABLE_COLS
-        ),
-        start=pd.Series(0.0, index=gdf.index),
+    def _col_sum(cols):
+        return sum(
+            (pd.to_numeric(gdf[c], errors="coerce").fillna(0.0) for c in cols),
+            start=pd.Series(0.0, index=gdf.index),
+        )
+
+    under_15 = _col_sum(ISTAT_UNDER15_COLS)
+    male_under_15 = _col_sum(["P30", "P31", "P32"])
+    women_15_plus = _col_sum(["P3"]) - (under_15 - male_under_15)
+    adults = (pop - under_15).clip(lower=0.0)
+    gdf["female_pct"] = (
+        (women_15_plus.clip(lower=0.0) / adults.replace(0, pd.NA))
+        .fillna(0.0)
+        .clip(0.0, 1.0)
     )
-    gdf["vulnerability_pct"] = (vulnerable / pop.replace(0, pd.NA)).fillna(0.0).clip(0.0, 1.0)
 
     # Optional persona shares from the age bands: share of the zone's ADULT (15+) residents
     # who are 65+ (retirees) or 15-24 (student age). Children are excluded from the
@@ -263,7 +273,7 @@ def main() -> None:
         "censusZoneTypeID",
         "residence_pct",
         "residents",
-        "vulnerability_pct",
+        "female_pct",
         "retiree_pct",
         "student_pct",
         "worker_pct",

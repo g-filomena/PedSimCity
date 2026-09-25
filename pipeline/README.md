@@ -200,10 +200,11 @@ nohup $PY 02_street_lights_torino.py --city Torino > ~/runs/lighting/step2.log 2
 
 | Script | Effect |
 |---|---|
-| `01_census_istat.py` | **ISTAT adapter**: reads raw `<City>_censusData_raw.gpkg` (Italian census sections with the `P*` variables), writes enriched `<City>_censusData.gpkg` with `residence_pct`, `residents`, `vulnerability_pct` (+ `retiree_pct`/`student_pct` when the P14–P29 age bands are present, conditioning the persona mix per zone) — population structure only; destination attraction comes from `<City>_POIs.gpkg` / the buildings tags |
+| `01_census_istat.py` | **ISTAT adapter**: reads raw `<City>_censusData_raw.gpkg` (Italian census sections with the `P*` variables), writes enriched `<City>_censusData.gpkg` with `residence_pct`, `residents`, `female_pct` (+ `retiree_pct`/`student_pct` when the P14–P29 age bands are present, conditioning the persona mix per zone) — population structure only; destination attraction comes from `<City>_POIs.gpkg` / the buildings tags |
 
-The census is population structure only (`P1` population; `P3`/`P30–32`/`P43–45`
-vulnerability). The **output schema is the country-neutral contract** the Java side reads —
+The census is population structure only (`P1` population; `female_pct` is `P3` less the female
+share of `P14–16`/`P30–32` — women aged 15+, over the zone's adults, the same 15+ base the
+persona shares use). The **output schema is the country-neutral contract** the Java side reads —
 supporting another country (e.g. the UK from ONS output areas) means writing a sibling
 adapter (`01_census_uk.py`) that emits the same columns from that country's raw census;
 the Java side needs no change.
@@ -417,5 +418,3 @@ worth blocking a run for.
    the real city and compares element by element; the worst absolute difference over 59,643 points
    was 4.5e-12 lux, which is summation order. A full Torino run is **about 10 minutes**, so three
    falloff laws and two mounting heights were run in one afternoon instead of none being run at all.
-
-The same list, with the derivations, is under **Cross-cutting** in the root [`TODO.md`](../TODO.md).
