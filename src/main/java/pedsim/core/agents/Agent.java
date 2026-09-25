@@ -178,7 +178,38 @@ public class Agent implements Steppable {
       reachedDestination.set(true);
       return;
     }
+    // Asked on the outbound leg only. Having walked out, an agent walks back: the return is part of
+    // the same journey, not a mode decision of its own.
+    if (isWalkingAlone() && !walksLeg(originNode, destinationNode)) {
+      abandonUnwalkedLeg();
+      return;
+    }
     reinitializeMovementPath();
+  }
+
+  /**
+   * Whether this leg is made on foot, asked once the destination is known and before any route
+   * exists. Core walks everything - it models no other mode, so it has no grounds to refuse one -
+   * and modules that carry a mode choice answer from the distance the leg turned out to be.
+   *
+   * @param origin where the leg starts
+   * @param destination where it ends
+   * @return whether the agent walks it
+   */
+  protected boolean walksLeg(NodeGraph origin, NodeGraph destination) {
+    return true;
+  }
+
+  /**
+   * The leg is made by some other mode, so the agent does not appear on the street: it stays where
+   * it is and waits for its next release. The trip is not lost, it is simply not walked - which is
+   * also why no pedestrian metres are produced for it, including the walk to and from a stop.
+   */
+  protected void abandonUnwalkedLeg() {
+    originNode = null;
+    destinationNode = null;
+    status = AgentStatus.WAITING;
+    updateAgentLists(false, true);
   }
 
   public void reinitializeMovementPath() {
