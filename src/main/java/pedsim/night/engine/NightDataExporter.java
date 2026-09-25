@@ -11,7 +11,6 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Locale;
 import java.util.logging.Logger;
-import org.locationtech.jts.geom.Coordinate;
 import pedsim.core.engine.TripDiagnostic;
 import pedsim.core.engine.TripRouteRecorder;
 import pedsim.core.parameters.TimePars;
@@ -145,7 +144,7 @@ public final class NightDataExporter {
                 trip.startStep,
                 trip.endStep,
                 trip.vulnerable,
-                pathLengthMetres(trip.pathCoords),
+                trip.distanceMetres,
                 Double.isNaN(trip.meanLux) ? "" : String.format(Locale.ROOT, "%.2f", trip.meanLux),
                 edges));
       }
@@ -169,25 +168,6 @@ public final class NightDataExporter {
     } catch (NumberFormatException e) {
       return 0;
     }
-  }
-
-  /**
-   * Euclidean path length. Coordinates are in the projected city CRS (metres), so no conversion is
-   * applied — the same convention as {@code TripDiagnostic}.
-   */
-  private static double pathLengthMetres(List<Coordinate> coords) {
-    if (coords == null || coords.size() < 2) {
-      return 0.0;
-    }
-    double total = 0.0;
-    for (int i = 0; i < coords.size() - 1; i++) {
-      Coordinate a = coords.get(i);
-      Coordinate b = coords.get(i + 1);
-      double dx = b.x - a.x;
-      double dy = b.y - a.y;
-      total += Math.sqrt(dx * dx + dy * dy);
-    }
-    return total;
   }
 
   /**
@@ -251,7 +231,7 @@ public final class NightDataExporter {
               vt != null
                   ? Math.round((vt.endStep - vt.startStep) * TimePars.STEP_DURATION / 60.0)
                   : -1;
-          double vDist = vt != null ? TripDiagnostic.computeDistanceMetres(vt.pathCoords) : -1.0;
+          double vDist = vt != null ? vt.distanceMetres : -1.0;
           String vRoute = vt != null ? TripDiagnostic.joinInts(vt.nodeIds) : "";
 
           String nStart = nt != null ? TripDiagnostic.stepToTime(nt.startStep) : "";
@@ -260,7 +240,7 @@ public final class NightDataExporter {
               nt != null
                   ? Math.round((nt.endStep - nt.startStep) * TimePars.STEP_DURATION / 60.0)
                   : -1;
-          double nDist = nt != null ? TripDiagnostic.computeDistanceMetres(nt.pathCoords) : -1.0;
+          double nDist = nt != null ? nt.distanceMetres : -1.0;
           String nRoute = nt != null ? TripDiagnostic.joinInts(nt.nodeIds) : "";
 
           boolean routesDiffer = true;

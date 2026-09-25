@@ -13,6 +13,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.agents.Agent;
+import pedsim.core.parameters.Pars;
 import pedsim.night.engine.NightDataExporter;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
@@ -71,6 +72,29 @@ class TripRecordingTest {
       assertEquals(9, Files.readAllLines(diagnostic).get(1).split(",", -1).length);
     } finally {
       Locale.setDefault(previous);
+    }
+  }
+
+  /**
+   * A headless run keeps no path geometry, so the walked length has to have been measured when the
+   * trip was recorded: every consumer reads it from the record rather than from the coordinates.
+   */
+  @Test
+  void lengthSurvivesWithoutThePathGeometry() throws Exception {
+    boolean previous = Pars.exportHtmlDashboard;
+    try {
+      Pars.exportHtmlDashboard = false;
+      var recorder = new TripRouteRecorder();
+      record(recorder, 1);
+      TripRouteRecorder.TripRecord trip = recorder.getRecords().getFirst();
+      assertTrue(trip.pathCoords.isEmpty());
+      assertEquals(5.0, trip.distanceMetres, 1e-9);
+
+      Path diagnostic = temp.resolve("headless.csv");
+      TripDiagnostic.save(diagnostic.toString(), recorder.getRecords());
+      assertEquals("5.0", Files.readAllLines(diagnostic).get(1).split(",", -1)[4]);
+    } finally {
+      Pars.exportHtmlDashboard = previous;
     }
   }
 

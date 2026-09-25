@@ -3,12 +3,14 @@ package pedsim.core.engine;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Logger;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.planargraph.DirectedEdge;
+import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
@@ -29,7 +31,14 @@ public class TripRouteRecorder {
     public int destNodeId;
     public double meanLux =
         Double.NaN; // mean illuminance on the trip; NaN when no lighting tracked
+    public double distanceMetres;
+
+    /**
+     * The walked path, kept only when the HTML dashboard will draw it. Everything else reads
+     * {@link #distanceMetres}, so a headless run holds the IDs and the length and not the geometry.
+     */
     public List<Coordinate> pathCoords = new ArrayList<>();
+
     public List<Integer> edgeIds = new ArrayList<>();
     public List<Integer> nodeIds = new ArrayList<>();
     public List<Coordinate> spookLocations = new ArrayList<>();
@@ -85,20 +94,20 @@ public class TripRouteRecorder {
       }
     }
 
-    record.pathCoords = coords;
+    double distance = 0;
+    for (int i = 0; i < coords.size() - 1; i++) {
+      Coordinate a = coords.get(i);
+      Coordinate b = coords.get(i + 1);
+      double dx = b.x - a.x;
+      double dy = b.y - a.y;
+      distance += Math.sqrt(dx * dx + dy * dy);
+    }
+
+    record.distanceMetres = distance;
+    record.pathCoords = Pars.exportHtmlDashboard ? coords : Collections.emptyList();
     record.destNodeId = record.nodeIds.get(record.nodeIds.size() - 1);
     records.add(record);
 
-    double distance = 0;
-    if (coords.size() >= 2) {
-      for (int i = 0; i < coords.size() - 1; i++) {
-        Coordinate a = coords.get(i);
-        Coordinate b = coords.get(i + 1);
-        double dx = b.x - a.x;
-        double dy = b.y - a.y;
-        distance += Math.sqrt(dx * dx + dy * dy);
-      }
-    }
     SimulationStateStore.getInstance().addCompletedTrip(vulnerable, distance);
   }
 

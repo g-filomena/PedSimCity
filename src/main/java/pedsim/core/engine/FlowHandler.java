@@ -24,7 +24,10 @@ import sim.util.geo.MasonGeometry;
 public class FlowHandler {
 
   public Map<Integer, Map<String, Integer>> volumesMap = new HashMap<>();
+
+  /** The routes walked since the last export; emptied when the day is written out. */
   public List<RouteData> routesData = new ArrayList<>();
+
   public int job;
 
   Map<Integer, Map<String, Integer>> knownEdgesMap = new HashMap<>();
@@ -200,6 +203,16 @@ public class FlowHandler {
     exporter.savePedestrianVolumes(day, scenarios);
     exporter.saveRoutes(day);
     initializeEdgeVolumes();
+    clearRoutesData();
+  }
+
+  /**
+   * Discards the routes collected so far. Called once the day holding them has been exported: each
+   * route carries its geometry and its edge sequence, so a run that kept them all would grow its
+   * heap with every simulated day.
+   */
+  public synchronized void clearRoutesData() {
+    routesData.clear();
   }
 
   public void exportCognitiveMapsData(int day) throws Exception {
