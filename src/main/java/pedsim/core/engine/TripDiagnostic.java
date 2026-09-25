@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.logging.Logger;
-import org.locationtech.jts.geom.Coordinate;
 import pedsim.core.parameters.TimePars;
 import pedsim.core.utilities.LoggerUtil;
 
@@ -74,9 +73,6 @@ public class TripDiagnostic {
         double durationSteps = t.endStep - t.startStep;
         long durationMin = Math.round(durationSteps * TimePars.STEP_DURATION / 60.0);
 
-        // --- distance ---------------------------------------------
-        double distanceM = computeDistanceMetres(t.pathCoords);
-
         // --- node / edge lists ------------------------------------
         String nodes = joinInts(t.nodeIds);
         String edges = joinInts(t.edgeIds);
@@ -90,7 +86,7 @@ public class TripDiagnostic {
                 startTime,
                 endTime,
                 durationMin,
-                distanceM,
+                t.distanceMetres,
                 nodes,
                 edges,
                 t.vulnerable,
@@ -121,24 +117,6 @@ public class TripDiagnostic {
     } catch (Exception e) {
       return String.valueOf(step);
     }
-  }
-
-  /**
-   * Sums Euclidean segment lengths over the path coordinate list.
-   * Coordinates are in a projected CRS (EPSG:3003), so units are already metres.
-   * Raw Euclidean distance is used directly – no degree-to-metre conversion needed.
-   */
-  public static double computeDistanceMetres(List<Coordinate> coords) {
-    if (coords == null || coords.size() < 2) return 0.0;
-    double total = 0.0;
-    for (int i = 0; i < coords.size() - 1; i++) {
-      Coordinate a = coords.get(i);
-      Coordinate b = coords.get(i + 1);
-      double dx = b.x - a.x;
-      double dy = b.y - a.y;
-      total += Math.sqrt(dx * dx + dy * dy);
-    }
-    return total;
   }
 
   /** Joins a list of integers with semicolons. */
