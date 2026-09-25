@@ -49,7 +49,7 @@ mvn -Pcityimage-empirical compile exec:java \
 
 `--stringMode` selects the test design; `--numberTripsPerAgent` and `--jobs` override that design's
 own defaults. **"Testing Landmarks", the default design, needs `<City>_distances.csv`, which no
-bundled city ships** — see `TODO.md` beside this file.
+bundled city ships.**
 
 ## Notes
 

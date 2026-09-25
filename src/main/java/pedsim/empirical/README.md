@@ -52,7 +52,6 @@ mvn -Pcityimage-empirical compile exec:java \
 Defaults to Muenster, 301 agents and 10 jobs — the study the cluster data comes from — wherever the
 command line is silent. `--website` serves the browser dashboard instead of running.
 
-Open items: `TODO.md` beside this file.
 
 ## Notes
 
