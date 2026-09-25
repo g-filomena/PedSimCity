@@ -41,15 +41,19 @@ def export(city: str, out_path: Path, tolerance: float, decimals: int) -> None:
     edges = gpd.read_file(source)
     if "edgeID" not in edges.columns:
         raise SystemExit(f"{source.name} has no edgeID column")
+    if "length" not in edges.columns:
+        raise SystemExit(f"{source.name} has no length column")
 
     original_crs = edges.crs
-    edges = edges[["edgeID", "geometry"]].copy()
+    # The layer's own length, in metres, not one recomputed from the simplified geometry: it is
+    # the length the simulation walks, so volume x length is the metres the run reports.
+    edges = edges[["edgeID", "length", "geometry"]].copy()
     # Simplify in the projected CRS, where the tolerance is metres, then convert for the browser.
     edges["geometry"] = edges.geometry.simplify(tolerance, preserve_topology=False)
     edges = edges.to_crs("EPSG:4326")
 
     features = []
-    for edge_id, geom in zip(edges["edgeID"], edges.geometry):
+    for edge_id, length_m, geom in zip(edges["edgeID"], edges["length"], edges.geometry):
         if geom is None or geom.is_empty:
             continue
         # A LineString is the normal case; a MultiLineString is emitted as its parts so the page
@@ -62,7 +66,7 @@ def export(city: str, out_path: Path, tolerance: float, decimals: int) -> None:
             features.append(
                 {
                     "type": "Feature",
-                    "properties": {"e": int(edge_id)},
+                    "properties": {"e": int(edge_id), "l": round(float(length_m), 1)},
                     "geometry": {"type": "LineString", "coordinates": coords},
                 }
             )
