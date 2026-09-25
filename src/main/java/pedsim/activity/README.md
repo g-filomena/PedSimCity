@@ -73,7 +73,7 @@ Supporting types (all in `pedsim.activity`): `Persona`, `ActivityPurpose`, `Dail
 ## Data layers
 
 A **single** optional GeoPackage, `<City>_censusData.gpkg`, carries the **population structure** as
-columns (plus `vulnerability_pct` for the night module). It loads only if present; otherwise the
+columns. It loads only if present; otherwise the
 model falls back gracefully to DMA / uniform-random selection. The census never drives destination
 choice — that is the POI/tag layers' job below.
 
@@ -81,7 +81,7 @@ choice — that is the POI/tag layers' job below.
 |---|---|---|
 | `residence_pct` | share | residence-weighted home selection (0 for non-residential zones) |
 | `residents` | count | absolute headcount; when present the population size is census-driven |
-| `vulnerability_pct` | rate [0,1] | per-zone vulnerability (read by the night module) |
+| `female_pct` | rate [0,1] | share of adult residents who are women — each agent's sex is drawn from it |
 | `retiree_pct` | rate [0,1] | optional: share of adult residents 65+ — conditions the persona mix per home zone |
 | `student_pct` | rate [0,1] | optional: share of adult residents 15–24 — conditions the persona mix per home zone |
 
@@ -89,8 +89,11 @@ The layer is produced by `pipeline/01_census_istat.py` (run via `scripts/build_c
 **ISTAT adapter for Italian cities**; other countries need a sibling adapter emitting the
 same columns from their own raw census (the Java side is country-agnostic).
 All zones are kept: non-residential zones (streets, parks, commercial) simply get `residence_pct = 0`.
-Each zone claims the network nodes within 50 m (growing to 100/200/400 m if none); the
-`vulnerability_pct` **rate** is broadcast unchanged to a zone's nodes.
+Each zone claims the network nodes within 50 m (growing to 100/200/400 m if none), which is how a
+zone's residents are placed on the street network. The per-zone **rates** are read from the home
+zone an agent was sampled from, not from the node it was placed on: a node in a city of small
+census sections is claimed by several zones at once, so a rate resolved per node would answer for
+whichever of them the tie-break happened to pick.
 
 A second optional GeoPackage, `<City>_POIs.gpkg`, carries point/polygon POIs with **OSM-like use
 tags**; the buildings layer may carry the same tag columns. `PoiClassifier` reads, in order, the
@@ -145,4 +148,3 @@ chosen city, the model degrades gracefully to uniform-random home/work and desti
 
 ## Open items
 
-See `TODO.md` beside this file.

@@ -63,4 +63,3 @@ layers are present under `src/main/resources/<City>/`.
 
 ## Open items
 
-See `TODO.md` beside this file.
