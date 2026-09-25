@@ -2,57 +2,42 @@ package pedsim.night.engine;
 
 import java.util.List;
 import pedsim.activity.engine.ActivityEnvironment;
-import pedsim.activity.engine.CensusZone;
-import pedsim.activity.engine.PedSimCityActivity;
 import sim.graph.EdgeGraph;
-import sim.graph.NodeGraph;
 import sim.util.geo.AttributeValue;
 import sim.util.geo.MasonGeometry;
 
 /**
  * Environment preparation for the night module. Extends the activity-based
- * {@link ActivityEnvironment} (graph, census, workplace + night POI) with the night perception/
- * safety joins: per-zone vulnerability rate and illuminated-edge {@code mean_lux}.
+ * {@link ActivityEnvironment} (graph, census, workplace + night POI) with the night lighting join:
+ * illuminated-edge {@code mean_lux} and {@code min_lux}.
  */
 public class NightEnvironment extends ActivityEnvironment {
 
-  /** Runs the activity preparation, then the night-specific (vulnerability + lighting) joins. */
+  /** Runs the activity preparation, then the night-specific lighting join. */
   public static void prepare() {
 
     ActivityEnvironment.prepare();
 
-    deriveVulnerability();
-
-    // Join illuminated edges (mean_lux) onto the primal graph if the night dataset was loaded.
+    // Join illuminated edges onto the primal graph if the night dataset was loaded.
     if (!PedSimCityNight.illuminatedEdges.isEmpty()) {
       joinIlluminatedEdges();
     }
   }
 
   /**
-   * Reads the {@code vulnerability_pct} column carried by the unified census layer and broadcasts it
-   * to each zone's nodes. Vulnerability is an intensive rate, so it is broadcast unchanged (not
-   * split like the POI counts); when several zones claim a node the highest rate wins.
-   */
-  private static void deriveVulnerability() {
-    for (CensusZone zone : PedSimCityActivity.censusZones) {
-      if (zone.nodes.isEmpty()) continue;
-      double vulnerability = zoneValue(zone.geometry, "vulnerability_pct");
-      if (vulnerability == 0.0) continue;
-      for (NodeGraph node : zone.nodes) {
-        PedSimCityNight.nodesVulnerabilityWeight.merge(node, vulnerability, Double::max);
-      }
-    }
-  }
-
-  /**
-   * Joins mean_lux from the illuminated edges dataset onto the primal graph edges by edgeID.
-   * Only edges present in both datasets receive a mean_lux attribute. Edges not present in the
-   * illuminated dataset are left without the attribute.
+   * Joins mean_lux and min_lux from the illuminated edges dataset onto the primal graph edges by
+   * edgeID. Only edges present in both datasets receive them; edges not present in the illuminated
+   * dataset are left without the attributes.
+   *
+   * <p>Both are joined because {@link NightLighting#isLit} tests both, and its min_lux test is
+   * written to pass when the attribute is absent - the degradation a city with no lighting pipeline
+   * needs. An edge carrying mean_lux but not min_lux therefore takes that pass silently, so the
+   * count of each is logged.
    */
   private static void joinIlluminatedEdges() {
     List<MasonGeometry> illuminatedGeoms = PedSimCityNight.illuminatedEdges.getGeometries();
     int joined = 0;
+    int joinedMin = 0;
     int missing = 0;
 
     for (MasonGeometry geom : illuminatedGeoms) {
@@ -71,6 +56,12 @@ public class NightEnvironment extends ActivityEnvironment {
 
       edge.attributes.put("mean_lux", new AttributeValue(meanLuxAttr.getDouble()));
       joined++;
+
+      AttributeValue minLuxAttr = geom.getAttributes().get("min_lux");
+      if (minLuxAttr != null) {
+        edge.attributes.put("min_lux", new AttributeValue(minLuxAttr.getDouble()));
+        joinedMin++;
+      }
     }
 
     int graphEdges = pedsim.core.engine.PedSimCity.edgesMap.size();
@@ -79,10 +70,17 @@ public class NightEnvironment extends ActivityEnvironment {
             + joined
             + " / "
             + graphEdges
-            + " graph edges ("
+            + " graph edges, min_lux on "
+            + joinedMin
+            + " ("
             + illuminatedGeoms.size()
             + " illuminated records, "
             + missing
             + " with no matching graph edge).");
+    if (joined > 0 && joinedMin == 0) {
+      logger.warning(
+          "No min_lux on any edge: the dark-spot half of the lighting gate cannot fire, and every "
+              + "edge passes it. Check that the illuminated layer carries a min_lux column.");
+    }
   }
 }
