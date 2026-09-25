@@ -11,7 +11,7 @@ import pedsim.core.engine.Import;
  * headcount driving the population size). Destination attraction comes from OSM-like use tags on
  * the buildings/POI layers, not from the census.
  *
- * <p>Night-specific datasets (vulnerability, illuminated edges) are added by the night module's
+ * <p>Night-specific datasets (illuminated edges, directional lighting) are added by the night module's
  * {@code NightImport}, which extends this class.
  */
 public class ActivityImport extends Import {
@@ -28,7 +28,7 @@ public class ActivityImport extends Import {
     readPois();
   }
 
-  /** Reads the census layer (residence_pct, residents, plus module columns like vulnerability_pct). */
+  /** Reads the census layer (residence_pct, residents, the persona shares and female_pct). */
   protected void readCensusZones() throws Exception {
     readOptionalLayer("censusData", PedSimCityActivity.censusLayer);
   }

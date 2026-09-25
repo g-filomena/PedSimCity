@@ -62,6 +62,12 @@ public final class CityLocation {
    * @param network the primal graph the agents walk
    */
   public static void measureInto(Graph network) {
+    // Cleared before measuring for the same reason the coordinates below are: a second city in one
+    // JVM must not inherit the first one's centre.
+    centre = null;
+    if (network != null && !network.getNodes().isEmpty()) {
+      centre = networkCentre(network);
+    }
     boolean latitudeGiven = ParameterManager.wasGivenOnCommandLine("cityLatitude");
     boolean longitudeGiven = ParameterManager.wasGivenOnCommandLine("cityLongitude");
     if (latitudeGiven && longitudeGiven) {
@@ -79,11 +85,10 @@ public final class CityLocation {
     if (!longitudeGiven) {
       ActivityPars.cityLongitude = Double.NaN;
     }
-    if (network == null || network.getNodes().isEmpty()) {
+    if (centre == null) {
       return;
     }
 
-    Coordinate centre = networkCentre(network);
     String epsg = declaredEpsgCode();
     if (epsg == null) {
       logger.warning(
@@ -114,7 +119,27 @@ public final class CityLocation {
     }
   }
 
-  /** The centre of the smallest circle containing every node of the network. */
+  /** The projected city centre, held from the measurement so a ring can be taken off it. */
+  private static Coordinate centre;
+
+  /**
+   * Distance in metres from the city centre to a node, in the network's own projected coordinates,
+   * or {@code NaN} before the centre has been measured or for a null node.
+   *
+   * @param node the node to measure
+   */
+  public static double distanceFromCentre(NodeGraph node) {
+    if (centre == null || node == null) {
+      return Double.NaN;
+    }
+    return centre.distance(node.getCoordinate());
+  }
+
+  /**
+   * The centre of the smallest circle containing every node of the network. A mean of the nodes
+   * would drift toward wherever the graph is dense; the smallest enclosing circle depends only on
+   * the extent.
+   */
   private static Coordinate networkCentre(Graph network) {
     List<NodeGraph> nodes = network.getNodes();
     Coordinate[] coordinates = new Coordinate[nodes.size()];

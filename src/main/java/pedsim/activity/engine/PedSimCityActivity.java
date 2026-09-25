@@ -32,13 +32,146 @@ public class PedSimCityActivity extends PedSimCity {
     legsInDarkness.reset();
   }
 
+  /** Distance bands (m) the realised walking share is reported over. */
+  public static final double[] MODE_DISTANCE_BANDS = {500.0, 1000.0, 2000.0, 5000.0};
+
+  /** Rings (m from the city centre) the realised walking share is reported over. */
+  public static final double[] MODE_RING_BANDS = {1500.0, 4000.0};
+
+  private final java.util.concurrent.atomic.LongAdder[] legsOfferedByBand = adders(5);
+  private final java.util.concurrent.atomic.LongAdder[] legsWalkedByBand = adders(5);
+  private final java.util.concurrent.atomic.LongAdder[] legsOfferedByRing = adders(3);
+  private final java.util.concurrent.atomic.LongAdder[] legsWalkedByRing = adders(3);
+  private final java.util.concurrent.atomic.LongAdder[] metresOfferedByRing = adders(3);
+
+  private static java.util.concurrent.atomic.LongAdder[] adders(int size) {
+    java.util.concurrent.atomic.LongAdder[] adders =
+        new java.util.concurrent.atomic.LongAdder[size];
+    for (int i = 0; i < size; i++) {
+      adders[i] = new java.util.concurrent.atomic.LongAdder();
+    }
+    return adders;
+  }
+
+  /**
+   * Records one discretionary leg's mode decision, by how long the leg is and by how far from the
+   * city centre the agent lives. The walking share these produce is the model's output, checked
+   * against the survey rather than set from it.
+   *
+   * @param metres the leg's length as mode choice saw it
+   * @param walked whether it is walked
+   * @param home the agent's home node, for the ring; may be null
+   */
+  public void recordModeChoice(double metres, boolean walked, NodeGraph home) {
+    int band = bandOf(metres, MODE_DISTANCE_BANDS);
+    legsOfferedByBand[band].increment();
+    if (walked) {
+      legsWalkedByBand[band].increment();
+    }
+    double fromCentre = CityLocation.distanceFromCentre(home);
+    if (Double.isNaN(fromCentre)) {
+      return;
+    }
+    int ring = bandOf(fromCentre, MODE_RING_BANDS);
+    legsOfferedByRing[ring].increment();
+    metresOfferedByRing[ring].add(Math.round(metres));
+    if (walked) {
+      legsWalkedByRing[ring].increment();
+    }
+  }
+
+  private static int bandOf(double value, double[] edges) {
+    for (int i = 0; i < edges.length; i++) {
+      if (value <= edges[i]) {
+        return i;
+      }
+    }
+    return edges.length;
+  }
+
+  /** Walked over offered, per distance band; NaN where the band saw no legs. */
+  public double[] walkShareByBand() {
+    return shares(legsWalkedByBand, legsOfferedByBand);
+  }
+
+  /** Walked over offered, per ring out from the city centre; NaN where the ring saw no legs. */
+  public double[] walkShareByRing() {
+    return shares(legsWalkedByRing, legsOfferedByRing);
+  }
+
+  /** Discretionary legs offered, per distance band. */
+  public long[] legsOfferedByBand() {
+    return sums(legsOfferedByBand);
+  }
+
+  /** Discretionary legs offered, per ring. */
+  public long[] legsOfferedByRing() {
+    return sums(legsOfferedByRing);
+  }
+
+  /**
+   * Mean length of the legs a ring was offered, in metres - the quantity mode choice is deciding
+   * on, and the one a periphery effect has to work through.
+   */
+  public double[] meanLegMetresByRing() {
+    double[] means = new double[legsOfferedByRing.length];
+    for (int i = 0; i < means.length; i++) {
+      long legs = legsOfferedByRing[i].sum();
+      means[i] = legs > 0 ? (double) metresOfferedByRing[i].sum() / legs : Double.NaN;
+    }
+    return means;
+  }
+
+  private static long[] sums(java.util.concurrent.atomic.LongAdder[] adders) {
+    long[] totals = new long[adders.length];
+    for (int i = 0; i < adders.length; i++) {
+      totals[i] = adders[i].sum();
+    }
+    return totals;
+  }
+
+  /** Walked over offered across every discretionary leg the day offered; NaN when there were none. */
+  public double realisedWalkShare() {
+    long walked = 0;
+    long offered = 0;
+    for (int i = 0; i < legsOfferedByBand.length; i++) {
+      walked += legsWalkedByBand[i].sum();
+      offered += legsOfferedByBand[i].sum();
+    }
+    return offered > 0 ? (double) walked / offered : Double.NaN;
+  }
+
+  private static double[] shares(
+      java.util.concurrent.atomic.LongAdder[] walked,
+      java.util.concurrent.atomic.LongAdder[] offered) {
+    double[] shares = new double[offered.length];
+    for (int i = 0; i < offered.length; i++) {
+      long total = offered[i].sum();
+      shares[i] = total > 0 ? (double) walked[i].sum() / total : Double.NaN;
+    }
+    return shares;
+  }
+
+  /** Clears the day's mode-choice counters. */
+  public void resetModeChoiceCounters() {
+    for (int i = 0; i < legsOfferedByBand.length; i++) {
+      legsOfferedByBand[i].reset();
+      legsWalkedByBand[i].reset();
+    }
+    for (int i = 0; i < legsOfferedByRing.length; i++) {
+      legsOfferedByRing[i].reset();
+      legsWalkedByRing[i].reset();
+      metresOfferedByRing[i].reset();
+    }
+  }
+
   @Override
   protected Exporter createExporter(FlowHandler flowHandler, String appName) {
     return new ActivityExporter(flowHandler, appName);
   }
 
   // Raw census layer as loaded from <City>_censusData.gpkg: one polygon set carrying population
-  // structure only (residence_pct, residents, plus module columns like vulnerability_pct).
+  // structure only (residence_pct, residents, the persona shares and female_pct).
   // Destination attraction comes from the OSM-tag purpose weights, not from the census.
   public static VectorLayer censusLayer = new VectorLayer();
 

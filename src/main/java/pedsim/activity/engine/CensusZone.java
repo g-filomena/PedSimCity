@@ -10,10 +10,10 @@ import sim.util.geo.MasonGeometry;
  * nodes associated with it by proximity.
  *
  * <p>The census is population structure only: {@code residence} is a share of the city population
- * (used to sample home zones); module-specific population columns (e.g. the night module's
- * {@code vulnerability_pct}) are read from {@code geometry} via
- * {@link ActivityEnvironment#zoneValue}. Destination attraction is not a census matter — it comes
- * from the OSM-tag purpose weights built by {@link PoiClassifier}.
+ * (used to sample home zones), and the shares beside it condition who lives there. Any further
+ * per-zone column is read from {@code geometry} via {@link ActivityEnvironment#zoneValue}.
+ * Destination attraction is not a census matter — it comes from the OSM-tag purpose weights built
+ * by {@link PoiClassifier}.
  *
  * <p>Nodes are assigned by proximity (see {@link ActivityEnvironment}), so a junction may belong to
  * several zones (e.g. one bordering several residential parcels). Non-residential zones (streets,
@@ -31,6 +31,9 @@ public class CensusZone {
   public double retireeShare = Double.NaN; // residents aged 65+
   public double studentShare = Double.NaN; // residents aged 15-24
   public double workerShare = Double.NaN; // residents employed, 15-64 (ISTAT P101)
+
+  /** Share of the zone's adults who are women (NaN when the census lacks the column). */
+  public double femaleShare = Double.NaN;
 
   public CensusZone(MasonGeometry geometry) {
     this.geometry = geometry;

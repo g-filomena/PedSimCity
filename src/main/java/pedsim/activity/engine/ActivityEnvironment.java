@@ -25,8 +25,8 @@ import sim.util.geo.MasonGeometry;
  * radius that yields at least one node; a node may be claimed by several zones (so residents of a
  * parcel land on the bordering street nodes). No type-based fusion is needed.
  *
- * <p>The same census layer also carries module-specific columns (e.g. {@code vulnerability_pct} for
- * the night module); modules read those from each zone's geometry via {@link #zoneValue}.
+ * <p>The same census layer also carries the per-zone sex ratio ({@code female_pct}); any other
+ * per-zone column is read from the zone's geometry via {@link #zoneValue}.
  */
 public class ActivityEnvironment extends Environment {
 
@@ -63,6 +63,7 @@ public class ActivityEnvironment extends Environment {
       zone.retireeShare = zoneValueOrNaN(geom, "retiree_pct");
       zone.studentShare = zoneValueOrNaN(geom, "student_pct");
       zone.workerShare = zoneValueOrNaN(geom, "worker_pct");
+      zone.femaleShare = zoneValueOrNaN(geom, "female_pct");
       totalResidents += zoneValue(geom, "residents");
 
       zone.nodes.addAll(claimNodes(geom.getGeometry(), nodeIndex));

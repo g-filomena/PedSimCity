@@ -75,13 +75,12 @@ public class ActivityPars {
   /**
    * Distance (m) at which a <b>commute</b> is walked with probability 0.5, and the logit steepness.
    *
-   * <p>Separate from the pooled DfT National Travel Survey curve (NTS0308, England 2025: a
-   * half-distance near 2,290 m at a steepness of 0.00084) that the model once used for every trip,
-   * and that separation is the finding. The NTS curve pools every trip purpose; a commute is not a
-   * discretionary trip and is walked far less at
-   * the same distance. Holding one curve for both is what made the model walk 47% of work commutes
-   * where Turin walks 16.3%, and no workplace distribution could repair it - the share and the
-   * length distribution moved in opposite directions across the whole decay range.
+   * <p>Separate from {@link #walkShareHalfDistance}, the pooled DfT curve that answers the same
+   * question for trips in general, and that separation is the finding. The pooled curve mixes every
+   * trip purpose; a commute is not a discretionary trip and is walked far less at the same distance.
+   * Holding one curve for both is what made the model walk 47% of work commutes where Turin walks
+   * 16.3%, and no workplace distribution could repair it - the share and the length distribution
+   * moved in opposite directions across the whole decay range.
    *
    * <p>Fitted, not invented: {@code CommuteCalibration} scores candidate curves against the ISTAT
    * commuting matrix for Torino (see {@code COMMUTE_DISTANCE.md}) - the 16.3% walked share and the
@@ -162,6 +161,13 @@ public class ActivityPars {
   public static double retireeShare = 0.20;
   public static double flexShare = 0.15;
 
+  /**
+   * Share of a zone's adults who are women, used only where the census carries no {@code
+   * female_pct} column. Italy's adult sex ratio, near enough everywhere; a city that has the column
+   * reads it per zone instead.
+   */
+  public static double femaleShare = 0.52;
+
   // --- Destination choice as a choice (experimental, behind the switch below) ---
   /**
    * Switches destination choice from "find a node at the sampled distance" to "choose among the
@@ -193,8 +199,8 @@ public class ActivityPars {
    * circuity moves it and the temptation is to compensate here. Compensating pins this coefficient
    * to a circuity figure derived from a set of trips, and re-imports through the coefficient
    * exactly the circularity that measuring circuity from the network removes. A few per cent of
-   * drift in a coefficient that has never been fitted is not a result; inheriting a superseded
-   * trip-length distribution would be.
+   * drift in a coefficient that has never been fitted costs nothing; a coefficient pinned to a
+   * trip-length distribution the model produced itself is a circularity.
    *
    * <p>{@code Torino.properties} sets this key, so changing the Java default alone does nothing
    * for Turin.
@@ -208,29 +214,58 @@ public class ActivityPars {
   public static double habitWeight = 1.5;
 
   /**
-   * Walked trips one person makes on an average day.
+   * Trips one person makes on an average day, by any mode.
    *
    * <p>ISFORT 22nd report: 2.53 trips a day for the mobile population, who are 80.8% of everyone,
-   * so 2.04 trips per resident per day - across all modes. Walking is about 25% of trips in a large
-   * north-western city, which gives **0.51 walked trips per resident per day**.
+   * so 2.04 trips per resident per day. It counts <i>legs</i>, which is what the survey counts, and
+   * it is the only figure here the survey gives directly.
    *
-   * <p>The mode share matters and is easy to drop: 2.04 counts every trip, most of them driven, and
-   * using it whole would have the model walk four times what anyone walks.
+   * <p>Every mode, deliberately. How many of these are walked is decided trip by trip, once the
+   * destination is known, by {@link pedsim.core.engine.TravelDemand#walkProbability(double)} - so
+   * the walking share is something the model produces and is checked on, not something it is told.
+   * A figure with the walking share already divided into it cannot do that, and it also hides which
+   * of the two numbers a bad result came from.
    *
-   * <p>This is a count of <i>legs</i>, which is what the survey counts, and it is the only figure
-   * here the survey gives directly. What the model does with it is subtract the legs its structural
-   * commutes will walk today and buy the remainder as discretionary chains, dividing by the chain
-   * length {@code DailyAgenda.expectedLegs} computes rather than by a constant. Keep the two
-   * separate: folding a chain length into this figure would make an agenda probability change how
-   * many trips the population makes, while the survey number it came from stayed put.
-   *
-   * <p>Worth noting what it predicts. At about 1,734 m a leg, 0.51 legs a day comes to roughly
-   * 885 m walked per resident per day - inside the 600-1,000 m that
-   * {@code Pars.metersPerDayPerPerson} was derived from, by a route that shares only its first two
-   * figures. Two derivations meeting is not proof, but it is the kind of check the metres anchor
-   * could never offer, because it was the thing being hit rather than the thing being predicted.
+   * <p>What the model does with it is subtract the legs today's commutes account for, whatever mode
+   * those are made by, and buy the remainder as discretionary chains - dividing by the chain length
+   * {@code DailyAgenda.expectedLegs} computes rather than by a constant. Keep the two separate:
+   * folding a chain length into this figure would make an agenda probability change how many trips
+   * the population makes, while the survey number it came from stayed put.
    */
-  public static double walkedTripsPerPersonPerDay = 0.51;
+  public static double tripsPerPersonPerDay = 2.04;
+
+  /**
+   * Half-distance of the walking share curve for trips in general, in metres: the length at which
+   * half of all trips are walked. With {@link #walkShareSteepness} it is the logit
+   * {@code ActivityTravelDemand.walkCurve} draws against once a destination has been chosen.
+   *
+   * <p><b>English, and borrowed.</b> DfT National Travel Survey NTS0308 (England 2025) gives the
+   * walking share of trips by length - 81.6% under a mile, 38.6% between one and two, 6.3% between
+   * two and five - which fits 2,290 m at a steepness of 0.00084.
+   *
+   * <p>It imports a level as well as a shape, and the level is wrong in two directions that do not
+   * cancel: England walks more than Italy (ISFORT puts walking at 19.3% of trips in 2024), while
+   * Audimob excludes walking trips under five minutes and so under-counts exactly the short trips
+   * that dominate. It is the best-evidenced curve available until the Audimob microdata allow an
+   * Italian fit - ISFORT publishes distance classes and modal shares separately and never crosses
+   * them, which is the gap {@code references/README.md} records.
+   *
+   * <p><b>Pulled in from the NTS fit's 2,290 m, which is English and too generous here.</b> Audimob
+   * puts walking at 20.6% of Italian trips against the model's realised share, and 1,500 m is a step
+   * toward that which keeps the curve above {@link #walkShareCommuteHalfDistance}'s 800 m - a
+   * discretionary trip is walked more readily than a commute of the same length, which is the
+   * distinction the two curves exist to make. It is an interim value: the level moves with it, but
+   * the level cannot be fixed by this alone, because the NTS <i>slope</i> is shallower than the
+   * ISTAT-fitted Italian ones and no half-distance makes a shallow curve steep. Both go together
+   * when the Audimob microdata allow a fit.
+   *
+   * <p>Not the commute curve: see {@link #walkShareCommuteHalfDistance}, which is ISTAT-fitted for
+   * Turin. Holding one curve for both is what made the model walk 47% of work commutes.
+   */
+  public static double walkShareHalfDistance = 1500.0;
+
+  /** Steepness of the general walking-share logit; see {@link #walkShareHalfDistance}. */
+  public static double walkShareSteepness = 0.00084;
 
   /**
    * How many alternatives the choice is actually computed over.
