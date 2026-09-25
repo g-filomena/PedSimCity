@@ -51,21 +51,26 @@ def hour_columns(header: list[str]) -> tuple[dict[int, int], dict[int, int]]:
     return vuln, nonvuln
 
 
-def read_day_summary(run_dir: Path) -> list[dict[str, str]]:
-    """Every row of every daySummary file, in file order."""
+def read_day_summary(run_dir: Path, max_day: int | None = None) -> list[dict[str, str]]:
+    """Every row of every daySummary file, in file order, up to ``max_day``."""
     rows: list[dict[str, str]] = []
     for path in sorted((run_dir / "daySummary").glob("*.csv")):
         with path.open(newline="") as handle:
             for row in csv.DictReader(handle):
                 # A concatenated file repeats its header; skip those rows.
-                if row.get("day") and row["day"] != "day":
-                    rows.append(row)
+                if not row.get("day") or row["day"] == "day":
+                    continue
+                if max_day is not None and int(row["day"]) > max_day:
+                    continue
+                rows.append(row)
     return rows
 
 
-def aggregate(run_dir: Path) -> dict:
+def aggregate(run_dir: Path, max_day: int | None = None) -> dict:
     volume_dir = run_dir / "streetVolumes"
     files = sorted(p for p in volume_dir.glob("*.csv") if VOLUME_NAME.match(p.name))
+    if max_day is not None:
+        files = [p for p in files if int(VOLUME_NAME.match(p.name).group("day")) <= max_day]
     if not files:
         sys.exit(f"no street volume files under {volume_dir}")
 
@@ -120,6 +125,7 @@ def aggregate(run_dir: Path) -> dict:
         "dayJobs": len(files),
         "jobs": sorted(jobs),
         "days": len(days),
+        "maxDay": max_day,
         "hours": HOURS,
         # The city-wide share is what a per-edge vulnerable share has to be read against: the
         # population is not evenly split, so parity is not the neutral point.
@@ -133,10 +139,17 @@ def main() -> None:
     parser.add_argument("run_dir", type=Path, help="directory holding streetVolumes/ and daySummary/")
     parser.add_argument("--season", required=True, help="label for this run, e.g. autumn")
     parser.add_argument("--out", type=Path, required=True, help="JSON file to write")
+    parser.add_argument(
+        "--max-day",
+        type=int,
+        default=None,
+        help="ignore days after this one. Seasons are compared on absolute traversals, so a "
+        "run that got further than its siblings has to be cut back to the days they all share.",
+    )
     args = parser.parse_args()
 
-    result = aggregate(args.run_dir)
-    summary = read_day_summary(args.run_dir)
+    result = aggregate(args.run_dir, args.max_day)
+    summary = read_day_summary(args.run_dir, args.max_day)
     result["season"] = args.season
     result["dates"] = sorted({row["date"] for row in summary if row.get("date")})
     result["daySummary"] = summary
