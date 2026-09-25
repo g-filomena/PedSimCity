@@ -63,10 +63,10 @@ The binary `lit` flag is only a pass/fail fallback when measured lux is missing.
 
 | Value | CSV column | Interpretation |
 |---|---|---|
-| `MIN` | `visibility_min_lux` | conservative default: minimum lux near the edge entrance |
-| `MEAN` | `visibility_mean_lux` | average lux near the edge entrance |
+| `MIN` | `visibility_min_lux` | minimum lux near the edge entrance; about one lamp spacing wide, so it measures distance from the nearest lamp rather than how the street ahead is lit |
+| `MEAN` | `visibility_mean_lux` | average lux near the edge entrance — the default |
 
-Mean-light passes if measured `mean_lux` exists and exceeds the agent threshold, or if the binary `lit` fallback says the edge is lit. Entrance-light passes if directional lux exists and exceeds the threshold, or if the binary `lit` fallback says the edge is lit. Otherwise the check fails closed.
+Mean-light passes if measured `mean_lux` exists and exceeds the agent threshold, or if the binary `lit` fallback says the edge is lit. It then also has to clear the dark-spot test: `min_lux`, the darkest sample point on the edge, against `NightPars.darkSpotLuxThreshold` (5 lux, the pipeline's service level) rather than against the agent's own threshold, which a minimum over a whole edge would almost never clear. An edge carrying no `min_lux` passes that test, so a city without the lighting pipeline is gated on the mean alone. Entrance-light passes if directional lux exists and exceeds the threshold, or if the binary `lit` fallback says the edge is lit. Otherwise the check fails closed.
 
 By default `nonVulnerableLightSensitivity = 5.0`, so non-vulnerable agents also respond to darkness, treating an edge below 5 lux as dark (the same unlit threshold as the vulnerable-agent minimum). Set `nonVulnerableLightSensitivity = 0.0` to make non-vulnerable agents insensitive to darkness — lux-driven behaviour then applies only to vulnerable agents, apart from parks/water logic.
 
