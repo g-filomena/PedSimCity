@@ -46,11 +46,10 @@ Along with:
 
 **This is the recommended option for running PedSimCity and it does not require the user to take any other step or to manually install the dependencies.**
 
-> **The Java (AWT) GUI was removed on 13 September 2026.** There is no window and no
-> *Run Simulation* button. A run is configured by two things, both of which leave a record it can be
-> reproduced from: `src/main/resources/<City>/<City>.properties` for per-city parameters, and
-> `--key=value` on the command line for everything else. The step that used to ask for the
-> `src/main/resources/` path by hand is gone too — resources are read from the classpath.
+> **There is no desktop GUI.** A run is configured by two things, both of which leave a record it
+> can be reproduced from: `src/main/resources/<City>/<City>.properties` for per-city parameters, and
+> `--key=value` on the command line for everything else. Resources are read from the classpath, so
+> no path has to be given. For a live view of a run, use the browser dashboard (`--website`).
 
 To work on the sources in an IDE instead:
 
@@ -90,8 +89,7 @@ origin-destination pairs, pass `--testingSpecificOD=true` with `--originsTmp` an
 as comma-separated node IDs. Under "Testing Specific Route Choice Models" one agent walks the matrix
 per route-choice model.
 
-**"Testing Landmarks" needs `<City>_distances.csv`, which no bundled city currently ships** — see
-`src/main/java/pedsim/cityimage/TODO.md`.
+**"Testing Landmarks" needs `<City>_distances.csv`, which no bundled city currently ships.**
 
 ## Architecture: modules
 
@@ -99,7 +97,7 @@ per route-choice model.
 cognitive-map machinery, the REST server and dashboard state. It models no behaviour — no census, no
 personas, no agendas — so a bare core run releases agents at a flat rate and sends them somewhere
 they know; it exists as the skeleton the domain models extend, and as a smoke test. Each module has
-its own README and `TODO.md` under `src/main/java/pedsim/<module>/`:
+its own README under `src/main/java/pedsim/<module>/`:
 
 | Module | Role |
 |---|---|
@@ -165,15 +163,28 @@ root.
 
 **Publishing results** — the result pages under `outputs/results/` are self-contained HTML.
 `python scripts/publish_site.py` (or `scripts/publish_site.bat`) stages them into `outputs/site/` — an overview
-page plus one sub-page per city — and deploys to Cloudflare Pages (project `inclusivestreets`),
+page plus one sub-page per city — and deploys to Cloudflare Pages (project `pedsimcity`),
 served at [pedsimcity.inclusivestreets.org](https://pedsimcity.inclusivestreets.org), with each
-city at `pedsimcity.inclusivestreets.org/<City>`. The site lives at the root of its own
-subdomain; the `inclusivestreets.org` apex is a separate umbrella and is not managed by this
-script. Use `--no-deploy` to only stage the folder (drag-and-drop it in the Pages dashboard
-instead), or `--open` to preview it locally. One-time toolchain setup (per machine):
-`npm install -g wrangler`, `wrangler login`, `wrangler pages project create inclusivestreets`;
-the `pedsimcity` subdomain is then attached once in the Cloudflare dashboard
-(Workers & Pages → inclusivestreets → Custom domains).
+city at `pedsimcity.inclusivestreets.org/<City>`. Use `--no-deploy` to only stage the folder
+(drag-and-drop it in the Pages dashboard instead), or `--open` to preview it locally. One-time
+toolchain setup (per machine): `npm install -g wrangler`, `wrangler login`,
+`wrangler pages project create pedsimcity`; the subdomain is then attached once in the
+Cloudflare dashboard (Workers & Pages → pedsimcity → Custom domains). Where wrangler is
+installed outside `PATH`, point `$WRANGLER` at the executable.
+
+**The apex is a second Pages project, deliberately.** A Pages project serves the *same*
+deployment on every domain attached to it, so `inclusivestreets.org` and
+`pedsimcity.inclusivestreets.org` cannot differ inside one project. The umbrella site —
+project `inclusivestreets`, apex + www — is a container that links to the projects under it,
+and it lives outside this repository, in `../inclusivestreets/`. Nothing here deploys it.
+
+**Per-city web data** — `outputs/site_data/<City>/` is staged to `<City>/data/` and published
+with the site. It holds the street network as WGS84 GeoJSON
+(`scripts/export_network_geojson.py`) and one aggregated file per season
+(`scripts/aggregate_season_volumes.py`); `publish_site.py` indexes them into
+`data/seasons/summary.json` and ships `scripts/site/seasons.html`, the map that reads them, as
+`<City>/seasons`. A city with that data but no exported run page is published for the data
+alone.
 
 **How to use the Web Dashboard:**
 
