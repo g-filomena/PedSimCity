@@ -102,6 +102,23 @@ public class ActivityAgent extends Agent {
    */
   protected boolean walksToWork = true;
 
+  /**
+   * Whether this agent is a woman, drawn once from the home zone's census sex ratio. A demographic
+   * fact about the person, alongside the persona: what any model makes of it - who is treated as
+   * vulnerable after dark, how often someone travels - is that model's judgement, made elsewhere.
+   */
+  private boolean female;
+
+  /** Whether this agent is a woman. Agents are adults, so this is the adult sex ratio. */
+  public boolean isFemale() {
+    return female;
+  }
+
+  /** Sets the agent's sex; drawn from the home zone by {@code ActivityPopulate}. */
+  public void setFemale(boolean female) {
+    this.female = female;
+  }
+
   /** Assigns the persona and derives the individual walking speed (±10% personal noise). */
   public void setPersona(Persona persona) {
     this.persona = persona;
@@ -174,6 +191,20 @@ public class ActivityAgent extends Agent {
    * @param day the day being prepared
    * @return whether this agent has a walked mandatory trip today
    */
+  /**
+   * Whether this agent travels to its mandatory activity today, <b>by any mode</b>. The day's trip
+   * budget counts trips, so a commute that is driven still spends from it; whether it is walked -
+   * and so whether the agent is ever released onto the street - is {@link #planMandatoryDeparture}.
+   *
+   * @param day the day being prepared
+   */
+  public boolean commutesOn(java.time.LocalDate day) {
+    return persona != null
+        && workNode != null
+        && persona.hasMandatoryActivity()
+        && persona.worksOn(day.getDayOfWeek());
+  }
+
   public boolean planMandatoryDeparture(java.time.LocalDate day) {
     mandatoryDepartureMinute = -1;
     if (persona == null
@@ -259,6 +290,41 @@ public class ActivityAgent extends Agent {
     }
   }
 
+  /**
+   * Mode choice for a discretionary leg: a draw against the general walk-share curve at the distance
+   * this leg turned out to be.
+   *
+   * <p>The commute is exempt because its mode was already settled, once and for the person, by
+   * {@link #decideCommuteMode()} against a curve fitted to commuting. Asking again here would filter
+   * the same journey twice, through two different curves.
+   *
+   * <p>Distance enters as a cost, not as a filter on which trips exist: the destination was chosen
+   * before this is asked, and what is decided is how the journey to it is made. A leg that is not
+   * walked produces no pedestrian metres at all, which is where the model is silent about the walk
+   * to and from a stop.
+   */
+  @Override
+  protected boolean walksLeg(NodeGraph origin, NodeGraph destination) {
+    if (destination == null || destination.equals(workNode)) {
+      return true;
+    }
+    double metres =
+        origin.getCoordinate().distance(destination.getCoordinate()) * Pars.networkCircuityFactor;
+    boolean walks = random.nextDouble() < state.travelDemand().walkProbability(metres);
+    if (state instanceof PedSimCityActivity activityState) {
+      activityState.recordModeChoice(metres, walks, homeNode);
+    }
+    return walks;
+  }
+
+  /** A chain that never set off leaves no agenda behind. */
+  @Override
+  protected void abandonUnwalkedLeg() {
+    agenda = null;
+    currentPurpose = null;
+    super.abandonUnwalkedLeg();
+  }
+
   /** Arriving at the workplace is what spends the day's commute. */
   @Override
   protected void handleReachedSoloDestination() {
@@ -324,6 +390,11 @@ public class ActivityAgent extends Agent {
       defineRandomDestination();
     }
     if (destinationNode == null) {
+      return false;
+    }
+    if (!walksLeg(originNode, destinationNode)) {
+      // The chain ends here rather than continuing by another mode; the caller walks the agent
+      // home, which is the leg it would have walked anyway once its day was over.
       return false;
     }
 

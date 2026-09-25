@@ -49,15 +49,19 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
    *
    * <p>One pass over the population. Each agent draws its mandatory departure minute, or
    * establishes that it has none today - it has no job, it does not walk to it, or its persona does
-   * not attend on this day. The legs those commutes will walk are subtracted from the day's trip
-   * budget, and what remains is bought as discretionary chains.
+   * not attend on this day. The legs today's commutes account for, <i>whatever mode they are made
+   * by</i>, are subtracted from the day's trip budget, and what remains is bought as discretionary
+   * chains.
    *
-   * <p>The budget is {@code walkedTripsPerPersonPerDay}, an ISFORT count of walked <i>legs</i>, and
-   * it is divided by the chain length the agendas will actually produce - computed here from the
-   * realised persona mix, not from a constant. It is why the figure in
-   * {@code ActivityPars} is now the survey's 0.51 rather than 0.21: a chain length belongs to the
-   * model and changes when the agenda probabilities change, so it has no business being baked into
-   * a number attributed to a travel survey.
+   * <p>The budget is {@link ActivityPars#tripsPerPersonPerDay}, an ISFORT count of <i>legs</i> at
+   * every mode, divided by the chain length the agendas will actually produce - computed here from
+   * the realised persona mix, not from a constant. A chain length belongs to the model and changes
+   * when the agenda probabilities change, so it has no business being baked into a number
+   * attributed to a travel survey.
+   *
+   * <p>Nothing here decides how many trips are walked. That is settled trip by trip, once each
+   * destination is known, by {@link #walkProbability(double)}; the share it produces is reported by
+   * {@code DaySummary} against the survey.
    *
    * <p>Synchronised and idempotent per day; the first release event of a day pays for it.
    */
@@ -74,6 +78,7 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
     double[] personaCounts = new double[4];
     double population = 0.0;
     double mandatoryLegs = 0.0;
+    double commuteLegs = 0.0;
     int workersWithJob = 0;
     int workersWalking = 0;
     int studentsWithPlace = 0;
@@ -110,6 +115,9 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
           walkedCommuteBands[band]++;
         }
       }
+      if (activityAgent.commutesOn(today)) {
+        commuteLegs += DailyAgenda.expectedLegs(persona, true, rainy);
+      }
       if (activityAgent.planMandatoryDeparture(today)) {
         mandatoryLegs += DailyAgenda.expectedLegs(persona, true, rainy);
       }
@@ -133,8 +141,11 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
     legsPerChain = Math.max(1.0, legsPerChain);
 
     double agents = Pars.numAgents > 0 ? Pars.numAgents : population;
-    double budgetLegs = agents * ActivityPars.walkedTripsPerPersonPerDay;
-    double discretionaryLegs = Math.max(0.0, budgetLegs - mandatoryLegs);
+    double budgetLegs = agents * ActivityPars.tripsPerPersonPerDay;
+    // Charged at every mode: somebody who drives to work has still made those trips, and the budget
+    // counts trips. Subtracting only the walked ones would spend a driver's commute a second time,
+    // as somebody else's discretionary walk.
+    double discretionaryLegs = Math.max(0.0, budgetLegs - commuteLegs);
     discretionaryChainsPerPerson = agents > 0.0 ? discretionaryLegs / legsPerChain / agents : 0.0;
 
     dayMandatoryLegs = mandatoryLegs;
@@ -146,9 +157,10 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
 
     LOGGER.info(
         String.format(
-            "day %s: %.0f mandatory legs of a %.0f-leg budget; %.3f discretionary chains per"
-                + " person at %.2f legs each",
+            "day %s: %.0f commute legs (%.0f of them walked) of a %.0f-leg budget; %.3f"
+                + " discretionary chains per person at %.2f legs each",
             time.toLocalDate(),
+            commuteLegs,
             mandatoryLegs,
             budgetLegs,
             discretionaryChainsPerPerson,
@@ -293,12 +305,26 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
   }
 
   /**
-   * Commuting, which is not the same question as walking in general - see
-   * {@link ActivityPars#walkShareCommuteHalfDistance}.
+   * Probability that a discretionary trip of this length is walked - the model's mode choice for
+   * everything that is not a commute, asked once the destination is known.
+   *
+   * <p>Commuting is a different question and has its own curve; see
+   * {@link #commuteWalkProbability(double, boolean)}.
    */
   @Override
   public double walkProbability(double meters) {
-    return commuteWalkCurve(meters, false);
+    return walkCurve(meters);
+  }
+
+  /**
+   * The general walking-share logit, fitted to DfT NTS0308; see
+   * {@link ActivityPars#walkShareHalfDistance} for what it imports and what it costs.
+   */
+  public static double walkCurve(double meters) {
+    return 1.0
+        / (1.0
+            + Math.exp(
+                ActivityPars.walkShareSteepness * (meters - ActivityPars.walkShareHalfDistance)));
   }
 
   @Override

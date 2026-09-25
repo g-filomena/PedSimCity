@@ -36,6 +36,7 @@ public final class DaySummary {
     "legs_per_chain",
     "worker_walk_share",
     "student_walk_share",
+    "discretionary_walk_share",
     "unusable_lengths",
     "band_widenings",
     "destination_fallbacks",
@@ -83,6 +84,7 @@ public final class DaySummary {
       demand == null ? "" : String.format("%.2f", demand.legsPerChain()),
       demand == null ? "" : String.format("%.4f", demand.workerWalkShare()),
       demand == null ? "" : String.format("%.4f", demand.studentWalkShare()),
+      String.format("%.4f", activityState.realisedWalkShare()),
       Long.toString(state.trace().unusableRouteLengths()),
       Long.toString(state.trace().destinationWidenings()),
       Long.toString(state.trace().destinationFallbacks()),
@@ -93,8 +95,67 @@ public final class DaySummary {
     write(appName, job, row);
 
     logger.info(String.format("day %s: %d of %d legs set off in darkness", date, legsDark, legs));
+    logWalkShares(activityState, date);
 
     activityState.resetDarknessCounters();
+    activityState.resetModeChoiceCounters();
+  }
+
+  /**
+   * Logs the walking share the day produced, whole and cut two ways: by how long the trip is, which
+   * is what the curve was fitted on, and by how far from the centre the traveller lives, which is
+   * what the curve is being asked to explain.
+   *
+   * <p>A prediction to check. ISFORT puts walking at about a fifth of Italian trips; nothing in the
+   * run is arranged to land there, and a gap is a statement about the curve rather than a number to
+   * move.
+   */
+  private static void logWalkShares(PedSimCityActivity state, LocalDate date) {
+    double overall = state.realisedWalkShare();
+    if (Double.isNaN(overall)) {
+      return;
+    }
+    logger.info(
+        String.format(
+            "day %s: %.1f%% of discretionary trips walked | by length %s | by ring %s",
+            date,
+            100.0 * overall,
+            bandsOf(
+                state.walkShareByBand(),
+                state.legsOfferedByBand(),
+                null,
+                PedSimCityActivity.MODE_DISTANCE_BANDS,
+                "m"),
+            bandsOf(
+                state.walkShareByRing(),
+                state.legsOfferedByRing(),
+                state.meanLegMetresByRing(),
+                PedSimCityActivity.MODE_RING_BANDS,
+                "m out")));
+  }
+
+  /**
+   * Formats per-band shares with the count behind each one, and the mean leg length where it is
+   * given: {@code <=500m 82.1% n=310 | >500m 4.2% n=12}.
+   */
+  private static String bandsOf(
+      double[] shares, long[] counts, double[] meanMetres, double[] edges, String unit) {
+    StringBuilder text = new StringBuilder();
+    for (int i = 0; i < shares.length; i++) {
+      if (i > 0) {
+        text.append(" | ");
+      }
+      text.append(
+          i < edges.length
+              ? String.format("<=%.0f%s ", edges[i], unit)
+              : String.format(">%.0f%s ", edges[edges.length - 1], unit));
+      text.append(Double.isNaN(shares[i]) ? "-" : String.format("%.1f%%", 100.0 * shares[i]));
+      text.append(String.format(" n=%d", counts[i]));
+      if (meanMetres != null && !Double.isNaN(meanMetres[i])) {
+        text.append(String.format(" mean %.0fm", meanMetres[i]));
+      }
+    }
+    return text.toString();
   }
 
   /** Appends one row, writing the header first if the file is new. */

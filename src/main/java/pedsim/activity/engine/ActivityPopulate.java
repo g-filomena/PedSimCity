@@ -13,6 +13,7 @@ import pedsim.core.agents.Agent;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.Populate;
 import pedsim.core.parameters.RouteChoicePars;
+import pedsim.core.utilities.LoggerUtil;
 import sim.graph.NodeGraph;
 
 /**
@@ -39,6 +40,41 @@ public class ActivityPopulate extends Populate {
       buildResidenceProbabilities();
     }
     super.populate(state);
+    logRealisedSexRatio();
+  }
+
+  /**
+   * Logs the share of the population that is female against the census expectation - the
+   * residence-weighted mean of the zones' own rates. The draw is per agent, so the two differ by
+   * sampling noise; a systematic gap is a statement about how homes were placed.
+   */
+  private void logRealisedSexRatio() {
+    long women = 0;
+    long adults = 0;
+    for (Agent agent : state.agentsList) {
+      if (agent instanceof ActivityAgent activityAgent) {
+        adults++;
+        if (activityAgent.isFemale()) {
+          women++;
+        }
+      }
+    }
+    if (adults == 0) {
+      return;
+    }
+    double expected = 0.0;
+    double residence = 0.0;
+    for (CensusZone zone : PedSimCityActivity.censusZones) {
+      if (Double.isNaN(zone.femaleShare) || zone.residence <= 0.0) {
+        continue;
+      }
+      expected += zone.residence * zone.femaleShare;
+      residence += zone.residence;
+    }
+    String census =
+        residence > 0.0 ? String.format(" (census %.1f%%)", 100.0 * expected / residence) : "";
+    LoggerUtil.getLogger()
+        .info(String.format("women: %.1f%% of agents%s", 100.0 * women / adults, census));
   }
 
   @Override
@@ -65,11 +101,23 @@ public class ActivityPopulate extends Populate {
     homeZone = null;
     super.defineHomeWorkLocations(agent);
     if (agent instanceof ActivityAgent activityAgent) {
+      activityAgent.setFemale(random.nextDouble() < femaleShare());
       activityAgent.setPersona(samplePersona());
       applyPersonaEmployment(activityAgent);
       // Last, because it reads the workplace the line above may have just replaced.
       activityAgent.decideCommuteMode();
     }
+  }
+
+  /**
+   * The home zone's share of adults who are women, falling back to {@link ActivityPars#femaleShare}
+   * where the census carries no such column or the home node came from a rung below the census.
+   */
+  private double femaleShare() {
+    if (homeZone == null || Double.isNaN(homeZone.femaleShare)) {
+      return ActivityPars.femaleShare;
+    }
+    return Math.min(1.0, Math.max(0.0, homeZone.femaleShare));
   }
 
   /** Persona draw: zone-conditioned when enabled and the home zone carries census shares. */
