@@ -156,3 +156,8 @@ node_modules/
 # Generated classpath files (mvn dependency:build-classpath)
 cp.txt
 cp_*.txt
+
+# Working notes: planning and internal history, kept out of the published repo.
+/TODO.md
+/bug_changelog.md
+src/main/java/pedsim/*/TODO.md
