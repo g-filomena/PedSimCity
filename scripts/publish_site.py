@@ -11,12 +11,16 @@ The PedSimCity site lives at the root of its own subdomain, one sub-page per cit
     outputs/site/<City>/index.html    -> pedsimcity.inclusivestreets.org/<City>    (that city's runs)
     outputs/site/<City>/results_*.html (the individual runs)
 
-The inclusivestreets.org apex is a separate concern (a future umbrella site) and is not
-managed here — this publisher owns only the pedsimcity subdomain.
+The inclusivestreets.org apex is a separate concern (the umbrella site, which lives outside
+this repository in ../inclusivestreets/) and is not managed here — this publisher owns only
+the pedsimcity subdomain. They are **two Cloudflare Pages projects**, because one project
+serves the same deployment on every domain attached to it: ``pedsimcity`` holds this site,
+``inclusivestreets`` holds the apex and www.
 
 One-time setup (see README): ``npm install -g wrangler``, ``wrangler login``,
 ``wrangler pages project create <project>``, then attach the custom domain in the
-Cloudflare dashboard (Workers & Pages -> project -> Custom domains).
+Cloudflare dashboard (Workers & Pages -> project -> Custom domains). Where wrangler is
+installed outside PATH, ``$WRANGLER`` names the executable.
 
 Standard library only — runs with any Python. Use ``--no-deploy`` to only stage the
 folder (it can then be drag-and-dropped in the Cloudflare Pages dashboard instead) and
@@ -26,6 +30,7 @@ folder (it can then be drag-and-dropped in the Cloudflare Pages dashboard instea
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import shutil
@@ -43,9 +48,18 @@ from urllib.parse import quote
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = REPO_ROOT / "outputs" / "results"
 SITE_DIR = REPO_ROOT / "outputs" / "site"
+# Per-city web data (street geometry, one aggregated file per season) and the page that
+# reads it. The data is produced outside this script, by export_network_geojson.py and
+# aggregate_season_volumes.py; this only stages it and writes the summary that indexes it.
+SITE_DATA_DIR = REPO_ROOT / "outputs" / "site_data"
+SEASONS_TEMPLATE = Path(__file__).resolve().parent / "site" / "seasons.html"
+SEASON_ORDER = ["spring", "summer", "autumn", "winter"]
 
 # Public host the staged site is served at (used only for console messages).
 SITE_HOST = "pedsimcity.inclusivestreets.org"
+# The Pages branch the custom domain serves. Deploying from any other branch name gives a
+# preview URL and leaves the live site untouched.
+PRODUCTION_BRANCH = "main"
 GITHUB_URL = "https://github.com/g-filomena/PedSimCity"
 
 RESULT_NAME = re.compile(
@@ -154,13 +168,17 @@ def _run_card(info: dict, href: str, latest: bool = False) -> str:
             f'<span class="meta">{escape(" · ".join(bits))}</span></a></li>')
 
 
-def _city_card(city: str, infos: list[dict]) -> str:
+def _city_card(city: str, infos: list[dict], summary: dict | None = None) -> str:
     infos = sorted(infos, key=lambda i: i["mtime"], reverse=True)
-    latest = infos[0]
-    n = len(infos)
-    latest_desc = f"day {latest['day']}" if latest["day"] is not None else latest["path"].stem
-    meta = (f'{n} run{"s" if n != 1 else ""} · latest {latest_desc}'
-            f' ({latest["mtime"].strftime("%Y-%m-%d")})')
+    parts = []
+    if infos:
+        latest = infos[0]
+        latest_desc = f"day {latest['day']}" if latest["day"] is not None else latest["path"].stem
+        parts.append(f'{len(infos)} run{"s" if len(infos) != 1 else ""} · latest {latest_desc}'
+                     f' ({latest["mtime"].strftime("%Y-%m-%d")})')
+    if summary:
+        parts.append(f'{len(summary["seasons"])} seasons mapped')
+    meta = " · ".join(parts) if parts else "no runs yet"
     href = quote(city) + "/"
     return (f'  <li><a class="card" href="{escape(href)}">'
             f'<span class="title">{escape(city)}</span>'
@@ -168,6 +186,99 @@ def _city_card(city: str, infos: list[dict]) -> str:
 
 
 # --- site building ---------------------------------------------------------
+
+def _season_summary(city: str, data_dir: Path) -> dict | None:
+    """Indexes a city's season files into the small JSON the seasons page loads first.
+
+    Each season file is per-edge and several megabytes; the page needs the headline
+    numbers before it fetches any of them, and the four-season table needs all of them
+    at once. Returns None when the city ships no season data.
+    """
+    seasons_dir = data_dir / "seasons"
+    generated = {"summary", "trips_summary"}
+    files = (sorted(p for p in seasons_dir.glob("*.json") if p.stem not in generated)
+             if seasons_dir.is_dir() else [])
+    if not files:
+        return None
+
+    geometry = next((p.name for p in data_dir.glob(f"{city}_edges.geojson")), None)
+    if geometry is None:
+        print(f"  {city}: no {city}_edges.geojson beside the season files — skipping the map")
+        return None
+
+    trips_path = seasons_dir / "trips_summary.json"
+    trips = json.loads(trips_path.read_text()) if trips_path.exists() else {}
+
+    entries, agents, days, jobs = [], 0, 0, 0
+    for path in files:
+        data = json.loads(path.read_text())
+        rows = data.get("daySummary", [])
+
+        def total(column: str) -> float:
+            return sum(float(row[column]) for row in rows if row.get(column))
+
+        legs = total("legs")
+        entry = {
+            "season": data.get("season", path.stem),
+            "dates": data.get("dates", []),
+            "legs": legs,
+            "plannedM": total("planned_m"),
+            "walkedM": total("walked_m"),
+            "darkLegShare": (total("legs_dark") / legs) if legs else 0.0,
+            "traversals": data["traversals"]["vulnerable"] + data["traversals"]["nonVulnerable"],
+            "vulnerableShare": data["vulnerableShare"],
+        }
+        run_agents = max((int(row["agents"]) for row in rows if row.get("agents")), default=0)
+        entry["metresPerAgent"] = (
+            entry["walkedM"] / (run_agents * data["dayJobs"]) if run_agents and data["dayJobs"] else 0.0
+        )
+        # Per-population figures only: the trips file may cover fewer jobs or days than the
+        # day summaries do, so it must not overwrite a total already taken from them.
+        for key, value in trips.get(entry["season"], {}).items():
+            entry.setdefault(key, value)
+        entries.append(entry)
+        agents = max(agents, run_agents)
+        days = max(days, data.get("days", 0))
+        jobs = max(jobs, len(data.get("jobs", [])))
+
+    order = {name: i for i, name in enumerate(SEASON_ORDER)}
+    entries.sort(key=lambda e: (order.get(e["season"], len(order)), e["season"]))
+
+    edges = json.loads((data_dir / geometry).read_text())
+    summary = {
+        "city": city,
+        "geometry": geometry,
+        "agents": agents,
+        "days": days,
+        "jobs": jobs,
+        "edgesInNetwork": len(edges.get("features", [])),
+        "seasons": entries,
+    }
+    (seasons_dir / "summary.json").write_text(json.dumps(summary, separators=(",", ":")))
+    return summary
+
+
+def stage_city_data(city: str, city_dir: Path) -> dict | None:
+    """Copies a city's web data under <city>/data/ and writes its seasons page."""
+    data_dir = SITE_DATA_DIR / city
+    if not data_dir.is_dir():
+        return None
+    summary = _season_summary(city, data_dir)
+    if summary is None:
+        return None
+    shutil.copytree(data_dir, city_dir / "data", dirs_exist_ok=True)
+    shutil.copy2(SEASONS_TEMPLATE, city_dir / "seasons.html")
+    return summary
+
+
+def _seasons_card(summary: dict) -> str:
+    seasons = ", ".join(s["season"] for s in summary["seasons"])
+    meta = (f'{len(summary["seasons"])} seasons ({seasons}) · {summary["days"]} days x '
+            f'{summary["jobs"]} jobs at {summary["agents"]:,} agents')
+    return ('  <li><a class="card" href="seasons.html">'
+            '<span class="title">Streets by season</span>'
+            f'<span class="meta">{escape(meta)}</span></a></li>')
+
 
 def _rm_site_dir() -> None:
     """Remove SITE_DIR before restaging, tolerating the transient locks / read-only flags
@@ -205,24 +316,33 @@ def build_site(pages: list[Path]) -> dict[str, int]:
         info = parse_page(page)
         by_city[info["city"]].append(info)
 
+    # A city with web data but no exported run page is still published: the data is the result.
+    data_cities = ({d.name for d in SITE_DATA_DIR.iterdir() if d.is_dir()}
+                   if SITE_DATA_DIR.is_dir() else set())
+
     overview_items = []
-    for city in sorted(by_city, key=str.lower):
-        infos = sorted(by_city[city], key=lambda i: i["mtime"], reverse=True)
+    for city in sorted(set(by_city) | data_cities, key=str.lower):
+        infos = sorted(by_city.get(city, []), key=lambda i: i["mtime"], reverse=True)
         city_dir = SITE_DIR / city
         city_dir.mkdir(parents=True, exist_ok=True)
 
+        summary = stage_city_data(city, city_dir)
+
         run_items = []
+        if summary:
+            run_items.append(_seasons_card(summary))
         for idx, info in enumerate(infos):
             shutil.copy2(info["path"], city_dir / info["name"])
             run_items.append(_run_card(info, info["name"], latest=(idx == 0)))
 
         crumbs = _crumbs([("PedSimCity", "../"), (city, None)])
-        body = '<ul class="cards">\n' + "\n".join(run_items) + "\n</ul>"
+        body = ('<ul class="cards">\n' + "\n".join(run_items) + "\n</ul>") if run_items else (
+            '<p class="empty">Nothing published for this city yet.</p>')
         (city_dir / "index.html").write_text(
             _shell(f"{city} — PedSimCity", f"{city} · pedestrian-simulation results",
                    crumbs, body),
             encoding="utf-8")
-        overview_items.append(_city_card(city, infos))
+        overview_items.append(_city_card(city, infos, summary))
 
     # Overview at the subdomain root: the model's own landing (intro + per-city results).
     intro = ('<p class="intro">PedSimCity is an agent-based model of pedestrian movement in '
@@ -238,18 +358,27 @@ def build_site(pages: list[Path]) -> dict[str, int]:
                "", intro + "\n" + listing),
         encoding="utf-8")
 
-    return {city: len(infos) for city, infos in by_city.items()}
+    return {city: len(by_city.get(city, [])) for city in sorted(set(by_city) | data_cities)}
 
 
-def deploy(project: str) -> bool:
-    wrangler = shutil.which("wrangler") or shutil.which("wrangler.cmd")
+def deploy(project: str, branch: str) -> bool:
+    # $WRANGLER names the executable when it is not on PATH — which is the case when it
+    # lives in an environment of its own (conda, nvm, a project-local node_modules).
+    wrangler = (os.environ.get("WRANGLER")
+                or shutil.which("wrangler") or shutil.which("wrangler.cmd"))
     if wrangler is None:
         print("wrangler not found on PATH — install it with:  npm install -g wrangler")
-        print(f"Then deploy with:  wrangler pages deploy {SITE_DIR} --project-name {project}")
+        print("  or, if it is installed elsewhere, point $WRANGLER at the executable")
+        print(f"Then deploy with:  wrangler pages deploy {SITE_DIR} "
+              f"--project-name {project} --branch {branch}")
         print("(or drag-and-drop the folder in the Cloudflare Pages dashboard)")
         return False
+    # The branch is named explicitly: left to itself wrangler takes the current git branch, and
+    # a branch other than the project's production one deploys to a preview URL instead of the
+    # live domain — which succeeds, prints a URL, and changes nothing that anyone visits.
     subprocess.run(
-        [wrangler, "pages", "deploy", str(SITE_DIR), "--project-name", project],
+        [wrangler, "pages", "deploy", str(SITE_DIR),
+         "--project-name", project, "--branch", branch],
         check=True,
     )
     return True
@@ -257,8 +386,12 @@ def deploy(project: str) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Publish result pages to Cloudflare Pages.")
-    parser.add_argument("--project", default="inclusivestreets",
-                        help="Cloudflare Pages project name (default: inclusivestreets)")
+    parser.add_argument("--project", default="pedsimcity",
+                        help="Cloudflare Pages project name (default: pedsimcity)")
+    parser.add_argument("--branch", default=PRODUCTION_BRANCH,
+                        help=f"Pages branch to deploy to (default: {PRODUCTION_BRANCH}, the "
+                             "project's production branch — the one the live domain serves). "
+                             "Any other name publishes a preview.")
     parser.add_argument("--no-deploy", action="store_true",
                         help="Only stage outputs/site/ (deploy manually or via dashboard).")
     parser.add_argument("--open", action="store_true", dest="open_preview",
@@ -282,9 +415,9 @@ def main() -> None:
 
     if args.no_deploy:
         return
-    if deploy(args.project):
-        print("Deployed. The site is live on the Pages project"
-              f" (and on {SITE_HOST} once the custom domain is attached).")
+    if deploy(args.project, args.branch):
+        where = SITE_HOST if args.branch == PRODUCTION_BRANCH else f"the {args.branch} preview"
+        print(f"Deployed to {where}.")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seasons — PedSimCity</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --surface-0: #ffffff;
+    --surface-1: #fcfcfb;
+    --surface-2: #f4f3f0;
+    --map-surface: #ffffff;
+    --map-base: #e3e2de;          /* streets nothing walked */
+    --rule: #e0dfda;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #77756e;
+    --series-1: #2a78d6;          /* non-vulnerable */
+    --series-2: #eb6834;          /* vulnerable */
+    --grid: #eceae5;
+    /* sequential blue, 100 -> 700: low volume recedes toward the surface */
+    --seq-1: #cde2fb; --seq-2: #9ec5f4; --seq-3: #6da7ec; --seq-4: #3987e5;
+    --seq-5: #256abf; --seq-6: #184f95; --seq-7: #0d366b;
+    /* diverging blue <-> red about the city-wide vulnerable share */
+    --div-1: #2a78d6; --div-2: #7da9e2; --div-3: #bacfe9; --div-4: #f0efec;
+    --div-5: #f3c4bd; --div-6: #f09289; --div-7: #e34948;
+    --div-none: #dedcd6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-0: #121211;
+      --surface-1: #1a1a19;
+      --surface-2: #232321;
+      --map-surface: #0e0e0d;
+      --map-base: #2b2b28;
+      --rule: #34342f;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #96958c;
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --grid: #2a2a27;
+      /* reversed: on a dark surface, magnitude runs toward light */
+      --seq-1: #0d366b; --seq-2: #184f95; --seq-3: #256abf; --seq-4: #3987e5;
+      --seq-5: #6da7ec; --seq-6: #9ec5f4; --seq-7: #cde2fb;
+      --div-1: #3987e5; --div-2: #3e689b; --div-3: #3c4e63; --div-4: #383835;
+      --div-5: #674743; --div-6: #9e5653; --div-7: #e66767;
+      --div-none: #35352f;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-0: #121211;
+    --surface-1: #1a1a19;
+    --surface-2: #232321;
+    --map-surface: #0e0e0d;
+    --map-base: #2b2b28;
+    --rule: #34342f;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #96958c;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --grid: #2a2a27;
+    --seq-1: #0d366b; --seq-2: #184f95; --seq-3: #256abf; --seq-4: #3987e5;
+    --seq-5: #6da7ec; --seq-6: #9ec5f4; --seq-7: #cde2fb;
+    --div-1: #3987e5; --div-2: #3e689b; --div-3: #3c4e63; --div-4: #383835;
+    --div-5: #674743; --div-6: #9e5653; --div-7: #e66767;
+    --div-none: #35352f;
+  }
+
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+         max-width: 76rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem;
+         line-height: 1.6; background: var(--surface-0); color: var(--text-primary); }
+  header h1 { font-size: 1.5rem; margin: 0 0 .15rem; letter-spacing: -0.02em; }
+  header .sub { color: var(--text-secondary); margin: 0 0 1.25rem; }
+  nav.crumbs { font-size: .85rem; color: var(--text-muted); margin-bottom: 1.5rem; }
+  nav.crumbs a { color: inherit; text-decoration: none; }
+  nav.crumbs a:hover { text-decoration: underline; }
+  p.intro { max-width: 46rem; color: var(--text-secondary); margin: 0 0 1.6rem; }
+  h2 { font-size: 1.05rem; margin: 2.2rem 0 .2rem; letter-spacing: -0.01em; }
+  h2 + p.note { margin: 0 0 .9rem; color: var(--text-muted); font-size: .85rem; max-width: 48rem; }
+
+  /* --- filters: one row above the charts --- */
+  .filters { display: flex; flex-wrap: wrap; gap: .6rem .9rem; align-items: center;
+             padding: .75rem .9rem; border: 1px solid var(--rule); border-radius: 10px;
+             background: var(--surface-1); margin-bottom: 1.1rem; }
+  .filter { display: flex; align-items: center; gap: .5rem; }
+  .filter > .label { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em;
+                     color: var(--text-muted); }
+  .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+  .seg button { font: inherit; font-size: .85rem; padding: .25rem .7rem; border: 0; cursor: pointer;
+                background: transparent; color: var(--text-secondary); }
+  .seg button + button { border-left: 1px solid var(--rule); }
+  .seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--text-primary);
+                                     font-weight: 600; }
+  .seg button:hover { background: var(--surface-2); }
+  input[type="range"] { accent-color: var(--series-1); width: 8.5rem; }
+  .hourly-value { font-variant-numeric: tabular-nums; font-size: .85rem; min-width: 5.6rem;
+                  color: var(--text-secondary); }
+  button.ghost { font: inherit; font-size: .8rem; padding: .25rem .6rem; cursor: pointer;
+                 border: 1px solid var(--rule); border-radius: 8px; background: transparent;
+                 color: var(--text-secondary); }
+  button.ghost:hover { background: var(--surface-2); }
+  button.play { min-width: 2rem; font-size: .7rem; line-height: 1.4; }
+  button.play[aria-pressed="true"] { background: var(--surface-2); color: var(--text-primary); }
+
+  /* --- stat tiles --- */
+  .tiles { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+           margin-bottom: 1.4rem; }
+  .tile { border: 1px solid var(--rule); border-radius: 10px; padding: .7rem .85rem;
+          background: var(--surface-1); }
+  .tile .k { font-size: .75rem; color: var(--text-muted); }
+  .tile .v { font-size: 1.45rem; font-weight: 650; letter-spacing: -0.02em;
+             font-variant-numeric: tabular-nums; line-height: 1.25; }
+  .tile .x { font-size: .75rem; color: var(--text-muted); }
+
+  /* --- map --- */
+  figure { margin: 0 0 1rem; }
+  .mapwrap { position: relative; border: 1px solid var(--rule); border-radius: 12px;
+             overflow: hidden; background: var(--map-surface); }
+  #map { display: block; width: 100%; height: min(64vh, 620px); cursor: crosshair; }
+  .maphint { position: absolute; left: .7rem; bottom: .55rem; font-size: .72rem;
+             color: var(--text-muted);
+             background: color-mix(in srgb, var(--map-surface) 82%, transparent);
+             padding: .1rem .45rem; border-radius: 6px; pointer-events: none; }
+  .loading { position: absolute; inset: 0; display: grid; place-items: center;
+             font-size: .9rem; color: var(--text-secondary);
+             background: color-mix(in srgb, var(--map-surface) 88%, transparent); }
+  .tooltip { position: absolute; pointer-events: none; z-index: 5; min-width: 11rem;
+             background: var(--surface-1); color: var(--text-primary);
+             border: 1px solid var(--rule); border-radius: 8px; padding: .45rem .6rem;
+             font-size: .8rem; line-height: 1.45; box-shadow: 0 6px 20px rgba(0,0,0,.18);
+             opacity: 0; transition: opacity .1s ease; }
+  .tooltip.on { opacity: 1; }
+  .tooltip .tt-k { color: var(--text-muted); }
+  .tooltip .tt-row { display: flex; gap: .8rem; justify-content: space-between;
+                     font-variant-numeric: tabular-nums; }
+  .swatch { display: inline-block; width: .62rem; height: .62rem; border-radius: 2px; }
+
+  /* --- legend --- */
+  .legend { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .8rem;
+            margin: .6rem 0 .2rem; font-size: .78rem; color: var(--text-secondary); }
+  .legend .ramp { display: flex; align-items: stretch; border-radius: 4px; overflow: hidden; }
+  .legend .ramp span { width: 2.1rem; height: .62rem; }
+  .legend .ends { font-variant-numeric: tabular-nums; color: var(--text-muted); }
+  figcaption { font-size: .78rem; color: var(--text-muted); margin-top: .45rem; max-width: 54rem; }
+
+  /* --- line chart --- */
+  .chartwrap { position: relative; border: 1px solid var(--rule); border-radius: 12px;
+               background: var(--surface-1); padding: .8rem .9rem .3rem; }
+  #hourly { display: block; width: 100%; height: 260px; }
+  .chart-legend { display: flex; gap: 1rem; font-size: .8rem; color: var(--text-secondary);
+                  margin: 0 0 .2rem .2rem; }
+  .chart-legend .item { display: flex; align-items: center; gap: .35rem; }
+
+  /* --- tables --- */
+  table { border-collapse: collapse; width: 100%; font-size: .82rem;
+          font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: .3rem .5rem; border-bottom: 1px solid var(--rule); }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { color: var(--text-muted); font-weight: 600; font-size: .75rem;
+             text-transform: uppercase; letter-spacing: .04em; }
+  tbody tr.on td { background: var(--surface-2); }
+  details { margin-top: 1rem; }
+  summary { cursor: pointer; font-size: .85rem; color: var(--text-secondary); }
+  .scroll { overflow-x: auto; margin-top: .6rem; }
+
+  footer { margin-top: 3rem; color: var(--text-muted); font-size: .82rem; padding-top: 1rem;
+           border-top: 1px solid var(--rule); }
+  footer a { color: inherit; }
+  .err { border: 1px solid var(--rule); border-radius: 10px; padding: 1rem;
+         background: var(--surface-1); color: var(--text-secondary); }
+</style>
+</head>
+<body>
+<header>
+  <h1>PedSimCity</h1>
+  <p class="sub" id="subtitle">Walking by season</p>
+</header>
+<nav class="crumbs" id="crumbs"><a href="../">PedSimCity</a> / <span>Seasons</span></nav>
+
+<p class="intro" id="intro">Loading…</p>
+
+<div class="filters" role="group" aria-label="View controls">
+  <div class="filter">
+    <span class="label" id="lbl-season">Season</span>
+    <span class="seg" id="season-seg" role="group" aria-labelledby="lbl-season"></span>
+  </div>
+  <div class="filter">
+    <span class="label" id="lbl-layer">Colour by</span>
+    <span class="seg" id="layer-seg" role="group" aria-labelledby="lbl-layer">
+      <button type="button" data-layer="volume" aria-pressed="true">Volume</button>
+      <button type="button" data-layer="share" aria-pressed="false">Who walks it</button>
+    </span>
+  </div>
+  <div class="filter">
+    <label class="label" for="hour">Hour</label>
+    <button class="ghost play" type="button" id="play" aria-pressed="false"
+            aria-label="Play the hours">▶</button>
+    <input type="range" id="hour" min="-1" max="23" step="1" value="-1">
+    <span class="hourly-value" id="hour-label">All day</span>
+  </div>
+  <div class="filter" style="margin-left:auto">
+    <button class="ghost" type="button" id="reset-view">Reset view</button>
+    <button class="ghost" type="button" id="theme-toggle" aria-pressed="false">Dark</button>
+  </div>
+</div>
+
+<div class="tiles" id="tiles"></div>
+
+<figure>
+  <div class="mapwrap">
+    <canvas id="map" role="img" aria-label="Street network coloured by pedestrian volume"></canvas>
+    <div class="maphint">drag to pan · scroll to zoom · click a street to pin its profile</div>
+    <div class="tooltip" id="map-tip" role="status"></div>
+    <div class="loading" id="map-loading">Loading the street network…</div>
+  </div>
+  <div class="legend" id="legend"></div>
+  <figcaption id="map-caption"></figcaption>
+</figure>
+
+<h2 id="hourly-title">Through the day</h2>
+<p class="note" id="hourly-note"></p>
+<div class="chartwrap">
+  <div class="chart-legend">
+    <span class="item"><span class="swatch" style="background:var(--series-2)"></span> Vulnerable</span>
+    <span class="item"><span class="swatch" style="background:var(--series-1)"></span> Non-vulnerable</span>
+  </div>
+  <svg id="hourly" role="img" aria-label="Street traversals by hour of day, vulnerable and non-vulnerable"></svg>
+</div>
+
+<h2>The four seasons</h2>
+<p class="note" id="season-table-note"></p>
+<div class="scroll"><table id="season-table"><thead></thead><tbody></tbody></table></div>
+
+<h2>What the two populations walked</h2>
+<p class="note" id="population-note"></p>
+<div class="scroll"><table id="population-table"><thead></thead><tbody></tbody></table></div>
+
+<details>
+  <summary>Every simulated day, as a table</summary>
+  <div class="scroll"><table id="day-table"><thead></thead><tbody></tbody></table></div>
+</details>
+
+<footer>Part of Inclusive Streets ·
+  <a href="https://github.com/g-filomena/PedSimCity">PedSimCity on GitHub</a></footer>
+
+<script>
+"use strict";
+
+const HOURS = 24;
+const SEASON_ORDER = ["spring", "summer", "autumn", "winter"];
+const state = {
+  summary: null, city: null, season: null, layer: "volume", hour: -1,
+  geometry: null, seasons: {}, pinned: null, hovered: null,
+  playing: false, playTimer: null,
+};
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Math.round(n).toLocaleString("en-GB");
+const pct = (x) => (100 * x).toFixed(1) + "%";
+const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const titled = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const hourLabel = (h) =>
+  String(h).padStart(2, "0") + ":00–" + String((h + 1) % 24).padStart(2, "0") + ":00";
+
+/** The view is addressable: ?season=winter&layer=share&hour=3 opens on that view. */
+function writeUrl() {
+  const params = new URLSearchParams();
+  params.set("season", state.season);
+  if (state.layer !== "volume") params.set("layer", state.layer);
+  if (state.hour >= 0) params.set("hour", String(state.hour));
+  history.replaceState(null, "", "?" + params.toString());
+}
+
+// ---------------------------------------------------------------- data ----
+
+async function getJSON(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(url + " — HTTP " + response.status);
+  return response.json();
+}
+
+/** A season's file, fetched once and kept; its totals are derived on arrival. */
+async function loadSeason(name) {
+  if (state.seasons[name]) return state.seasons[name];
+  const data = await getJSON("data/seasons/" + name + ".json");
+  const n = data.edges.length;
+  const totalV = new Float64Array(n), totalN = new Float64Array(n);
+  const cityV = new Float64Array(HOURS), cityN = new Float64Array(HOURS);
+  for (let i = 0; i < n; i++) {
+    const base = i * HOURS;
+    let sv = 0, sn = 0;
+    for (let h = 0; h < HOURS; h++) {
+      const v = data.vulnerable[base + h], w = data.nonVulnerable[base + h];
+      sv += v; sn += w; cityV[h] += v; cityN[h] += w;
+    }
+    totalV[i] = sv; totalN[i] = sn;
+  }
+  const index = new Map();
+  data.edges.forEach((edgeID, i) => index.set(edgeID, i));
+  Object.assign(data, { totalV, totalN, cityV, cityN, index });
+  state.seasons[name] = data;
+  return data;
+}
+
+/** Per-edge values for the current hour selection; hour -1 is the whole day. */
+function edgeValues(season, hour) {
+  if (hour < 0) return { v: season.totalV, n: season.totalN };
+  const size = season.edges.length;
+  const v = new Float64Array(size), w = new Float64Array(size);
+  for (let i = 0; i < size; i++) {
+    v[i] = season.vulnerable[i * HOURS + hour];
+    w[i] = season.nonVulnerable[i * HOURS + hour];
+  }
+  return { v, n: w };
+}
+
+function cityShareAt(season, hour) {
+  const v = season.cityV[hour], n = season.cityN[hour];
+  return v + n ? v / (v + n) : 0;
+}
+
+// ------------------------------------------------------------- the map ----
+
+const map = {
+  canvas: null, ctx: null, paths: [], world: null, grid: null,
+  scale: 1, tx: 0, ty: 0, base: 1, classOf: null, classPaths: null, dpr: 1,
+  breaks: [], values: null, share: 0,
+};
+
+/** Equirectangular, scaled by cos(lat) so the city is not stretched sideways. */
+function project(features) {
+  let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+  for (const f of features) {
+    for (const [lon, lat] of f.geometry.coordinates) {
+      if (lon < minLon) minLon = lon;
+      if (lon > maxLon) maxLon = lon;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+    }
+  }
+  const k = Math.cos(((minLat + maxLat) / 2) * Math.PI / 180);
+  return {
+    x: (lon) => (lon - minLon) * k,
+    y: (lat) => maxLat - lat,
+    width: (maxLon - minLon) * k,
+    height: maxLat - minLat,
+  };
+}
+
+/** Uniform grid over the segments, so hit-testing touches a handful of edges. */
+function buildGrid(features, world) {
+  const cols = 160;
+  const rows = Math.max(1, Math.round(cols * world.height / world.width));
+  const cw = world.width / cols, ch = world.height / rows;
+  const cells = new Map();
+  features.forEach((f, i) => {
+    const coords = f.geometry.coordinates;
+    for (let s = 0; s < coords.length - 1; s++) {
+      const x1 = world.x(coords[s][0]), y1 = world.y(coords[s][1]);
+      const x2 = world.x(coords[s + 1][0]), y2 = world.y(coords[s + 1][1]);
+      const c1 = Math.floor(Math.min(x1, x2) / cw), c2 = Math.floor(Math.max(x1, x2) / cw);
+      const r1 = Math.floor(Math.min(y1, y2) / ch), r2 = Math.floor(Math.max(y1, y2) / ch);
+      for (let c = c1; c <= c2; c++) {
+        for (let r = r1; r <= r2; r++) {
+          const key = c + ":" + r;
+          let bucket = cells.get(key);
+          if (!bucket) cells.set(key, bucket = []);
+          if (bucket[bucket.length - 1] !== i) bucket.push(i);
+        }
+      }
+    }
+  });
+  return { cw, ch, cells };
+}
+
+function distToSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = dx * dx + dy * dy;
+  let t = len ? ((px - x1) * dx + (py - y1) * dy) / len : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+
+function pickEdge(worldX, worldY, tolerance) {
+  const g = map.grid, features = state.geometry.features;
+  const c = Math.floor(worldX / g.cw), r = Math.floor(worldY / g.ch);
+  let best = null, bestDist = tolerance;
+  for (let dc = -1; dc <= 1; dc++) {
+    for (let dr = -1; dr <= 1; dr++) {
+      const bucket = g.cells.get((c + dc) + ":" + (r + dr));
+      if (!bucket) continue;
+      for (const i of bucket) {
+        const coords = features[i].geometry.coordinates;
+        for (let s = 0; s < coords.length - 1; s++) {
+          const d = distToSegment(worldX, worldY,
+            map.world.x(coords[s][0]), map.world.y(coords[s][1]),
+            map.world.x(coords[s + 1][0]), map.world.y(coords[s + 1][1]));
+          if (d < bestDist) { bestDist = d; best = i; }
+        }
+      }
+    }
+  }
+  return best;
+}
+
+function fitView() {
+  const w = map.canvas.clientWidth, h = map.canvas.clientHeight;
+  map.base = Math.min(w / map.world.width, h / map.world.height) * 0.98;
+  map.scale = map.base;
+  map.tx = (w - map.world.width * map.scale) / 2;
+  map.ty = (h - map.world.height * map.scale) / 2;
+}
+
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  map.canvas.width = Math.round(map.canvas.clientWidth * dpr);
+  map.canvas.height = Math.round(map.canvas.clientHeight * dpr);
+  map.dpr = dpr;
+}
+
+/** Septile breaks over the streets that carry anything. */
+function quantileBreaks(values, classes) {
+  const nonzero = [];
+  for (let i = 0; i < values.length; i++) if (values[i] > 0) nonzero.push(values[i]);
+  if (!nonzero.length) return new Array(classes - 1).fill(1);
+  nonzero.sort((a, b) => a - b);
+  const breaks = [];
+  for (let c = 1; c < classes; c++) {
+    breaks.push(nonzero[Math.min(nonzero.length - 1, Math.floor(nonzero.length * c / classes))]);
+  }
+  // A skewed distribution ties the low breaks together; keep them strictly increasing.
+  for (let i = 1; i < breaks.length; i++) {
+    if (breaks[i] <= breaks[i - 1]) breaks[i] = breaks[i - 1] + 1;
+  }
+  return breaks;
+}
+
+const SHARE_BREAKS = [-0.20, -0.10, -0.03, 0.03, 0.10, 0.20];
+const CLASSES = 7;
+const CLASS_WIDTH = [0.5, 0.65, 0.85, 1.1, 1.45, 1.9, 2.5];
+
+/** Metres walked on each edge: how often it was entered, times how long it is. */
+function edgeMetres(season, hour) {
+  const { v, n } = edgeValues(season, hour);
+  const metres = new Float64Array(v.length);
+  for (let i = 0; i < v.length; i++) {
+    metres[i] = (v[i] + n[i]) * (map.lengthOf.get(season.edges[i]) || 0);
+  }
+  return metres;
+}
+
+/** How many times each edge was entered — the count a footfall sensor would record. */
+function edgeCounts(season, hour) {
+  const { v, n } = edgeValues(season, hour);
+  const counts = new Float64Array(v.length);
+  for (let i = 0; i < v.length; i++) counts[i] = v[i] + n[i];
+  return counts;
+}
+
+/**
+ * Class breaks for a season, taken **once** from its whole day and reused for every hour, so
+ * a colour means the same amount of walking at 03:00 as at 18:00. Re-quantiling per hour
+ * made a street carrying two people at 4 a.m. as dark as a corridor carrying three hundred.
+ */
+function volumeBreaks(season) {
+  if (!season.metreBreaks) season.metreBreaks = quantileBreaks(edgeMetres(season, -1), CLASSES);
+  return season.metreBreaks;
+}
+
+/** The same, for the pedestrian count that line width carries. */
+function widthBreaks(season) {
+  if (!season.countBreaks) season.countBreaks = quantileBreaks(edgeCounts(season, -1), CLASSES);
+  return season.countBreaks;
+}
+
+function classOfValue(value, breaks) {
+  let c = 0;
+  while (c < breaks.length && value > breaks[c]) c++;
+  return c;
+}
+
+/**
+ * Gives every feature a colour class and a width class, then rebuilds one path per pair.
+ * Width always carries how much walking the street saw, so a share computed from a handful of
+ * trips is drawn as a hairline and cannot shout as loudly as a corridor.
+ */
+function classify() {
+  const season = state.seasons[state.season];
+  const { v, n } = edgeValues(season, state.hour);
+  const metres = edgeMetres(season, state.hour);
+  const counts = edgeCounts(season, state.hour);
+  const colourBreaks = volumeBreaks(season);
+  const widthClasses = widthBreaks(season);
+  const features = state.geometry.features;
+  const share = state.hour < 0 ? season.vulnerableShare : cityShareAt(season, state.hour);
+
+  map.breaks = state.layer === "volume" ? colourBreaks : SHARE_BREAKS;
+  map.widthBreaks = widthClasses;
+  map.metres = metres;
+  map.counts = counts;
+  map.share = share;
+
+  // Rebuilding 44,278 paths costs more than the hour player can afford at speed, and a
+  // season's hours are revisited every loop, so each (layer, hour) is built once and kept.
+  if (!season.pathCache) season.pathCache = new Map();
+  const cacheKey = state.layer + "|" + state.hour;
+  const cached = season.pathCache.get(cacheKey);
+  if (cached) { map.classPaths = cached; return; }
+
+  // One path per (colour, width) pair: 49 strokes a frame instead of 44,278.
+  const buckets = new Array(CLASSES * CLASSES);
+  const noData = new Path2D();
+  features.forEach((f, fi) => {
+    const i = season.index.get(f.properties.e);
+    if (i === undefined || counts[i] <= 0) { noData.addPath(map.paths[fi]); return; }
+    const colour = state.layer === "volume"
+      ? classOfValue(metres[i], colourBreaks)
+      : classOfValue(v[i] / counts[i] - share, SHARE_BREAKS);
+    const key = colour * CLASSES + classOfValue(counts[i], widthClasses);
+    if (!buckets[key]) buckets[key] = new Path2D();
+    buckets[key].addPath(map.paths[fi]);
+  });
+  map.classPaths = { buckets, noData };
+  season.pathCache.set(cacheKey, map.classPaths);
+}
+
+function draw() {
+  const ctx = map.ctx, dpr = map.dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = cssVar("--map-surface");
+  ctx.fillRect(0, 0, map.canvas.clientWidth, map.canvas.clientHeight);
+  ctx.setTransform(dpr * map.scale, 0, 0, dpr * map.scale, dpr * map.tx, dpr * map.ty);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  const prefix = state.layer === "volume" ? "--seq-" : "--div-";
+  const ramp = [1, 2, 3, 4, 5, 6, 7].map((i) => cssVar(prefix + i));
+
+  ctx.strokeStyle = cssVar("--map-base");
+  ctx.lineWidth = 0.55 / map.scale;
+  ctx.stroke(map.classPaths.noData);
+
+  // Thinnest first, so a busy street is drawn over its quiet neighbours rather than under them.
+  for (let w = 0; w < CLASSES; w++) {
+    ctx.lineWidth = CLASS_WIDTH[w] / map.scale;
+    for (let c = 0; c < CLASSES; c++) {
+      const path = map.classPaths.buckets[c * CLASSES + w];
+      if (!path) continue;
+      ctx.strokeStyle = ramp[c];
+      ctx.stroke(path);
+    }
+  }
+
+  const highlight = state.pinned !== null ? state.pinned : state.hovered;
+  if (highlight !== null && highlight !== undefined) {
+    ctx.strokeStyle = cssVar("--text-primary");
+    ctx.lineWidth = 3.2 / map.scale;
+    ctx.stroke(map.paths[highlight]);
+  }
+}
+
+// ------------------------------------------------------------- tooltip ----
+
+function showTip(featureIndex, clientX, clientY) {
+  const tip = $("map-tip"), wrap = tip.parentElement;
+  const season = state.seasons[state.season];
+  const f = state.geometry.features[featureIndex];
+  const i = season.index.get(f.properties.e);
+  const { v, n } = edgeValues(season, state.hour);
+  const vv = i === undefined ? 0 : v[i], nn = i === undefined ? 0 : n[i];
+  const total = vv + nn;
+  const cityShare = state.hour < 0 ? season.vulnerableShare : cityShareAt(season, state.hour);
+  const length = map.lengthOf.get(f.properties.e) || 0;
+  const rows = [
+    ['<span class="tt-k">street</span>', "#" + f.properties.e + " · " + fmt(length) + " m long"],
+    ['<span class="tt-k">metres walked</span>', fmt(total * length)],
+    ['<span class="tt-k">traversals</span>', fmt(total)],
+    ['<span class="swatch" style="background:var(--series-2)"></span> vulnerable', fmt(vv)],
+    ['<span class="swatch" style="background:var(--series-1)"></span> non-vulnerable', fmt(nn)],
+  ];
+  if (total > 0) {
+    rows.push(['<span class="tt-k">vulnerable share</span>',
+      pct(vv / total) + " (city " + pct(cityShare) + ")"]);
+  }
+  tip.innerHTML = rows.map(([k, val]) =>
+    '<div class="tt-row"><span>' + k + "</span><span>" + val + "</span></div>").join("");
+  const box = wrap.getBoundingClientRect();
+  const x = clientX - box.left, y = clientY - box.top;
+  tip.style.left = Math.max(8, Math.min(x + 14, box.width - tip.offsetWidth - 8)) + "px";
+  tip.style.top = Math.max(8, y - tip.offsetHeight - 12) + "px";
+  tip.classList.add("on");
+}
+
+function hideTip() { $("map-tip").classList.remove("on"); }
+
+// ---------------------------------------------------------- hourly chart --
+
+function drawHourly() {
+  const svg = $("hourly");
+  const season = state.seasons[state.season];
+  const W = Math.max(320, svg.getBoundingClientRect().width), H = 260;
+  const m = { top: 14, right: 78, bottom: 26, left: 56 };
+  const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
+
+  let seriesV, seriesN, subject;
+  if (state.pinned !== null && state.pinned !== undefined) {
+    const f = state.geometry.features[state.pinned];
+    const i = season.index.get(f.properties.e);
+    seriesV = Array.from({ length: HOURS }, (_, h) =>
+      i === undefined ? 0 : season.vulnerable[i * HOURS + h]);
+    seriesN = Array.from({ length: HOURS }, (_, h) =>
+      i === undefined ? 0 : season.nonVulnerable[i * HOURS + h]);
+    subject = "street #" + f.properties.e;
+  } else {
+    seriesV = Array.from(season.cityV);
+    seriesN = Array.from(season.cityN);
+    subject = "every street";
+  }
+  $("hourly-note").textContent =
+    "Street traversals by hour, summed over " + season.dayJobs + " simulated days ("
+    + season.days + " days × " + season.jobs.length + " replicate jobs), " + subject + ", "
+    + titled(state.season) + ". Click a street on the map to pin it here; click it again to clear.";
+
+  const peak = Math.max(1, ...seriesV, ...seriesN);
+  const x = (h) => m.left + (iw * h) / (HOURS - 1);
+  const y = (val) => m.top + ih - (ih * val) / peak;
+  const line = (arr) =>
+    arr.map((val, h) => (h ? "L" : "M") + x(h).toFixed(1) + " " + y(val).toFixed(1)).join(" ");
+
+  const parts = ['<g aria-hidden="true">'];
+  for (const t of [0, peak / 2, peak]) {
+    parts.push('<line x1="' + m.left + '" x2="' + (m.left + iw) + '" y1="' + y(t).toFixed(1)
+      + '" y2="' + y(t).toFixed(1) + '" stroke="' + cssVar("--grid") + '" stroke-width="1"/>');
+    parts.push('<text x="' + (m.left - 8) + '" y="' + (y(t) + 4).toFixed(1)
+      + '" text-anchor="end" font-size="11" fill="' + cssVar("--text-muted") + '">'
+      + fmt(t) + "</text>");
+  }
+  for (let h = 0; h < HOURS; h += 3) {
+    parts.push('<text x="' + x(h).toFixed(1) + '" y="' + (m.top + ih + 17)
+      + '" text-anchor="middle" font-size="11" fill="' + cssVar("--text-muted") + '">'
+      + String(h).padStart(2, "0") + "</text>");
+  }
+  parts.push("</g>");
+  parts.push('<path d="' + line(seriesN) + '" fill="none" stroke="' + cssVar("--series-1")
+    + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>');
+  parts.push('<path d="' + line(seriesV) + '" fill="none" stroke="' + cssVar("--series-2")
+    + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>');
+  // Two series, so both are direct-labelled at the end of their line.
+  parts.push('<text x="' + (m.left + iw + 8) + '" y="' + (y(seriesV[HOURS - 1]) + 4).toFixed(1)
+    + '" font-size="11" fill="' + cssVar("--text-secondary") + '">Vulnerable</text>');
+  parts.push('<text x="' + (m.left + iw + 8) + '" y="' + (y(seriesN[HOURS - 1]) + 4).toFixed(1)
+    + '" font-size="11" fill="' + cssVar("--text-secondary") + '">Non-vuln.</text>');
+  parts.push('<line id="hourly-rule" x1="0" x2="0" y1="' + m.top + '" y2="' + (m.top + ih)
+    + '" stroke="' + cssVar("--text-muted")
+    + '" stroke-width="1" stroke-dasharray="3 3" opacity="0"/>');
+  parts.push('<circle id="hourly-dot-v" r="4" fill="' + cssVar("--series-2")
+    + '" stroke="' + cssVar("--surface-1") + '" stroke-width="2" opacity="0"/>');
+  parts.push('<circle id="hourly-dot-n" r="4" fill="' + cssVar("--series-1")
+    + '" stroke="' + cssVar("--surface-1") + '" stroke-width="2" opacity="0"/>');
+  for (let h = 0; h < HOURS; h++) {
+    parts.push('<rect x="' + (x(h) - iw / (2 * (HOURS - 1))).toFixed(1) + '" y="' + m.top
+      + '" width="' + (iw / (HOURS - 1)).toFixed(1) + '" height="' + ih
+      + '" fill="transparent" data-hour="' + h + '"/>');
+  }
+
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.innerHTML = parts.join("");
+
+  svg.querySelectorAll("[data-hour]").forEach((rect) => {
+    rect.addEventListener("mouseenter", () => {
+      const h = Number(rect.dataset.hour);
+      const rule = svg.querySelector("#hourly-rule");
+      rule.setAttribute("x1", x(h));
+      rule.setAttribute("x2", x(h));
+      rule.setAttribute("opacity", "1");
+      const dotV = svg.querySelector("#hourly-dot-v"), dotN = svg.querySelector("#hourly-dot-n");
+      dotV.setAttribute("cx", x(h)); dotV.setAttribute("cy", y(seriesV[h]));
+      dotV.setAttribute("opacity", "1");
+      dotN.setAttribute("cx", x(h)); dotN.setAttribute("cy", y(seriesN[h]));
+      dotN.setAttribute("opacity", "1");
+      $("hourly-title").textContent = "Through the day — " + hourLabel(h) + ": "
+        + fmt(seriesV[h]) + " vulnerable, " + fmt(seriesN[h]) + " non-vulnerable";
+    });
+  });
+  svg.addEventListener("mouseleave", () => {
+    svg.querySelector("#hourly-rule").setAttribute("opacity", "0");
+    svg.querySelector("#hourly-dot-v").setAttribute("opacity", "0");
+    svg.querySelector("#hourly-dot-n").setAttribute("opacity", "0");
+    $("hourly-title").textContent = "Through the day";
+  });
+}
+
+// -------------------------------------------------------------- chrome ----
+
+function renderTiles() {
+  const s = state.summary.seasons.find((x) => x.season === state.season);
+  const season = state.seasons[state.season];
+  const traversals = season.traversals.vulnerable + season.traversals.nonVulnerable;
+  const tiles = [
+    ["Kilometres walked", fmt(s.walkedM / 1000),
+     "over " + season.dayJobs + " simulated days, in " + fmt(traversals) + " street entries"],
+    ["Streets used", fmt(season.edges.length),
+     "of " + fmt(state.summary.edgesInNetwork) + " in the network"],
+    ["Set off after dark", pct(s.darkLegShare), "of the season's walking legs"],
+    ["Vulnerable share", pct(season.vulnerableShare),
+     s.vulnerableLegShare === undefined
+       ? "of traversals"
+       : "of traversals; " + pct(s.vulnerableLegShare) + " of walking legs"],
+  ];
+  $("tiles").innerHTML = tiles.map(([k, v, x]) =>
+    '<div class="tile"><div class="k">' + k + '</div><div class="v">' + v
+    + '</div><div class="x">' + x + "</div></div>").join("");
+}
+
+function renderLegend() {
+  const legend = $("legend");
+  const km = (m) => (m >= 1000 ? fmt(m / 1000) + " km" : fmt(m) + " m");
+  if (state.layer === "volume") {
+    const swatches = [1, 2, 3, 4, 5, 6, 7]
+      .map((i) => '<span style="background:var(--seq-' + i + ')"></span>').join("");
+    let peak = 0;
+    for (let i = 0; i < map.metres.length; i++) if (map.metres[i] > peak) peak = map.metres[i];
+    legend.innerHTML =
+      "<span>Metres walked</span>" + '<span class="ends">0</span>'
+      + '<span class="ramp">' + swatches + "</span>"
+      + '<span class="ends">' + km(peak) + "</span>"
+      + '<span class="ends">· breaks at ' + map.breaks.map(km).join(", ") + "</span>"
+      + '<span class="ends">· line width is the number of pedestrians, up to '
+      + fmt(Math.max(...map.counts)) + "</span>"
+      + '<span class="ends">· <span class="swatch" style="background:var(--map-base)"></span>'
+      + " not walked</span>";
+  } else {
+    const swatches = [1, 2, 3, 4, 5, 6, 7]
+      .map((i) => '<span style="background:var(--div-' + i + ')"></span>').join("");
+    legend.innerHTML =
+      "<span>More non-vulnerable</span>" + '<span class="ramp">' + swatches + "</span>"
+      + "<span>More vulnerable</span>"
+      + '<span class="ends">· midpoint is the city-wide share, ' + pct(map.share) + "</span>"
+      + '<span class="ends">· line width is the number of pedestrians, so a hairline is a street'
+      + " barely used and its colour barely evidenced</span>";
+  }
+  const when = state.hour < 0 ? "" : ", " + hourLabel(state.hour);
+  $("map-caption").textContent = state.layer === "volume"
+    ? "Metres walked on each street — how often it was entered times how long it is — over "
+      + state.seasons[state.season].dayJobs + " simulated days" + when
+      + ". A long street carrying a hundred people is more walking than a short one carrying the"
+      + " same hundred, and colour says so; line width carries the number of pedestrians, which"
+      + " is what a footfall sensor measures, so a short busy street is thick and pale while a"
+      + " long quiet one is dark and thin. Classes are septiles of the whole day and do not"
+      + " change with the hour, so 03:00 and 18:00 are comparable."
+    : "How each street's walkers compare with the city as a whole" + when
+      + ". Colour is who walks it, line width is how much walking it saw — the thin streets are"
+      + " the ones whose share rests on a handful of trips.";
+}
+
+function renderSeasonTable() {
+  const head = ["Season", "Dates", "Legs", "Planned m", "Walked m", "m / agent",
+                "After dark", "Traversals", "Vulnerable share"];
+  $("season-table").querySelector("thead").innerHTML =
+    "<tr>" + head.map((h) => "<th>" + h + "</th>").join("") + "</tr>";
+  $("season-table").querySelector("tbody").innerHTML = state.summary.seasons.map((s) =>
+    '<tr class="' + (s.season === state.season ? "on" : "") + '">'
+    + "<td>" + titled(s.season) + "</td>"
+    + "<td>" + s.dates[0] + " → " + s.dates[s.dates.length - 1] + "</td>"
+    + "<td>" + fmt(s.legs) + "</td><td>" + fmt(s.plannedM) + "</td>"
+    + "<td>" + fmt(s.walkedM) + "</td><td>" + fmt(s.metresPerAgent) + "</td>"
+    + "<td>" + pct(s.darkLegShare) + "</td><td>" + fmt(s.traversals) + "</td>"
+    + "<td>" + pct(s.vulnerableShare) + "</td></tr>").join("");
+}
+
+function renderPopulationTable() {
+  const table = $("population-table");
+  const rows = state.summary.seasons.filter((s) => s.legsBy && s.meanMetres);
+  const note = $("population-note");
+  if (!rows.length) {
+    note.style.display = "none";
+    table.closest(".scroll").style.display = "none";
+    return;
+  }
+  note.textContent =
+    "Every completed leg of one replicate job, day and night together, for the "
+    + rows.map((s) => titled(s.season).toLowerCase()).join(" and ") + " run"
+    + (rows.length === 1 ? "" : "s") + " — the only ones that exported per-leg records. "
+    + "These are ordinary census runs, not the paired A/B experiment, and most legs are walked "
+    + "in daylight where the lighting rules do not apply — so this is a description of the runs, "
+    + "not a measurement of the lighting manipulation.";
+  const head = ["Season", "Legs, vulnerable", "Legs, non-vulnerable",
+                "Mean route m, vulnerable", "Mean route m, non-vulnerable",
+                "Mean route lux, vulnerable", "Mean route lux, non-vulnerable"];
+  table.querySelector("thead").innerHTML =
+    "<tr>" + head.map((h) => "<th>" + h + "</th>").join("") + "</tr>";
+  const lux = (x) => (x === null || x === undefined ? "—" : x.toFixed(1));
+  table.querySelector("tbody").innerHTML = rows.map((s) =>
+    '<tr class="' + (s.season === state.season ? "on" : "") + '">'
+    + "<td>" + titled(s.season) + "</td>"
+    + "<td>" + fmt(s.legsBy.vulnerable) + "</td>"
+    + "<td>" + fmt(s.legsBy.nonVulnerable) + "</td>"
+    + "<td>" + fmt(s.meanMetres.vulnerable) + "</td>"
+    + "<td>" + fmt(s.meanMetres.nonVulnerable) + "</td>"
+    + "<td>" + lux(s.meanLux && s.meanLux.vulnerable) + "</td>"
+    + "<td>" + lux(s.meanLux && s.meanLux.nonVulnerable) + "</td></tr>").join("");
+}
+
+function renderDayTable() {
+  const season = state.seasons[state.season];
+  const cols = [["date", "Date"], ["job", "Job"], ["day", "Day"], ["legs", "Legs"],
+                ["legs_dark", "Legs after dark"], ["planned_m", "Planned m"],
+                ["walked_m", "Walked m"], ["m_per_agent", "m / agent"],
+                ["worker_walk_share", "Worker walk share"]];
+  $("day-table").querySelector("thead").innerHTML =
+    "<tr>" + cols.map(([, label]) => "<th>" + label + "</th>").join("") + "</tr>";
+  $("day-table").querySelector("tbody").innerHTML = season.daySummary.map((row) =>
+    "<tr>" + cols.map(([key]) => "<td>" + (row[key] === undefined ? "" : row[key]) + "</td>")
+      .join("") + "</tr>").join("");
+}
+
+function refresh() {
+  classify();
+  draw();
+  renderTiles();
+  renderLegend();
+  renderSeasonTable();
+  renderPopulationTable();
+  renderDayTable();
+  drawHourly();
+}
+
+async function selectSeason(name) {
+  state.season = name;
+  $("season-seg").querySelectorAll("button").forEach((b) =>
+    b.setAttribute("aria-pressed", String(b.dataset.season === name)));
+  $("map-loading").textContent = "Loading " + name + "…";
+  $("map-loading").style.display = "grid";
+  await loadSeason(name);
+  $("map-loading").style.display = "none";
+  refresh();
+  writeUrl();
+}
+
+// --------------------------------------------------------------- setup ----
+
+function wireMap() {
+  const canvas = map.canvas;
+  let dragging = false, moved = false, lastX = 0, lastY = 0;
+
+  canvas.addEventListener("mousedown", (e) => {
+    dragging = true; moved = false; lastX = e.clientX; lastY = e.clientY;
+  });
+  window.addEventListener("mouseup", () => { dragging = false; });
+  canvas.addEventListener("mouseleave", () => {
+    dragging = false; state.hovered = null; hideTip(); draw();
+  });
+
+  canvas.addEventListener("mousemove", (e) => {
+    const box = canvas.getBoundingClientRect();
+    if (dragging) {
+      moved = true;
+      map.tx += e.clientX - lastX;
+      map.ty += e.clientY - lastY;
+      lastX = e.clientX; lastY = e.clientY;
+      hideTip();
+      draw();
+      return;
+    }
+    const worldX = (e.clientX - box.left - map.tx) / map.scale;
+    const worldY = (e.clientY - box.top - map.ty) / map.scale;
+    const hit = pickEdge(worldX, worldY, 6 / map.scale);
+    if (hit !== state.hovered) { state.hovered = hit; draw(); }
+    if (hit === null) hideTip(); else showTip(hit, e.clientX, e.clientY);
+  });
+
+  canvas.addEventListener("click", (e) => {
+    if (moved) return;
+    const box = canvas.getBoundingClientRect();
+    const worldX = (e.clientX - box.left - map.tx) / map.scale;
+    const worldY = (e.clientY - box.top - map.ty) / map.scale;
+    const hit = pickEdge(worldX, worldY, 6 / map.scale);
+    state.pinned = hit === state.pinned ? null : hit;
+    draw();
+    drawHourly();
+  });
+
+  canvas.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const box = canvas.getBoundingClientRect();
+    const px = e.clientX - box.left, py = e.clientY - box.top;
+    const next = Math.max(map.base * 0.9,
+      Math.min(map.base * 60, map.scale * Math.exp(-e.deltaY * 0.0015)));
+    const k = next / map.scale;
+    map.tx = px - (px - map.tx) * k;
+    map.ty = py - (py - map.ty) * k;
+    map.scale = next;
+    hideTip();
+    draw();
+  }, { passive: false });
+
+  window.addEventListener("resize", () => { resizeCanvas(); draw(); drawHourly(); });
+}
+
+const PLAY_MS = 700;
+
+/** Steps through the 24 hours on a loop. "All day" is not one of the frames it visits. */
+function startPlaying() {
+  if (state.playing) return;
+  if (state.hour < 0) state.hour = 0;
+  state.playing = true;
+  $("play").textContent = "❚❚";
+  $("play").setAttribute("aria-pressed", "true");
+  $("play").setAttribute("aria-label", "Pause");
+  const frame = () => {
+    syncControls();
+    classify(); draw(); renderLegend();
+    // Move the chart's crosshair with the map, by the handler the mouse would have used.
+    const rect = $("hourly").querySelector('[data-hour="' + state.hour + '"]');
+    if (rect) rect.dispatchEvent(new Event("mouseenter"));
+  };
+  frame();
+  state.playTimer = setInterval(() => {
+    state.hour = (state.hour + 1) % HOURS;
+    frame();
+  }, PLAY_MS);
+}
+
+function stopPlaying() {
+  if (!state.playing) return;
+  clearInterval(state.playTimer);
+  state.playing = false;
+  state.playTimer = null;
+  $("play").textContent = "▶";
+  $("play").setAttribute("aria-pressed", "false");
+  $("play").setAttribute("aria-label", "Play the hours");
+  writeUrl();
+}
+
+/** Puts the controls where the state says they are — at startup and on every change. */
+function syncControls() {
+  $("layer-seg").querySelectorAll("button").forEach((b) =>
+    b.setAttribute("aria-pressed", String(b.dataset.layer === state.layer)));
+  $("hour").value = String(state.hour);
+  $("hour-label").textContent = state.hour < 0 ? "All day" : hourLabel(state.hour);
+}
+
+function wireControls() {
+  $("layer-seg").addEventListener("click", (e) => {
+    const button = e.target.closest("button[data-layer]");
+    if (!button) return;
+    state.layer = button.dataset.layer;
+    syncControls();
+    classify(); draw(); renderLegend(); writeUrl();
+  });
+
+  $("hour").addEventListener("input", (e) => {
+    stopPlaying();                       // dragging the slider takes the hour back by hand
+    state.hour = Number(e.target.value);
+    syncControls();
+    classify(); draw(); renderLegend(); writeUrl();
+  });
+
+  $("play").addEventListener("click", () => (state.playing ? stopPlaying() : startPlaying()));
+
+  $("reset-view").addEventListener("click", () => {
+    fitView(); state.pinned = null; draw(); drawHourly();
+  });
+
+  const toggle = $("theme-toggle");
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const apply = (isDark) => {
+    document.documentElement.dataset.theme = isDark ? "dark" : "light";
+    toggle.textContent = isDark ? "Light" : "Dark";
+    toggle.setAttribute("aria-pressed", String(isDark));
+  };
+  toggle.addEventListener("click", () => {
+    apply(document.documentElement.dataset.theme !== "dark");
+    if (map.classPaths) { draw(); drawHourly(); }
+  });
+  apply(dark);
+}
+
+async function main() {
+  try {
+    const summary = await getJSON("data/seasons/summary.json");
+    state.summary = summary;
+    state.city = summary.city;
+    document.title = summary.city + " by season — PedSimCity";
+    $("subtitle").textContent = summary.city + " · a walked day, by season";
+    $("crumbs").innerHTML = '<a href="../">PedSimCity</a> / <a href="./">'
+      + summary.city + "</a> / <span>Seasons</span>";
+    $("intro").textContent =
+      "Four runs of the night model on " + summary.city + ", one per season, each "
+      + summary.days + " simulated days × " + summary.jobs + " replicate jobs at "
+      + fmt(summary.agents) + " agents. The map shows the metres walked on each street — how "
+      + "often it was entered times how long it is. Vulnerable pedestrians route away from "
+      + "streets that read as unlit, so after dark the two populations do not walk the same city.";
+
+    $("season-table-note").textContent =
+      "One row per season, over " + summary.jobs + " replicate job"
+      + (summary.jobs === 1 ? "" : "s") + " of " + summary.days + " simulated day"
+      + (summary.days === 1 ? "" : "s") + " each.";
+
+    $("season-seg").innerHTML = SEASON_ORDER
+      .filter((name) => summary.seasons.some((s) => s.season === name))
+      .map((name) => '<button type="button" data-season="' + name
+        + '" aria-pressed="false">' + titled(name) + "</button>").join("");
+    $("season-seg").addEventListener("click", (e) => {
+      const button = e.target.closest("button[data-season]");
+      if (button) selectSeason(button.dataset.season);
+    });
+
+    const params = new URLSearchParams(location.search);
+    if (params.get("layer") === "share") state.layer = "share";
+    // Number(null) is 0, so an absent hour must be rejected before it is read as midnight.
+    const hourParam = params.get("hour");
+    if (hourParam !== null) {
+      const wantedHour = Number(hourParam);
+      if (Number.isInteger(wantedHour) && wantedHour >= 0 && wantedHour < HOURS) {
+        state.hour = wantedHour;
+      }
+    }
+
+    map.canvas = $("map");
+    map.ctx = map.canvas.getContext("2d");
+    resizeCanvas();
+    wireControls();
+    syncControls();
+
+    state.geometry = await getJSON("data/" + summary.geometry);
+    map.world = project(state.geometry.features);
+    // Edge length, by edgeID: the map's quantity is metres walked, not edges entered.
+    map.lengthOf = new Map();
+    for (const f of state.geometry.features) map.lengthOf.set(f.properties.e, f.properties.l || 0);
+    map.paths = state.geometry.features.map((f) => {
+      const path = new Path2D();
+      f.geometry.coordinates.forEach(([lon, lat], i) => {
+        const x = map.world.x(lon), y = map.world.y(lat);
+        if (i) path.lineTo(x, y); else path.moveTo(x, y);
+      });
+      return path;
+    });
+    map.grid = buildGrid(state.geometry.features, map.world);
+    fitView();
+    wireMap();
+
+    const wantedSeason = params.get("season");
+    await selectSeason(summary.seasons.some((s) => s.season === wantedSeason)
+      ? wantedSeason : summary.seasons[0].season);
+  } catch (err) {
+    $("intro").outerHTML = '<p class="err">Could not load the season data: '
+      + String(err && err.message ? err.message : err) + "</p>";
+  }
+}
+
+main();
+</script>
+</body>
+</html>
