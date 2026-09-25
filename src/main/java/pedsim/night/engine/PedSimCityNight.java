@@ -1,12 +1,10 @@
 package pedsim.night.engine;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import pedsim.activity.engine.PedSimCityActivity;
 import pedsim.core.engine.ScenarioConfig;
 import sim.field.geo.VectorLayer;
-import sim.graph.NodeGraph;
 
 /**
  * Simulation state for the night module. Extends the activity-based
@@ -14,8 +12,8 @@ import sim.graph.NodeGraph;
  * perception/safety layer: vulnerability, illuminated edges and directional lighting.
  *
  * <p>The 24h clock ({@code isDark}) and the activity data live in {@link PedSimCityActivity}.
- * Vulnerability is carried as the {@code vulnerability_pct} column on the census layer and
- * resolved per node by {@code NightEnvironment}.
+ * Vulnerability is a judgement this module makes about an agent's sex, which the activity tier
+ * draws from the census; see {@code NightPopulate}.
  */
 public class PedSimCityNight extends PedSimCityActivity {
 
@@ -23,9 +21,6 @@ public class PedSimCityNight extends PedSimCityActivity {
 
   // Illuminated edges dataset (contains mean_lux per edge for night simulation)
   public static VectorLayer illuminatedEdges = new VectorLayer();
-
-  // --- Vulnerability dataset (node -> vulnerability %) ---
-  public static Map<NodeGraph, Double> nodesVulnerabilityWeight = new HashMap<>();
 
   // Directional entrance light mapping (Node_A -> Node_B : min_lux), keyed by packed long.
   public static final Map<Long, Double> directionalLuxMap = new ConcurrentHashMap<>();
@@ -121,6 +116,5 @@ public class PedSimCityNight extends PedSimCityActivity {
     // clear() the layer itself: getGeometries() returns a defensive copy, so clearing that
     // copy would leave the layer (and its spatial index) populated across re-initialisations.
     illuminatedEdges.clear();
-    nodesVulnerabilityWeight.clear();
   }
 }

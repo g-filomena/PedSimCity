@@ -350,17 +350,16 @@ public class AngularChangePathFinder extends PathFinder {
    * <p>{@code getPrimalJunction} returns the endpoint the two primal edges have <i>in common</i>,
    * and that endpoint is regularly the origin or the destination itself - when one centroid already
    * spans the whole trip, the "junction" is simply the far end of it. {@code getDirectedEdgeBetween}
-   * is then asked for an edge from a node to itself and answers {@code null}, which used to go
-   * straight into the route and surface much later as a {@code NullPointerException} inside
-   * {@code Route.nodesSequence}. The walk in that case is a <i>single</i> edge, not two.
+   * is then asked for an edge from a node to itself and answers {@code null}. The walk in that case
+   * is a <i>single</i> edge, not two.
    *
-   * <p>That is the only way a {@code null} arises on today's call paths, and the deduction is worth
-   * keeping: {@code network} is {@code SharedCognitiveMap.getCommunityPrimalNetwork()}, which is
-   * assigned {@code PedSimCity.network} - the whole primal graph, not a subset - and
-   * {@code getDualNodes} iterates the node's own incident edges, so any junction other than the
-   * endpoint itself is the far end of an edge that exists. The null return below is therefore a
-   * guard, not a case anything currently reaches; {@code network} is a seam, and pointing it at a
-   * real subgraph would make it live. Do not cite it as an explanation for a failure.
+   * <p>That is the only way a {@code null} arises on today's call paths: {@code network} is
+   * {@code SharedCognitiveMap.getCommunityPrimalNetwork()}, which is assigned
+   * {@code PedSimCity.network} - the whole primal graph, not a subset - and {@code getDualNodes}
+   * iterates the node's own incident edges, so any junction other than the endpoint itself is the
+   * far end of an edge that exists. The null return below is therefore a guard rather than a case
+   * anything reaches; {@code network} is a seam, and pointing it at a real subgraph would make it
+   * live.
    */
   private List<DirectedEdge> edgesViaCommonJunction(
       NodeGraph originNode, NodeGraph commonJunction, NodeGraph destinationNode) {

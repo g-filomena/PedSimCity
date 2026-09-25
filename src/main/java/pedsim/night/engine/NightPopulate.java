@@ -1,13 +1,11 @@
 package pedsim.night.engine;
 
-import java.util.Map;
 import pedsim.activity.engine.ActivityPopulate;
 import pedsim.core.agents.Agent;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.utilities.LoggerUtil;
 import pedsim.night.agents.NightAgent;
 import pedsim.night.parameters.NightPars;
-import sim.graph.NodeGraph;
 
 /**
  * Populate strategy for the night module. Extends the activity-based {@link ActivityPopulate}
@@ -33,7 +31,7 @@ public class NightPopulate extends ActivityPopulate {
    * Spawns identical vulnerable/non-vulnerable twin pairs sharing the same home/work locations, for a
    * controlled A/B comparison. The number of pairs is the user-set {@link NightPars#abTestPairs}
    * (2 agents per pair), independent of the census-derived population. Vulnerability here is assigned
-   * by construction, not sampled from the census {@code vulnerability_pct}.
+   * by construction and does not read the agent's sex.
    */
   private void populateABTest() {
     int pairs = Math.max(1, NightPars.abTestPairs);
@@ -86,16 +84,12 @@ public class NightPopulate extends ActivityPopulate {
   }
 
   /**
-   * Assigns vulnerability from the agent's home-zone {@code vulnerability_pct}. Defaults to not
-   * vulnerable when the vulnerability dataset was not loaded or the home node has no zone value.
-   * ({@code vulnerability_pct} is already a [0,1] rate from the census pipeline.)
+   * <b>This module's vulnerable group is women.</b> The agent's sex is a census fact settled in
+   * {@link ActivityPopulate}; which groups walk differently after dark is the night model's
+   * judgement, and it is made here and nowhere else. Age does not enter it: every agent the model
+   * builds is an adult.
    */
   private void assignVulnerabilityStatus(NightAgent agent) {
-    Map<NodeGraph, Double> vulnMap = PedSimCityNight.nodesVulnerabilityWeight;
-    if (vulnMap.isEmpty() || agent.homeNode == null) {
-      agent.setVulnerable(false);
-      return;
-    }
-    agent.setVulnerable(random.nextDouble() < vulnMap.getOrDefault(agent.homeNode, 0.0));
+    agent.setVulnerable(agent.isFemale());
   }
 }
