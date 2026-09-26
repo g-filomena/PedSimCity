@@ -20,7 +20,8 @@ completed stages unless ``--force``):
               groups -> DMA) on the whole obstructions set; official footprints borrow them from
               OSM by largest overlap. The obstructions extent drives the network clip below.
   network     pedestrian network from OSM, clipped to the study area (or the obstructions' convex
-              hull) + a fixed margin (--network-clip-buffer, default 300 m) -> clean -> consolidate
+              hull) + a fixed margin (--network-clip-buffer, default 300 m) -> clean (dead ends kept
+              with --remove-dead-ends no) -> consolidate
               -> betweenness centrality (Bc_Rd) -> dual graph
   districts   drive network -> dual graph -> Louvain regions (angular) -> polygonised
               partitions -> district + gateway per pedestrian node
@@ -310,7 +311,7 @@ def stage_network(args, stager: Stager) -> None:
     # crossings — which share no coordinate with the way below — are left intact.
     nodes, edges = ci.clean_network(
         nodes, edges,
-        dead_ends=True, remove_islands=True,
+        dead_ends=args.remove_dead_ends, remove_islands=True,
         same_vertexes_edges=True, self_loops=True, fix_topology=True,
     )
 
@@ -1038,6 +1039,10 @@ def parse_args(argv=None):
     parser.add_argument("--consolidate-tolerance", type=float, default=15.0,
                         help="node consolidation tolerance in metres, used when "
                              "--consolidate-network yes (default 15)")
+    parser.add_argument("--remove-dead-ends", type=_yes_no, default=True, metavar="yes/no",
+                        help="drop dead-end streets when cleaning the network (yes/no, default "
+                             "yes). Laneways and cul-de-sacs are dead ends, so a network matched "
+                             "to footpath counters on them needs no")
     parser.add_argument("--district-min-size", type=int, default=20,
                         help="minimum edges per district partition (default 20)")
     parser.add_argument("--local-radius", type=float, default=800.0,
