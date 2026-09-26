@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 import org.apache.commons.lang3.ArrayUtils;
+import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.LoggerUtil;
 import pedsim.core.utilities.RouteData;
 import pedsim.core.utilities.StringEnum;
@@ -45,9 +46,21 @@ public class Exporter {
     this.job = flowHandler.job;
     // Results live with the project, under outputs/<appName>/ — portable (works on the Linux
     // server too), co-located with the run, and gitignored. (Was a hardcoded C:\Users\... path.)
-    outputDirectory = "outputs" + File.separator + appName;
+    outputDirectory = outputDirectory(appName);
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
     currentDate = LocalDate.now().format(formatter);
+  }
+
+  /**
+   * The folder a module's exports go to: {@code outputs/<appName>}, or {@code
+   * outputs/<appName>/<Pars.outputTag>} when a tag is set.
+   *
+   * @param appName the module's output folder name
+   * @return the directory path, relative to the working directory
+   */
+  public static String outputDirectory(String appName) {
+    String base = "outputs" + File.separator + appName;
+    return Pars.outputTag.isBlank() ? base : base + File.separator + Pars.outputTag;
   }
 
   /**

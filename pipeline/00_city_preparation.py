@@ -83,6 +83,7 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import requests
 
 import cityImage as ci
 
@@ -102,6 +103,26 @@ STAGES = (
 )
 
 RASTER_SUFFIXES = (".tif", ".tiff", ".asc", ".vrt")
+
+# OSM downloads go through Overpass, which drops connections intermittently. A failed connection
+# is retried after OSM_RETRY_WAIT_S, doubling each time; an empty answer is not a failure.
+OSM_ATTEMPTS = 4
+OSM_RETRY_WAIT_S = 60
+
+
+def _from_osm(stage: str, download, *args, **kwargs):
+    """Call a cityImage OSM download, retrying when the connection to Overpass fails."""
+    for attempt in range(1, OSM_ATTEMPTS + 1):
+        try:
+            return download(*args, **kwargs)
+        except requests.exceptions.RequestException as e:
+            if attempt == OSM_ATTEMPTS:
+                raise
+            wait = OSM_RETRY_WAIT_S * 2 ** (attempt - 1)
+            log.warning("%s: OSM download failed (%s); retry %d of %d in %d s",
+                        stage, type(e).__name__, attempt, OSM_ATTEMPTS - 1, wait)
+            time.sleep(wait)
+
 
 # Columns that hold Python lists in memory and strings on disk.
 LIST_COLUMNS = (
@@ -277,8 +298,8 @@ def stage_network(args, stager: Stager) -> None:
         return
 
     log.info("network: downloading pedestrian network for %r", args.place)
-    nodes, edges = ci.pedestrian_network_from_osm(
-        args.place, crs=args.crs, download_method=args.download_method
+    nodes, edges = _from_osm(
+        "network", ci.pedestrian_network_from_osm, args.place, crs=args.crs, download_method=args.download_method
     )
 
     nodes, edges = _clip_network_to_boundary(args, stager, nodes, edges)
@@ -351,8 +372,8 @@ def stage_districts(args, stager: Stager) -> None:
     nodes.index.name = None
 
     log.info("districts: downloading drive network for %r", args.place)
-    nodes_drive, edges_drive = ci.network_from_osm(
-        args.place, download_method=args.download_method, network_type="drive", crs=args.crs
+    nodes_drive, edges_drive = _from_osm(
+        "districts", ci.network_from_osm, args.place, download_method=args.download_method, network_type="drive", crs=args.crs
     )
     nodes_drive, edges_drive = ci.clean_network(
         nodes_drive, edges_drive,
@@ -425,8 +446,8 @@ def stage_barriers(args, stager: Stager) -> None:
     edges.index.name = None
 
     log.info("barriers: downloading barrier features for %r", args.place)
-    barriers = ci.barriers_from_osm(
-        args.place, download_method=args.download_method, crs=args.crs,
+    barriers = _from_osm(
+        "barriers", ci.barriers_from_osm, args.place, download_method=args.download_method, crs=args.crs,
         include_primary=True, include_secondary=False, parks_min_area=100000,
     )
     barriers = barriers.reset_index(drop=True)
@@ -477,8 +498,8 @@ def stage_pois(args, stager: Stager) -> None:
         return
 
     log.info("pois: downloading activity POIs for %r", args.place)
-    pois = ci.features_from_osm(
-        args.place, ACTIVITY_POI_TAGS,
+    pois = _from_osm(
+        "pois", ci.features_from_osm, args.place, ACTIVITY_POI_TAGS,
         download_method=args.download_method, crs=args.crs,
     )
     if pois is None or pois.empty:
@@ -637,8 +658,8 @@ def _load_or_build_obstructions(args):
     # cityImage's classifier is OSM-vocabulary-specific, so DMA is derived here whether
     # or not official footprints are supplied.
     log.info("buildings: downloading OSM buildings for %r", args.place)
-    osm = ci.buildings_from_osm(
-        args.place, download_method=args.download_method, crs=args.crs, min_area=200
+    osm = _from_osm(
+        "buildings", ci.buildings_from_osm, args.place, download_method=args.download_method, crs=args.crs, min_area=200
     )
     osm = ci.gdf_multipolygon_to_polygon(osm)
     log.info("buildings: deriving land uses (raw -> OSM groups -> DMA)")
@@ -822,13 +843,14 @@ def stage_landmarks(args, stager: Stager) -> None:
     buildings = ci.visibility_score(buildings, sight_lines=sight_lines, method="combined")
 
     log.info("landmarks: cultural component (historic elements from OSM)")
-    try:
-        historic = ci.features_from_osm(
-            args.place, {"historic": True},
-            download_method=args.download_method, crs=args.crs,
-        )
-    except Exception as e:  # no historic features is not fatal
-        log.warning("landmarks: historic download failed (%s); cultural score = 0", e)
+    # A place with no historic features comes back empty and scores 0; a failed download raises
+    # once the retries are spent, rather than silently scoring every building 0.
+    historic = _from_osm(
+        "landmarks", ci.features_from_osm, args.place, {"historic": True},
+        download_method=args.download_method, crs=args.crs,
+    )
+    if historic is not None and historic.empty:
+        log.info("landmarks: no historic features in OSM for this place; cultural score = 0")
         historic = None
     buildings = ci.cultural_score(buildings, historic_elements_gdf=historic)
 
@@ -880,6 +902,17 @@ def stage_landmarks(args, stager: Stager) -> None:
 # Final assembly: write the files the Java simulation reads
 # ----------------------------------------------------------------------------
 
+def _write_output(gdf: gpd.GeoDataFrame, path) -> None:
+    """Write ``gdf`` as the only layer of the GeoPackage at ``path``.
+
+    Writing a GeoPackage replaces the layer of the same name and keeps any other layer in the
+    file, and the Java importer reads every layer of a file into one. A resource shipped under a
+    different layer name would survive a rebuild beside the new one, so the file is removed first.
+    """
+    Path(path).unlink(missing_ok=True)
+    gdf.to_file(path, driver="GPKG")
+
+
 def finalize(args, stager: Stager) -> None:
     out = args.resources_dir
     prefix = out / args.city_name
@@ -897,40 +930,40 @@ def finalize(args, stager: Stager) -> None:
             else stager.load("edges_network")
 
         nodes = nodes.drop(columns=["oldNodeIDs", "old_nodeIDs"], errors="ignore")
-        _stringify_list_columns(nodes).to_file(f"{prefix}_nodes.gpkg", driver="GPKG")
-        _stringify_list_columns(edges).to_file(f"{prefix}_edges.gpkg", driver="GPKG")
+        _stringify_list_columns(nodes).pipe(_write_output, f"{prefix}_nodes.gpkg")
+        _stringify_list_columns(edges).pipe(_write_output, f"{prefix}_edges.gpkg")
 
         if stager.path("nodesDual").exists() and stager.path("edgesDual").exists():
             stager.load("nodesDual").pipe(_stringify_list_columns) \
-                .to_file(f"{prefix}_nodesDual.gpkg", driver="GPKG")
+                .pipe(_write_output, f"{prefix}_nodesDual.gpkg")
             stager.load("edgesDual").pipe(_stringify_list_columns) \
-                .to_file(f"{prefix}_edgesDual.gpkg", driver="GPKG")
+                .pipe(_write_output, f"{prefix}_edgesDual.gpkg")
     else:
         log.info("finalize: no network checkpoint staged; keeping the existing network files "
                  "and writing only the layers staged in this run")
 
     if stager.path("barriers").exists():
         stager.load("barriers").pipe(_stringify_list_columns) \
-            .to_file(f"{prefix}_barriers.gpkg", driver="GPKG")
+            .pipe(_write_output, f"{prefix}_barriers.gpkg")
 
     # The landmarks checkpoint is the full buildings layer with landmark scores; the
     # Java reader expects it as <City>_buildings.gpkg.
     if stager.path("landmarks").exists():
         stager.load("landmarks").pipe(_stringify_list_columns) \
-            .to_file(f"{prefix}_buildings.gpkg", driver="GPKG")
+            .pipe(_write_output, f"{prefix}_buildings.gpkg")
     elif stager.path("buildings_analysed").exists():
         # No landmark stage yet: still ship the analysed buildings (DMA, use tags);
         # the sim runs with landmark navigation disabled.
         stager.load("buildings_analysed").pipe(_stringify_list_columns) \
-            .to_file(f"{prefix}_buildings.gpkg", driver="GPKG")
+            .pipe(_write_output, f"{prefix}_buildings.gpkg")
 
     if stager.path("obstructions").exists():
         stager.load("obstructions").pipe(_stringify_list_columns) \
-            .to_file(f"{prefix}_obstructions.gpkg", driver="GPKG")
+            .pipe(_write_output, f"{prefix}_obstructions.gpkg")
 
     if stager.path("pois").exists():
         stager.load("pois").pipe(_stringify_list_columns) \
-            .to_file(f"{prefix}_POIs.gpkg", driver="GPKG")
+            .pipe(_write_output, f"{prefix}_POIs.gpkg")
 
     if stager.path("sight_lines").exists():
         sight_lines = stager.load("sight_lines")
@@ -940,7 +973,7 @@ def finalize(args, stager: Stager) -> None:
             sight_lines["geometry"] = force_2d(sight_lines.geometry.values)
             keep = [c for c in ("buildingID", "nodeID", "length", "geometry")
                     if c in sight_lines.columns]
-            sight_lines[keep].to_file(f"{prefix}_sight_lines2D.gpkg", driver="GPKG")
+            _write_output(sight_lines[keep], f"{prefix}_sight_lines2D.gpkg")
 
     log.info("final outputs written to %s with prefix %s_*", out, args.city_name)
 

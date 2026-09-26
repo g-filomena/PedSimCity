@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.logging.Logger;
+import pedsim.core.engine.Exporter;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.parameters.TimePars;
 import pedsim.core.utilities.LoggerUtil;
@@ -160,7 +161,7 @@ public final class DaySummary {
 
   /** Appends one row, writing the header first if the file is new. */
   private static void write(String appName, int job, String[] row) {
-    File directory = new File("outputs" + File.separator + appName + File.separator + "daySummary");
+    File directory = new File(Exporter.outputDirectory(appName), "daySummary");
     if (!directory.exists() && !directory.mkdirs()) {
       logger.warning("Could not create " + directory + "; no day summary written.");
       return;
