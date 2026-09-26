@@ -48,6 +48,12 @@ public final class TestPars extends Pars {
 
   public static boolean verboseMode = false;
 
+  /**
+   * Draw the generic OD matrix's origins and destinations in proportion to the floor area of the
+   * buildings attached to each node, instead of uniformly over the network. Needs a buildings layer.
+   */
+  public static boolean weightODByFloorArea = false;
+
   public static Scenario[] landmarkScenarios = {
     Scenario.ROAD_DISTANCE,
     Scenario.LANDMARKS_DISTANCE,

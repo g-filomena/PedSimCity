@@ -65,6 +65,13 @@ public class Pars {
    */
   public static long seed = 20260912L;
 
+  /**
+   * Sub-folder for this run's exports, {@code outputs/<module>/<outputTag>/}; empty writes to
+   * {@code outputs/<module>/}. Lets concurrent runs of one module, such as a parameter sweep, keep
+   * their files apart. See {@link pedsim.core.engine.Exporter#outputDirectory(String)}.
+   */
+  public static String outputTag = "";
+
   public static int jobs = 1;
   public static int durationDays = 7;
   public static int stepDelayMs = 100;
