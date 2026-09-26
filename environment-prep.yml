@@ -1,6 +1,6 @@
 # Conda environment for the city-preparation pipeline (pipeline/00_city_preparation.py).
 # Heavier than the census environment: it needs cityImage plus its optional extras for
-# centrality (igraph), regions (python-louvain) and 3D sight lines (pyvista, dask).
+# centrality (igraph), regions (python-louvain) and 3D sight lines (dask, psutil).
 # cityImage itself is installed from PyPI by build_city.bat.
 name: pedsimcity-prep
 channels:
@@ -18,7 +18,6 @@ dependencies:
   - shapely>=2
   - python-igraph
   - python-louvain
-  - pyvista
   - dask
   - psutil
   - tqdm
