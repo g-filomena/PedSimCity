@@ -304,7 +304,9 @@ public class PathFinder {
       // need to swap
       if (nextNode.equals(previousNode)) {
         nextNode = (NodeGraph) edge.getFromNode();
-        DirectedEdge correctEdge = network.getDirectedEdgeBetween(previousNode, nextNode);
+        // the same street the other way round; a lookup by the node pair could answer a parallel
+        // street instead
+        DirectedEdge correctEdge = edge.getSym();
         partialSequence.set(partialSequence.indexOf(edge), correctEdge);
       }
       previousNode = nextNode;

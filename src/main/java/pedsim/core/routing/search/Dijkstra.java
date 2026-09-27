@@ -520,9 +520,17 @@ public abstract class Dijkstra {
   }
 
   protected DirectedEdge retrieveFromPrimalParentGraph(NodeGraph step) {
+    NodeWrapper wrapper = nodeWrappersMap.get(step);
     NodeGraph nodeTo = subGraph.getParentNode(step);
-    NodeGraph nodeFrom = subGraph.getParentNode(nodeWrappersMap.get(step).nodeFrom);
-    // retrieving from Primal Network (no SubGraph)
-    return SharedCognitiveMap.getCommunityPrimalNetwork().getDirectedEdgeBetween(nodeFrom, nodeTo);
+    NodeGraph nodeFrom = subGraph.getParentNode(wrapper.nodeFrom);
+    // The parent of the edge the search took. Looking the pair up in the primal network instead
+    // answers the shortest of any parallel streets joining it, which need not be the one walked.
+    EdgeGraph parentEdge = subGraph.getParentEdge((EdgeGraph) wrapper.directedEdgeFrom.getEdge());
+    if (parentEdge == null) {
+      return SharedCognitiveMap.getCommunityPrimalNetwork()
+          .getDirectedEdgeBetween(nodeFrom, nodeTo);
+    }
+    DirectedEdge forward = parentEdge.getDirEdge(0);
+    return forward.getFromNode().equals(nodeFrom) ? forward : parentEdge.getDirEdge(1);
   }
 }
