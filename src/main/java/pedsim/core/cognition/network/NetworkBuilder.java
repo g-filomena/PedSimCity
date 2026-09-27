@@ -96,16 +96,17 @@ public class NetworkBuilder {
   // known node always in community network
   public void addRouteToNetwork(NodeGraph knownNode, NodeGraph newNode) {
 
-    EdgeGraph edgeBetween =
-        SharedCognitiveMap.getCommunityPrimalNetwork().getEdgeBetween(knownNode, newNode);
+    // every street joining the two, where more than one does
+    List<EdgeGraph> edgesBetween =
+        SharedCognitiveMap.getCommunityPrimalNetwork().getEdgesBetween(knownNode, newNode);
     Set<EdgeGraph> newEdges = new HashSet<>();
     Route route = null;
 
-    if (edgeBetween == null) {
+    if (edgesBetween.isEmpty()) {
       route = findMostKnownRoute(knownNode, newNode);
       newEdges.addAll(route.edgesSequence);
     } else {
-      newEdges.add(edgeBetween);
+      newEdges.addAll(edgesBetween);
     }
 
     Graph graph = SharedCognitiveMap.getCommunityPrimalNetwork();

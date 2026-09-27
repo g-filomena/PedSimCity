@@ -171,9 +171,9 @@ public class CognitiveMap extends SharedCognitiveMap {
    * That is safe only because this method leaves {@link #individualised} {@code false}: the flag
    * is what {@code Dijkstra.initialisePrimal} consults before confining its search to the known
    * subgraph, so such an agent routes over the full community network and the empty node set is
-   * never asked for. The known edges are a <i>preference</i> signal here — what {@code
-   * NightBehaviour} scores for comfort and what a vulnerable agent avoids — not a statement about
-   * what is reachable.
+   * never asked for. The known edges are a <i>preference</i> signal here - the streets whose
+   * lighting a night agent plans with as measured rather than assumed - not a statement about what
+   * is reachable.
    *
    * <p><b>The trap:</b> anything that turns {@code individualised} on for an agent whose bone was
    * built here, or any route through {@code Agent.defineRandomDestination()} — which filters its

@@ -81,9 +81,14 @@ public final class CityImageSimulationModule implements SimulationModule {
     TestPars.distances.clear();
   }
 
-  /** Every key this module owns is a {@code TestPars} field, so reflection has already set it. */
+  /**
+   * Every key this module owns is a {@code TestPars} field, so reflection has already set it. The
+   * agent count is derived here, once the command line may have replaced the design's scenarios:
+   * one agent per scenario.
+   */
   @Override
   public void applyParameters(Map<String, Object> params) {
+    pedsim.core.parameters.Pars.numAgents = TestPars.scenarios.length;
     pedsim.core.utilities.LoggerUtil.getLogger()
         .info(
             String.format(

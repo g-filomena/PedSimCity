@@ -2,13 +2,17 @@ package pedsim.core.engine;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import org.javatuples.Pair;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.linearref.LengthIndexedLine;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import org.locationtech.jts.planargraph.DirectedEdgeStar;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
@@ -197,23 +201,16 @@ public class Environment {
       }
 
       int regionID = node.getRegionID();
-      for (EdgeGraph bridge : node.getEdges()) {
-        NodeGraph oppositeNode = (NodeGraph) bridge.getOppositeNode(node);
-        int possibleRegionID = oppositeNode.getRegionID();
-        if (possibleRegionID == regionID) {
+      // One gateway per neighbour in another region: a neighbour joined by parallel streets is
+      // one crossing, listed once by getAdjacentNodes(). Iterating the node's edges made one
+      // identical gateway per street.
+      for (NodeGraph oppositeNode : node.getAdjacentNodes()) {
+        if (oppositeNode.getRegionID() == regionID) {
           continue;
         }
 
-        Gateway gateway = new Gateway();
-        gateway.exit = node;
-        gateway.edgeID = bridge.getID();
+        Gateway gateway = buildGateway(node, oppositeNode);
         gateway.gatewayID = gatewayID;
-        gateway.regionTo = possibleRegionID;
-        gateway.entry = oppositeNode;
-        gateway.nodesPair = new Pair<>(node, oppositeNode);
-
-        gateway.distance = bridge.getLength();
-        gateway.entryAngle = Angles.angle(node, oppositeNode);
         PedSimCity.regionsMap.get(regionID).gateways.add(gateway);
         PedSimCity.gatewaysMap.put(gatewayID, gateway);
         node.gateway = true;
@@ -221,6 +218,38 @@ public class Environment {
       }
       node.adjacentRegions = node.getAdjacentRegion();
     }
+  }
+
+  /**
+   * The gateway from {@code exit} into the region of the adjacent node {@code entry}. Where
+   * parallel streets join the two, it is the shortest of them - the one a walk from exit to entry
+   * takes. The entry angle is the bearing from the exit to the point halfway along that street, so
+   * it follows the street's shape: it used to be the bearing from exit to entry, the same for a
+   * straight road and for a crescent bowing away from it.
+   *
+   * @param exit The gateway node in the region being left.
+   * @param entry An adjacent node in another region.
+   * @return The gateway, with no gatewayID assigned.
+   */
+  static Gateway buildGateway(NodeGraph exit, NodeGraph entry) {
+    EdgeGraph bridge =
+        exit.getEdges().stream()
+            .filter(edge -> entry.equals(edge.getOppositeNode(exit)))
+            .min(
+                Comparator.comparingDouble(EdgeGraph::getLength).thenComparingInt(EdgeGraph::getID))
+            .orElseThrow(() -> new IllegalArgumentException("entry is not adjacent to exit"));
+
+    Gateway gateway = new Gateway();
+    gateway.exit = exit;
+    gateway.entry = entry;
+    gateway.edgeID = bridge.getID();
+    gateway.regionTo = entry.getRegionID();
+    gateway.nodesPair = new Pair<>(exit, entry);
+    gateway.distance = bridge.getLength();
+    LineString line = bridge.getLine();
+    Coordinate halfway = new LengthIndexedLine(line).extractPoint(line.getLength() / 2.0);
+    gateway.entryAngle = Angles.angle(exit.getCoordinate(), halfway);
+    return gateway;
   }
 
   /**

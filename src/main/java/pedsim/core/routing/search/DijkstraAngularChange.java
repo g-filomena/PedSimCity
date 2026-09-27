@@ -109,7 +109,10 @@ public class DijkstraAngularChange extends Dijkstra {
       // --> if yes move on. This essentially means that the in the primal graph you
       // would go back to an
       // already traversed node; but the dual graph wouldn't know.
-      NodeGraph primalJunction = RoutingUtils.getPrimalJunction(targetNode, currentNode);
+      // The junction is the current segment's far end from the one it was entered by, when the
+      // next segment shares it: only this tells apart parallel segments, which share both ends.
+      NodeGraph primalJunction =
+          RoutingUtils.getPrimalJunction(currentNode, targetNode, currentJunction);
       if (primalJunction != null && primalJunction.equals(currentJunction)) {
         continue;
       }

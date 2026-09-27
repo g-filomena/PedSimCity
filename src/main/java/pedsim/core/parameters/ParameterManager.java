@@ -135,6 +135,17 @@ public class ParameterManager {
         // ISO-8601, e.g. --SIMULATION_START_DATE=2026-12-07. The date sets day-of-week and
         // day-of-year, so it chooses the season a run happens in.
         f.set(null, java.time.LocalDate.parse(raw.trim()));
+      } else if (type.isArray() && type.getComponentType().isEnum()) {
+        // Comma-separated constants, e.g. --scenarios=ROAD_DISTANCE,REGION_DISTANCE.
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        Class<Enum> component = (Class<Enum>) type.getComponentType();
+        String[] parts = raw.split(",");
+        Object arr = java.lang.reflect.Array.newInstance(component, parts.length);
+        for (int i = 0; i < parts.length; i++) {
+          java.lang.reflect.Array.set(
+              arr, i, Enum.valueOf(component, parts[i].trim().toUpperCase()));
+        }
+        f.set(null, arr);
       } else if (type == String[].class) {
         String[] arr = raw.split(",");
         for (int i = 0; i < arr.length; i++) arr[i] = arr[i].trim();
