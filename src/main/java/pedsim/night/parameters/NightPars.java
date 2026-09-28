@@ -15,19 +15,6 @@ public class NightPars {
    */
   public static DirectionalLuxStatistic directionalLuxStatistic = DirectionalLuxStatistic.MEAN;
 
-  /**
-   * Grid the drawn vulnerable light sensitivity is snapped to, in lux.
-   *
-   * <p>The threshold decides which edges an agent reads as unlit, and that answer is the same for
-   * every agent sharing a threshold, so it is cached per threshold. Snapping the draw rather than
-   * the cache key keeps one value per agent: what is cached is what the agent uses, and
-   * {@code darknessDepth}, the planning cost multiplier and the situated gate cannot disagree.
-   *
-   * <p>At 0.25 over the 5-15 lux range this is 41 distinct sensitivities. Set it to 0 to draw from
-   * the continuous range, at the cost of a cache that never hits.
-   */
-  public static double lightSensitivityQuantumLux = 0.25;
-
   // GUI Configurable parameters for light sensitivity (Lux)
   public static double minVulnerableLightSensitivity = 5.0;
   public static double maxVulnerableLightSensitivity = 15.0;
@@ -50,7 +37,13 @@ public class NightPars {
    */
   public static double darkSpotLuxThreshold = 5.0;
 
-  public static double crowdednessPercentile = 80.0;
+  /**
+   * A street counts as busy, and so reassures rather than frightens after dark, when its agent count
+   * is at or above this percentile of the non-empty streets at that moment. 20: the published
+   * specification of this model (Filomena 2025, AGILE); the reassurance of others' presence is
+   * Ferraro (1995), the number is the model's own.
+   */
+  public static double crowdednessPercentile = 20.0;
 
   // A/B twin testing is an opt-in experimental mode: when true it spawns abTestPairs vulnerable/
   // non-vulnerable twins instead of the census-derived population. Off by default so a normal run
@@ -62,35 +55,36 @@ public class NightPars {
   public static int abTestPairs = 72;
 
   /**
-   * Upper bound on P(reroute) in {@code NightBehaviour.rerouteOrIncreaseSpeed()} as the current
-   * edge approaches full darkness. P(reroute) is 0.5 at or above the agent's own sensitivity
-   * threshold and rises linearly toward this value as the edge darkens below it, so how dark the
-   * street is decides whether the agent turns off it or merely walks it faster. A starting value,
-   * not a calibrated one.
+   * Illuminance at which darkness stops costing anything, in lux. Reassurance rises with
+   * illuminance and plateaus: Fotios, Unwin and Farrall (2015) put the optimum near 10 lx, and
+   * Portnov, Fotios et al. (2024) find the final breakpoint between 8.9 and 26 lx by location.
    */
-  public static double maxRerouteProbabilityInDarkness = 0.9;
+  public static double reassuranceLux = 10.0;
 
   /**
-   * Ceiling on the route-planning cost multiplier applied to a <b>known</b> edge whose
-   * {@code mean_lux} falls below the travelling agent's own sensitivity threshold; 1.0 disables the
-   * penalty and restores planning that ignores light entirely. A starting value, not a calibrated
-   * one.
-   *
-   * <p>This is the one parameter in the module that moves the <i>plan</i> rather than the
-   * reaction, so it is also the one whose effect a lighting experiment most needs to state: with
-   * it at 1.0 a night agent only ever reacts to a dark street it has already reached.
+   * How much a fully dark street costs a vulnerable walker, as a fraction of its length on top of
+   * the length itself: at 1.0 an unlit street costs twice its length, a street at {@link
+   * #reassuranceLux} or brighter costs its length. The direction is supported - women avoid
+   * unlit routes at night (Basu, Sevtsuk et al. 2023) - the magnitude is not: no source gives the
+   * metres of detour a given darkness is worth, so this is an assumption to state and sweep.
    */
-  public static double maxKnownDarkEdgeCostMultiplier = 1.5;
+  public static double darknessWeightVulnerable = 1.0;
 
   /**
-   * Bypasses one agent may take on one leg, after which it keeps to its route and walks faster
-   * instead.
-   *
-   * <p>Set well above what a leg plausibly needs, because it is a bound on the pathological case
-   * rather than part of the behaviour: a leg crossing a few dark streets reroutes a handful of
-   * times, so the cap does not bind and the model is unchanged. What it removes is the tail, where
-   * repeated rerouting walks an agent over its own route many times and a single leg contributes
-   * more distance than a hundred ordinary ones. Raise it to study that tail; it cannot be disabled.
+   * The same weight for a non-vulnerable walker. Half the vulnerable one, from the ratio of
+   * fear of walking alone after dark between women and men: 82% against 42% in parks and open
+   * spaces (ONS 2022), over half against 26% near home (Gallup 2023). A ratio of reported fear
+   * read as a ratio of costs is itself an assumption.
    */
-  public static int maxReroutesPerLeg = 10;
+  public static double darknessWeightNonVulnerable = 0.5;
+
+  /**
+   * Extra cost, as a fraction of length, of a street within a park or along water after dark, for
+   * a vulnerable walker. Greenery and darkness together produce entrapment and avoidance (Malmö
+   * focus groups, Urban Design International 2020). Magnitude unsourced; sweep it.
+   */
+  public static double parkWaterWeightVulnerable = 1.0;
+
+  /** The same for a non-vulnerable walker, at the ratio used for darkness. */
+  public static double parkWaterWeightNonVulnerable = 0.5;
 }

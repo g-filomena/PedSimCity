@@ -1,18 +1,20 @@
 package pedsim.night.engine;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.night.parameters.NightPars;
 import sim.graph.EdgeGraph;
 import sim.util.geo.AttributeValue;
 
 /**
- * Whether a street counts as lit: one rule, for the agent's own gate and for the edges it detours
- * around alike.
+ * How a street's lighting reads to a night agent: whether it counts as lit, how dark it is, and
+ * what an agent expects of a street it has not walked.
  *
  * <p>A tag is data; <i>lit</i> is a judgement against a {@link NightPars} threshold, so it belongs
  * to this module rather than to the cognitive map.
@@ -23,19 +25,6 @@ import sim.util.geo.AttributeValue;
 public final class NightLighting {
 
   private static volatile Set<EdgeGraph> taggedLitEdges;
-
-  /**
-   * One unlit set per sensitivity threshold, over the edges outside the community-known network.
-   *
-   * <p>Which edges read as unlit depends on the threshold and nothing else, so agents sharing one
-   * share the answer. Vulnerable thresholds are drawn onto the
-   * {@link NightPars#lightSensitivityQuantumLux} grid, which is what makes them shareable; the
-   * non-vulnerable threshold is a single value and is just another key here.
-   *
-   * <p>Keyed on the threshold alone, which is only safe because the candidate set is itself one
-   * per network. {@code NightAgentMovement.clearCachedNetworkSets} drops both together.
-   */
-  private static final Map<Double, Set<EdgeGraph>> unlitByThreshold = new ConcurrentHashMap<>();
 
   private NightLighting() {}
 
@@ -66,33 +55,83 @@ public final class NightLighting {
   }
 
   /**
-   * How far an edge falls below a lighting threshold, as a fraction: 0.0 at or above it, 1.0 at
-   * total darkness, and 0.0 wherever no continuous {@code mean_lux} exists, so an unmeasured edge
-   * is never charged for a darkness nobody measured.
-   *
-   * <p>One definition for both readers of it: the situated choice between turning off a street and
-   * walking it faster ({@code NightBehaviour.rerouteOrIncreaseSpeed}) and the planning cost that
-   * steers a route away from one before the agent sets off ({@code
-   * DijkstraRoadDistanceNight.lightingCostMultiplier}). They are the same question asked at two
-   * moments, and they were two copies of the same four lines.
-   *
-   * <p>{@code mean_lux}, not the directional entrance value: this grades the edge as a whole,
-   * which is what a cost and a reroute probability both want. The direction-specific view belongs
-   * to the gate that fires on arrival.
+   * The illuminance of an edge as the model knows it: the measured {@code mean_lux} where the
+   * lighting pipeline wrote one, {@link NightPars#litEdgeNominalLux} for an edge known lit only
+   * through the OSM tag, and 0 for an edge that is neither.
    */
-  public static double darknessDepth(EdgeGraph edge, double threshold) {
-    if (threshold <= 0) {
-      return 0.0;
-    }
+  public static double measuredLux(EdgeGraph edge) {
     var meanLuxAttr = edge.attributes.get("mean_lux");
-    if (meanLuxAttr == null) {
+    if (meanLuxAttr != null) {
+      return meanLuxAttr.getDouble();
+    }
+    return isTaggedLit(edge) ? NightPars.litEdgeNominalLux : 0.0;
+  }
+
+  /**
+   * How dark an illuminance reads, from 1.0 at 0 lux to 0.0 at {@link NightPars#reassuranceLux}
+   * and above, falling as {@code 1 - ln(1 + lux) / ln(1 + reassuranceLux)}.
+   *
+   * <p>Concave, because reassurance gains most from the first few lux and little past the
+   * plateau (Fotios, Unwin and Farrall 2015; Portnov, Fotios et al. 2024): a street at 2 lux reads
+   * as 0.54 dark, one at 5 lux as 0.25.
+   */
+  public static double darkness(double lux) {
+    double reference = NightPars.reassuranceLux;
+    if (reference <= 0.0 || lux >= reference) {
       return 0.0;
     }
-    double lux = meanLuxAttr.getDouble();
-    if (lux >= threshold) {
-      return 0.0;
+    if (lux <= 0.0) {
+      return 1.0;
     }
-    return Math.min(1.0, (threshold - lux) / threshold);
+    return 1.0 - Math.log1p(lux) / Math.log1p(reference);
+  }
+
+  /**
+   * The illuminance an agent expects of a street it does not know: the median {@link #measuredLux}
+   * of the city's streets of the same OSM {@code highway} class, or of all streets for a class
+   * with none. What anyone would guess of a residential street or a main road they have not
+   * walked, the same guess for every agent.
+   */
+  public static double typicalLux(EdgeGraph edge) {
+    Map<String, Double> byClass = typicalLuxByClass;
+    if (byClass == null) {
+      byClass = computeTypicalLuxByClass();
+      typicalLuxByClass = byClass;
+    }
+    Double lux = byClass.get(highwayClass(edge));
+    return lux != null ? lux : byClass.getOrDefault(ALL_CLASSES, 0.0);
+  }
+
+  private static final String ALL_CLASSES = "";
+
+  private static volatile Map<String, Double> typicalLuxByClass;
+
+  private static Map<String, Double> computeTypicalLuxByClass() {
+    Map<String, List<Double>> samples = new HashMap<>();
+    for (EdgeGraph edge : SharedCognitiveMap.getCommunityPrimalNetwork().getEdges()) {
+      double lux = measuredLux(edge);
+      samples.computeIfAbsent(highwayClass(edge), key -> new ArrayList<>()).add(lux);
+      samples.computeIfAbsent(ALL_CLASSES, key -> new ArrayList<>()).add(lux);
+    }
+    Map<String, Double> medians = new HashMap<>();
+    samples.forEach(
+        (key, values) -> {
+          Collections.sort(values);
+          int n = values.size();
+          medians.put(
+              key,
+              n % 2 == 1 ? values.get(n / 2) : (values.get(n / 2 - 1) + values.get(n / 2)) / 2.0);
+        });
+    return medians;
+  }
+
+  private static String highwayClass(EdgeGraph edge) {
+    var highway = edge.attributes.get("highway");
+    if (highway == null) {
+      return ALL_CLASSES;
+    }
+    String value = highway.getString();
+    return value == null ? ALL_CLASSES : value.trim();
   }
 
   /**
@@ -114,55 +153,6 @@ public final class NightLighting {
   }
 
   /**
-   * Every unlit city edge outside the community-known network: the fixed half of a non-vulnerable
-   * agent's avoid-set, unlit by {@link #isLit} at {@link NightPars#nonVulnerableLightSensitivity},
-   * so what frightens an agent onto a detour and what it detours around are one definition.
-   *
-   * <p>Cached, because that threshold is one number for every non-vulnerable agent in the run. A
-   * vulnerable agent draws its own and goes through {@link #unlitEdges} instead.
-   *
-   * @param outsideCommunityKnown the edges no one in the city is taken to know
-   */
-  public static Set<EdgeGraph> unlitEdgesOutsideCommunityKnown(
-      Set<EdgeGraph> outsideCommunityKnown) {
-    return unlitEdgesOutsideCommunityKnown(
-        outsideCommunityKnown, NightPars.nonVulnerableLightSensitivity);
-  }
-
-  /**
-   * Those of {@code outsideCommunityKnown} that read as unlit at {@code threshold}, computed once
-   * per threshold.
-   *
-   * <p>The returned set is shared and must not be modified; callers copy it into their own
-   * avoid-set.
-   *
-   * @param outsideCommunityKnown the edges no one in the city is taken to know
-   * @param threshold the agent's light-sensitivity threshold, in lux
-   */
-  public static Set<EdgeGraph> unlitEdgesOutsideCommunityKnown(
-      Set<EdgeGraph> outsideCommunityKnown, double threshold) {
-    return unlitByThreshold.computeIfAbsent(
-        threshold, lux -> Collections.unmodifiableSet(unlitEdges(outsideCommunityKnown, lux)));
-  }
-
-  /**
-   * Those of {@code candidates} that read as unlit to an agent with this sensitivity threshold.
-   *
-   * <p>One {@link #isLit} test per candidate, so it is O(candidates). Callers that ask repeatedly
-   * over the whole network go through
-   * {@link #unlitEdgesOutsideCommunityKnown(Set, double)}, which keeps one answer per threshold.
-   */
-  public static Set<EdgeGraph> unlitEdges(Set<EdgeGraph> candidates, double threshold) {
-    Set<EdgeGraph> unlit = new HashSet<>();
-    for (EdgeGraph edge : candidates) {
-      if (!isLit(edge, threshold)) {
-        unlit.add(edge);
-      }
-    }
-    return unlit;
-  }
-
-  /**
    * Reads the raw {@code lit} attribute, which arrives as a boolean from some layers and as 1/0
    * from others, and anything else is not a claim of light.
    */
@@ -180,6 +170,6 @@ public final class NightLighting {
   /** Drops the derived sets, so a re-imported network is not answered from the old one. */
   public static void clearCaches() {
     taggedLitEdges = null;
-    unlitByThreshold.clear();
+    typicalLuxByClass = null;
   }
 }
