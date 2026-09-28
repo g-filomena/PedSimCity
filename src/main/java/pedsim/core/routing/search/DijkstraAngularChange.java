@@ -103,6 +103,17 @@ public class DijkstraAngularChange extends Dijkstra {
       if (visitedNodes.contains(targetNode)) {
         continue;
       }
+      // Two streets between the same pair of junctions share one dual link, and stepping along it
+      // is a U-turn: walk one street to its far end, come back along the other. The link's angle is
+      // taken at whichever shared junction the dual graph stored, and from the origin centroid,
+      // which has no arrival junction, the walk's direction is unknown. Never taken; starting on
+      // the
+      // other street is still possible, as every centroid at the origin is a candidate. It also
+      // means no dual path holds a parallel pair, so the two-argument getPrimalJunction is exact on
+      // what this search returns (PathFinder.cleanDualPath, Landmarkness).
+      if (areParallel(currentNode, targetNode)) {
+        continue;
+      }
 
       // Check if the current and the possible next centroid share in the primal graph
       // the same junction as the current with its previous centroid
@@ -129,6 +140,26 @@ public class DijkstraAngularChange extends Dijkstra {
       // the shared primal junction is symmetric, so the value resolved above is reused
       isBestDual(currentNode, targetNode, outEdge, primalJunction);
     }
+  }
+
+  /**
+   * Whether two centroids stand for parallel streets: distinct primal edges joining the same two
+   * junctions.
+   *
+   * @param centroid A dual node.
+   * @param otherCentroid Another dual node.
+   * @return true if their primal edges share both ends.
+   */
+  static boolean areParallel(NodeGraph centroid, NodeGraph otherCentroid) {
+    EdgeGraph edge = centroid.getPrimalEdge();
+    EdgeGraph otherEdge = otherCentroid.getPrimalEdge();
+    if (edge == otherEdge) {
+      return false;
+    }
+    NodeGraph from = edge.getFromNode();
+    NodeGraph to = edge.getToNode();
+    return (from.equals(otherEdge.getFromNode()) && to.equals(otherEdge.getToNode()))
+        || (from.equals(otherEdge.getToNode()) && to.equals(otherEdge.getFromNode()));
   }
 
   /**
