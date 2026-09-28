@@ -3,6 +3,87 @@
 Notable changes to PedSimCity, most recent first, dated by the day they landed. The format
 follows [Keep a Changelog](https://keepachangelog.com); the project is not yet versioned.
 
+## 2026-09-28
+
+### Changed
+- **The sight-line stage leaves chunk cleanup to cityImage.** `compute_3d_sight_lines` writes its
+  per-chunk GeoPackages to a temporary subfolder of the working directory and removes it itself,
+  so the pipeline's own removal of `./sight_lines_tmp` is gone. Its progress is logged, one line
+  each time the bar advances.
+
+## 2026-09-27
+
+### Changed
+- **Parallel streets are routed as separate streets.** cityImage now keeps two streets between the
+  same pair of junctions (a crescent beside a road) as parallel edges instead of splitting one at a
+  midpoint node, and GeoMason-light 2.3.0 stores every edge per node pair (`getEdgesBetween`;
+  `getEdgeBetween` answers the shortest). Routes are rebuilt from the edge the search took, not
+  looked up by node pair (`Dijkstra.retrieveFromPrimalParentGraph`, `PathFinder.checkEdgesSequence`),
+  so a route no longer switches to the parallel street it did not choose. `NetworkBuilder` adds every
+  parallel street to an agent's known network, and `DijkstraAngularChange` resolves junctions with
+  the arrival-aware `getPrimalJunction`. Requires GeoMason-light 2.3.0 and a network rebuilt with
+  the cityImage release that carries the new cleaning; today's gpkgs still hold midpoint nodes.
+- **Gateways: one per exit-entry pair**, on the shortest street between them, where parallel streets
+  used to make one each. `entryAngle` is the bearing from the exit to the street's halfway point, so
+  it follows a crescent's shape; it was the bearing from exit to entry.
+- **The angular search never steps between two parallel streets.** They share one dual link, and
+  taking it is a U-turn: to the far end of one street and back along the other, priced at whichever
+  shared junction the dual graph stored. From the origin centroid, which has no arrival junction,
+  the search could also record the wrong end, and `cleanDualPath` then dropped the wrong first edge.
+  Starting on either street is still possible, since every centroid at the origin is a candidate.
+  With no parallel pair in a dual path, the two-argument `getPrimalJunction` in `cleanDualPath` and
+  `Landmarkness` is exact.
+
+### Added
+- `cityimage_sweep.py` scores Kendall's tau-b (tie-aware, numpy only) and coverage (the share of
+  counters the model reaches) beside Spearman, overall and per spatial block; `--metric all_kendall`
+  runs Morris on it. At 4,000 trips region and angular leave ~14 of 99 counters at zero, all tied.
+
+## 2026-09-26
+
+### Changed
+- **Night routing is one priced cost, planned on beliefs and re-planned on surprise.**
+  `NightRouteCost` prices a street at `length × (1 + darknessWeight × darkness(lux)) ×
+  (1 + parkWaterWeight)`, the park term on park or waterside streets only, both weights by
+  vulnerability. `darkness(lux)` falls concavely from 1 at 0 lx to 0 at `reassuranceLux` (10 lx),
+  where pedestrian reassurance plateaus. The agent plans with measured lux on streets it knows or has
+  seen this trip and its OSM class's median lux elsewhere; on a street darker than it believed, it
+  re-plans to its destination and takes the new route only if it is cheaper than finishing the old
+  one. A busy street (20th percentile of occupied streets) costs no darkness. It replaces the bypass
+  reroute, which had no notion of cost: on a winter Torino day at 3,386 agents, 0.75% of legs ran
+  over 8 km (longest 14 km for 5 km of straight line), one Dora bridge carried 1.9% of every leg,
+  and agents walked 10.6% more than they planned. The same day now: no leg over 8 km, the bridge at
+  0.47%, walked within 1% of planned, same wall time. **Every night lighting result before this
+  date is superseded**, including the seasonal runs and the results site built from them.
+- Removed with it: `NightBehaviour`, the bypass, `maxReroutesPerLeg`,
+  `maxRerouteProbabilityInDarkness`, `maxKnownDarkEdgeCostMultiplier`, `lightSensitivityQuantumLux`,
+  `NightLighting.darknessDepth` and the planner's two-attempt forbidden-set search.
+  `ParameterManager` ignores unknown keys, so a script still passing one runs the defaults.
+- `run_day_night_comparison.py`'s baseline sets both darkness weights to 0: routes that ignore
+  light.
+- **Melbourne's layers are rebuilt for the sensor validation**: City of Melbourne 2023 footprints
+  only, with `height` corrected from roof elevation above sea level to height above ground; study
+  area the council boundary less 200 m, network clipped 100 m inside it; no node merging; dead ends
+  kept. It now carries the dual graph, barriers and landmark scores the shipped set lacked.
+- GeoMason-light 2.2.3, which refuses a GeoPackage holding more than one feature table instead of
+  reading them into one layer. The pipeline deletes each output before writing it.
+- `pipeline/00_city_preparation.py` retries Overpass downloads and gains `--remove-dead-ends`.
+
+### Added
+- `--weightODByFloorArea` draws the cityImage OD matrix in proportion to the floor area attached
+  to each node, and `--outputTag` writes a run's exports to their own folder so a sweep's concurrent
+  runs do not overwrite each other.
+- Enum-array parameters take a comma-separated list (`--scenarios=ROAD_DISTANCE,REGION_DISTANCE`),
+  and the cityImage module gives each scenario one agent.
+- `analysis/validation/Melbourne/cityimage_sweep.py`: spatial blocks, convergence / elements /
+  Morris designs, runs and scoring of cityImage scenarios against the Melbourne counters. Like the
+  rest of `analysis/validation/`, it is kept outside git.
+
+### Fixed
+- **The `barriers` stage tests park membership against whole park outlines.** It clipped barriers
+  to the network's envelope first, and a ring cut open polygonises to nothing, so every street
+  inside a park crossing the envelope was left unflagged — three parks on Torino, one on Melbourne.
+
 ## 2026-09-25
 
 ### Fixed

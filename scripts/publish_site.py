@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import shutil
@@ -39,7 +40,7 @@ import subprocess
 import time
 import webbrowser
 from collections import defaultdict
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from html import escape
 from pathlib import Path
 from urllib.parse import quote
@@ -66,43 +67,112 @@ RESULT_NAME = re.compile(
     r"results_(?P<city>.+)_day(?P<day>\d+)_job(?P<job>\d+)_(?P<stamp>.+)\.html"
 )
 
+# Where a city is, for the sunrise and sunset its season pages shade: latitude and longitude as
+# the model measures them from the street network, the standard UTC offset, and whether the EU
+# summer-time rule applies. A city missing here is published without the shading.
+CITY_LOCATION = {
+    "Torino": {"lat": 45.0634, "lon": 7.6768, "utc": 1, "euSummerTime": True},
+}
+
+
+def _last_sunday(year: int, month: int) -> date:
+    last = (date(year, month + 1, 1) if month < 12 else date(year + 1, 1, 1)) - timedelta(days=1)
+    return last - timedelta(days=(last.weekday() + 1) % 7)
+
+
+def _sun_hours(location: dict, day: date) -> tuple[float, float]:
+    """Sunrise and sunset on ``day`` in local clock hours, by the NOAA approximation with the
+    sun's centre 0.833 degrees below the horizon - the rule the model's ``Daylight`` uses."""
+    g = 2 * math.pi / 365 * (day.timetuple().tm_yday - 1)
+    eq_time = 229.18 * (0.000075 + 0.001868 * math.cos(g) - 0.032077 * math.sin(g)
+                        - 0.014615 * math.cos(2 * g) - 0.040849 * math.sin(2 * g))
+    decl = (0.006918 - 0.399912 * math.cos(g) + 0.070257 * math.sin(g)
+            - 0.006758 * math.cos(2 * g) + 0.000907 * math.sin(2 * g)
+            - 0.002697 * math.cos(3 * g) + 0.00148 * math.sin(3 * g))
+    phi = math.radians(location["lat"])
+    hour_angle = math.degrees(math.acos(
+        math.cos(math.radians(90.833)) / (math.cos(phi) * math.cos(decl))
+        - math.tan(phi) * math.tan(decl)))
+    offset = location["utc"]
+    if location["euSummerTime"] and _last_sunday(day.year, 3) <= day < _last_sunday(day.year, 10):
+        offset += 1
+    rise = (720 - 4 * (location["lon"] + hour_angle) - eq_time) / 60 + offset
+    sunset = (720 - 4 * (location["lon"] - hour_angle) - eq_time) / 60 + offset
+    return rise, sunset
+
+
+def _season_sun(city: str, dates: list[str]) -> dict | None:
+    """Mean sunrise and sunset over a season's simulated dates, or None for an unplaced city."""
+    location = CITY_LOCATION.get(city)
+    if location is None or not dates:
+        return None
+    times = [_sun_hours(location, date.fromisoformat(d)) for d in dates]
+    return {"rise": round(sum(t[0] for t in times) / len(times), 3),
+            "set": round(sum(t[1] for t in times) / len(times), 3)}
+
 
 # --- page shell ------------------------------------------------------------
 
 # Kept as a standalone string (not an f-string) so the CSS braces need no escaping;
 # it is interpolated into the page verbatim by _shell below.
 _STYLE = """
-  :root { color-scheme: light dark; }
+  :root {
+    color-scheme: light dark;
+    --surface-0: #ffffff; --surface-1: #fcfcfb; --surface-2: #f4f3f0; --rule: #e0dfda;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77756e;
+    --accent: #eb6834;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface-0: #121211; --surface-1: #1a1a19; --surface-2: #232321; --rule: #34342f;
+      --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #96958c;
+      --accent: #d95926;
+    }
+  }
   * { box-sizing: border-box; }
-  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-         max-width: 52rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; line-height: 1.6; }
-  header h1 { font-size: 1.5rem; margin: 0 0 .15rem; letter-spacing: -0.02em; }
-  header .sub { opacity: .7; margin: 0 0 1.25rem; }
-  nav.crumbs { font-size: .85rem; opacity: .75; margin-bottom: 1.75rem; }
-  nav.crumbs a { text-decoration: none; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; max-width: 60rem;
+         margin: 0 auto; padding: 2.5rem 1.25rem 4rem; line-height: 1.6;
+         background: var(--surface-0); color: var(--text-primary); }
+  nav.crumbs { font-size: .82rem; color: var(--text-muted); margin-bottom: 1.6rem; }
+  nav.crumbs a { color: inherit; text-decoration: none; }
   nav.crumbs a:hover { text-decoration: underline; }
-  p.intro { max-width: 42rem; opacity: .8; margin: 0 0 1.6rem; }
-  ul.cards { list-style: none; padding: 0; margin: 0; display: grid; gap: .6rem;
-             grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
-  a.card { display: block; padding: .8rem 1rem; text-decoration: none; color: inherit;
-           border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
-           border-radius: 10px; transition: border-color .15s ease, transform .15s ease; }
-  a.card:hover { border-color: color-mix(in srgb, currentColor 45%, transparent);
-                 transform: translateY(-1px); }
-  a.card .title { font-weight: 600; }
-  a.card .meta { display: block; opacity: .6; font-size: .8rem; margin-top: .2rem; }
+  .hero { margin: 0 0 2rem; }
+  .eyebrow { font-size: .75rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+             color: var(--text-muted); margin: 0 0 .35rem; }
+  .hero h1 { font-size: clamp(1.8rem, 3.4vw, 2.5rem); line-height: 1.12; margin: 0 0 .8rem;
+             letter-spacing: -0.025em; font-weight: 700; }
+  .lede { max-width: 44rem; color: var(--text-secondary); font-size: 1.04rem; margin: 0; }
+  h2 { font-size: 1.05rem; margin: 2.4rem 0 .8rem; letter-spacing: -0.01em; }
+  ul.cards { list-style: none; padding: 0; margin: 0; display: grid; gap: .75rem;
+             grid-template-columns: repeat(auto-fill, minmax(min(17rem, 100%), 1fr)); }
+  a.card { display: block; height: 100%; padding: 1rem 1.1rem; text-decoration: none;
+           color: inherit; background: var(--surface-1); border: 1px solid var(--rule);
+           border-radius: 12px; transition: border-color .15s ease, transform .15s ease; }
+  a.card:hover { border-color: var(--text-muted); transform: translateY(-1px); }
+  a.card.feature { border-left: 3px solid var(--accent); }
+  a.card .title { display: block; font-weight: 650; font-size: 1.02rem; letter-spacing: -0.01em; }
+  a.card .meta { display: block; color: var(--text-muted); font-size: .82rem; margin-top: .25rem; }
+  a.card .blurb { display: block; color: var(--text-secondary); font-size: .88rem;
+                  margin-top: .5rem; }
+  a.card .go { display: inline-block; margin-top: .7rem; font-size: .82rem; font-weight: 600; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem 1rem; margin-top: .7rem; }
+  .stats span { font-size: .8rem; color: var(--text-muted); }
+  .stats b { display: block; font-size: 1.05rem; color: var(--text-primary); font-weight: 650;
+             letter-spacing: -0.01em; }
   .latest { font-size: .66rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
             padding: .06rem .4rem; border-radius: 999px; margin-left: .45rem; vertical-align: middle;
-            background: color-mix(in srgb, currentColor 14%, transparent); }
-  .empty { opacity: .6; }
-  footer { margin-top: 3rem; opacity: .55; font-size: .82rem; padding-top: 1rem;
-           border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent); }
+            background: var(--surface-2); color: var(--text-secondary); }
+  .empty { color: var(--text-muted); }
+  footer { margin-top: 3.5rem; color: var(--text-muted); font-size: .82rem; padding-top: 1rem;
+           border-top: 1px solid var(--rule); }
   footer a { color: inherit; }
 """
 
 
-def _shell(head_title: str, subtitle: str, breadcrumb: str, body: str) -> str:
-    """Wraps page body in the shared HTML/CSS shell. ``breadcrumb`` is trusted HTML."""
+def _shell(head_title: str, eyebrow: str, title: str, lede: str, breadcrumb: str,
+           body: str) -> str:
+    """Wraps page body in the shared HTML/CSS shell. ``breadcrumb`` and ``body`` are trusted
+    HTML; the other arguments are escaped."""
     published = datetime.now().strftime("%Y-%m-%d %H:%M")
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -110,14 +180,16 @@ def _shell(head_title: str, subtitle: str, breadcrumb: str, body: str) -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{escape(head_title)}</title>
+<meta name="description" content="{escape(lede)}">
 <style>{_STYLE}</style>
 </head>
 <body>
-<header>
-  <h1>PedSimCity</h1>
-  <p class="sub">{escape(subtitle)}</p>
-</header>
 {breadcrumb}
+<header class="hero">
+  <p class="eyebrow">{escape(eyebrow)}</p>
+  <h1>{escape(title)}</h1>
+  <p class="lede">{escape(lede)}</p>
+</header>
 {body}
 <footer>Part of Inclusive Streets · published {published} ·
   <a href="{GITHUB_URL}">PedSimCity on GitHub</a></footer>
@@ -169,17 +241,29 @@ def _run_card(info: dict, href: str, latest: bool = False) -> str:
 
 
 def _city_card(city: str, infos: list[dict], summary: dict | None = None) -> str:
+    href = quote(city) + "/"
+    if summary:
+        seasons = summary["seasons"]
+        walked = sum(e["walkedM"] for e in seasons) / 1000
+        blurb = ("The night model walked through four seasons: where people go, when, and how "
+                 "well lit their routes are once the sun sets.")
+        stats = [(f'{len(seasons)}', "seasons"),
+                 (f'{summary["days"]} × {summary["jobs"]}', "days × replicate jobs"),
+                 (f'{summary["agents"]:,}', "agents"),
+                 (f'{walked:,.0f} km', "walked in all")]
+        stats_html = "".join(f"<span><b>{escape(v)}</b>{escape(k)}</span>" for v, k in stats)
+        return (f'  <li><a class="card feature" href="{escape(href)}">'
+                f'<span class="title">{escape(city)}</span>'
+                f'<span class="blurb">{escape(blurb)}</span>'
+                f'<span class="stats">{stats_html}</span>'
+                f'<span class="go">Explore {escape(city)} →</span></a></li>')
     infos = sorted(infos, key=lambda i: i["mtime"], reverse=True)
-    parts = []
+    meta = "no runs yet"
     if infos:
         latest = infos[0]
         latest_desc = f"day {latest['day']}" if latest["day"] is not None else latest["path"].stem
-        parts.append(f'{len(infos)} run{"s" if len(infos) != 1 else ""} · latest {latest_desc}'
-                     f' ({latest["mtime"].strftime("%Y-%m-%d")})')
-    if summary:
-        parts.append(f'{len(summary["seasons"])} seasons mapped')
-    meta = " · ".join(parts) if parts else "no runs yet"
-    href = quote(city) + "/"
+        meta = (f'{len(infos)} run{"s" if len(infos) != 1 else ""} · latest {latest_desc}'
+                f' ({latest["mtime"].strftime("%Y-%m-%d")})')
     return (f'  <li><a class="card" href="{escape(href)}">'
             f'<span class="title">{escape(city)}</span>'
             f'<span class="meta">{escape(meta)}</span></a></li>')
@@ -227,6 +311,7 @@ def _season_summary(city: str, data_dir: Path) -> dict | None:
             "darkLegShare": (total("legs_dark") / legs) if legs else 0.0,
             "traversals": data["traversals"]["vulnerable"] + data["traversals"]["nonVulnerable"],
             "vulnerableShare": data["vulnerableShare"],
+            "sun": _season_sun(city, data.get("dates", [])),
         }
         run_agents = max((int(row["agents"]) for row in rows if row.get("agents")), default=0)
         entry["metresPerAgent"] = (
@@ -272,12 +357,15 @@ def stage_city_data(city: str, city_dir: Path) -> dict | None:
 
 
 def _seasons_card(summary: dict) -> str:
-    seasons = ", ".join(s["season"] for s in summary["seasons"])
-    meta = (f'{len(summary["seasons"])} seasons ({seasons}) · {summary["days"]} days x '
-            f'{summary["jobs"]} jobs at {summary["agents"]:,} agents')
-    return ('  <li><a class="card" href="seasons.html">'
+    meta = (f'{len(summary["seasons"])} seasons · {summary["days"]} days × {summary["jobs"]} '
+            f'replicate jobs · {summary["agents"]:,} agents')
+    blurb = ("An interactive map of every street, hour by hour, and how the vulnerable and "
+             "non-vulnerable populations walk the city before and after dark.")
+    return ('  <li><a class="card feature" href="seasons.html">'
             '<span class="title">Streets by season</span>'
-            f'<span class="meta">{escape(meta)}</span></a></li>')
+            f'<span class="meta">{escape(meta)}</span>'
+            f'<span class="blurb">{escape(blurb)}</span>'
+            '<span class="go">Open the map →</span></a></li>')
 
 
 def _rm_site_dir() -> None:
@@ -336,26 +424,34 @@ def build_site(pages: list[Path]) -> dict[str, int]:
             run_items.append(_run_card(info, info["name"], latest=(idx == 0)))
 
         crumbs = _crumbs([("PedSimCity", "../"), (city, None)])
-        body = ('<ul class="cards">\n' + "\n".join(run_items) + "\n</ul>") if run_items else (
-            '<p class="empty">Nothing published for this city yet.</p>')
+        featured = run_items[:1] if summary else []
+        runs = run_items[1:] if summary else run_items
+        body = ""
+        if featured:
+            body += '<ul class="cards">\n' + featured[0] + "\n</ul>"
+        if runs:
+            body += ('\n<h2>Single-run dashboards</h2>\n<ul class="cards">\n'
+                     + "\n".join(runs) + "\n</ul>")
+        if not body:
+            body = '<p class="empty">Nothing published for this city yet.</p>'
         (city_dir / "index.html").write_text(
-            _shell(f"{city} — PedSimCity", f"{city} · pedestrian-simulation results",
-                   crumbs, body),
+            _shell(f"{city} — PedSimCity", "PedSimCity", city,
+                   f"Pedestrian-simulation results for {city}.", crumbs, body),
             encoding="utf-8")
         overview_items.append(_city_card(city, infos, summary))
 
     # Overview at the subdomain root: the model's own landing (intro + per-city results).
-    intro = ('<p class="intro">PedSimCity is an agent-based model of pedestrian movement in '
-             'cities. Each run simulates a day of walking trips for a synthetic, census-based '
-             'population. Explore the results by city.</p>')
+    lede = ("An agent-based model of pedestrian movement in cities. Synthetic, census-based "
+            "populations plan their days, choose destinations and walk the street network, "
+            "street by street and hour by hour. Explore the results by city.")
     if overview_items:
         listing = '<ul class="cards">\n' + "\n".join(overview_items) + "\n</ul>"
     else:
         listing = ('<p class="empty">No runs published yet — results appear here after the '
                    'first simulation.</p>')
     (SITE_DIR / "index.html").write_text(
-        _shell("PedSimCity", "Agent-based pedestrian simulation · results by city",
-               "", intro + "\n" + listing),
+        _shell("PedSimCity", "Inclusive Streets", "PedSimCity", lede, "",
+               "<h2>Cities</h2>\n" + listing),
         encoding="utf-8")
 
     return {city: len(by_city.get(city, [])) for city in sorted(set(by_city) | data_cities)}

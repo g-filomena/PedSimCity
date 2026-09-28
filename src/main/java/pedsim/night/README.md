@@ -27,16 +27,17 @@ The 24h clock (`isDark`), workplace/night-POI data and time-of-day destination s
 | Class | Role |
 |---|---|
 | `agents/NightAgent` | inherits the 24h activity pattern; after dark plans a night trip and filters out park/water destinations |
-| `agents/NightAgentMovement` | movement layer; records measured lux, binary-lit fallback use and missing lighting data separately |
-| `agents/NightBehaviour` | vulnerability/light-sensitivity behaviour; evaluates mean edge lux and directional entrance lux at runtime |
-| `routing/routers/RoadDistancePathFinder`, `routing/search/DijkstraRoadDistanceNight` | night route planning based on road distance, with vulnerable-agent avoidance of parks/water and unknown regions |
-| `parameters/NightPars` | light-sensitivity thresholds, crowdedness percentile, A/B-testing flag, directional lux statistic |
+| `agents/NightAgentMovement` | walks the route; looks at each street it did not know, re-plans when one is darker than assumed, walks faster on unlit streets; records the lux walked |
+| `routing/NightRouteCost` | what a street costs after dark: length raised by darkness and by parks or water, weighted by vulnerability |
+| `routing/routers/RoadDistancePathFinder`, `routing/search/DijkstraRoadDistanceNight` | night route planning: least cost under `NightRouteCost` after dark, road distance by day |
+| `engine/NightLighting` | whether a street reads as lit, how dark an illuminance is, and the typical lux of a street class |
+| `parameters/NightPars` | darkness and park/water weights, the reassurance level, light-sensitivity thresholds, crowdedness percentile, A/B flag |
 
 ## Data layers
 
 | Layer file (`<City>_...`) | Field | Purpose |
 |---|---|---|
-| `edges_illuminated_continuous.gpkg` | `mean_lux` | measured per-edge mean illuminance used by runtime situated behaviour |
+| `edges_illuminated_continuous.gpkg` | `mean_lux`, `min_lux` | measured per-edge illuminance: the route cost, the lit gate and the lux walked |
 | `directional_lighting_lookup.csv` | `visibility_min_lux`, `visibility_mean_lux` | directional entrance lighting per `current_node_id` / `target_node_id` pair |
 | `censusData.gpkg` | `female_pct` | per-zone share of adults who are women; the activity tier draws each agent's sex from it |
 
@@ -49,8 +50,8 @@ Under A/B testing the split is experimental and set by construction, so it does 
 1. **Clock** — `isDark` comes from `Daylight.isDark(time)`: sunrise and sunset for the simulated date at the city's own latitude and longitude, measured from the street network.
 2. **Vulnerability** — when `enableLightABTesting = false`, `NightPopulate.assignVulnerabilityStatus` makes every woman vulnerable; `NightAgent.initSensitivity` sets the light-sensitivity threshold.
 3. **Destinations** — workplace POIs by day, night POIs after dark.
-4. **Route planning** — when dark, `NightAgent` plans a `roadDistanceNight` route. A **known** edge's cost rises as it darkens, from 1.0 at the agent's own sensitivity threshold toward `NightPars.maxKnownDarkEdgeCostMultiplier` at total darkness; unknown edges are left to the situated gate below, so the same darkness is not charged twice. Vulnerable agents also avoid parks and water, and edges that are neither lit nor familiar.
-5. **Runtime situated behaviour** — while walking after dark, agents evaluate measured `mean_lux`, directional entrance lux and binary `lit` fallback. Dark/unsafe edges can trigger local rerouting or speed-up behaviour.
+4. **Route planning** — when dark, `NightAgent` plans the least-cost route under `NightRouteCost`: `length × (1 + darknessWeight × darkness(lux)) × (1 + parkWaterWeight)`, the park term only on park or waterside streets. `darkness` is 1 at 0 lux and falls concavely to 0 at `reassuranceLux` (10 lx, where reassurance plateaus). Both weights are higher for vulnerable agents. The agent plans with the measured lux of the streets it knows and the typical lux of their class for the rest.
+5. **Walking** — arriving at a street it did not know, the agent sees its real lighting and whether it is busy (a busy street costs no darkness). If the street is darker than assumed, it plans again from where it stands and takes the new route only if that is cheaper than finishing the old one. A street seen once is known for the rest of the trip, so each re-plan lowers the cost of what is left and none can repeat. On a street that reads as unlit at its own sensitivity and is not busy, the agent walks faster.
 6. **A/B testing** — with `enableLightABTesting = true`, `NightPopulate` spawns identical vulnerable/non-vulnerable twin pairs. In this mode the vulnerable/non-vulnerable split is experimental and does not read the agent's sex.
 
 ## Lighting semantics
@@ -108,7 +109,7 @@ Module-specific REST parameters handled by `NightSimulationModule`:
 |---|---|---|
 | `enableLightABTesting` | boolean | `NightPars.enableLightABTesting` |
 | `crowdednessPercentile` | double | `NightPars.crowdednessPercentile` |
-| `directionalLuxStatistic` | `MIN` \| `MEAN` | default `MIN` |
+| `directionalLuxStatistic` | `MIN` \| `MEAN` | default `MEAN` |
 | `nonVulnerableLightSensitivity` | double | `NightPars.nonVulnerableLightSensitivity` |
 | `useGravityModel` | boolean | `RouteChoicePars.useGravityModel` |
 

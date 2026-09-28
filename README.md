@@ -70,8 +70,8 @@ To work on the sources in an IDE instead:
 5. Alternatively, use your IDE's run button on `NightLauncher.java` (`pedsim.night.launcher`).
 
 The city-image module runs the simulation with three different configurations:
-1. Testing Landmarks (London, Muenster).
-2. Testing Urban Subdivisions (London, Paris, Muenster).
+1. Testing Landmarks (`London_landmarks`, Muenster).
+2. Testing Urban Subdivisions (`London_subdivisions`, Paris, Muenster).
 3. Testing Specific Route Choice Models (Muenster).
 4. Empirical ABM (Muenster).
 

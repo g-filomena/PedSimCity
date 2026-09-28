@@ -19,6 +19,7 @@
     --series-1: #2a78d6;          /* non-vulnerable */
     --series-2: #eb6834;          /* vulnerable */
     --grid: #eceae5;
+    --dark-band: #eeedf0;         /* hours between sunset and sunrise */
     /* sequential blue, 100 -> 700: low volume recedes toward the surface */
     --seq-1: #cde2fb; --seq-2: #9ec5f4; --seq-3: #6da7ec; --seq-4: #3987e5;
     --seq-5: #256abf; --seq-6: #184f95; --seq-7: #0d366b;
@@ -42,6 +43,7 @@
       --series-1: #3987e5;
       --series-2: #d95926;
       --grid: #2a2a27;
+      --dark-band: #24242a;
       /* reversed: on a dark surface, magnitude runs toward light */
       --seq-1: #0d366b; --seq-2: #184f95; --seq-3: #256abf; --seq-4: #3987e5;
       --seq-5: #6da7ec; --seq-6: #9ec5f4; --seq-7: #cde2fb;
@@ -64,6 +66,7 @@
     --series-1: #3987e5;
     --series-2: #d95926;
     --grid: #2a2a27;
+    --dark-band: #24242a;
     --seq-1: #0d366b; --seq-2: #184f95; --seq-3: #256abf; --seq-4: #3987e5;
     --seq-5: #6da7ec; --seq-6: #9ec5f4; --seq-7: #cde2fb;
     --div-1: #3987e5; --div-2: #3e689b; --div-3: #3c4e63; --div-4: #383835;
@@ -75,14 +78,38 @@
   body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
          max-width: 76rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem;
          line-height: 1.6; background: var(--surface-0); color: var(--text-primary); }
-  header h1 { font-size: 1.5rem; margin: 0 0 .15rem; letter-spacing: -0.02em; }
-  header .sub { color: var(--text-secondary); margin: 0 0 1.25rem; }
-  nav.crumbs { font-size: .85rem; color: var(--text-muted); margin-bottom: 1.5rem; }
+  nav.crumbs { font-size: .82rem; color: var(--text-muted); margin-bottom: 1.6rem; }
   nav.crumbs a { color: inherit; text-decoration: none; }
   nav.crumbs a:hover { text-decoration: underline; }
-  p.intro { max-width: 46rem; color: var(--text-secondary); margin: 0 0 1.6rem; }
-  h2 { font-size: 1.05rem; margin: 2.2rem 0 .2rem; letter-spacing: -0.01em; }
-  h2 + p.note { margin: 0 0 .9rem; color: var(--text-muted); font-size: .85rem; max-width: 48rem; }
+  .hero { margin: 0 0 1.6rem; }
+  .eyebrow { font-size: .75rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+             color: var(--text-muted); margin: 0 0 .35rem; }
+  .hero h1 { font-size: clamp(1.7rem, 3.2vw, 2.35rem); line-height: 1.15; margin: 0 0 .7rem;
+             letter-spacing: -0.025em; font-weight: 700; }
+  .lede { max-width: 48rem; color: var(--text-secondary); font-size: 1.02rem; margin: 0; }
+  h2 { font-size: 1.2rem; margin: 3rem 0 .25rem; letter-spacing: -0.015em; }
+  h3 { font-size: .92rem; margin: 1.4rem 0 .5rem; letter-spacing: -0.005em; font-weight: 600;
+       color: var(--text-primary); }
+  h2 + p.note, h3 + p.note { margin: 0 0 .9rem; color: var(--text-muted); font-size: .85rem;
+                             max-width: 50rem; }
+  p.note { color: var(--text-muted); font-size: .85rem; max-width: 50rem; }
+  .finding { max-width: 50rem; margin: .4rem 0 .6rem; padding: .75rem .95rem;
+             border-left: 3px solid var(--series-2); background: var(--surface-1);
+             border-radius: 0 10px 10px 0; color: var(--text-primary); font-size: .95rem; }
+  .finding:empty { display: none; }
+  .pair { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr)); }
+  .pair h3 { margin-top: .6rem; }
+  .multiples { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr)); }
+  .multiple { position: relative; border: 1px solid var(--rule); border-radius: 12px;
+              background: var(--surface-1); padding: .6rem .7rem .2rem; cursor: pointer;
+              transition: border-color .15s ease; }
+  .multiple:hover { border-color: var(--text-muted); }
+  .multiple.on { border-color: var(--text-primary); }
+  .multiple .mt { display: flex; justify-content: space-between; align-items: baseline;
+                  font-size: .82rem; font-weight: 600; }
+  .multiple .mt span { font-weight: 400; color: var(--text-muted); font-size: .75rem;
+                       font-variant-numeric: tabular-nums; }
+  .multiple svg { display: block; width: 100%; height: 118px; }
 
   /* --- filters: one row above the charts --- */
   .filters { display: flex; flex-wrap: wrap; gap: .6rem .9rem; align-items: center;
@@ -109,7 +136,7 @@
   button.play[aria-pressed="true"] { background: var(--surface-2); color: var(--text-primary); }
 
   /* --- stat tiles --- */
-  .tiles { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  .tiles { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
            margin-bottom: 1.4rem; }
   .tile { border: 1px solid var(--rule); border-radius: 10px; padding: .7rem .85rem;
           background: var(--surface-1); }
@@ -152,10 +179,13 @@
   /* --- line chart --- */
   .chartwrap { position: relative; border: 1px solid var(--rule); border-radius: 12px;
                background: var(--surface-1); padding: .8rem .9rem .3rem; }
-  #hourly { display: block; width: 100%; height: 260px; }
-  .chart-legend { display: flex; gap: 1rem; font-size: .8rem; color: var(--text-secondary);
-                  margin: 0 0 .2rem .2rem; }
+  .chartwrap svg { display: block; width: 100%; height: 250px; }
+  .chartwrap .tooltip { min-width: 12rem; }
+  .chart-legend { display: flex; flex-wrap: wrap; gap: .3rem 1rem; font-size: .8rem;
+                  color: var(--text-secondary); margin: 0 0 .2rem .2rem; }
   .chart-legend .item { display: flex; align-items: center; gap: .35rem; }
+  .chart-legend .band { display: inline-block; width: .9rem; height: .62rem; border-radius: 2px;
+                        background: var(--dark-band); border: 1px solid var(--rule); }
 
   /* --- tables --- */
   table { border-collapse: collapse; width: 100%; font-size: .82rem;
@@ -169,6 +199,13 @@
   summary { cursor: pointer; font-size: .85rem; color: var(--text-secondary); }
   .scroll { overflow-x: auto; margin-top: .6rem; }
 
+  @media (max-width: 34rem) {
+    body { padding: 1.5rem 1rem 3rem; }
+    .tiles { grid-template-columns: 1fr 1fr; }
+    .tile .v { font-size: 1.25rem; }
+    .filter[style] { margin-left: 0 !important; }
+    input[type="range"] { width: 7rem; }
+  }
   footer { margin-top: 3rem; color: var(--text-muted); font-size: .82rem; padding-top: 1rem;
            border-top: 1px solid var(--rule); }
   footer a { color: inherit; }
@@ -177,13 +214,12 @@
 </style>
 </head>
 <body>
-<header>
-  <h1>PedSimCity</h1>
-  <p class="sub" id="subtitle">Walking by season</p>
-</header>
 <nav class="crumbs" id="crumbs"><a href="../">PedSimCity</a> / <span>Seasons</span></nav>
-
-<p class="intro" id="intro">Loading…</p>
+<header class="hero">
+  <p class="eyebrow">PedSimCity · night model</p>
+  <h1 id="title">Walking by season</h1>
+  <p class="lede" id="intro">Loading…</p>
+</header>
 
 <div class="filters" role="group" aria-label="View controls">
   <div class="filter">
@@ -226,12 +262,37 @@
 <h2 id="hourly-title">Through the day</h2>
 <p class="note" id="hourly-note"></p>
 <div class="chartwrap">
-  <div class="chart-legend">
-    <span class="item"><span class="swatch" style="background:var(--series-2)"></span> Vulnerable</span>
-    <span class="item"><span class="swatch" style="background:var(--series-1)"></span> Non-vulnerable</span>
-  </div>
+  <div class="chart-legend" id="hourly-legend"></div>
   <svg id="hourly" role="img" aria-label="Street traversals by hour of day, vulnerable and non-vulnerable"></svg>
+  <div class="tooltip" id="hourly-tip" role="status"></div>
 </div>
+
+<section id="dark-section">
+  <h2>Walking in the dark</h2>
+  <p class="note" id="dark-note"></p>
+  <p class="finding" id="dark-finding"></p>
+  <div class="pair">
+    <div>
+      <h3>How well lit the route is, by the hour it set off</h3>
+      <div class="chartwrap">
+        <div class="chart-legend" id="lux-legend"></div>
+        <svg id="lux-chart" role="img" aria-label="Mean route lux by departure hour, vulnerable and non-vulnerable"></svg>
+        <div class="tooltip" id="lux-tip" role="status"></div>
+      </div>
+    </div>
+    <div>
+      <h3>When the two populations set off</h3>
+      <div class="chartwrap">
+        <div class="chart-legend" id="departures-legend"></div>
+        <svg id="departures-chart" role="img" aria-label="Walking legs by departure hour, vulnerable and non-vulnerable"></svg>
+        <div class="tooltip" id="departures-tip" role="status"></div>
+      </div>
+    </div>
+  </div>
+  <h3>How much of the day is dark, season by season</h3>
+  <p class="note" id="multiples-note"></p>
+  <div class="multiples" id="multiples"></div>
+</section>
 
 <h2>The four seasons</h2>
 <p class="note" id="season-table-note"></p>
@@ -563,6 +624,30 @@ function draw() {
     ctx.lineWidth = 3.2 / map.scale;
     ctx.stroke(map.paths[highlight]);
   }
+  drawScaleBar(ctx, dpr);
+}
+
+/** A scale bar in the map's upper right: the longest round distance under ~120 px. */
+function drawScaleBar(ctx, dpr) {
+  // World units are degrees of latitude (longitude is pre-scaled by cos(lat)): 111.32 km each.
+  const metresPerPx = 111320 / map.scale;
+  const target = 120 * metresPerPx;
+  const mag = 10 ** Math.floor(Math.log10(target));
+  const metres = [5, 2, 1].map((k) => k * mag).find((d) => d <= target) || mag;
+  const px = metres / metresPerPx;
+  const w = map.canvas.clientWidth;
+  const x1 = w - 18 - px, y1 = 30;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.strokeStyle = cssVar("--text-secondary");
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = "butt";
+  ctx.beginPath();
+  ctx.moveTo(x1, y1 - 5); ctx.lineTo(x1, y1); ctx.lineTo(x1 + px, y1); ctx.lineTo(x1 + px, y1 - 5);
+  ctx.stroke();
+  ctx.fillStyle = cssVar("--text-secondary");
+  ctx.font = "11px system-ui, -apple-system, 'Segoe UI', sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(metres >= 1000 ? metres / 1000 + " km" : metres + " m", x1 + px / 2, y1 - 7);
 }
 
 // ------------------------------------------------------------- tooltip ----
@@ -599,15 +684,175 @@ function showTip(featureIndex, clientX, clientY) {
 
 function hideTip() { $("map-tip").classList.remove("on"); }
 
-// ---------------------------------------------------------- hourly chart --
+// -------------------------------------------------------------- charts ----
+
+/** Whether hour h (its middle, h:30) falls between sunset and sunrise. */
+function isDarkHour(sun, h) {
+  if (!sun) return false;
+  const mid = h + 0.5;
+  return mid < sun.rise || mid > sun.set;
+}
+
+const clock = (hours) => {
+  const minutes = Math.round(hours * 60);
+  return String(Math.floor(minutes / 60) % 24).padStart(2, "0") + ":"
+    + String(minutes % 60).padStart(2, "0");
+};
+
+/** Round tick values spanning [lo, hi]. */
+function niceTicks(lo, hi, count) {
+  if (!(hi > lo)) hi = lo + 1;
+  const raw = (hi - lo) / count;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((k) => k * mag).find((s) => s >= raw);
+  const first = Math.floor(lo / step) * step;
+  const ticks = [];
+  for (let t = first; t < hi + step * 0.999; t += step) ticks.push(Number(t.toFixed(10)));
+  return ticks;
+}
+
+const compact = (n) => {
+  const a = Math.abs(n);
+  if (a >= 1e6) return (n / 1e6).toFixed(a >= 1e7 ? 0 : 1).replace(/\.0$/, "") + "M";
+  if (a >= 1e3) return (n / 1e3).toFixed(a >= 1e4 ? 0 : 1).replace(/\.0$/, "") + "k";
+  return String(Math.round(n * 10) / 10);
+};
+
+/**
+ * An hourly line chart: one x position per hour, the hours of darkness shaded, a hairline grid,
+ * a crosshair and tooltip on hover, and the series named at their line ends.
+ *
+ * opts: series [{label, color, values}], sun, format (value -> text), zero (false lets the axis
+ * start above 0), yMax (a shared ceiling, for small multiples), height, tip (tooltip element),
+ * legend (element), endLabels (default true), compactAxis, axisFormat.
+ */
+function lineChart(svg, opts) {
+  const series = opts.series;
+  const W = Math.max(260, svg.getBoundingClientRect().width);
+  const H = opts.height || 250;
+  const endLabels = opts.endLabels !== false;
+  const m = { top: 10, right: endLabels ? 96 : 10, bottom: 24, left: opts.compactAxis ? 34 : 52 };
+  const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
+  const all = series.flatMap((s) => s.values).filter((v) => v !== null && Number.isFinite(v));
+  let lo = opts.zero === false ? Math.min(...all) : 0;
+  let hi = opts.yMax !== undefined ? opts.yMax : Math.max(...all, 0);
+  if (opts.zero === false) { const pad = (hi - lo) * 0.15 || 1; lo -= pad; hi += pad; }
+  const ticks = niceTicks(lo, hi, opts.compactAxis ? 2 : 4);
+  lo = ticks[0]; hi = ticks[ticks.length - 1];
+  const x = (h) => m.left + (iw * (h + 0.5)) / HOURS;
+  const y = (v) => m.top + ih - (ih * (v - lo)) / (hi - lo);
+  const muted = cssVar("--text-muted"), grid = cssVar("--grid"), band = cssVar("--dark-band");
+  const parts = [];
+
+  // Darkness first, under everything: contiguous dark hours become one band.
+  for (let h = 0; h < HOURS; h++) {
+    if (!isDarkHour(opts.sun, h) || (h > 0 && isDarkHour(opts.sun, h - 1))) continue;
+    let end = h;
+    while (end + 1 < HOURS && isDarkHour(opts.sun, end + 1)) end++;
+    parts.push('<rect x="' + (m.left + (iw * h) / HOURS).toFixed(1) + '" y="' + m.top
+      + '" width="' + ((iw * (end - h + 1)) / HOURS).toFixed(1) + '" height="' + ih
+      + '" fill="' + band + '"/>');
+  }
+  const axisText = opts.axisFormat || compact;
+  for (const t of ticks) {
+    parts.push('<line x1="' + m.left + '" x2="' + (m.left + iw) + '" y1="' + y(t).toFixed(1)
+      + '" y2="' + y(t).toFixed(1) + '" stroke="' + grid + '" stroke-width="1"/>');
+    parts.push('<text x="' + (m.left - 7) + '" y="' + (y(t) + 3.5).toFixed(1)
+      + '" text-anchor="end" font-size="10.5" fill="' + muted + '">' + axisText(t) + "</text>");
+  }
+  for (let h = 0; h < HOURS; h += opts.compactAxis ? 6 : 3) {
+    parts.push('<text x="' + x(h).toFixed(1) + '" y="' + (m.top + ih + 16)
+      + '" text-anchor="middle" font-size="10.5" fill="' + muted + '">'
+      + String(h).padStart(2, "0") + "</text>");
+  }
+  const path = (values) => {
+    let d = "", pen = false;
+    values.forEach((v, h) => {
+      if (v === null || !Number.isFinite(v)) { pen = false; return; }
+      d += (pen ? "L" : "M") + x(h).toFixed(1) + " " + y(v).toFixed(1);
+      pen = true;
+    });
+    return d;
+  };
+  for (const s of series) {
+    parts.push('<path d="' + path(s.values) + '" fill="none" stroke="' + s.color
+      + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>');
+  }
+  if (endLabels) {
+    // Name each line at its last point; nudge labels apart when two lines end close together.
+    const ends = series.map((s) => {
+      const last = [...s.values].reverse().find((v) => v !== null && Number.isFinite(v));
+      return { label: s.label, y: y(last === undefined ? lo : last) };
+    }).sort((a, b) => a.y - b.y);
+    for (let i = 1; i < ends.length; i++) ends[i].y = Math.max(ends[i].y, ends[i - 1].y + 13);
+    for (const e of ends) {
+      parts.push('<text x="' + (m.left + iw + 8) + '" y="' + (e.y + 4).toFixed(1)
+        + '" font-size="11" fill="' + cssVar("--text-secondary") + '">' + e.label + "</text>");
+    }
+  }
+  parts.push('<line class="xh" x1="0" x2="0" y1="' + m.top + '" y2="' + (m.top + ih)
+    + '" stroke="' + muted + '" stroke-width="1" opacity="0"/>');
+  series.forEach((s, i) => {
+    parts.push('<circle class="xd" data-i="' + i + '" r="4" fill="' + s.color + '" stroke="'
+      + cssVar("--surface-1") + '" stroke-width="2" opacity="0"/>');
+  });
+  for (let h = 0; h < HOURS; h++) {
+    parts.push('<rect x="' + (m.left + (iw * h) / HOURS).toFixed(1) + '" y="0" width="'
+      + (iw / HOURS).toFixed(1) + '" height="' + H + '" fill="transparent" data-hour="' + h + '"/>');
+  }
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.style.height = H + "px";
+  svg.innerHTML = parts.join("");
+
+  if (opts.legend) {
+    opts.legend.innerHTML = series.map((s) =>
+      '<span class="item"><span class="swatch" style="background:' + s.color + '"></span>'
+      + s.label + "</span>").join("")
+      + (opts.sun ? '<span class="item"><span class="band"></span>dark: sunset '
+        + clock(opts.sun.set) + " to sunrise " + clock(opts.sun.rise) + "</span>" : "");
+  }
+
+  const tip = opts.tip;
+  const show = (h) => {
+    const rule = svg.querySelector(".xh");
+    rule.setAttribute("x1", x(h)); rule.setAttribute("x2", x(h)); rule.setAttribute("opacity", "1");
+    svg.querySelectorAll(".xd").forEach((dot) => {
+      const v = series[Number(dot.dataset.i)].values[h];
+      const ok = v !== null && Number.isFinite(v);
+      dot.setAttribute("cx", x(h)); dot.setAttribute("cy", ok ? y(v) : -10);
+      dot.setAttribute("opacity", ok ? "1" : "0");
+    });
+    if (!tip) return;
+    tip.innerHTML = '<div class="tt-row"><strong>' + hourLabel(h) + '</strong><span class="tt-k">'
+      + (isDarkHour(opts.sun, h) ? "dark" : "daylight") + "</span></div>"
+      + series.map((s) => '<div class="tt-row"><span><span class="swatch" style="background:'
+        + s.color + '"></span> ' + s.label + "</span><span>"
+        + (s.values[h] === null || !Number.isFinite(s.values[h]) ? "—" : opts.format(s.values[h]))
+        + "</span></div>").join("");
+    const wrap = tip.parentElement.getBoundingClientRect(), box = svg.getBoundingClientRect();
+    const scale = box.width / W;
+    const px = box.left - wrap.left + x(h) * scale;
+    const left = px + 14 + tip.offsetWidth > wrap.width - 8 ? px - tip.offsetWidth - 14 : px + 14;
+    tip.style.left = Math.max(8, left) + "px";
+    tip.style.top = (box.top - wrap.top + m.top * scale) + "px";
+    tip.classList.add("on");
+  };
+  const hide = () => {
+    svg.querySelector(".xh").setAttribute("opacity", "0");
+    svg.querySelectorAll(".xd").forEach((dot) => dot.setAttribute("opacity", "0"));
+    if (tip) tip.classList.remove("on");
+  };
+  svg.querySelectorAll("[data-hour]").forEach((rect) =>
+    rect.addEventListener("mouseenter", () => show(Number(rect.dataset.hour))));
+  svg.onmouseleave = hide;
+}
+
+function seasonSummary(name) {
+  return state.summary.seasons.find((s) => s.season === name);
+}
 
 function drawHourly() {
-  const svg = $("hourly");
   const season = state.seasons[state.season];
-  const W = Math.max(320, svg.getBoundingClientRect().width), H = 260;
-  const m = { top: 14, right: 78, bottom: 26, left: 56 };
-  const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
-
   let seriesV, seriesN, subject;
   if (state.pinned !== null && state.pinned !== undefined) {
     const f = state.geometry.features[state.pinned];
@@ -616,7 +861,7 @@ function drawHourly() {
       i === undefined ? 0 : season.vulnerable[i * HOURS + h]);
     seriesN = Array.from({ length: HOURS }, (_, h) =>
       i === undefined ? 0 : season.nonVulnerable[i * HOURS + h]);
-    subject = "street #" + f.properties.e;
+    subject = "street #" + f.properties.e + " only";
   } else {
     seriesV = Array.from(season.cityV);
     seriesN = Array.from(season.cityN);
@@ -626,93 +871,135 @@ function drawHourly() {
     "Street traversals by hour, summed over " + season.dayJobs + " simulated days ("
     + season.days + " days × " + season.jobs.length + " replicate jobs), " + subject + ", "
     + titled(state.season) + ". Click a street on the map to pin it here; click it again to clear.";
-
-  const peak = Math.max(1, ...seriesV, ...seriesN);
-  const x = (h) => m.left + (iw * h) / (HOURS - 1);
-  const y = (val) => m.top + ih - (ih * val) / peak;
-  const line = (arr) =>
-    arr.map((val, h) => (h ? "L" : "M") + x(h).toFixed(1) + " " + y(val).toFixed(1)).join(" ");
-
-  const parts = ['<g aria-hidden="true">'];
-  for (const t of [0, peak / 2, peak]) {
-    parts.push('<line x1="' + m.left + '" x2="' + (m.left + iw) + '" y1="' + y(t).toFixed(1)
-      + '" y2="' + y(t).toFixed(1) + '" stroke="' + cssVar("--grid") + '" stroke-width="1"/>');
-    parts.push('<text x="' + (m.left - 8) + '" y="' + (y(t) + 4).toFixed(1)
-      + '" text-anchor="end" font-size="11" fill="' + cssVar("--text-muted") + '">'
-      + fmt(t) + "</text>");
-  }
-  for (let h = 0; h < HOURS; h += 3) {
-    parts.push('<text x="' + x(h).toFixed(1) + '" y="' + (m.top + ih + 17)
-      + '" text-anchor="middle" font-size="11" fill="' + cssVar("--text-muted") + '">'
-      + String(h).padStart(2, "0") + "</text>");
-  }
-  parts.push("</g>");
-  parts.push('<path d="' + line(seriesN) + '" fill="none" stroke="' + cssVar("--series-1")
-    + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>');
-  parts.push('<path d="' + line(seriesV) + '" fill="none" stroke="' + cssVar("--series-2")
-    + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>');
-  // Two series, so both are direct-labelled at the end of their line.
-  parts.push('<text x="' + (m.left + iw + 8) + '" y="' + (y(seriesV[HOURS - 1]) + 4).toFixed(1)
-    + '" font-size="11" fill="' + cssVar("--text-secondary") + '">Vulnerable</text>');
-  parts.push('<text x="' + (m.left + iw + 8) + '" y="' + (y(seriesN[HOURS - 1]) + 4).toFixed(1)
-    + '" font-size="11" fill="' + cssVar("--text-secondary") + '">Non-vuln.</text>');
-  parts.push('<line id="hourly-rule" x1="0" x2="0" y1="' + m.top + '" y2="' + (m.top + ih)
-    + '" stroke="' + cssVar("--text-muted")
-    + '" stroke-width="1" stroke-dasharray="3 3" opacity="0"/>');
-  parts.push('<circle id="hourly-dot-v" r="4" fill="' + cssVar("--series-2")
-    + '" stroke="' + cssVar("--surface-1") + '" stroke-width="2" opacity="0"/>');
-  parts.push('<circle id="hourly-dot-n" r="4" fill="' + cssVar("--series-1")
-    + '" stroke="' + cssVar("--surface-1") + '" stroke-width="2" opacity="0"/>');
-  for (let h = 0; h < HOURS; h++) {
-    parts.push('<rect x="' + (x(h) - iw / (2 * (HOURS - 1))).toFixed(1) + '" y="' + m.top
-      + '" width="' + (iw / (HOURS - 1)).toFixed(1) + '" height="' + ih
-      + '" fill="transparent" data-hour="' + h + '"/>');
-  }
-
-  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
-  svg.innerHTML = parts.join("");
-
-  svg.querySelectorAll("[data-hour]").forEach((rect) => {
-    rect.addEventListener("mouseenter", () => {
-      const h = Number(rect.dataset.hour);
-      const rule = svg.querySelector("#hourly-rule");
-      rule.setAttribute("x1", x(h));
-      rule.setAttribute("x2", x(h));
-      rule.setAttribute("opacity", "1");
-      const dotV = svg.querySelector("#hourly-dot-v"), dotN = svg.querySelector("#hourly-dot-n");
-      dotV.setAttribute("cx", x(h)); dotV.setAttribute("cy", y(seriesV[h]));
-      dotV.setAttribute("opacity", "1");
-      dotN.setAttribute("cx", x(h)); dotN.setAttribute("cy", y(seriesN[h]));
-      dotN.setAttribute("opacity", "1");
-      $("hourly-title").textContent = "Through the day — " + hourLabel(h) + ": "
-        + fmt(seriesV[h]) + " vulnerable, " + fmt(seriesN[h]) + " non-vulnerable";
-    });
+  lineChart($("hourly"), {
+    series: [
+      { label: "Vulnerable", color: cssVar("--series-2"), values: seriesV },
+      { label: "Non-vulnerable", color: cssVar("--series-1"), values: seriesN },
+    ],
+    sun: seasonSummary(state.season).sun, format: fmt, tip: $("hourly-tip"),
+    legend: $("hourly-legend"), height: 260,
   });
-  svg.addEventListener("mouseleave", () => {
-    svg.querySelector("#hourly-rule").setAttribute("opacity", "0");
-    svg.querySelector("#hourly-dot-v").setAttribute("opacity", "0");
-    svg.querySelector("#hourly-dot-n").setAttribute("opacity", "0");
-    $("hourly-title").textContent = "Through the day";
+}
+
+/** Legs-weighted mean of an hourly value over a season's dark (or light) hours. */
+function weightedMean(values, weights, sun, dark) {
+  let sum = 0, n = 0;
+  for (let h = 0; h < HOURS; h++) {
+    if (isDarkHour(sun, h) !== dark || values[h] === null) continue;
+    sum += values[h] * weights[h];
+    n += weights[h];
+  }
+  return n ? sum / n : null;
+}
+
+function drawDarkSection() {
+  const s = seasonSummary(state.season);
+  const section = $("dark-section");
+  if (!s.legsByHour || !s.meanLuxByHour) { section.style.display = "none"; return; }
+  section.style.display = "";
+  const lv = s.meanLuxByHour.vulnerable, ln = s.meanLuxByHour.nonVulnerable;
+  const dv = s.legsByHour.vulnerable, dn = s.legsByHour.nonVulnerable;
+  const darkV = weightedMean(lv, dv, s.sun, true), darkN = weightedMean(ln, dn, s.sun, true);
+  const dayV = weightedMean(lv, dv, s.sun, false), dayN = weightedMean(ln, dn, s.sun, false);
+  const season = titled(state.season).toLowerCase();
+  $("dark-note").textContent =
+    "Every walking leg of the " + season + " run, " + fmt(s.legsBy.vulnerable + s.legsBy.nonVulnerable)
+    + " of them. Route lux is the mean illuminance along the route a leg took, from the "
+    + "street-lighting model; the shaded hours run from sunset to sunrise on the simulated dates. "
+    + "Few legs set off between midnight and 06:00, so those hours rest on small samples. "
+    + "These are census runs, not the paired A/B experiment, so they describe what the two "
+    + "populations walked rather than measure the lighting manipulation.";
+  if (darkV !== null && darkN !== null) {
+    const gap = darkV - darkN;
+    const signed = (v, digits) => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(digits);
+    const daylightGap = (d) => (Math.abs(d) < 0.05
+      ? "the two are within 0.1 lux of each other"
+      : "the gap is " + signed(d, 1) + " lux");
+    $("dark-finding").innerHTML = "After dark in " + season
+      + ", vulnerable pedestrians' routes averaged <strong>" + darkV.toFixed(1) + " lux</strong>,"
+      + " against " + darkN.toFixed(1) + " lux for everyone else: " + signed(gap, 1) + " lux ("
+      + signed(100 * gap / darkN, 1) + "%)."
+      + (dayV !== null && dayN !== null
+        ? " In daylight, when the lighting rules do not apply, " + daylightGap(dayV - dayN) + "."
+        : "");
+  } else {
+    $("dark-finding").textContent = "";
+  }
+  lineChart($("lux-chart"), {
+    series: [
+      { label: "Vulnerable", color: cssVar("--series-2"), values: lv },
+      { label: "Non-vulnerable", color: cssVar("--series-1"), values: ln },
+    ],
+    sun: s.sun, zero: false, format: (v) => v.toFixed(1) + " lux", axisFormat: (t) => t.toFixed(1),
+    tip: $("lux-tip"), legend: $("lux-legend"), height: 240,
+  });
+  lineChart($("departures-chart"), {
+    series: [
+      { label: "Vulnerable", color: cssVar("--series-2"), values: dv },
+      { label: "Non-vulnerable", color: cssVar("--series-1"), values: dn },
+    ],
+    sun: s.sun, format: (v) => fmt(v) + " legs", tip: $("departures-tip"),
+    legend: $("departures-legend"), height: 240,
+  });
+  drawMultiples();
+}
+
+/** One panel per season: all legs by departure hour, on one shared scale, darkness shaded. */
+function drawMultiples() {
+  const rows = state.summary.seasons.filter((s) => s.legsByHour);
+  const totals = rows.map((s) =>
+    s.legsByHour.vulnerable.map((v, h) => v + s.legsByHour.nonVulnerable[h]));
+  const yMax = Math.max(...totals.flat());
+  const box = $("multiples");
+  box.innerHTML = rows.map((s, i) =>
+    '<div class="multiple' + (s.season === state.season ? " on" : "") + '" role="button"'
+    + ' tabindex="0" aria-label="Show ' + s.season + '">'
+    + '<div class="mt">' + titled(s.season) + "<span>" + pct(s.darkLegShare)
+    + " set off after dark</span></div><svg></svg></div>").join("");
+  $("multiples-note").textContent =
+    "All walking legs by the hour they set off, one panel per season on the same scale, with "
+    + "the dark shaded. In winter the dark takes in the evening peak; in summer it misses it. "
+    + "Select a panel to switch season.";
+  box.querySelectorAll(".multiple").forEach((panel, i) => {
+    const s = rows[i];
+    lineChart(panel.querySelector("svg"), {
+      series: [{ label: "All legs", color: cssVar("--text-secondary"), values: totals[i] }],
+      sun: s.sun, yMax, format: (v) => fmt(v) + " legs", height: 118, endLabels: false,
+      compactAxis: true,
+    });
+    const go = () => { if (s.season !== state.season) selectSeason(s.season); };
+    panel.addEventListener("click", go);
+    panel.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); }
+    });
   });
 }
 
 // -------------------------------------------------------------- chrome ----
 
 function renderTiles() {
-  const s = state.summary.seasons.find((x) => x.season === state.season);
+  const s = seasonSummary(state.season);
   const season = state.seasons[state.season];
-  const traversals = season.traversals.vulnerable + season.traversals.nonVulnerable;
+  const perDay = s.walkedM / 1000 / season.dayJobs;
   const tiles = [
-    ["Kilometres walked", fmt(s.walkedM / 1000),
-     "over " + season.dayJobs + " simulated days, in " + fmt(traversals) + " street entries"],
-    ["Streets used", fmt(season.edges.length),
-     "of " + fmt(state.summary.edgesInNetwork) + " in the network"],
-    ["Set off after dark", pct(s.darkLegShare), "of the season's walking legs"],
+    ["Walked per simulated day", fmt(perDay) + " km",
+     fmt(s.metresPerAgent) + " m per agent, over " + season.dayJobs + " simulated days"],
+    ["Set off after dark", pct(s.darkLegShare),
+     s.sun ? "sunset " + clock(s.sun.set) + ", sunrise " + clock(s.sun.rise) : "of walking legs"],
     ["Vulnerable share", pct(season.vulnerableShare),
      s.vulnerableLegShare === undefined
-       ? "of traversals"
-       : "of traversals; " + pct(s.vulnerableLegShare) + " of walking legs"],
+       ? "of street traversals"
+       : "of street traversals; " + pct(s.vulnerableLegShare) + " of legs"],
   ];
+  if (s.meanLuxByHour && s.legsByHour) {
+    const darkV = weightedMean(s.meanLuxByHour.vulnerable, s.legsByHour.vulnerable, s.sun, true);
+    const darkN = weightedMean(s.meanLuxByHour.nonVulnerable, s.legsByHour.nonVulnerable, s.sun, true);
+    if (darkV !== null && darkN !== null) {
+      tiles.push(["Route lighting after dark",
+        (darkV >= darkN ? "+" : "−") + Math.abs(100 * (darkV - darkN) / darkN).toFixed(1) + "%",
+        "vulnerable routes, " + darkV.toFixed(1) + " against " + darkN.toFixed(1) + " lux"]);
+    }
+  }
   $("tiles").innerHTML = tiles.map(([k, v, x]) =>
     '<div class="tile"><div class="k">' + k + '</div><div class="v">' + v
     + '</div><div class="x">' + x + "</div></div>").join("");
@@ -784,18 +1071,16 @@ function renderPopulationTable() {
     return;
   }
   note.textContent =
-    "Every completed leg of one replicate job, day and night together, for the "
-    + rows.map((s) => titled(s.season).toLowerCase()).join(" and ") + " run"
-    + (rows.length === 1 ? "" : "s") + " — the only ones that exported per-leg records. "
-    + "These are ordinary census runs, not the paired A/B experiment, and most legs are walked "
-    + "in daylight where the lighting rules do not apply — so this is a description of the runs, "
-    + "not a measurement of the lighting manipulation.";
+    "Every completed leg of every replicate job, day and night together. After-dark lux weights "
+    + "each departure hour by its legs and keeps the hours between sunset and sunrise.";
   const head = ["Season", "Legs, vulnerable", "Legs, non-vulnerable",
                 "Mean route m, vulnerable", "Mean route m, non-vulnerable",
-                "Mean route lux, vulnerable", "Mean route lux, non-vulnerable"];
+                "Route lux after dark, vulnerable", "Route lux after dark, non-vulnerable"];
   table.querySelector("thead").innerHTML =
     "<tr>" + head.map((h) => "<th>" + h + "</th>").join("") + "</tr>";
   const lux = (x) => (x === null || x === undefined ? "—" : x.toFixed(1));
+  const darkLux = (s, group) => (s.meanLuxByHour && s.legsByHour
+    ? weightedMean(s.meanLuxByHour[group], s.legsByHour[group], s.sun, true) : null);
   table.querySelector("tbody").innerHTML = rows.map((s) =>
     '<tr class="' + (s.season === state.season ? "on" : "") + '">'
     + "<td>" + titled(s.season) + "</td>"
@@ -803,8 +1088,8 @@ function renderPopulationTable() {
     + "<td>" + fmt(s.legsBy.nonVulnerable) + "</td>"
     + "<td>" + fmt(s.meanMetres.vulnerable) + "</td>"
     + "<td>" + fmt(s.meanMetres.nonVulnerable) + "</td>"
-    + "<td>" + lux(s.meanLux && s.meanLux.vulnerable) + "</td>"
-    + "<td>" + lux(s.meanLux && s.meanLux.nonVulnerable) + "</td></tr>").join("");
+    + "<td>" + lux(darkLux(s, "vulnerable")) + "</td>"
+    + "<td>" + lux(darkLux(s, "nonVulnerable")) + "</td></tr>").join("");
 }
 
 function renderDayTable() {
@@ -829,6 +1114,7 @@ function refresh() {
   renderPopulationTable();
   renderDayTable();
   drawHourly();
+  drawDarkSection();
 }
 
 async function selectSeason(name) {
@@ -900,7 +1186,9 @@ function wireMap() {
     draw();
   }, { passive: false });
 
-  window.addEventListener("resize", () => { resizeCanvas(); draw(); drawHourly(); });
+  window.addEventListener("resize", () => {
+    resizeCanvas(); draw(); drawHourly(); drawDarkSection();
+  });
 }
 
 const PLAY_MS = 700;
@@ -977,7 +1265,7 @@ function wireControls() {
   };
   toggle.addEventListener("click", () => {
     apply(document.documentElement.dataset.theme !== "dark");
-    if (map.classPaths) { draw(); drawHourly(); }
+    if (map.classPaths) { draw(); drawHourly(); drawDarkSection(); }
   });
   apply(dark);
 }
@@ -988,15 +1276,16 @@ async function main() {
     state.summary = summary;
     state.city = summary.city;
     document.title = summary.city + " by season — PedSimCity";
-    $("subtitle").textContent = summary.city + " · a walked day, by season";
+    $("title").textContent = summary.city + ", walked by season";
     $("crumbs").innerHTML = '<a href="../">PedSimCity</a> / <a href="./">'
       + summary.city + "</a> / <span>Seasons</span>";
     $("intro").textContent =
       "Four runs of the night model on " + summary.city + ", one per season, each "
-      + summary.days + " simulated days × " + summary.jobs + " replicate jobs at "
-      + fmt(summary.agents) + " agents. The map shows the metres walked on each street — how "
-      + "often it was entered times how long it is. Vulnerable pedestrians route away from "
-      + "streets that read as unlit, so after dark the two populations do not walk the same city.";
+      + summary.days + " simulated days × " + summary.jobs + " replicate jobs of "
+      + fmt(summary.agents) + " census-based agents. Vulnerable pedestrians route away from "
+      + "streets that read as unlit, so once the sun sets the two populations stop walking the "
+      + "same city. The map shows where the walking goes; the charts below show when, and how "
+      + "well lit it is.";
 
     $("season-table-note").textContent =
       "One row per season, over " + summary.jobs + " replicate job"
