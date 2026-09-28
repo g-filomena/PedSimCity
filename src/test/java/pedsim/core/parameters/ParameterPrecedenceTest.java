@@ -102,6 +102,15 @@ class ParameterPrecedenceTest {
     assertEquals(Probe.Mode.SECOND, Probe.mode);
   }
 
+  /** An enum array takes a comma-separated list, so a run can name the models it compares. */
+  @Test
+  void enumArrayParametersTakeACommaSeparatedList() {
+    ParameterManager.setFieldValue(Probe.class, "modes", "second, first");
+    assertEquals(2, Probe.modes.length);
+    assertEquals(Probe.Mode.SECOND, Probe.modes[0]);
+    assertEquals(Probe.Mode.FIRST, Probe.modes[1]);
+  }
+
   /** A key naming no field is ignored rather than throwing. */
   @Test
   void anUnknownKeyIsHarmless() {
@@ -115,5 +124,6 @@ class ParameterPrecedenceTest {
     }
 
     static Mode mode = Mode.FIRST;
+    static Mode[] modes = {Mode.FIRST};
   }
 }
