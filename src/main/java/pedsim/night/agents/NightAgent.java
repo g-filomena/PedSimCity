@@ -1,16 +1,18 @@
 package pedsim.night.agents;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import pedsim.activity.agents.ActivityAgent;
 import pedsim.activity.parameters.ActivityPars;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.utilities.StringEnum.Vulnerable;
 import pedsim.night.engine.PedSimCityNight;
-import pedsim.night.parameters.NightPars;
 import pedsim.night.routing.routers.RoadDistancePathFinder;
 import sim.engine.SimState;
+import sim.graph.EdgeGraph;
 import sim.graph.Graph;
 import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
@@ -18,8 +20,8 @@ import sim.graph.NodesLookup;
 
 /**
  * Pedestrian agent for the night module. Inherits the 24h activity pattern (time-of-day destination
- * selection) from {@link ActivityAgent} and adds the night perception/safety layer:
- * vulnerability-aware, lighting-aware routing and avoidance of parks/water after dark.
+ * selection) from {@link ActivityAgent} and adds the night layer: routes priced by darkness and by
+ * parks and water after dark, re-planned when a street turns out darker than assumed.
  *
  * <p><b>A night agent walks its whole trip.</b> The model has no transit, so an evening journey
  * that a real person would make by bus or metro is either walked in full or, where the commute
@@ -40,6 +42,18 @@ public class NightAgent extends ActivityAgent {
   private boolean vulnerable;
 
   public double lightSensitivityThreshold;
+
+  /** Edges whose lighting this agent has seen on the current trip; cleared as each trip starts. */
+  final Set<EdgeGraph> lightingSeenThisTrip = new HashSet<>();
+
+  /**
+   * Whether the agent knows how an edge is lit: it is a street the agent knows, or one it has
+   * already seen on this trip.
+   */
+  public boolean knowsLightingOf(EdgeGraph edge) {
+    return lightingSeenThisTrip.contains(edge) || getCognitiveMap().isEdgeKnown(edge);
+  }
+
   // Per-trip lighting metric: illuminance integrated over the metres walked, dark metres included.
   public double accumulatedLuxMetres = 0.0;
   public double metresWalkedForLux = 0.0;
@@ -56,27 +70,18 @@ public class NightAgent extends ActivityAgent {
   }
 
   /**
-   * Sets the light-sensitivity threshold: a random draw in [min, max] for vulnerable agents, the
-   * fixed non-vulnerable value otherwise.
-   *
-   * <p>The draw is snapped to {@link NightPars#lightSensitivityQuantumLux}, so the set of edges
-   * that read as unlit to this agent is shared with every agent on the same step of the grid and
-   * is computed once for all of them.
+   * Sets the light-sensitivity threshold: a uniform draw in [min, max] for vulnerable agents, the
+   * fixed non-vulnerable value otherwise. It decides which streets read as unlit to the agent, and
+   * so where it walks faster.
    */
   public void initSensitivity() {
     if (isVulnerable()) {
       double min = state.getMinVulnerableLightSensitivity();
       double max = state.getMaxVulnerableLightSensitivity();
-      this.lightSensitivityThreshold = quantise(min + random.nextDouble() * (max - min));
+      this.lightSensitivityThreshold = min + random.nextDouble() * (max - min);
     } else {
       this.lightSensitivityThreshold = state.getNonVulnerableLightSensitivity();
     }
-  }
-
-  /** Rounds to the nearest multiple of {@link NightPars#lightSensitivityQuantumLux}. */
-  private static double quantise(double lux) {
-    double quantum = NightPars.lightSensitivityQuantumLux;
-    return quantum > 0.0 ? Math.round(lux / quantum) * quantum : lux;
   }
 
   /** Called every tick: plans a trip when idle, otherwise advances along the night-aware path. */
@@ -135,8 +140,8 @@ public class NightAgent extends ActivityAgent {
   }
 
   /**
-   * Night-aware road-distance routing after dark (vulnerable agents avoid parks/water and unknown
-   * regions); plain shortest path during the day, so the defensive routing is a night-only response.
+   * Night-cost routing after dark ({@code DijkstraRoadDistanceNight}: darkness and parks or water
+   * priced by vulnerability); plain shortest path during the day.
    */
   @Override
   protected void planRoute() {

@@ -110,7 +110,6 @@ public class PedSimCityNight extends PedSimCityActivity {
   // ---------------------------------
 
   public static void clearNightStaticData() {
-    pedsim.night.agents.NightAgentMovement.clearCachedNetworkSets();
     NightLighting.clearCaches();
     directionalLuxMap.clear();
     // clear() the layer itself: getGeometries() returns a defensive copy, so clearing that
