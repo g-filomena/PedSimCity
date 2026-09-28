@@ -37,7 +37,8 @@ completed stages unless ``--force``):
               elements) + pragmatic components -> global & local landmarkness scores
 
 Optional raw inputs in inputData/<City>/ (also found in the resources folder),
-projected in the city CRS: <City>_officialBuildings.gpkg (official footprints, legacy
+projected in the city CRS: <City>_extent.gpkg (a polygon; when present every OSM download
+is confined to it instead of the named place), <City>_officialBuildings.gpkg (official footprints, legacy
 name <City>_detailedBuildings.gpkg; its own height/base are used, but when the layer
 carries absolute volume elevations Z_MAX_VOL/Z_MIN_VOL the above-ground height is derived
 as Z_MAX_VOL - Z_MIN_VOL and base = Z_MIN_VOL, so height means height above ground),
@@ -75,7 +76,6 @@ import argparse
 import ast
 import json
 import logging
-import shutil
 import sys
 import time
 from datetime import datetime
@@ -298,9 +298,10 @@ def stage_network(args, stager: Stager) -> None:
         log.info("network: checkpoints present, skipping")
         return
 
-    log.info("network: downloading pedestrian network for %r", args.place)
+    log.info("network: downloading pedestrian network for %s", args.query_label)
     nodes, edges = _from_osm(
-        "network", ci.pedestrian_network_from_osm, args.place, crs=args.crs, download_method=args.download_method
+        "network", ci.pedestrian_network_from_osm, args.query, crs=args.crs,
+        download_method=args.query_method,
     )
 
     nodes, edges = _clip_network_to_boundary(args, stager, nodes, edges)
@@ -372,9 +373,16 @@ def stage_districts(args, stager: Stager) -> None:
     nodes = nodes.set_index("nodeID", drop=False)
     nodes.index.name = None
 
-    log.info("districts: downloading drive network for %r", args.place)
+    # Regions are a property of the city's whole drive network, so they may be identified over a
+    # wider place (--districts-place) than the pedestrian network they are assigned to.
+    if args.districts_place:
+        query, method, label = args.districts_place, "OSMplace", repr(args.districts_place)
+    else:
+        query, method, label = args.query, args.query_method, args.query_label
+    log.info("districts: downloading drive network for %s", label)
     nodes_drive, edges_drive = _from_osm(
-        "districts", ci.network_from_osm, args.place, download_method=args.download_method, network_type="drive", crs=args.crs
+        "districts", ci.network_from_osm, query, download_method=method, network_type="drive",
+        crs=args.crs,
     )
     nodes_drive, edges_drive = ci.clean_network(
         nodes_drive, edges_drive,
@@ -434,21 +442,42 @@ def stage_elevation(args, stager: Stager) -> None:
     stager.save("nodes_z", nodes[["nodeID", "z", "geometry"]])
 
 
+# Per-edge columns the barriers stage writes; replaced wholesale when it re-runs.
+BARRIER_EDGE_COLUMNS = ["a_rivers", "w_parks", "p_barr", "n_barr", "c_barr", "sep_barr"]
+
+
+def _edges_for_barriers(args, stager: Stager) -> gpd.GeoDataFrame:
+    """The network the barriers are integrated into.
+
+    The staged network when there is one; otherwise the city's shipped ``<City>_edges.gpkg``,
+    so a built city can re-run this stage alone and keep its ``edgeID``s.
+    """
+    if stager.path("edges_network").exists():
+        return stager.load("edges_network")
+    shipped = args.resources_dir / f"{args.city_name}_edges.gpkg"
+    if not shipped.exists():
+        raise SystemExit(f"barriers: no network checkpoint and no {shipped.name}; "
+                         "run the network stage first")
+    log.info("barriers: no network checkpoint; integrating into the shipped %s", shipped.name)
+    edges = _parse_list_columns(gpd.read_file(shipped)).set_crs(args.crs, allow_override=True)
+    return edges.drop(columns=BARRIER_EDGE_COLUMNS, errors="ignore")
+
+
 def stage_barriers(args, stager: Stager) -> None:
     if stager.done("barriers", "edges_barriers"):
         log.info("barriers: checkpoints present, skipping")
         return
 
-    edges = stager.load("edges_network")
+    edges = _edges_for_barriers(args, stager)
     # cityImage's barrier-integration helpers (barriers_along) look edges up by edgeID via .loc, so
     # index by edgeID: the checkpoint reload gives a plain RangeIndex, which KeyErrors as soon as an
     # edgeID is not a valid row position.
     edges = edges.set_index("edgeID", drop=False)
     edges.index.name = None
 
-    log.info("barriers: downloading barrier features for %r", args.place)
+    log.info("barriers: downloading barrier features for %s", args.query_label)
     barriers = _from_osm(
-        "barriers", ci.barriers_from_osm, args.place, download_method=args.download_method, crs=args.crs,
+        "barriers", ci.barriers_from_osm, args.query, download_method=args.query_method, crs=args.crs,
         include_primary=True, include_secondary=False, parks_min_area=100000,
     )
     barriers = barriers.reset_index(drop=True)
@@ -459,7 +488,10 @@ def stage_barriers(args, stager: Stager) -> None:
 
     # Clip to the study area (+ margin) so barrier-edge integration stays local.
     envelope = edges.union_all().envelope.buffer(50)
-    barriers = gpd.clip(barriers, envelope).reset_index(drop=True)
+    whole = barriers.geometry
+    barriers = gpd.clip(barriers, envelope)
+    whole = whole.loc[barriers.index].values
+    barriers = barriers.reset_index(drop=True)
     barriers["barrierID"] = barriers.index.astype(int)
 
     log.info("barriers: integrating %d barriers into the edges", len(barriers))
@@ -467,7 +499,10 @@ def stage_barriers(args, stager: Stager) -> None:
     sindex = edges.sindex
 
     edges = ci.along_water(edges, barriers_within)
-    edges = ci.along_within_parks(edges, barriers_within)
+    # Park membership polygonises each outline, and a ring the clip cut open yields no polygon.
+    whole_within = barriers_within.set_geometry(
+        gpd.GeoSeries(whole, index=barriers.index, crs=barriers.crs).loc[barriers_within.index])
+    edges = ci.along_within_parks(edges, whole_within)
     edges["p_barr"] = edges["a_rivers"] + edges["w_parks"]
     edges["p_barr"] = edges["p_barr"].apply(lambda barrier_ids: list(set(barrier_ids)))
 
@@ -498,10 +533,10 @@ def stage_pois(args, stager: Stager) -> None:
         log.info("pois: checkpoint present, skipping")
         return
 
-    log.info("pois: downloading activity POIs for %r", args.place)
+    log.info("pois: downloading activity POIs for %s", args.query_label)
     pois = _from_osm(
-        "pois", ci.features_from_osm, args.place, ACTIVITY_POI_TAGS,
-        download_method=args.download_method, crs=args.crs,
+        "pois", ci.features_from_osm, args.query, ACTIVITY_POI_TAGS,
+        download_method=args.query_method, crs=args.crs,
     )
     if pois is None or pois.empty:
         log.warning("pois: no tagged features found; the activity module will fall back "
@@ -658,9 +693,10 @@ def _load_or_build_obstructions(args):
     # OSM buildings are always the land-use / DMA donor over the whole obstruction extent:
     # cityImage's classifier is OSM-vocabulary-specific, so DMA is derived here whether
     # or not official footprints are supplied.
-    log.info("buildings: downloading OSM buildings for %r", args.place)
+    log.info("buildings: downloading OSM buildings for %s", args.query_label)
     osm = _from_osm(
-        "buildings", ci.buildings_from_osm, args.place, download_method=args.download_method, crs=args.crs, min_area=200
+        "buildings", ci.buildings_from_osm, args.query, download_method=args.query_method,
+        crs=args.crs, min_area=200,
     )
     osm = ci.gdf_multipolygon_to_polygon(osm)
     log.info("buildings: deriving land uses (raw -> OSM groups -> DMA)")
@@ -798,17 +834,6 @@ def stage_sightlines(args, stager: Stager) -> None:
     log.info("sightlines: wrote completion record %s (%d sight lines)",
              meta_path.name, len(sight_lines))
 
-    # compute_3d_sight_lines writes per-chunk GeoPackages into ./sight_lines_tmp and merges
-    # them into the returned frame, but never cleans up. The result is now finalised in the
-    # stager, so the temporary chunks are dead weight — remove the folder.
-    tmp_chunks = Path("sight_lines_tmp")
-    if tmp_chunks.is_dir():
-        try:
-            shutil.rmtree(tmp_chunks)
-            log.info("sightlines: removed temporary chunk folder %s", tmp_chunks)
-        except OSError as e:
-            log.warning("sightlines: could not remove %s (%s)", tmp_chunks, e)
-
 
 def stage_landmarks(args, stager: Stager) -> None:
     if stager.done("landmarks"):
@@ -847,8 +872,8 @@ def stage_landmarks(args, stager: Stager) -> None:
     # A place with no historic features comes back empty and scores 0; a failed download raises
     # once the retries are spent, rather than silently scoring every building 0.
     historic = _from_osm(
-        "landmarks", ci.features_from_osm, args.place, {"historic": True},
-        download_method=args.download_method, crs=args.crs,
+        "landmarks", ci.features_from_osm, args.query, {"historic": True},
+        download_method=args.query_method, crs=args.crs,
     )
     if historic is not None and historic.empty:
         log.info("landmarks: no historic features in OSM for this place; cultural score = 0")
@@ -939,6 +964,11 @@ def finalize(args, stager: Stager) -> None:
                 .pipe(_write_output, f"{prefix}_nodesDual.gpkg")
             stager.load("edgesDual").pipe(_stringify_list_columns) \
                 .pipe(_write_output, f"{prefix}_edgesDual.gpkg")
+    elif stager.path("edges_barriers").exists():
+        log.info("finalize: no network checkpoint staged; rewriting only %s_edges.gpkg, "
+                 "with the barrier columns this run computed", args.city_name)
+        stager.load("edges_barriers").pipe(_stringify_list_columns) \
+            .pipe(_write_output, f"{prefix}_edges.gpkg")
     else:
         log.info("finalize: no network checkpoint staged; keeping the existing network files "
                  "and writing only the layers staged in this run")
@@ -1005,6 +1035,8 @@ def _save_config(args) -> None:
         "epsg": args.epsg,
         "download_method": args.download_method,
     }
+    if args.districts_place:
+        config["districts_place"] = args.districts_place
     config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
 
 
@@ -1043,6 +1075,14 @@ def parse_args(argv=None):
                         help="drop dead-end streets when cleaning the network (yes/no, default "
                              "yes). Laneways and cul-de-sacs are dead ends, so a network matched "
                              "to footpath counters on them needs no")
+    parser.add_argument("--overpass-url", default=None,
+                        help="Overpass API endpoint for every OSM download, e.g. "
+                             "https://maps.mail.ru/osm/tools/overpass/api (default: OSMnx's, "
+                             "overpass-api.de, only one of whose addresses the University "
+                             "network reaches)")
+    parser.add_argument("--districts-place", default=None,
+                        help="OSM place whose drive network the districts are identified on, "
+                             "e.g. 'Greater London, UK' (default: the study area itself)")
     parser.add_argument("--district-min-size", type=int, default=20,
                         help="minimum edges per district partition (default 20)")
     parser.add_argument("--local-radius", type=float, default=800.0,
@@ -1077,14 +1117,27 @@ def parse_args(argv=None):
     args.place = args.place or config.get("place")
     args.epsg = args.epsg or config.get("epsg")
     args.download_method = args.download_method or config.get("download_method") or "OSMplace"
-    if not args.place or not args.epsg:
+    args.districts_place = args.districts_place or config.get("districts_place")
+    extent_path = _find_raw(args, "extent.gpkg")
+    if (not args.place and extent_path is None) or not args.epsg:
         parser.error(
-            f"--place and --epsg are required on the first run (no {CONFIG_NAME} "
-            f"in {args.raw_dir})"
+            f"--epsg, and --place or a {args.city_name}_extent.gpkg, are required on the first "
+            f"run (no {CONFIG_NAME} in {args.raw_dir})"
         )
     _save_config(args)
 
     args.crs = f"EPSG:{args.epsg}"
+    if extent_path is not None:
+        extent = gpd.read_file(extent_path)
+        if extent.crs is None:
+            extent = extent.set_crs(args.crs)
+        args.query = extent.to_crs("EPSG:4326").geometry.union_all()
+        args.query_method = "polygon"
+        args.query_label = extent_path.name
+    else:
+        args.query = args.place
+        args.query_method = args.download_method
+        args.query_label = repr(args.place)
     if args.workers is None:
         import multiprocessing
         args.workers = max(1, multiprocessing.cpu_count() // 2)
@@ -1102,6 +1155,13 @@ def parse_args(argv=None):
 def main(argv=None) -> int:
     args = parse_args(argv)
     stager = Stager(args.raw_dir / "prep_staging", args.force)
+    if args.overpass_url:
+        import osmnx as ox
+        ox.settings.overpass_url = args.overpass_url
+        # OSMnx waits for a free slot by reading <endpoint>/status. Mirrors often serve no parsable
+        # status (an error page), and OSMnx then sleeps 60 s before every request.
+        ox.settings.overpass_rate_limit = False
+        log.info("OSM downloads from %s (slot check off)", args.overpass_url)
 
     stage_functions = {
         "network": stage_network,

@@ -56,6 +56,14 @@ cityImage API (installed from PyPI by `scripts/build_city.bat`). Stages — `net
 `inputData/<City>/prep_staging/`; re-running resumes after the last completed stage
 (`--force` recomputes; `--stages` selects a subset, e.g. `--stages sightlines,landmarks`).
 
+Two options for where the data comes from. `--districts-place '<OSM place>'` identifies the
+districts on that place's drive network rather than the study area's, then assigns them to the
+pedestrian nodes - regions are a property of the whole city, e.g. `'Greater London, UK'` for central
+London; it is saved in `prep_config.json`. `--overpass-url <endpoint>` sends every OSM download to
+another Overpass instance: from the University of Liverpool network only one of
+`overpass-api.de`'s four addresses accepts connections, so downloads there fail or stall at random;
+`https://maps.mail.ru/osm/tools/overpass/api` is reachable, if slow.
+
 `scripts/build_city.bat` offers a **stage-group menu** — everything / base layers only
 (network, districts, barriers, pois: fast, inspect in QGIS) / landmarks only (buildings,
 sightlines, landmarks: heavy, run overnight) / custom list — and asks for the OSM place
@@ -65,6 +73,9 @@ and EPSG **only on the first run** for a city: they are saved to
 Optional raw inputs in `inputData/<City>/` (also found in the resources folder),
 projected in the city CRS:
 
+- `<City>_extent.gpkg` — a polygon for a study area that is not a named place. When present,
+  every OSM download (network, barriers, POIs, buildings, historic features) is confined to it and
+  the `place` in `prep_config.json` is only a label.
 - `<City>_officialBuildings.gpkg` (legacy name `<City>_detailedBuildings.gpkg`, still
   read) — an **official** building dataset. When present its geometries become the
   **obstructions** (authoritative footprints, replacing the OSM ones), and its own
@@ -87,6 +98,14 @@ projected in the city CRS:
   (`ci.assign_elevations_from_rasters`) when no earlier source provided them. A DTM
   alone cannot give heights — only `z` and `base`.
 
+**OS MasterMap (Great Britain).** `pipeline/os_mastermap_buildings.py --city <City> --order
+<unzipped Digimap order>` turns a Digimap order of OS MasterMap Topography Layer (GeoPackage,
+Buildings) and Building Height Attribute (CSV) into `<City>_officialBuildings.gpkg`. Heights join on
+the OS TOID; `height` is RelHMax (roof top above ground). `base` is left empty so the pipeline
+samples it from `<City>_DTM.tif`, the same raster that gives the network nodes their `z`; a `base`
+already present is used as is and the DTM is then ignored for buildings. `--base zero` writes 0 for a
+city without a DTM, `--base absolute` writes AbsHMin. RelH2 and AbsHMin are kept as columns.
+
 The height cascade is official layer's own height/base → `buildingHeights.gpkg` overlap →
 DEM/DSM−DTM. **OSM `height`/`building:levels` tags are never used.** Without any height
 source the sight-lines stage is skipped with a warning and the sim runs without
@@ -96,6 +115,30 @@ ground 0 (flat city assumption — fine for Turin's centre, wrong for hilly citi
 Output filenames and columns follow the Java readers exactly: `_sight_lines2D`,
 `_nodesDual`/`_edgesDual`, barrier kind in a `type` column, `district`/`gateway` ints on
 nodes, `deg` on dual edges.
+
+**What a rebuild produces depends on the cityImage version**, since it is installed unpinned from
+PyPI. From 2.1.2:
+
+- the network keeps `service=alley` laneways, and topology is fixed before islands are removed, so
+  streets joined only at an unnoded crossing are no longer dropped;
+- where two edges join the same pair of junctions, the shortest is kept and a longer one (a
+  crescent, a loop round a block) is kept too, split at its midpoint. The old rule kept the longest
+  and dropped the rest: 11.3 km of 207 km of Melbourne CBD streets;
+- districts are seeded (`random_state=0`), so a rebuild reproduces them;
+- park barriers sit on the park's edge rather than 10 m outside it, so streets along a park are no
+  longer flagged as inside it, and roads and railways tagged `tunnel=no` stay barriers.
+
+A network built on an earlier version differs in all of this, and its `edgeID`s differ from a new
+build's.
+
+The `barriers` stage clips barriers to the network's envelope, but tests which streets lie inside a
+park (`w_parks`) against the park's **whole** outline: a ring the clip cuts open polygonises to
+nothing, which used to leave every street inside a park on the envelope unflagged.
+
+`--stages barriers` also runs on a city whose staging folder has no network checkpoint: it
+integrates the barriers into the shipped `<City>_edges.gpkg`, replaces that file's barrier columns
+(`a_rivers`, `w_parks`, `p_barr`, `n_barr`, `sep_barr`) and keeps its `edgeID`s, so layers joined on
+them (lighting, sensor links) stay valid. Nodes and the dual graph are left alone.
 
 The buildings layer is `<City>_buildings.gpkg`: the **analysed** footprints, carrying
 scalar `land_use` + `DMA` and the landmark scores `gScore_sc`/`lScore_sc` as optional
@@ -126,10 +169,11 @@ The sight-lines stage is the most expensive one, but two changes keep it tractab
   triangulated meshes. This is exact for such buildings and much faster, and it means the
   stage no longer needs `pyvista`/VTK.
 
-The stage prints per-step wall times and a progress bar as it runs. On a large dense city
-(e.g. Barcelona) expect it to run for a few hours; it is checkpointed, so it resumes.
-When it finishes, the temporary `sight_lines_tmp/` chunk folder (written by cityImage's
-`compute_3d_sight_lines`) is deleted automatically.
+The stage logs per-step wall times and a progress bar as it runs, one line each time the bar
+advances. On a large dense city (e.g. Barcelona) expect it to run for a few hours; it is
+checkpointed, so it resumes. cityImage's `compute_3d_sight_lines` writes its per-chunk
+GeoPackages to a temporary subfolder of the working directory and removes it once they are
+merged, or on error.
 
 ### Running the preparation on the server
 

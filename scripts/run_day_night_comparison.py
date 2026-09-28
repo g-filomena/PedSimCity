@@ -20,9 +20,10 @@ used to switch "day mode" and "night mode" with `--DAY_START_HOUR` and `--NIGHT_
 simulations** and reported the difference between them as a day/night effect. The arms are stated
 explicitly now and go straight onto the command line.
 
-The default baseline is `--maxKnownDarkEdgeCostMultiplier=1.0`, which `CLAUDE.md` and
-`night/TODO.md` both name as the control for the planning-cost mechanism - 1.0 is the behaviour
-before darkness reached route planning. Pass your own arms if you are isolating something else.
+The default baseline sets both darkness weights to zero (`--darknessWeightVulnerable=0
+--darknessWeightNonVulnerable=0`): routes then ignore lighting, which is the control for the
+night route cost. Parks and water keep their weights, so the arms differ in lighting alone. Pass
+your own arms if you are isolating something else.
 
 `--city` names the folder under `src/main/resources/`; no city is named in this file.
 """
@@ -190,9 +191,10 @@ def main():
     parser.add_argument("--percentage", type=float, default=0.02,
                         help="Share of the census resident total to release as agents.")
     parser.add_argument("--days", type=int, default=1, help="Simulated days per arm.")
-    parser.add_argument("--baseline-args", default="--maxKnownDarkEdgeCostMultiplier=1.0",
+    parser.add_argument("--baseline-args",
+                        default="--darknessWeightVulnerable=0 --darknessWeightNonVulnerable=0",
                         help="Extra command-line args for the baseline arm. The default is the "
-                             "documented control for the planning-cost mechanism; pass an empty "
+                             "control for the night route cost, lighting ignored; pass an empty "
                              "string to run the model's defaults on both arms.")
     parser.add_argument("--treatment-args", default="",
                         help="Extra command-line args for the treatment arm (default: none, i.e. "
