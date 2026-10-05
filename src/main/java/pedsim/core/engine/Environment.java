@@ -13,8 +13,6 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.linearref.LengthIndexedLine;
-import org.locationtech.jts.planargraph.DirectedEdge;
-import org.locationtech.jts.planargraph.DirectedEdgeStar;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.cognition.elements.Barrier;
 import pedsim.core.cognition.elements.Gateway;
@@ -45,7 +43,7 @@ public class Environment {
 
   /**
    * Prepares the simulation environment by initializing junctions, buildings, barriers, attributes,
-   * dual graph, and regions (if barriers are present).
+   * and regions (if barriers are present).
    */
   public static void prepare() {
 
@@ -56,7 +54,6 @@ public class Environment {
     if (!PedSimCity.barriers.isEmpty()) {
       identifyGateways();
     }
-    prepareDualGraph();
 
     if (!PedSimCity.barriers.isEmpty()) {
       integrateBarriers();
@@ -268,43 +265,6 @@ public class Environment {
   }
 
   /**
-   * Centroids (Dual Graph): Assigns edgeID to centroids in the dual graph.
-   */
-  private static void prepareDualGraph() {
-
-    int missingPrimalEdgeCount = 0;
-
-    // As in prepareGraph: the dual nodes already carry the imported centroid geometries.
-    for (final NodeGraph centroid : PedSimCity.dualNetwork.getNodes()) {
-      final MasonGeometry centroidGeometry = centroid.getMasonGeometry();
-      int edgeID = centroidGeometry.getIntegerAttribute("edgeID");
-      centroid.setID(edgeID);
-
-      EdgeGraph primalEdge = PedSimCity.edgesMap.get(edgeID);
-      if (primalEdge != null) {
-        centroid.setPrimalEdge(primalEdge);
-        primalEdge.setDualNode(centroid);
-      } else {
-        missingPrimalEdgeCount++;
-      }
-
-      PedSimCity.centroidsMap.put(edgeID, centroid);
-    }
-
-    if (missingPrimalEdgeCount > 0) {
-      logger.warning(
-          "Found "
-              + missingPrimalEdgeCount
-              + " centroids with no corresponding primal edge in edgesMap.");
-    }
-
-    List<EdgeGraph> dualEdges = PedSimCity.dualNetwork.getEdges();
-    for (EdgeGraph edge : dualEdges) {
-      edge.setDeflectionAngle(edge.attributes.get("deg").getDouble());
-    }
-  }
-
-  /**
    * Regions: Creates regions' subgraphs and store information.
    */
   private static void integrateBarriers() {
@@ -388,30 +348,13 @@ public class Environment {
       List<EdgeGraph> edgesRegion = region.edges;
       SubGraph primalGraph = new SubGraph(edgesRegion);
       VectorLayer regionNetwork = new VectorLayer();
-      List<EdgeGraph> dualEdgesRegion = new ArrayList<>();
-
       for (final EdgeGraph edge : edgesRegion) {
         regionNetwork.addGeometry(edge.getMasonGeometry());
-        NodeGraph centroid = edge.getDualNode();
-        if (centroid != null) {
-          centroid.setRegionID(regionID);
-          DirectedEdgeStar directedEdges = centroid.getOutEdges();
-          for (final DirectedEdge directedEdge : directedEdges.getEdges()) {
-            dualEdgesRegion.add((EdgeGraph) directedEdge.getEdge());
-          }
-        } else {
-          // Log warning but don't crash
-          // logger.warning("Edge " + edge.getID() + " has no dual node (centroid) in region " +
-          // regionID);
-        }
       }
-
-      SubGraph dualGraph = new SubGraph(dualEdgesRegion);
       primalGraph.generateSubGraphCentralityMap();
 
       region.regionID = regionID;
       region.primalGraph = primalGraph;
-      region.dualGraph = dualGraph;
       region.regionNetwork = regionNetwork;
     }
   }

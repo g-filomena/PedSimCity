@@ -6,9 +6,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 import org.javatuples.Pair;
-import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.cognition.cognitivemap.CognitiveMap;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.PedSimCity;
@@ -24,8 +24,12 @@ public class NetworkBuilder {
 
   private Set<EdgeGraph> necessaryEdges = new HashSet<>();
   private Set<NodeGraph> necessaryNodes = new HashSet<>();
-  private Set<NodeGraph> necessaryDualNodes = new HashSet<>();
-  private Set<EdgeGraph> necessaryDualEdges = new HashSet<>();
+
+  /** Known networks built, and their streets before and after adding the visible side streets. */
+  private static final LongAdder networksBuilt = new LongAdder();
+
+  private static final LongAdder streetsWalked = new LongAdder();
+  private static final LongAdder streetsWithSideStreets = new LongAdder();
 
   // they include known nodes as well as nodes that are not known, but represented
   // in the CM
@@ -53,44 +57,40 @@ public class NetworkBuilder {
     if (islands.findDisconnectedIslands(getNecessaryEdges()).size() > 1) {
       setNecessaryEdges(islands.mergeConnectedIslands(getNecessaryEdges()));
     }
+    addVisibleSideStreets();
     setNecessaryNodes(GraphUtils.nodesFromEdges(getNecessaryEdges()));
-    buildKNownDualNetwork();
   }
 
-  private void buildKNownDualNetwork() {
-    setNecessaryDualEdges(new LinkedHashSet<>());
-    for (EdgeGraph edge : getNecessaryEdges()) {
-      if (edge != null && edge.getDualNode() != null && edge.getDualNode().getOutEdges() != null) {
-        for (DirectedEdge directedEdge : edge.getDualNode().getOutEdges().getEdges()) {
-          getNecessaryDualEdges().add((EdgeGraph) directedEdge.getEdge());
-        }
-      }
+  /**
+   * Adds every street leaving a junction of a known street: whoever walks a street sees where each
+   * side street begins.
+   */
+  private void addVisibleSideStreets() {
+    Set<EdgeGraph> known = getNecessaryEdges();
+    Set<EdgeGraph> withSideStreets = new LinkedHashSet<>(known);
+    for (EdgeGraph edge : known) {
+      withSideStreets.addAll(edge.getFromNode().getEdges());
+      withSideStreets.addAll(edge.getToNode().getEdges());
     }
-
-    if (getNecessaryDualEdges().isEmpty()) {
-      setNecessaryDualNodes(new LinkedHashSet<>());
-      return;
-    }
-
-    Graph dualGraph = SharedCognitiveMap.getCommunityDualNetwork();
-    if (dualGraph != null && !dualGraph.getEdges().isEmpty()) {
-      Islands dualIslands = new Islands(dualGraph);
-      if (dualIslands.findDisconnectedIslands(getNecessaryDualEdges()).size() > 1) {
-        setNecessaryDualEdges(dualIslands.mergeConnectedIslands(getNecessaryDualEdges()));
-      }
-    }
-    setNecessaryDualNodes(GraphUtils.nodesFromEdges(getNecessaryDualEdges()));
-    accommodateDualNetwork();
+    networksBuilt.increment();
+    streetsWalked.add(known.size());
+    streetsWithSideStreets.add(withSideStreets.size());
+    setNecessaryEdges(withSideStreets);
   }
 
-  private void accommodateDualNetwork() {
-    getNecessaryDualNodes()
-        .forEach(
-            dualNode -> {
-              EdgeGraph edge = dualNode.getPrimalEdge();
-              getNecessaryEdges().add(edge);
-              getNecessaryNodes().addAll(edge.getNodes());
-            });
+  /**
+   * How much the visible side streets widen known networks, over every one built in this run.
+   *
+   * @return e.g. {@code "173 known networks, side streets x1.53"}, or an empty string if none.
+   */
+  public static String sideStreetSummary() {
+    long walked = streetsWalked.sum();
+    if (walked == 0) {
+      return "";
+    }
+    return String.format(
+        "%d known networks, side streets x%.2f",
+        networksBuilt.sum(), (double) streetsWithSideStreets.sum() / walked);
   }
 
   // known node always in community network
@@ -118,23 +118,6 @@ public class NetworkBuilder {
     }
     getNecessaryNodes().addAll(GraphUtils.nodesFromEdges(getNecessaryEdges()));
   }
-
-  //	private void addRouteToDualNetwork(Set<EdgeGraph> newEdges) {
-  //
-  //		for (EdgeGraph edge : newEdges) {
-  //			for (DirectedEdge directedEdge : edge.getDualNode().getOutEdges().getEdges()) {
-  //				getNecessaryDualEdges().add((EdgeGraph) directedEdge.getEdge());
-  //			}
-  //		}
-  //
-  //		Graph dualGraph = SharedCognitiveMap.getCommunityDualNetwork();
-  //		Islands dualIslands = new Islands(dualGraph);
-  //		if (dualIslands.findDisconnectedIslands(getNecessaryDualEdges()).size() > 1) {
-  //			setNecessaryDualEdges(dualIslands.mergeConnectedIslands(getNecessaryDualEdges()));
-  //		}
-  //
-  //		setNecessaryDualNodes(GraphUtils.nodesFromEdges(getNecessaryDualEdges()));
-  //	}
 
   private Route findMostKnownRoute(NodeGraph originNode, NodeGraph destinationNode) {
     Pair<NodeGraph, NodeGraph> nodesPair = new Pair<>(originNode, destinationNode);
@@ -222,33 +205,5 @@ public class NetworkBuilder {
    */
   public void setNecessaryEdges(Set<EdgeGraph> necessaryEdges) {
     this.necessaryEdges = necessaryEdges;
-  }
-
-  /**
-   * @return the necessaryDualNodes
-   */
-  public Set<NodeGraph> getNecessaryDualNodes() {
-    return necessaryDualNodes;
-  }
-
-  /**
-   * @param necessaryDualNodes the necessaryDualNodes to set
-   */
-  public void setNecessaryDualNodes(Set<NodeGraph> necessaryDualNodes) {
-    this.necessaryDualNodes = necessaryDualNodes;
-  }
-
-  /**
-   * @return the necessaryDualEdges
-   */
-  public Set<EdgeGraph> getNecessaryDualEdges() {
-    return necessaryDualEdges;
-  }
-
-  /**
-   * @param necessaryDualEdges the necessaryDualEdges to set
-   */
-  public void setNecessaryDualEdges(Set<EdgeGraph> necessaryDualEdges) {
-    this.necessaryDualEdges = necessaryDualEdges;
   }
 }

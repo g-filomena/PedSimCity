@@ -275,8 +275,7 @@ public class AgentReleaseManager implements AutoCloseable {
             "Day %d: planned %.0f m, walked %.0f m on completed legs "
                 + "(%d route lengths unusable), revisit %.2fx (worst leg %.1fx), "
                 + "%d band widenings, "
-                + "%d fallbacks to any node, %d/%d angular routes served as shortest path "
-                + "(%d no dual path, %d trimmed away, %d with an unknown dual endpoint); "
+                + "%d fallbacks to any node, %d/%d angular routes served as shortest path; "
                 + "%d landmark routes served as shortest path; "
                 + "%d routes found only beyond the agent's known network (%d angular); "
                 + "%d known networks left in pieces",
@@ -290,13 +289,14 @@ public class AgentReleaseManager implements AutoCloseable {
             state.trace().destinationFallbacks(),
             state.trace().angularFallbacks(),
             state.trace().angularAttempts(),
-            state.trace().angularNoDualPath(),
-            state.trace().angularTrimmedAway(),
-            state.trace().angularEndpointUnknown(),
             state.trace().landmarkFallbacks(),
             state.trace().fullNetworkEscalations(),
             state.trace().fullNetworkEscalationsAngular(),
             sim.graph.Islands.incompleteMerges()));
+    String sideStreets = pedsim.core.cognition.network.NetworkBuilder.sideStreetSummary();
+    if (!sideStreets.isEmpty()) {
+      logger.info(sideStreets);
+    }
     if (logWriter != null) {
       logWriter.flush();
       logWriter.close();

@@ -1,9 +1,11 @@
 package pedsim.core.parameters;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import pedsim.core.utilities.LoggerUtil;
@@ -27,6 +29,12 @@ public class ParameterManager {
           "percentage", "percentagePopulationAgent",
           "actualPopulation", "population",
           "days", "durationDays");
+
+  /**
+   * Keys the launcher reads itself rather than writing into a parameter class: {@code headless} and
+   * {@code website} choose how the run starts, {@code module} which module a REST request runs.
+   */
+  private static final Set<String> LAUNCHER_KEYS = Set.of("headless", "website", "module");
 
   /**
    * The keys the command line carried, for anything later that must not write over it.
@@ -79,12 +87,82 @@ public class ParameterManager {
     return initFromParams(parseArgs(args), targets);
   }
 
-  /** Applies explicit run parameters from either the command line or REST. */
+  /**
+   * Applies explicit run parameters from either the command line or REST.
+   *
+   * @throws IllegalArgumentException if a key names no field of {@code targets}, after aliases, and
+   *     is not a launcher key: a misspelt or removed parameter would otherwise run the default.
+   */
   public static Map<String, String> initFromParams(Map<String, String> params, Class<?>[] targets) {
+    rejectUnknownKeys(params.keySet(), targets);
     commandLineKeys = new LinkedHashSet<>(params.keySet());
     applyParams(params, targets);
     applyDerived(params);
     return params;
+  }
+
+  /**
+   * Throws if any key is neither a launcher key nor, after aliases, a field of one of the targets,
+   * naming each one and the closest field name.
+   *
+   * @param keys the parameter names given
+   * @param targets every class a value may be written into
+   */
+  static void rejectUnknownKeys(Set<String> keys, Class<?>[] targets) {
+    Set<String> fields = new LinkedHashSet<>(ALIASES.keySet());
+    for (Class<?> cls : targets) {
+      for (Field f : cls.getDeclaredFields()) {
+        fields.add(f.getName());
+      }
+    }
+    List<String> unknown = new ArrayList<>();
+    for (String key : keys) {
+      if (LAUNCHER_KEYS.contains(key) || fields.contains(ALIASES.getOrDefault(key, key))) {
+        continue;
+      }
+      String closest = closest(key, fields);
+      unknown.add("--" + key + (closest == null ? "" : " (did you mean --" + closest + "?)"));
+    }
+    if (!unknown.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Unknown parameter"
+              + (unknown.size() > 1 ? "s" : "")
+              + ": "
+              + String.join(", ", unknown));
+    }
+  }
+
+  /** The field name nearest to {@code key}, ignoring case, or null if none is within a third. */
+  private static String closest(String key, Set<String> fields) {
+    String best = null;
+    int bestDistance = Integer.MAX_VALUE;
+    for (String field : fields) {
+      int distance = editDistance(key.toLowerCase(), field.toLowerCase());
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = field;
+      }
+    }
+    return bestDistance <= Math.max(2, key.length() / 3) ? best : null;
+  }
+
+  private static int editDistance(String a, String b) {
+    int[] previous = new int[b.length() + 1];
+    int[] current = new int[b.length() + 1];
+    for (int j = 0; j <= b.length(); j++) {
+      previous[j] = j;
+    }
+    for (int i = 1; i <= a.length(); i++) {
+      current[0] = i;
+      for (int j = 1; j <= b.length(); j++) {
+        int substitution = previous[j - 1] + (a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1);
+        current[j] = Math.min(substitution, Math.min(previous[j], current[j - 1]) + 1);
+      }
+      int[] swap = previous;
+      previous = current;
+      current = swap;
+    }
+    return previous[b.length()];
   }
 
   /**
