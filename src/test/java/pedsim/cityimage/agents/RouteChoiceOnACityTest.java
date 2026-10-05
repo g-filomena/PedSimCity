@@ -63,7 +63,7 @@ class RouteChoiceOnACityTest {
 
   /**
    * The smallest bundled city that satisfies the one-city-one-folder rule and carries everything the
-   * scenarios need: a dual graph for angular routing, barriers, and 6,867 buildings with
+   * scenarios need: barriers, and 6,867 buildings with
    * {@code lScore_sc} / {@code gScore_sc} plus 36,732 sight lines for the landmark models.
    * {@code Torino_centre} is smaller but its files are prefixed {@code TorinoCentre_}, which
    * {@code --cityName} cannot address.
@@ -261,9 +261,6 @@ class RouteChoiceOnACityTest {
   /** Why this city cannot exercise a scenario, or null when it can. */
   private static String whatThisCityLacksFor(Scenario scenario) {
     String name = scenario.name();
-    if (name.contains("ANGULAR") && PedSimCity.dualNetwork.getNodes().isEmpty()) {
-      return "no dual graph";
-    }
     if (name.contains("REGION") && PedSimCity.regionsMap.size() < 2) {
       return "fewer than two regions";
     }

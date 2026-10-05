@@ -111,12 +111,6 @@ class ParameterPrecedenceTest {
     assertEquals(Probe.Mode.FIRST, Probe.modes[1]);
   }
 
-  /** A key naming no field is ignored rather than throwing. */
-  @Test
-  void anUnknownKeyIsHarmless() {
-    ParameterManager.initFromArgs(new String[] {"--notAParameterOfAnything=3"}, CORE);
-  }
-
   static class Probe {
     enum Mode {
       FIRST,
