@@ -121,7 +121,7 @@ public class DijkstraRoadDistance extends Dijkstra {
         continue;
       }
 
-      double error = costPerceptionError(targetNode, commonEdge, false);
+      double error = costPerceptionError(commonEdge);
       double edgeCost = commonEdge.getLength() * error;
       computeTentativeCost(currentNode, targetNode, edgeCost);
       // isBest makes the getBest/tentativeCost comparison itself, so no relaxation site guards

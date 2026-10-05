@@ -269,32 +269,6 @@ public abstract class LandmarkNavigation implements NavigationElement {
   // }
   // return nodeGlobalScore;
   // }
-  //
-  // /**
-  // * Computes the global landmarkness for a target dual node based on the global
-  // landmarks in its
-  // * proximity and their relationship with the destination node.
-  // *
-  // * @param centroid The current centroid node.
-  // * @param targetCentroid The target centroid node.
-  // * @param destinationNode The destination node.
-  // * @return The computed global landmarkness score for the dual node.
-  // */
-  // public static double globalLandmarknessDualNode(NodeGraph centroid, NodeGraph
-  // targetCentroid,
-  // NodeGraph destinationNode) {
-  //
-  // // current real segment: identifying the node
-  // DirectedEdge streetSegment = targetCentroid.getPrimalEdge().getDirEdge(0);
-  // NodeGraph targetNode = (NodeGraph) streetSegment.getToNode(); // targetNode
-  // NodeGraph primalJunction = RoutingUtils.getPrimalJunction(centroid,
-  // targetCentroid);
-  // if (primalJunction != null && primalJunction.equals(targetNode)) {
-  // targetNode = (NodeGraph) streetSegment.getFromNode();
-  // }
-  //
-  // return globalLandmarknessNode(targetNode, destinationNode);
-  // }
 
   /**
    * @return the onRouteMarks

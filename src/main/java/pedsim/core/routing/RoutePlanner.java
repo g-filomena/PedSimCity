@@ -60,7 +60,7 @@ public class RoutePlanner {
 
     // === Use only minimisation-based navigation
     if (properties.shouldOnlyUseMinimization()) {
-      if (properties.isMinimisingDistance() || !angularAvailable()) {
+      if (properties.isMinimisingDistance()) {
         return new RoadDistancePathFinder().roadDistance(originNode, destinationNode, agent);
       }
       return new AngularChangePathFinder().angularChangeBased(originNode, destinationNode, agent);
@@ -107,7 +107,7 @@ public class RoutePlanner {
     // positive - is it angular - so LocalHeuristicMode.NONE, which means no heuristic was chosen,
     // routes by distance: angular is a stated preference, shortest path is what is left without
     // one.
-    boolean angular = properties.isLocalHeuristicAngular() && angularAvailable();
+    boolean angular = properties.isLocalHeuristicAngular();
     route =
         nodesSequence.isEmpty()
             ? (angular
@@ -118,20 +118,6 @@ public class RoutePlanner {
                 ? new AngularChangePathFinder().angularChangeBasedSequence(nodesSequence, agent)
                 : new RoadDistancePathFinder().roadDistanceSequence(nodesSequence, agent));
     return route;
-  }
-
-  /**
-   * Whether angular-change routing can run at all: it searches the dual graph, so a city that
-   * shipped no dual layers cannot serve it.
-   *
-   * <p>{@link pedsim.core.agents.Heuristics} constrains both angular modes to distance when the
-   * dual graph is absent, which covers every agent routing through {@code Agent.planRoute()}. The
-   * check is repeated here because {@code RoutePlanner} is also constructed directly, and without it
-   * the failure is a {@code NullPointerException} on a null dual node inside
-   * {@code NodeGraph.getDualNodes}, which names nothing about the missing layer.
-   */
-  private boolean angularAvailable() {
-    return pedsim.core.engine.PedSimCity.dualGraphLoaded;
   }
 
   /**

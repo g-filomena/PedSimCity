@@ -85,7 +85,7 @@ public class RouteTrace {
 
   /**
    * Legs that asked for an angular-change route and got the shortest path instead, because no
-   * angular path survived. A route-choice model quietly substituting another one is exactly the
+   * angular path exists. A route-choice model quietly substituting another one is exactly the
    * kind of thing that has to be counted: at a low rate it is a handful of awkward pairs, and at a
    * high one the simplest-path results are partly shortest-path results.
    */
@@ -99,27 +99,9 @@ public class RouteTrace {
    */
   private final LongAdder landmarkFallbacks = new LongAdder();
 
-  /** Angular routes whose dual-graph search returned nothing at all. */
-  private final LongAdder angularNoDualPath = new LongAdder();
-
-  /** Angular routes that had a dual path until {@code cleanDualPath} trimmed it to nothing. */
-  private final LongAdder angularTrimmedAway = new LongAdder();
-
-  /**
-   * Records an angular-change route that fell back to shortest path.
-   *
-   * @param trimmed whether the dual search found a path and the cleaning step removed all of it,
-   *     as opposed to finding no path in the first place. The two say different things: the first
-   *     is a defect in the trimming, the second is the dual graph being less connected than the
-   *     primal one.
-   */
-  public void recordAngularFallback(boolean trimmed) {
+  /** Records an angular-change route that fell back to shortest path. */
+  public void recordAngularFallback() {
     angularFallbacks.increment();
-    if (trimmed) {
-      angularTrimmedAway.increment();
-    } else {
-      angularNoDualPath.increment();
-    }
   }
 
   /** Records a distant-landmark leg served as shortest path because no landmark path was found. */
@@ -130,16 +112,6 @@ public class RouteTrace {
   /** Legs that asked for a distant-landmark route and were served the shortest path. */
   public long landmarkFallbacks() {
     return landmarkFallbacks.sum();
-  }
-
-  /** Angular routes lost because the dual search found no path. */
-  public long angularNoDualPath() {
-    return angularNoDualPath.sum();
-  }
-
-  /** Angular routes lost because the cleaning step trimmed the path away. */
-  public long angularTrimmedAway() {
-    return angularTrimmedAway.sum();
   }
 
   /** Angular routes attempted, so the fallbacks above can be read as a rate. */
@@ -153,26 +125,6 @@ public class RouteTrace {
   /** Angular-change routes attempted so far today. */
   public long angularAttempts() {
     return angularAttempts.sum();
-  }
-
-  /**
-   * Failed angular routes whose dual entry or exit node was not in the agent's known dual network.
-   *
-   * <p>{@code getDualNode} picks an edge centroid beside the origin without consulting what the
-   * agent knows, while the search is confined to the agent's known dual subgraph. When the two
-   * disagree there is no path by construction, whoever is asking and however well connected the
-   * city is.
-   */
-  private final LongAdder angularEndpointUnknown = new LongAdder();
-
-  /** Records a failed angular route whose dual endpoints were outside the agent's known network. */
-  public void recordAngularEndpointUnknown() {
-    angularEndpointUnknown.increment();
-  }
-
-  /** Failed angular routes with a dual endpoint the agent did not know. */
-  public long angularEndpointUnknown() {
-    return angularEndpointUnknown.sum();
   }
 
   /** Angular-change routes replaced by shortest path so far today. */
@@ -378,10 +330,7 @@ public class RouteTrace {
     destinationWidenings.reset();
     destinationFallbacks.reset();
     angularFallbacks.reset();
-    angularNoDualPath.reset();
-    angularTrimmedAway.reset();
     angularAttempts.reset();
-    angularEndpointUnknown.reset();
     fullNetworkEscalations.reset();
     fullNetworkEscalationsAngular.reset();
     edgeTraversals.reset();

@@ -542,16 +542,6 @@ public class CognitiveMap extends SharedCognitiveMap {
     return getAgentKnownRegions().contains(regionID);
   }
 
-  public Set<NodeGraph> getNodesInKnownDualNetwork() {
-    if (networkBuilder == null) return new HashSet<>();
-    return new HashSet<>(networkBuilder.getNecessaryDualNodes());
-  }
-
-  public Set<EdgeGraph> getEdgesInKnownDualNetwork() {
-    if (networkBuilder == null) return new HashSet<>();
-    return new HashSet<>(networkBuilder.getNecessaryDualEdges());
-  }
-
   // public void resetRegionMap() {
   // knownRegionsMap.clear();
   // }

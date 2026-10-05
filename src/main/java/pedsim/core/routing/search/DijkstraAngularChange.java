@@ -2,199 +2,206 @@ package pedsim.core.routing.search;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Set;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.agents.Agent;
+import pedsim.core.cognition.metrics.Landmarkness;
+import pedsim.core.routing.Deflection;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
-import sim.routing.NodeWrapper;
-import sim.routing.RoutingUtils;
 
 /**
- * The class allows computing the least cumulative angular change route by employing the Dijkstra
- * shortest-path algorithm on a dual graph representation of the street network.
+ * Least cumulative angular change route, searched on the primal graph.
  *
- * It furthermore supports combined navigation strategies based on landmark and urban subdivisions
- * (regions, barriers).
- **/
+ * <p>A search state is a street walked in one direction, so the junction it reaches is known.
+ * Moving from one street to the next costs the deflection between them at that junction, the angle
+ * between the two streets' chords ({@link Deflection}). The first street from the origin costs
+ * nothing, unless the leg continues a walk, in which case the turn from the street it arrived by is
+ * paid. A street is never walked straight back along.
+ *
+ * <p>The route is the cheapest over every street leaving the origin and every street reaching the
+ * destination; among routes of equal angle, the shorter.
+ */
 public class DijkstraAngularChange extends Dijkstra {
 
   /**
-   * Performs the Dijkstra's algorithm to find the least cumulative angular change path from the
-   * origin node to the destination node.
-   *
-   * @param originNode The starting node for the path.
-   * @param destinationNode The destination node to reach.
-   * @param finalDestinationNode The final destination node (primal graph) for the path, if
-   *        different.
-   * @param centroidsToAvoid A set of centroids (nodes representing segments) to avoid during the
-   *        path calculation.
-   * @param agent The agent for which the route is computed.
-   *
-   * @return An ArrayList of DirectedEdges representing the path.
+   * A street walked in one direction, with the angle and length accumulated to its far end and the
+   * state it was reached from. Ordered by angle, then length, then creation.
    */
-  public ArrayList<DirectedEdge> dijkstraAlgorithm(
+  private static final class State implements Comparable<State> {
+    final DirectedEdge edge;
+    final double angle;
+    final double length;
+    final long order;
+    final State previous;
+    boolean settled;
+
+    State(DirectedEdge edge, double angle, double length, long order, State previous) {
+      this.edge = edge;
+      this.angle = angle;
+      this.length = length;
+      this.order = order;
+      this.previous = previous;
+    }
+
+    @Override
+    public int compareTo(State other) {
+      int byAngle = Double.compare(angle, other.angle);
+      if (byAngle != 0) {
+        return byAngle;
+      }
+      int byLength = Double.compare(length, other.length);
+      return byLength != 0 ? byLength : Long.compare(order, other.order);
+    }
+  }
+
+  /** The best state found for each directed street; a state replaced here is stale in the queue. */
+  private final Map<DirectedEdge, State> best = new IdentityHashMap<>(1 << 12);
+
+  private final PriorityQueue<State> queue = new PriorityQueue<>(1 << 10);
+  private long order = 0;
+  private boolean confined;
+
+  /**
+   * Computes the route.
+   *
+   * @param originNode The origin node.
+   * @param destinationNode The destination node.
+   * @param finalDestinationNode The destination of the whole trip, for landmark weighting.
+   * @param arrivalEdge The street the walk reached the origin by, or null at the start of a trip.
+   * @param directedEdgesToAvoid Streets the route must not use, in either direction; may be null.
+   * @param agent The agent.
+   * @return The directed edges of the route, origin to destination; empty when there is none.
+   */
+  public List<DirectedEdge> dijkstraAlgorithm(
       NodeGraph originNode,
       NodeGraph destinationNode,
       NodeGraph finalDestinationNode,
-      Set<NodeGraph> centroidsToAvoid,
-      NodeGraph previousJunction,
+      DirectedEdge arrivalEdge,
+      Set<DirectedEdge> directedEdgesToAvoid,
       Agent agent) {
 
     initialise(originNode, destinationNode, finalDestinationNode, agent);
-    initialiseDual(centroidsToAvoid, previousJunction);
-    runDijkstra();
-    return reconstructSequence();
+    initialisePrimal(directedEdgesToAvoid);
+    confined = restrictToKnownNetwork();
+    State last = search(arrivalEdge);
+    return last == null ? new ArrayList<>() : reconstructSequence(last);
   }
 
-  /**
-   * Runs the Dijkstra algorithm to find the shortest path.
-   *
-   * <p>Uses the shared lazy-deletion queue (see {@link Dijkstra.Entry} and
-   * {@link #pollFreshNode()}): each dual node is expanded exactly once at its finalised cost.
-   */
-  private void runDijkstra() {
-
-    visitedNodes = new HashSet<>();
-    initialiseQueue();
-
-    // NodeWrapper = container for the metainformation about a Node
-    NodeWrapper nodeWrapper = new NodeWrapper(this.originNode);
-    nodeWrapper.gx = 0.0;
-    if (previousJunction != null) {
-      nodeWrapper.commonPrimalJunction = previousJunction;
+  private State search(DirectedEdge arrivalEdge) {
+    Coordinate arrivalFrom = arrivalEdge == null ? null : arrivalEdge.getFromNode().getCoordinate();
+    EdgeGraph arrivalStreet = arrivalEdge == null ? null : (EdgeGraph) arrivalEdge.getEdge();
+    for (DirectedEdge out : originNode.getOutDirectedEdges()) {
+      if (!usable(out) || parentEdge(out) == arrivalStreet) {
+        continue;
+      }
+      double turn = arrivalFrom == null ? 0.0 : turnCost(arrivalFrom, out);
+      relax(null, best.get(out), out, turn, length(out));
     }
-    nodeWrappersMap.put(this.originNode, nodeWrapper);
 
-    // centroids to avoid are pre-marked as visited so they are never expanded
-    if (this.centroidsToAvoid != null) {
-      for (NodeGraph centroid : this.centroidsToAvoid) {
-        visitedNodes.add(centroid);
+    State state;
+    while ((state = poll()) != null) {
+      DirectedEdge edge = state.edge;
+      if (edge.getToNode().equals(destinationNode)) {
+        return state;
+      }
+      Coordinate from = edge.getFromNode().getCoordinate();
+      for (DirectedEdge out : ((NodeGraph) edge.getToNode()).getOutDirectedEdges()) {
+        if (out.getEdge() == edge.getEdge()) {
+          continue;
+        }
+        State current = best.get(out);
+        if ((current != null && current.settled) || !usable(out)) {
+          continue;
+        }
+        relax(state, current, out, state.angle + turnCost(from, out), state.length + length(out));
       }
     }
-
-    unvisitedNodes.add(new Entry(this.originNode, 0.0));
-
-    NodeGraph currentNode;
-    while ((currentNode = pollFreshNode()) != null) {
-      // The destination's cost is final once it is polled; expanding the rest of the
-      // network cannot change the reconstructed route.
-      if (currentNode.equals(destinationNode)) {
-        break;
-      }
-      findLeastAngularChange(currentNode);
-    }
+    return null;
   }
 
-  /**
-   * Finds the least cumulative angular deviations for adjacent nodes of the given current node in
-   * the dual graph.
-   *
-   *
-   * @param currentNode The current node in the dual graph for which to find adjacent nodes.
-   */
-  private void findLeastAngularChange(NodeGraph currentNode) {
-
-    NodeGraph currentJunction = nodeWrappersMap.get(currentNode).commonPrimalJunction;
-
-    for (DirectedEdge outEdge : currentNode.getOutDirectedEdges()) {
-      NodeGraph targetNode = (NodeGraph) outEdge.getToNode();
-      if (visitedNodes.contains(targetNode)) {
-        continue;
-      }
-      // Two streets between the same pair of junctions share one dual link, and stepping along it
-      // is a U-turn: walk one street to its far end, come back along the other. The link's angle is
-      // taken at whichever shared junction the dual graph stored, and from the origin centroid,
-      // which has no arrival junction, the walk's direction is unknown. Never taken; starting on
-      // the
-      // other street is still possible, as every centroid at the origin is a candidate. It also
-      // means no dual path holds a parallel pair, so the two-argument getPrimalJunction is exact on
-      // what this search returns (PathFinder.cleanDualPath, Landmarkness).
-      if (areParallel(currentNode, targetNode)) {
-        continue;
-      }
-
-      // Check if the current and the possible next centroid share in the primal graph
-      // the same junction as the current with its previous centroid
-      // --> if yes move on. This essentially means that the in the primal graph you
-      // would go back to an
-      // already traversed node; but the dual graph wouldn't know.
-      // The junction is the current segment's far end from the one it was entered by, when the
-      // next segment shares it: only this tells apart parallel segments, which share both ends.
-      NodeGraph primalJunction =
-          RoutingUtils.getPrimalJunction(currentNode, targetNode, currentJunction);
-      if (primalJunction != null && primalJunction.equals(currentJunction)) {
-        continue;
-      }
-
-      EdgeGraph commonEdge = (EdgeGraph) outEdge.getEdge();
-      if (restrictToKnownNetwork() && !isDualEdgeKnown(commonEdge)) {
-        continue;
-      }
-
-      // compute errors in perception of road coasts with stochastic variables
-      double error = costPerceptionError(targetNode, commonEdge, true);
-      double edgeCost = commonEdge.getDeflectionAngle() * error;
-      computeTentativeCostDual(currentNode, targetNode, edgeCost);
-      // the shared primal junction is symmetric, so the value resolved above is reused
-      isBestDual(currentNode, targetNode, outEdge, primalJunction);
+  /** Records {@code to} reached from {@code from} if that beats {@code current}, its best so far. */
+  private void relax(State from, State current, DirectedEdge to, double angle, double length) {
+    if (current != null
+        && (current.angle < angle || (current.angle == angle && current.length <= length))) {
+      return;
     }
+    State state = new State(to, angle, length, order++, from);
+    best.put(to, state);
+    queue.add(state);
   }
 
-  /**
-   * Whether two centroids stand for parallel streets: distinct primal edges joining the same two
-   * junctions.
-   *
-   * @param centroid A dual node.
-   * @param otherCentroid Another dual node.
-   * @return true if their primal edges share both ends.
-   */
-  static boolean areParallel(NodeGraph centroid, NodeGraph otherCentroid) {
-    EdgeGraph edge = centroid.getPrimalEdge();
-    EdgeGraph otherEdge = otherCentroid.getPrimalEdge();
-    if (edge == otherEdge) {
+  private State poll() {
+    State state;
+    while ((state = queue.poll()) != null) {
+      if (!state.settled && best.get(state.edge) == state) {
+        state.settled = true;
+        return state;
+      }
+    }
+    return null;
+  }
+
+  /** Whether the search may walk this street: known to the agent if confined, and not avoided. */
+  private boolean usable(DirectedEdge directedEdge) {
+    EdgeGraph edge = (EdgeGraph) directedEdge.getEdge();
+    if (confined && !isEdgeKnown(edge)) {
       return false;
     }
-    NodeGraph from = edge.getFromNode();
-    NodeGraph to = edge.getToNode();
-    return (from.equals(otherEdge.getFromNode()) && to.equals(otherEdge.getToNode()))
-        || (from.equals(otherEdge.getToNode()) && to.equals(otherEdge.getFromNode()));
+    return !edgesToAvoid.contains(edge);
   }
 
   /**
-   * Reconstructs the sequence of directed edges composing the path.
-   *
-   * <p>Performance: each predecessor wrapper is fetched once per step, and edges are appended then
-   * reversed once, avoiding the O(n^2) cost of repeated head insertions on an {@link ArrayList}. A
-   * broken predecessor chain ends the walk; the returned order is origin to destination.
-   *
-   * @return An ArrayList of DirectedEdges representing the path sequence.
+   * The cost of turning into {@code out}, coming from {@code from}: the deflection, with the
+   * agent's perception error, and discounted by the global landmarkness of the street's far end
+   * when distant landmarks guide the agent.
    */
-  private ArrayList<DirectedEdge> reconstructSequence() {
-    ArrayList<DirectedEdge> directedEdgesSequence = new ArrayList<>();
-
-    // check that the route has been formulated properly
-    if (nodeWrappersMap.get(destinationNode) == null || nodeWrappersMap.size() <= 1) {
-      return directedEdgesSequence;
+  private double turnCost(Coordinate from, DirectedEdge out) {
+    NodeGraph target = (NodeGraph) out.getToNode();
+    double angle =
+        Deflection.degrees(from, out.getFromNode().getCoordinate(), target.getCoordinate())
+            * costPerceptionError((EdgeGraph) out.getEdge());
+    angle = Math.max(MIN_DEFLECTION_ANGLE, Math.min(MAX_DEFLECTION_ANGLE, angle));
+    if (landmarkCondition(target)) {
+      double globalLandmarkness = Landmarkness.globalLandmarknessNode(target, finalDestinationNode);
+      angle *= 1.0 - globalLandmarkness * agent.getHeuristics().getGlobalLandmarkWeight(true);
     }
+    return angle;
+  }
 
-    NodeGraph step = destinationNode;
-    while (true) {
-      NodeWrapper wrapper = nodeWrappersMap.get(step);
-      if (wrapper == null || wrapper.nodeFrom == null) {
-        break;
-      }
-      // the primal edge refers in any case to the parent primal graph
-      directedEdgesSequence.add(step.getPrimalEdge().getDirEdge(0));
-      step = wrapper.nodeFrom;
+  private static double length(DirectedEdge directedEdge) {
+    return ((EdgeGraph) directedEdge.getEdge()).getLength();
+  }
 
-      if (step.equals(originNode)) {
-        directedEdgesSequence.add(step.getPrimalEdge().getDirEdge(0));
-        break;
-      }
+  /** The street in the whole network: a region subgraph's edge is mapped back to its parent. */
+  private EdgeGraph parentEdge(DirectedEdge directedEdge) {
+    EdgeGraph edge = (EdgeGraph) directedEdge.getEdge();
+    return subGraph == null ? edge : subGraph.getParentEdge(edge);
+  }
+
+  private List<DirectedEdge> reconstructSequence(State last) {
+    List<DirectedEdge> sequence = new ArrayList<>();
+    for (State step = last; step != null; step = step.previous) {
+      sequence.add(subGraph == null ? step.edge : toParent(step.edge));
     }
-    Collections.reverse(directedEdgesSequence);
-    return directedEdgesSequence;
+    Collections.reverse(sequence);
+    return sequence;
+  }
+
+  /** The parent network's directed edge for a subgraph one, by the street and its direction. */
+  private DirectedEdge toParent(DirectedEdge directedEdge) {
+    EdgeGraph parent = parentEdge(directedEdge);
+    DirectedEdge forward = parent.getDirEdge(0);
+    return forward
+            .getFromNode()
+            .getCoordinate()
+            .equals2D(directedEdge.getFromNode().getCoordinate())
+        ? forward
+        : parent.getDirEdge(1);
   }
 }
