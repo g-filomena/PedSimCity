@@ -31,12 +31,9 @@ public abstract class Dijkstra {
 
   protected NodeGraph originNode;
   protected NodeGraph destinationNode;
-  protected NodeGraph previousJunction;
   protected NodeGraph finalDestinationNode;
   protected Set<NodeGraph> visitedNodes;
   protected PriorityQueue<Entry> unvisitedNodes;
-
-  protected Set<NodeGraph> centroidsToAvoid = new HashSet<>();
 
   /**
    * The street segments the search must not use, in either direction.
@@ -64,14 +61,11 @@ public abstract class Dijkstra {
   protected double tentativeCost;
 
   protected Graph agentNetwork;
-  protected Graph agentDualNetwork;
   protected Agent agent;
   protected Route route = new Route();
 
   protected Set<EdgeGraph> knownEdges = new HashSet<>();
-  protected Set<EdgeGraph> knownDualEdges = new HashSet<>();
   protected Set<NodeGraph> knownNodes = new HashSet<>();
-  protected Set<NodeGraph> knownDualNodes = new HashSet<>();
   protected SubGraph subGraph = null;
 
   /**
@@ -194,11 +188,7 @@ public abstract class Dijkstra {
    * avoid-set, and must still load this. <b>An individualised agent whose search never loads it
    * meets {@code restrictToKnownNetwork()} true with {@code knownEdges} empty, which rejects every
    * neighbour and yields no route at all</b> - a harder failure than the unrestricted search it is
-   * meant to fall back to. Every primal entry point therefore calls it.
-   *
-   * <p>{@link #initialiseDual} does not, because it loads the dual sets it actually uses: both
-   * getters allocate a fresh set per call, so loading the primal ones on a dual search would be
-   * paid on every angular relaxation for nothing.
+   * meant to fall back to. Every entry point therefore calls it.
    */
   protected void initialiseKnownNetwork() {
     if (restrictToKnownNetwork()) {
@@ -208,42 +198,14 @@ public abstract class Dijkstra {
   }
 
   /**
-   * Initialises the Dijkstra algorithm for route calculation in a dual graph.
-   *
-   * @param centroidsToAvoid A set of centroids to avoid during route calculation.
-   * @param previousJunction The previous junction node in the dual graph.
-   */
-  protected void initialiseDual(Set<NodeGraph> centroidsToAvoid, NodeGraph previousJunction) {
-
-    if (restrictToKnownNetwork()) {
-      knownDualEdges = new HashSet<>(agent.getCognitiveMap().getEdgesInKnownDualNetwork());
-      knownDualNodes = new HashSet<>(agent.getCognitiveMap().getNodesInKnownDualNetwork());
-    }
-    if (centroidsToAvoid != null && !centroidsToAvoid.isEmpty()) {
-      this.centroidsToAvoid = new HashSet<>(centroidsToAvoid);
-    }
-    this.previousJunction = previousJunction;
-    this.agentDualNetwork = SharedCognitiveMap.getCommunityDualNetwork();
-    subGraphInitialisationDual();
-  }
-
-  /**
-   * Initialises the subgraph for primal graph route calculation either between
-   * the origin and the destination nodes or at the region level. Adjusts the set
-   * of centroids to avoid if necessary.
+   * Confines the search to the region's subgraph when origin and destination are in one region the
+   * agent knows, mapping the edges to avoid onto the subgraph's own edges.
    */
   protected void subGraphInitialisation() {
     if (regionCondition()) {
       subGraph = PedSimCity.regionsMap.get(originNode.getRegionID()).primalGraph;
-      // Mapped onto the subgraph's own edges when there are any, which is what the dual branch
-      // below has always done. This tested a second field holding the same edges in their incoming
-      // form - since deleted - and tested it the other way round, so the set was mapped only when
-      // it
-      // was empty and *discarded* whenever it was not: edge avoidance inside a region subgraph
-      // silently did not happen, in the one case where it matters. The mapping is needed as well as
-      // the keeping, because the
-      // `commonEdge` these are tested against during the search is a subgraph edge, and `EdgeGraph`
-      // has no value equality - a parent edge would never match its own child.
+      // The search tests subgraph edges, and EdgeGraph has no value equality: a parent edge never
+      // matches its own child.
       edgesToAvoid =
           (!edgesToAvoid.isEmpty())
               ? new HashSet<>(subGraph.getChildEdges(new ArrayList<>(edgesToAvoid)))
@@ -251,24 +213,6 @@ public abstract class Dijkstra {
       originNode = subGraph.findNode(originNode.getCoordinate());
       destinationNode = subGraph.findNode(destinationNode.getCoordinate());
       agentNetwork = subGraph;
-    }
-  }
-
-  /**
-   * Initialises the subgraph for dual graph route calculation either between the
-   * origin and the destination nodes or at the region level. Adjusts the set of
-   * centroids to avoid if necessary.
-   */
-  protected void subGraphInitialisationDual() {
-    if (regionCondition()) {
-      subGraph = PedSimCity.regionsMap.get(originNode.getRegionID()).dualGraph;
-      centroidsToAvoid =
-          (!centroidsToAvoid.isEmpty())
-              ? new HashSet<>(subGraph.getChildNodes(new ArrayList<>(centroidsToAvoid)))
-              : new HashSet<>();
-      originNode = subGraph.findNode(originNode.getCoordinate());
-      destinationNode = subGraph.findNode(destinationNode.getCoordinate());
-      agentDualNetwork = subGraph;
     }
   }
 
@@ -291,24 +235,21 @@ public abstract class Dijkstra {
    * overwrite order) and tests barrier membership in place instead of copying the edge's barrier
    * lists and intersecting them with retainAll.
    *
-   * @param targetNode The target node for cost calculation.
-   * @param commonEdge The common edge used in cost calculation.
-   * @param dual       Indicates whether it is a dual graph.
+   * @param commonEdge The street whose cost is perceived.
    * @return The computed cost perception error.
    */
-  protected double costPerceptionError(NodeGraph targetNode, EdgeGraph commonEdge, boolean dual) {
+  protected double costPerceptionError(EdgeGraph commonEdge) {
 
     if (!properties.shouldOnlyUseMinimization()) {
-      EdgeGraph primalEdge = dual ? targetNode.getPrimalEdge() : commonEdge;
       Set<Integer> knownBarriers = agent.getCognitiveMap().getAgentKnownBarriers();
 
       if (properties.isAversionSeveringBarriers()
-          && anyBarrierKnown(primalEdge, "negativeBarriers", knownBarriers)) {
+          && anyBarrierKnown(commonEdge, "negativeBarriers", knownBarriers)) {
         return drawFromDistribution(
             properties.getSeveringBarriersMean(), properties.getSeveringBarriersSD(), "right");
       }
       if (properties.isPreferenceNaturalBarriers()
-          && anyBarrierKnown(primalEdge, "positiveBarriers", knownBarriers)) {
+          && anyBarrierKnown(commonEdge, "positiveBarriers", knownBarriers)) {
         return drawFromDistribution(
             properties.getNaturalBarriersMean(), properties.getNaturalBarriersSD(), "left");
       }
@@ -368,37 +309,6 @@ public abstract class Dijkstra {
   }
 
   /**
-   * Computes the tentative cost for a dual currentNode and targetNode with the
-   * specified turnCost.
-   *
-   * @param currentNode The current node.
-   * @param targetNode  The target node.
-   * @param turnCost    The cost associated with turning from the current to the
-   *                    target node.
-   */
-  protected void computeTentativeCostDual(
-      NodeGraph currentNode, NodeGraph targetNode, double turnCost) {
-    if (turnCost > MAX_DEFLECTION_ANGLE) {
-      turnCost = MAX_DEFLECTION_ANGLE;
-    }
-
-    if (turnCost < MIN_DEFLECTION_ANGLE) {
-      turnCost = MIN_DEFLECTION_ANGLE;
-    }
-
-    if (landmarkCondition(targetNode)) {
-      double globalLandmarkness =
-          Landmarkness.globalLandmarknessDualNode(currentNode, targetNode, finalDestinationNode);
-      double nodeLandmarkness =
-          1.0 - globalLandmarkness * agent.getHeuristics().getGlobalLandmarkWeight(true);
-      double nodeCost = nodeLandmarkness * turnCost;
-      tentativeCost = getBest(currentNode) + nodeCost;
-    } else {
-      tentativeCost = getBest(currentNode) + turnCost;
-    }
-  }
-
-  /**
    * Checks if the tentative cost is the best for the currentNode and targetNode
    * with the specified outEdge.
    *
@@ -412,30 +322,6 @@ public abstract class Dijkstra {
       NodeWrapper nodeWrapper = nodeWrappersMap.computeIfAbsent(targetNode, NodeWrapper::new);
       nodeWrapper.nodeFrom = currentNode;
       nodeWrapper.directedEdgeFrom = outEdge;
-      nodeWrapper.gx = tentativeCost;
-      unvisitedNodes.add(new Entry(targetNode, tentativeCost));
-    }
-  }
-
-  /**
-   * Checks if the tentative cost is the best for the currentNode and targetNode
-   * with the specified outEdge in a dual context.
-   *
-   * @param currentNode     The current node.
-   * @param targetNode      The target node.
-   * @param outEdge         The directed edge from the current node to the target
-   *                        node.
-   * @param primalJunction  The primal junction shared by the two dual nodes, already resolved by
-   *                        the caller (the lookup is symmetric, so the caller's result is reused
-   *                        instead of recomputing it here).
-   */
-  protected void isBestDual(
-      NodeGraph currentNode, NodeGraph targetNode, DirectedEdge outEdge, NodeGraph primalJunction) {
-    if (getBest(targetNode) > tentativeCost) {
-      NodeWrapper nodeWrapper = nodeWrappersMap.computeIfAbsent(targetNode, NodeWrapper::new);
-      nodeWrapper.nodeFrom = currentNode;
-      nodeWrapper.directedEdgeFrom = outEdge;
-      nodeWrapper.commonPrimalJunction = primalJunction;
       nodeWrapper.gx = tentativeCost;
       unvisitedNodes.add(new Entry(targetNode, tentativeCost));
     }
@@ -460,7 +346,7 @@ public abstract class Dijkstra {
    * @param targetNode The node to check for the landmark condition.
    * @return True if the landmark condition is met; otherwise, false.
    */
-  private boolean landmarkCondition(NodeGraph targetNode) {
+  protected boolean landmarkCondition(NodeGraph targetNode) {
     return (!properties.shouldOnlyUseMinimization()
         && properties.isUsingDistantLandmarks()
         && GraphUtils.nodesDistance(targetNode, finalDestinationNode)
@@ -505,15 +391,6 @@ public abstract class Dijkstra {
     if (knownEdges == null) return false;
     if ((subGraph == null && !knownEdges.contains(commonEdge))
         || (subGraph != null && !knownEdges.contains(subGraph.getParentEdge(commonEdge)))) {
-      return false;
-    }
-    return true;
-  }
-
-  protected boolean isDualEdgeKnown(EdgeGraph commonEdge) {
-    if (knownDualEdges == null) return false;
-    if ((subGraph == null && !knownDualEdges.contains(commonEdge))
-        || (subGraph != null && !knownDualEdges.contains(subGraph.getParentEdge(commonEdge)))) {
       return false;
     }
     return true;

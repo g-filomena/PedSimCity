@@ -62,7 +62,6 @@ public class SharedCognitiveMap {
   protected static VectorLayer barriers;
 
   static Graph communityNetwork;
-  static Graph communityDualNetwork;
 
   private static HashMap<EdgeGraph, RoadType> roadTypeMap = new HashMap<>();
 
@@ -117,7 +116,6 @@ public class SharedCognitiveMap {
   public static void setCommunityCognitiveMap() {
 
     setCommunityPrimalNetwork(PedSimCity.network);
-    setCommunityDualNetwork(PedSimCity.dualNetwork);
     if (!PedSimCity.buildings.isEmpty()) {
       if (PedSimCity.landmarksLoaded) {
         identifyLandmarks(PedSimCity.buildings);
@@ -182,7 +180,6 @@ public class SharedCognitiveMap {
    * road classification.
    *
    * @param network     The primary network.
-   * @param dualNetwork The dual network.
    */
   private static void setCommunityPrimalNetwork(Graph network) {
 
@@ -203,24 +200,8 @@ public class SharedCognitiveMap {
     prepareCommunityKnownEdges();
   }
 
-  /**
-   * Sets the community network, which includes the road type classification and
-   * road classification.
-   *
-   * @param network     The primary network.
-   * @param dualNetwork The dual network.
-   */
-  private static void setCommunityDualNetwork(Graph dualNetwork) {
-
-    communityDualNetwork = dualNetwork;
-  }
-
   public static Graph getCommunityPrimalNetwork() {
     return communityNetwork;
-  }
-
-  public static Graph getCommunityDualNetwork() {
-    return communityDualNetwork;
   }
 
   /**

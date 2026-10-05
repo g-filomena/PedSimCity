@@ -25,9 +25,6 @@ public class Region {
   /** The primal graph associated with this region. */
   public SubGraph primalGraph;
 
-  /** The dual graph associated with this region. */
-  public SubGraph dualGraph;
-
   /** The vector layer representing the region's network. */
   public VectorLayer regionNetwork;
 

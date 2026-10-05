@@ -46,7 +46,7 @@ public class DijkstraRoadDistanceNight extends DijkstraRoadDistance {
           || edgesToAvoid.contains(commonEdge)) {
         continue;
       }
-      double error = costPerceptionError(targetNode, commonEdge, false);
+      double error = costPerceptionError(commonEdge);
       double edgeCost = commonEdge.getLength() * error * nightFactor(commonEdge);
       computeTentativeCost(currentNode, targetNode, edgeCost);
       isBest(currentNode, targetNode, outEdge);

@@ -8,13 +8,11 @@ import java.util.stream.Collectors;
 import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.agents.Agent;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
-import pedsim.core.routing.search.DijkstraAngularChange;
 import pedsim.core.routing.search.DijkstraRoadDistance;
 import sim.graph.EdgeGraph;
 import sim.graph.Graph;
 import sim.graph.NodeGraph;
 import sim.routing.Route;
-import sim.routing.RoutingUtils;
 
 /**
  * The `PathFinder` class provides common functionality for computing navigation paths using various
@@ -28,11 +26,8 @@ public class PathFinder {
   protected Graph network = SharedCognitiveMap.getCommunityPrimalNetwork();
   protected NodeGraph originNode, destinationNode;
   protected NodeGraph tmpOrigin, tmpDestination;
-  protected NodeGraph previousJunction = null;
 
   List<NodeGraph> sequenceNodes = new ArrayList<>();
-  // need order here, that's why it's not hashset
-  List<NodeGraph> centroidsToAvoid = new ArrayList<>();
   protected Set<DirectedEdge> directedEdgesToAvoid = new HashSet<>();
 
   protected List<DirectedEdge> completeSequence = new ArrayList<>();
@@ -53,19 +48,31 @@ public class PathFinder {
    *
    * <p>The loop is shared because the sub-goal sequence is the same idea whatever routes its legs:
    * take the waypoints in order, skip one already traversed, take a direct edge where there is one,
-   * otherwise route to it and backtrack if that fails. Only the leg routing differs, and keeping
-   * three copies of the loop let them drift - one advanced {@code tmpOrigin} before using it, so the
-   * edge-direction correction walked the leg from the wrong end.
-   *
-   * <p>Angular routing keeps its own loop: it searches the dual graph over a pair of candidate
-   * centroid lists, and corrects directions with {@code cleanDualPath} rather than
-   * {@link #checkEdgesSequence}, so the body differs where it matters rather than incidentally.
+   * otherwise route to it and backtrack if that fails. Only the leg routing differs.
    *
    * @param sequence the sub-goals, origin first and destination last
    * @param agent the agent being routed
    * @param legRouter routes one leg between the current pair
    */
   protected void routeSequence(List<NodeGraph> sequence, Agent agent, LegRouter legRouter) {
+    routeSequence(
+        sequence,
+        agent,
+        legRouter,
+        () -> {
+          directedEdgesToAvoid = new HashSet<>(completeSequence);
+          return new DijkstraRoadDistance()
+              .dijkstraAlgorithm(
+                  tmpOrigin, tmpDestination, destinationNode, directedEdgesToAvoid, agent);
+        });
+  }
+
+  /**
+   * As {@link #routeSequence(List, Agent, LegRouter)}, with {@code backtrackRouter} routing the leg
+   * again from each node backtracking retreats to.
+   */
+  protected void routeSequence(
+      List<NodeGraph> sequence, Agent agent, LegRouter legRouter, LegRouter backtrackRouter) {
 
     this.agent = agent;
     this.sequenceNodes = new ArrayList<>(sequence);
@@ -92,7 +99,7 @@ public class PathFinder {
       partialSequence = legRouter.route();
 
       while (partialSequence.isEmpty() && !moveOn) {
-        backtracking(tmpDestination);
+        backtracking(tmpDestination, backtrackRouter);
       }
 
       if (moveOn) {
@@ -125,8 +132,9 @@ public class PathFinder {
    * avoiding specified segments.
    *
    * @param tmpDestination The temporary destination node.
+   * @param backtrackRouter Routes the leg from the new temporary origin.
    */
-  protected void backtracking(NodeGraph tmpDestination) {
+  protected void backtracking(NodeGraph tmpDestination, LegRouter backtrackRouter) {
 
     if (tmpOrigin.equals(originNode)) {
       // try skipping this tmpDestination
@@ -147,11 +155,7 @@ public class PathFinder {
     }
 
     // If not, try to compute the path from the new tmpOrigin
-    final DijkstraRoadDistance pathFinder = new DijkstraRoadDistance();
-    directedEdgesToAvoid = new HashSet<>(completeSequence);
-    partialSequence =
-        pathFinder.dijkstraAlgorithm(
-            tmpOrigin, tmpDestination, destinationNode, directedEdgesToAvoid, agent);
+    partialSequence = backtrackRouter.route();
   }
 
   /**
@@ -172,120 +176,19 @@ public class PathFinder {
   }
 
   /**
-   * Performs backtracking in the context of a dual-graph search (angular change). When the
-   * agent gets stuck due to the "centroidsToAvoid" set, this method iterates back across nodes and
-   * retries to compute the path towards the given tmpDestinationNode.
-   */
-  protected void dualBacktracking() {
-    // new tmpOrigin
-    try {
-      tmpOrigin = (NodeGraph) completeSequence.get(completeSequence.size() - 1).getFromNode();
-    } catch (final java.lang.ArrayIndexOutOfBoundsException e) {
-      partialSequence.clear();
-      return;
-    }
-
-    // remove last one which did not work!
-    completeSequence.remove(completeSequence.size() - 1);
-    centroidsToAvoid.remove(centroidsToAvoid.size() - 1);
-    // take new previous junction
-    previousJunction = RoutingUtils.getPreviousJunction(completeSequence);
-    // check if there's a segment between the new tmpOrigin and the destination
-    final DirectedEdge edge = network.getDirectedEdgeBetween(tmpOrigin, tmpDestination);
-
-    if (edge != null) {
-      if (!completeSequence.contains(edge)) {
-        completeSequence.add(edge);
-      }
-      moveOn = true; // no need to backtracking anymore
-      return;
-    }
-
-    List<NodeGraph> dualNodesOrigin = getDualNodes(tmpOrigin, previousJunction);
-    List<NodeGraph> dualNodesDestination = getDualNodes(tmpDestination, previousJunction);
-    for (final NodeGraph tmpDualOrigin : dualNodesOrigin) {
-      for (final NodeGraph tmpDualDestination : dualNodesDestination) {
-        final DijkstraAngularChange search = new DijkstraAngularChange();
-        Set<NodeGraph> centroidsToAvoidSet = new HashSet<>(centroidsToAvoid);
-        partialSequence =
-            search.dijkstraAlgorithm(
-                tmpDualOrigin,
-                tmpDualDestination,
-                destinationNode,
-                centroidsToAvoidSet,
-                tmpOrigin,
-                agent);
-        if (!partialSequence.isEmpty()) {
-          break;
-        }
-      }
-      if (!partialSequence.isEmpty()) {
-        break;
-      }
-    }
-  }
-
-  /**
-   * Retrieves a list of dual nodes connected to the given node.
+   * Cuts the walk so far at the first point it reaches {@code destinationNode}, a sub-goal it has
+   * already passed.
    *
-   * @param node The examined primal node.
-   * @param previousJunction The previous junction node used for deriving the direction.
-   * @return A list of dual nodes connected to the given primal node.
-   */
-  protected List<NodeGraph> getDualNodes(NodeGraph node, NodeGraph previousJunction) {
-    Set<NodeGraph> dualNodesSet =
-        node.getDualNodes(tmpOrigin, tmpDestination, regionBased, previousJunction).keySet();
-    return new ArrayList<>(dualNodesSet);
-  }
-
-  /**
-   * Controls and adjusts the sequence of DirectedEdges to ensure that the destinationNode has not
-   * been traversed already. If the destinationNode has been traversed, it removes any unnecessary
-   * edges and ensures that the path is correctly ordered.
-   *
-   * @param destinationNode The examined primal destination node.
+   * @param destinationNode The sub-goal already traversed.
    */
   protected void controlPath(NodeGraph destinationNode) {
     for (final DirectedEdge directedEdge : completeSequence) {
       if (directedEdge.getToNode().equals(destinationNode)) {
         int lastIndex = completeSequence.indexOf(directedEdge);
         completeSequence = new ArrayList<>(completeSequence.subList(0, lastIndex + 1));
-        NodeGraph previousJunction = RoutingUtils.getPreviousJunction(completeSequence);
-        if (previousJunction != null && previousJunction.equals(destinationNode)) {
-          completeSequence.remove(completeSequence.size() - 1);
-        }
         return;
       }
     }
-  }
-
-  /**
-   * Cleans and adjusts the sequence of DirectedEdges in the dual graph-based path. It checks if the
-   * path is one edge ahead and removes the last edge if necessary. It also checks for the presence
-   * of an unnecessary edge at the beginning of the path and removes it. This method ensures that
-   * the dual graph-based path is correctly ordered and free of unnecessary edges.
-   *
-   * @param tmpOrigin The examined primal origin node.
-   * @param tmpDestination The examined primal destination node.
-   */
-  protected void cleanDualPath(NodeGraph tmpOrigin, NodeGraph tmpDestination) {
-    if (partialSequence.size() < 2) {
-      return;
-    }
-    // check if the path is one edge ahead
-    final NodeGraph firstDualNode = ((EdgeGraph) partialSequence.get(0).getEdge()).getDualNode();
-    final NodeGraph secondDualNode = ((EdgeGraph) partialSequence.get(1).getEdge()).getDualNode();
-
-    NodeGraph previousJunction = RoutingUtils.getPreviousJunction(partialSequence);
-    NodeGraph primalJunction = RoutingUtils.getPrimalJunction(firstDualNode, secondDualNode);
-    if (previousJunction != null && previousJunction.equals(tmpDestination)) {
-      partialSequence.remove(partialSequence.size() - 1);
-    }
-    // check presence of a unnecessary edge at the beginning of the path
-    if (primalJunction != null && primalJunction.equals(tmpOrigin)) {
-      partialSequence.remove(0);
-    }
-    checkEdgesSequence(tmpOrigin);
   }
 
   /**

@@ -3,12 +3,10 @@ package pedsim.core.cognition.metrics;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import org.locationtech.jts.planargraph.DirectedEdge;
 import pedsim.core.agents.Agent;
 import sim.graph.Building;
 import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
-import sim.routing.RoutingUtils;
 import sim.util.geo.AttributeValue;
 
 /**
@@ -97,20 +95,5 @@ public class Landmarkness {
       }
     }
     return nodeGlobalScore;
-  }
-
-  /**
-   * Global landmarkness for dual-node centroids.
-   */
-  public static double globalLandmarknessDualNode(
-      NodeGraph centroid, NodeGraph targetCentroid, NodeGraph destinationNode) {
-    DirectedEdge streetSegment = targetCentroid.getPrimalEdge().getDirEdge(0);
-    NodeGraph targetNode = (NodeGraph) streetSegment.getToNode();
-    NodeGraph primalJunction = RoutingUtils.getPrimalJunction(centroid, targetCentroid);
-
-    if (primalJunction != null && primalJunction.equals(targetNode))
-      targetNode = (NodeGraph) streetSegment.getFromNode();
-
-    return globalLandmarknessNode(targetNode, destinationNode);
   }
 }
