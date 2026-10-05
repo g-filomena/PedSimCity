@@ -42,24 +42,9 @@ public class Import {
    */
   protected void readGraphs() throws Exception {
     try {
-      // Primal graph is required.
       readRequiredGraphLayer("_edges", PedSimCity.roads);
       readRequiredGraphLayer("_nodes", PedSimCity.junctions);
       PedSimCity.network.fromStreetJunctionsSegments(PedSimCity.junctions, PedSimCity.roads);
-
-      // Dual graph is optional: angular-change (simplest-path) routing needs it, but primal-only
-      // cities run with shortest-path routing only.
-      boolean edgesDual = readOptionalGraphLayer("_edgesDual", PedSimCity.intersectionsDual);
-      boolean nodesDual = readOptionalGraphLayer("_nodesDual", PedSimCity.centroids);
-      PedSimCity.dualGraphLoaded = edgesDual && nodesDual;
-
-      if (PedSimCity.dualGraphLoaded) {
-        PedSimCity.dualNetwork.fromStreetJunctionsSegments(
-            PedSimCity.centroids, PedSimCity.intersectionsDual);
-        logger.info("Graphs successfully imported (primal + dual).");
-      } else {
-        logger.info("Graphs imported (primal only); angular-change routing disabled.");
-      }
     } catch (Exception e) {
       handleImportError("Importing Graphs failed", e);
     }
@@ -73,18 +58,6 @@ public class Import {
       throw new IllegalStateException("Required graph layer not found: " + resourceName);
     }
     VectorLayer.readGPKG(fileUrl, target);
-  }
-
-  /** Reads an optional graph layer; returns false (leaving the layer empty) when missing. */
-  private boolean readOptionalGraphLayer(String suffix, VectorLayer target) throws Exception {
-    String resourceName = Pars.cityName + "/" + Pars.cityName + suffix + ".gpkg";
-    URL fileUrl = CLASSLOADER.getResource(resourceName);
-    if (fileUrl == null) {
-      logger.info("Optional graph layer not found: " + resourceName);
-      return false;
-    }
-    VectorLayer.readGPKG(fileUrl, target);
-    return true;
   }
 
   /**

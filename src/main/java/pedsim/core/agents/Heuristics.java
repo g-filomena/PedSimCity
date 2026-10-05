@@ -19,8 +19,8 @@ import pedsim.core.utilities.StringEnum.RouteChoiceElement;
  *       (distance) vs least-turn (angular) by the {@link RouteChoicePars} default split.
  *   <li><b>Activated</b> (after {@link #setActivationProbabilities}): probability-driven choice of
  *       minimisation, local heuristic and route-choice elements (landmarks, regions, barriers),
- *       with each mechanism gated by the data the city actually loaded — angular modes need the
- *       dual graph, landmark elements need landmark scores, and so on.
+ *       with each mechanism gated by the data the city actually loaded — landmark elements need
+ *       landmark scores, barrier sub-goals need barriers, and so on.
  * </ul>
  *
  * <p>It returns a model rather than writing into the agent's properties. An agent that was built
@@ -72,17 +72,16 @@ public final class Heuristics {
 
     // No activation probabilities set for this agent: use pure minimisation, alternating shortest
     // path (distance) and least-turn (angular / simplest path) by the default distribution.
-    // Angular needs a dual graph, so primal-only cities always minimise distance.
     if (!hasActivationProbabilities()) {
       return RouteChoiceModel.minimising(defaultMinimisationMode());
     }
 
     // Probability-driven route choice, with each mechanism gated by the data the city loaded.
     if (isGlobalMinimisationDominant()) {
-      return RouteChoiceModel.minimising(constrainMinimisation(sampleMinimisationMode()));
+      return RouteChoiceModel.minimising(sampleMinimisationMode());
     }
 
-    LocalHeuristicMode localHeuristic = constrainLocalHeuristic(sampleLocalHeuristicMode());
+    LocalHeuristicMode localHeuristic = sampleLocalHeuristicMode();
     EnumSet<RouteChoiceElement> elements = EnumSet.noneOf(RouteChoiceElement.class);
 
     if (barriersAvailable() && random.nextDouble() < probabilityBarrierSubGoals) {
@@ -121,36 +120,14 @@ public final class Heuristics {
 
   /**
    * Minimisation mode when no activation probabilities drive the agent: samples distance vs
-   * angular by the {@link RouteChoicePars} default split, but only offers angular when a dual
-   * graph is loaded.
+   * angular by the {@link RouteChoicePars} default split.
    */
   private MinimisationMode defaultMinimisationMode() {
-    if (!dualAvailable()) {
-      return MinimisationMode.DISTANCE;
-    }
     return sampleDistanceOverAngular(
             RouteChoicePars.defaultProbabilityDistanceMinimisation,
             RouteChoicePars.defaultProbabilityAngularMinimisation)
         ? MinimisationMode.DISTANCE
         : MinimisationMode.ANGULAR;
-  }
-
-  /** Angular minimisation needs the dual graph; fall back to distance when it is absent. */
-  private MinimisationMode constrainMinimisation(MinimisationMode mode) {
-    return (mode == MinimisationMode.ANGULAR && !dualAvailable())
-        ? MinimisationMode.DISTANCE
-        : mode;
-  }
-
-  /** Angular local heuristic needs the dual graph; fall back to distance when it is absent. */
-  private LocalHeuristicMode constrainLocalHeuristic(LocalHeuristicMode mode) {
-    return (mode == LocalHeuristicMode.ANGULAR && !dualAvailable())
-        ? LocalHeuristicMode.DISTANCE
-        : mode;
-  }
-
-  private boolean dualAvailable() {
-    return PedSimCity.dualGraphLoaded;
   }
 
   private boolean landmarksAvailable() {

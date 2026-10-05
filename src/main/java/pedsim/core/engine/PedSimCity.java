@@ -46,20 +46,12 @@ public class PedSimCity extends SimState {
   public static VectorLayer sightLines = new VectorLayer();
 
   public static Graph network = new Graph();
-  public static Graph dualNetwork = new Graph();
   public static Envelope MBR = null;
 
   // Data-availability flags, set at import and read by route choice (Heuristics) to deactivate
   // mechanisms whose data a given city does not provide.
-  /** A dual graph was loaded; angular-change (simplest-path) routing is available. */
-  public static boolean dualGraphLoaded = false;
-
   /** Building landmark scores were loaded; landmark-based navigation is available. */
   public static boolean landmarksLoaded = false;
-
-  // dual graph
-  public static VectorLayer intersectionsDual = new VectorLayer();
-  public static VectorLayer centroids = new VectorLayer();
 
   // supporting HashMaps, bags and Lists
   public static Map<Integer, Building> buildingsMap = new HashMap<>();
@@ -68,7 +60,6 @@ public class PedSimCity extends SimState {
   public static Map<Integer, Gateway> gatewaysMap = new HashMap<>();
   public static Map<Integer, NodeGraph> nodesMap = new HashMap<>();
   public static Map<Integer, EdgeGraph> edgesMap = new HashMap<>();
-  public static Map<Integer, NodeGraph> centroidsMap = new HashMap<>();
   public static Set<EdgeGraph> edges = new HashSet<>();
 
   // OD related variables
@@ -328,11 +319,8 @@ public class PedSimCity extends SimState {
     barriers.clear();
     junctions.clear();
     sightLines.clear();
-    intersectionsDual.clear();
-    centroids.clear();
 
     network = new Graph();
-    dualNetwork = new Graph();
 
     buildingsMap.clear();
     regionsMap.clear();
@@ -341,14 +329,12 @@ public class PedSimCity extends SimState {
     nodesMap.clear();
     SharedCognitiveMap.clearStaticData();
     edgesMap.clear();
-    centroidsMap.clear();
     edges.clear();
     startingNodes.clear();
 
     indexedEdgeCache.clear();
     MBR = null;
 
-    dualGraphLoaded = false;
     landmarksLoaded = false;
   }
 

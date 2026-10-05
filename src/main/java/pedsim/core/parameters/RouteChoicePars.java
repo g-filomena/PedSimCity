@@ -12,7 +12,6 @@ public class RouteChoicePars {
 
   // Default route-choice split used when NO empirical (cluster) data drives the agent: how often
   // agents minimise road distance (shortest path) vs angular change (least-turn / simplest path).
-  // Angular is only ever used when a dual graph is loaded; otherwise agents fall back to distance.
   public static double defaultProbabilityDistanceMinimisation = 0.5;
   public static double defaultProbabilityAngularMinimisation = 0.5;
 
