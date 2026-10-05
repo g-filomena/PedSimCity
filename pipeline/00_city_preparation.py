@@ -21,8 +21,8 @@ completed stages unless ``--force``):
               OSM by largest overlap. The obstructions extent drives the network clip below.
   network     pedestrian network from OSM, clipped to the study area (or the obstructions' convex
               hull) + a fixed margin (--network-clip-buffer, default 300 m) -> clean (dead ends kept
-              with --remove-dead-ends no) -> consolidate
-              -> betweenness centrality (Bc_Rd) -> dual graph
+              with --remove-dead-ends no) -> consolidate -> clean again (consolidation leaves
+              pseudo-nodes and near-copies of a street) -> betweenness centrality (Bc_Rd) -> dual graph
   districts   drive network -> dual graph -> Louvain regions (angular) -> polygonised
               partitions -> district + gateway per pedestrian node
   elevation   node z from an optional <City>_DTM raster (skipped when absent; z stays 0)
@@ -103,6 +103,34 @@ STAGES = (
     "sightlines", "landmarks",
 )
 
+# The checkpoints each stage writes, and the stages that read them. When a stage is recomputed,
+# every checkpoint downstream of it is from the previous run: finalize would otherwise ship, say,
+# the new network's edges with the old network's nodes (nodes_districts) or sight lines
+# referencing nodeIDs that no longer exist.
+STAGE_CHECKPOINTS = {
+    "buildings": ("obstructions", "buildings_analysed"),
+    "network": ("nodes_network", "edges_network", "nodesDual", "edgesDual"),
+    "districts": ("nodes_districts",),
+    "elevation": ("nodes_z",),
+    "barriers": ("barriers", "edges_barriers"),
+    "pois": ("pois",),
+    "sightlines": ("sight_lines",),
+    "landmarks": ("landmarks",),
+}
+STAGE_DOWNSTREAM = {
+    "buildings": ("sightlines", "landmarks"),
+    "network": ("districts", "elevation", "barriers", "sightlines", "landmarks"),
+    "districts": (),
+    "elevation": ("sightlines",),
+    "barriers": (),
+    "pois": (),
+    "sightlines": ("landmarks",),
+    "landmarks": (),
+}
+# Shipped files written only from a stage's checkpoint, so an invalidated stage would leave them
+# behind from the previous run.
+STAGE_RESOURCES = {"sightlines": ("_sight_lines2D.gpkg",)}
+
 RASTER_SUFFIXES = (".tif", ".tiff", ".asc", ".vrt")
 
 # OSM downloads go through Overpass, which drops connections intermittently. A failed connection
@@ -128,7 +156,7 @@ def _from_osm(stage: str, download, *args, **kwargs):
 # Columns that hold Python lists in memory and strings on disk.
 LIST_COLUMNS = (
     "a_rivers", "w_parks", "p_barr", "n_barr",
-    "land_uses", "land_uses_overlap", "intersecting", "oldNodeIDs", "old_nodeIDs",
+    "land_uses", "land_uses_overlap", "intersecting", "old_nodeID", "oldNodeIDs", "old_nodeIDs",
 )
 
 
@@ -320,6 +348,17 @@ def stage_network(args, stager: Stager) -> None:
         log.info("network: consolidating nodes (tolerance %.1f m)", args.consolidate_tolerance)
         nodes, edges = ci.consolidate_nodes(
             nodes, edges, consolidate_edges_too=True, tolerance=args.consolidate_tolerance
+        )
+        # Consolidation leaves pseudo-nodes, dead ends and streets mapped twice within cityImage's
+        # same-street tolerance (5 m): merging a junction turns a street and the sidewalk beside
+        # it into near copies. So the network is cleaned again, with the same rules; sidewalks
+        # further apart than that stay as parallel edges.
+        log.info("network: cleaning the consolidated network (%d nodes, %d edges)",
+                 len(nodes), len(edges))
+        nodes, edges = ci.clean_network(
+            nodes, edges,
+            dead_ends=args.remove_dead_ends, remove_islands=True,
+            same_vertexes_edges=True, self_loops=True, fix_topology=True,
         )
     else:
         log.info("network: node consolidation disabled (--consolidate-network no)")
@@ -754,6 +793,10 @@ def stage_buildings(args, stager: Stager) -> None:
     stager.save("buildings_analysed", buildings)
 
 
+# The lowest building a sight line targets, in metres above ground.
+MIN_TARGET_HEIGHT_M = 3.0
+
+
 def stage_sightlines(args, stager: Stager) -> None:
     if stager.done("sight_lines"):
         log.info("sightlines: checkpoint present, skipping")
@@ -771,7 +814,7 @@ def stage_sightlines(args, stager: Stager) -> None:
 
     buildings = buildings[pd.to_numeric(buildings["height"], errors="coerce").notna()].copy()
     buildings["height"] = buildings["height"].astype(float)
-    targets = buildings[buildings["height"] >= 3.0]
+    targets = buildings[buildings["height"] >= MIN_TARGET_HEIGHT_M]
 
     # Occluders: the full obstructions set (with heights) so sight lines to boundary
     # targets are not spuriously unobstructed. Rows without a height cannot occlude in 3D.
@@ -801,6 +844,9 @@ def stage_sightlines(args, stager: Stager) -> None:
         # resolution; consolidating again here would test visibility at a coarser position
         # than the simulation graph and then explode back, biasing the count downward.
         consolidate=False,
+        # cityImage drops targets under its own min_target_height (5 m by default) whatever the
+        # caller selected; pass ours so the 3-5 m buildings selected above stay targets.
+        min_target_height=MIN_TARGET_HEIGHT_M,
         num_workers=args.workers,
         verbose=True,
     )
@@ -955,7 +1001,8 @@ def finalize(args, stager: Stager) -> None:
         edges = stager.load("edges_barriers") if stager.path("edges_barriers").exists() \
             else stager.load("edges_network")
 
-        nodes = nodes.drop(columns=["oldNodeIDs", "old_nodeIDs"], errors="ignore")
+        # The consolidation's merged-node lists (cityImage names the column old_nodeID).
+        nodes = nodes.drop(columns=["old_nodeID", "oldNodeIDs", "old_nodeIDs"], errors="ignore")
         _stringify_list_columns(nodes).pipe(_write_output, f"{prefix}_nodes.gpkg")
         _stringify_list_columns(edges).pipe(_write_output, f"{prefix}_edges.gpkg")
 
@@ -1152,6 +1199,45 @@ def parse_args(argv=None):
     return args
 
 
+def _downstream(stage: str) -> list[str]:
+    """Every stage that reads, directly or not, what ``stage`` writes."""
+    found = []
+    for child in STAGE_DOWNSTREAM[stage]:
+        for name in (child, *_downstream(child)):
+            if name not in found:
+                found.append(name)
+    return found
+
+
+def _checkpoint_times(stager: Stager, stage: str) -> tuple:
+    """Modification times of a stage's checkpoints (None where absent)."""
+    return tuple(
+        path.stat().st_mtime_ns if path.exists() else None
+        for path in (stager.path(name) for name in STAGE_CHECKPOINTS[stage])
+    )
+
+
+def _invalidate_downstream(args, stager: Stager, stage: str) -> None:
+    """Delete the checkpoints (and checkpoint-only shipped files) of the stages downstream of a
+    stage that has just written new checkpoints. A downstream stage later in this run recomputes
+    from the fresh input; one not in this run is left missing, and finalize ships what is
+    consistent."""
+    for child in _downstream(stage):
+        stale = [stager.path(name) for name in STAGE_CHECKPOINTS[child]]
+        if child == "sightlines":
+            stale.append(stager.path("sight_lines").with_suffix(".meta.json"))
+        stale += [args.resources_dir / f"{args.city_name}{suffix}"
+                  for suffix in STAGE_RESOURCES.get(child, ())]
+        removed = [path for path in stale if path.exists()]
+        for path in removed:
+            path.unlink()
+        if removed and child not in args.run_stages:
+            log.warning("%s is recomputed, so the %s output from the previous run is removed: "
+                        "re-run --stages %s to rebuild it", stage, child, child)
+        elif removed:
+            log.info("%s is recomputed: removed the previous %s checkpoints", stage, child)
+
+
 def main(argv=None) -> int:
     args = parse_args(argv)
     stager = Stager(args.raw_dir / "prep_staging", args.force)
@@ -1177,7 +1263,12 @@ def main(argv=None) -> int:
         if stage not in args.run_stages:
             continue
         log.info("========== stage: %s ==========", stage)
+        before = _checkpoint_times(stager, stage)
         stage_functions[stage](args, stager)
+        # Only a stage that wrote new checkpoints makes the ones downstream stale; a stage that
+        # skipped (checkpoints present) or had nothing to write (no DTM, no heights) does not.
+        if _checkpoint_times(stager, stage) != before:
+            _invalidate_downstream(args, stager, stage)
 
     finalize(args, stager)
     return 0

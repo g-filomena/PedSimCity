@@ -38,7 +38,7 @@ public class CityImageImport extends pedsim.core.engine.Import {
       readSightLines();
       readBarriers();
     }
-    // Read the street network shapefiles and create the primal and the dual graph
+    // Read the street network and build the graph
     readGraphs();
   }
 

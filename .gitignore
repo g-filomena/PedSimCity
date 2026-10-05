@@ -161,3 +161,4 @@ cp_*.txt
 /TODO.md
 /bug_changelog.md
 src/main/java/pedsim/*/TODO.md
+/to_fix.md
