@@ -3,6 +3,74 @@
 Notable changes to PedSimCity, most recent first, dated by the day they landed. The format
 follows [Keep a Changelog](https://keepachangelog.com); the project is not yet versioned.
 
+## 2026-10-05
+
+### Changed
+- **Angular routing searches the primal graph; the dual graph is gone.** A search state is a
+  street walked in one direction, and a turn costs the deflection between the two streets' chords
+  at the junction (`Deflection`) - the same angle cityImage writes as `deg`, to under 1e-6 degrees
+  on every bundled city. The route is the least cumulative deflection over every street leaving
+  the origin and every street reaching the destination, ties going to the shorter. The dual
+  search fixed the best-aligned street at each end and kept the first pair that connected, then
+  inferred the junctions it had crossed and trimmed the path; on 500 Melbourne OD pairs the new
+  route is never more angular (254 less, 246 equal, of which 196 shorter), mean 393 -> 368 degrees.
+  Street volumes from the two correlate at Spearman 0.63: on a grid, many routes tie on angle, so
+  angular volumes depend on how ties are broken.
+  Routing time on the same 2,000 Melbourne pairs: 3.4 ms per angular route against the dual
+  search's 4.3 ms (road distance, the control, 1.0 ms either way).
+- **A leg towards a sub-goal pays the turn out of the street it arrived by**, so a route through
+  gateways or landmarks minimises the deflection actually walked; the dual search started each leg
+  free. Backtracking in an angular sequence routes angularly.
+- **Visible side streets are added to a known network explicitly.** Every street leaving a
+  junction of a known street is known; this was done before through the known dual network. The
+  day summary reports how much it widens known networks.
+- Angular routing is available on every city: no `_edgesDual` / `_nodesDual` layer is read.
+- The day summary's angular line loses its dual-specific counts (no dual path, trimmed away,
+  unknown dual endpoint).
+
+### Removed
+- The dual graph and everything built on it: `PedSimCity.dualNetwork`, the known dual network and
+  its islands per agent, region dual subgraphs, `dualGraphLoaded` and the angular gates on it,
+  `PathFinder`'s dual backtracking, candidate centroids and path cleaning.
+
+### Changed
+- **A parameter the running module does not declare stops the run**, naming it and the closest
+  declared name; it used to be ignored, so a misspelt or removed parameter ran the default.
+  `LearningPars.halfLifeMemoryForRoutes` is `halfLife`, its command-line name.
+
+### Fixed
+- `scripts/run_night_comparison.bat` defaulted its baseline arm to the removed
+  `--maxKnownDarkEdgeCostMultiplier`, so the baseline ran the model defaults; it sets both
+  darkness weights to 0, as `run_day_night_comparison.py` does.
+- `Paris_edgesDual.gpkg` declared `u` and `v` as text; they are integers, as in every other city.
+
+## 2026-10-02
+
+### Changed
+- **Districts are angular.** The districts stage asked cityImage for `weight="rad"` on a drive dual
+  graph that carried only `deg`, so python-louvain weighted every link 1 and every partition the
+  pipeline built since 13 July was topological. cityImage 2.2.0 writes the deflection in both units
+  and refuses a weight no edge carries. Melbourne goes from 39 districts to 54, gateways from 1,234
+  to 1,627. Region navigation on any pipeline-built city ran on topological districts until the
+  city is rebuilt (`bug_changelog.md`).
+- **The network is cleaned again after node consolidation.** Consolidating junctions leaves
+  pseudo-nodes, dead ends and near-copies of a street (a street and its sidewalk merged at both
+  ends); a second `clean_network` with the same options removes them (Melbourne: 6,524 -> 6,384
+  nodes, parallel edges 3,716 -> 2,475, in 6 s).
+- **Sight-line targets start at 3 m again**: the stage passes `min_target_height=3.0`, since
+  cityImage 2.2.0 applies its own 5 m default to whatever it is given.
+- **Re-running a stage invalidates what depends on it.** A stage that writes new checkpoints
+  removes those of the stages downstream of it (and the shipped sight lines), with a warning naming
+  the stages to re-run, so `finalize` can no longer ship one network's edges with another's nodes.
+- The consolidation's `old_nodeID` list no longer reaches `<City>_nodes.gpkg`.
+
+### Added
+- `GraphLayersContractTest` (slow): every bundled city's graph layers, loaded the way
+  `Import.readGraphs` loads them, build the graphs they describe in GeoMason-light - one node per
+  junction carrying its id, one edge per segment joining its `u` and `v`, a dual node for every
+  primal segment. It fails on the first 2.2.0 Melbourne build, whose dual graph lost 925 segments to
+  merged centroids (fixed in cityImage's node consolidation), and passes on all five bundled cities.
+
 ## 2026-09-28
 
 ### Changed

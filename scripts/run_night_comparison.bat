@@ -7,10 +7,10 @@ REM Prompts for the city, the population share, the number of days, and the two
 REM arms - no city and no experiment is named in the Python script.
 REM
 REM The arms are command-line arguments passed straight to the simulation. The
-REM default baseline, --maxKnownDarkEdgeCostMultiplier=1.0, is the documented
-REM control for the planning-cost mechanism: 1.0 is the behaviour before darkness
-REM reached route planning. Give the two arms different arguments - the script
-REM refuses to compare a run with itself.
+REM default baseline sets both darkness weights to zero, so routes ignore
+REM lighting: the control for the night route cost. Give the two arms different
+REM arguments - the script refuses to compare a run with itself. A parameter the
+REM night module does not declare stops the run.
 REM
 REM Maven does the building, so no Conda environment is needed; it uses whatever
 REM python is on PATH for the driver script.
@@ -54,8 +54,8 @@ if "%DAYS%"=="" set "DAYS=1"
 
 echo.
 echo The two arms are extra command-line arguments for the simulation.
-set /p BASELINE_ARGS=Baseline arm args [--maxKnownDarkEdgeCostMultiplier=1.0]:
-if "%BASELINE_ARGS%"=="" set "BASELINE_ARGS=--maxKnownDarkEdgeCostMultiplier=1.0"
+set /p BASELINE_ARGS=Baseline arm args [--darknessWeightVulnerable=0 --darknessWeightNonVulnerable=0]:
+if "%BASELINE_ARGS%"=="" set "BASELINE_ARGS=--darknessWeightVulnerable=0 --darknessWeightNonVulnerable=0"
 
 set /p TREATMENT_ARGS=Treatment arm args ^(blank = model defaults^):
 

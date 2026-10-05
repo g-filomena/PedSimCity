@@ -55,6 +55,18 @@ cityImage API (installed from PyPI by `scripts/build_city.bat`). Stages — `net
 `elevation`, `barriers`, `pois`, `buildings`, `sightlines`, `landmarks` — are checkpointed under
 `inputData/<City>/prep_staging/`; re-running resumes after the last completed stage
 (`--force` recomputes; `--stages` selects a subset, e.g. `--stages sightlines,landmarks`).
+A stage that writes new checkpoints removes those of the stages that read them (network ->
+districts, elevation, barriers, sightlines, landmarks; buildings and elevation -> sightlines;
+sightlines -> landmarks), and the shipped `<City>_sight_lines2D.gpkg`, with a warning naming the
+stages to re-run - so `--stages network --force` can no longer ship the new edges with the previous
+run's nodes. A stage that skips, or has nothing to write (no DTM, no heights), removes nothing.
+
+The network stage cleans the downloaded network, consolidates junctions within
+`--consolidate-tolerance`, and **cleans again**: consolidation leaves pseudo-nodes, dead ends and
+near-copies of a street (a street and its sidewalk merged at both ends). The districts stage
+partitions the drive network's dual graph with python-louvain weighted by the **angular** change
+between segments (`rad`); until cityImage 2.2.0 that weight was missing from the dual graph and every
+partition was topological.
 
 Two options for where the data comes from. `--districts-place '<OSM place>'` identifies the
 districts on that place's drive network rather than the study area's, then assigns them to the
@@ -117,16 +129,24 @@ Output filenames and columns follow the Java readers exactly: `_sight_lines2D`,
 nodes, `deg` on dual edges.
 
 **What a rebuild produces depends on the cityImage version**, since it is installed unpinned from
-PyPI. From 2.1.2:
+PyPI. From 2.2.0 (2.1.2 was never released):
 
 - the network keeps `service=alley` laneways, and topology is fixed before islands are removed, so
   streets joined only at an unnoded crossing are no longer dropped;
-- where two edges join the same pair of junctions, the shortest is kept and a longer one (a
-  crescent, a loop round a block) is kept too, split at its midpoint. The old rule kept the longest
-  and dropped the rest: 11.3 km of 207 km of Melbourne CBD streets;
-- districts are seeded (`random_state=0`), so a rebuild reproduces them;
+- different streets between the same pair of junctions (a crescent, a loop round a block) are kept
+  as parallel edges, and no node is ever added; a street mapped more than once becomes its middle
+  copy (the centre line of the two middle ones when there is an even number). The old rule kept the
+  longest and dropped the rest: 11.3 km of 207 km of Melbourne CBD streets;
+- node consolidation keeps one of two edges it turns into the same line, and recomputes `length`;
+- districts are seeded (`random_state=0`), so a rebuild reproduces them, and angular (above);
 - park barriers sit on the park's edge rather than 10 m outside it, so streets along a park are no
-  longer flagged as inside it, and roads and railways tagged `tunnel=no` stay barriers.
+  longer flagged as inside it, and roads and railways tagged `tunnel=no` stay barriers;
+- heights are read one way (`known_heights`), a missing building `base` is 0, and sight-line
+  targets start at the pipeline's 3 m (it passes `min_target_height`).
+
+GeoMason-light builds the graphs from the layers' end coordinates, not from `u`/`v`; after a
+rebuild, `mvn test -Pslow-tests -Pall-modules -Dtest=GraphLayersContractTest` checks that every
+city's layers build the graphs they describe.
 
 A network built on an earlier version differs in all of this, and its `edgeID`s differ from a new
 build's.
