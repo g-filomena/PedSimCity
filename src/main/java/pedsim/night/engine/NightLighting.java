@@ -1,10 +1,7 @@
 package pedsim.night.engine;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
@@ -87,42 +84,59 @@ public final class NightLighting {
   }
 
   /**
-   * The illuminance an agent expects of a street it does not know: the median {@link #measuredLux}
-   * of the city's streets of the same OSM {@code highway} class, or of all streets for a class
-   * with none. What anyone would guess of a residential street or a main road they have not
-   * walked, the same guess for every agent.
+   * How dark an agent expects a street it does not know to be: the {@link #darkness} of the city's
+   * streets of the same OSM {@code highway} class, averaged over their length, or of all streets
+   * for a class with none. The same expectation for every agent.
+   *
+   * <p>The expected darkness, not the darkness of the typical illuminance: darkness is 0 above
+   * {@link NightPars#reassuranceLux}, so a class whose median street is lit, as residential
+   * streets are in Turin, would read as entirely lit although a quarter of its length is not.
    */
-  public static double typicalLux(EdgeGraph edge) {
-    Map<String, Double> byClass = typicalLuxByClass;
+  public static double expectedDarkness(EdgeGraph edge) {
+    Map<String, Double> byClass = expectedDarknessByClass;
     if (byClass == null) {
-      byClass = computeTypicalLuxByClass();
-      typicalLuxByClass = byClass;
+      byClass = computeExpectedDarknessByClass();
+      expectedDarknessByClass = byClass;
     }
-    Double lux = byClass.get(highwayClass(edge));
-    return lux != null ? lux : byClass.getOrDefault(ALL_CLASSES, 0.0);
+    Double darkness = byClass.get(highwayClass(edge));
+    return darkness != null ? darkness : byClass.getOrDefault(ALL_CLASSES, 0.0);
+  }
+
+  /**
+   * The length-weighted mean {@link #darkness} of a set of streets.
+   *
+   * @param lengths each street's length
+   * @param lux each street's illuminance, in the same order
+   * @return the expected darkness, 0 for no length
+   */
+  static double expectedDarkness(double[] lengths, double[] lux) {
+    double weighted = 0.0;
+    double total = 0.0;
+    for (int i = 0; i < lengths.length; i++) {
+      weighted += lengths[i] * darkness(lux[i]);
+      total += lengths[i];
+    }
+    return total > 0.0 ? weighted / total : 0.0;
   }
 
   private static final String ALL_CLASSES = "";
 
-  private static volatile Map<String, Double> typicalLuxByClass;
+  private static volatile Map<String, Double> expectedDarknessByClass;
 
-  private static Map<String, Double> computeTypicalLuxByClass() {
-    Map<String, List<Double>> samples = new HashMap<>();
+  private static Map<String, Double> computeExpectedDarknessByClass() {
+    Map<String, double[]> sums = new HashMap<>();
     for (EdgeGraph edge : SharedCognitiveMap.getCommunityPrimalNetwork().getEdges()) {
-      double lux = measuredLux(edge);
-      samples.computeIfAbsent(highwayClass(edge), key -> new ArrayList<>()).add(lux);
-      samples.computeIfAbsent(ALL_CLASSES, key -> new ArrayList<>()).add(lux);
+      double length = edge.getLength();
+      double weighted = length * darkness(measuredLux(edge));
+      for (String key : new String[] {highwayClass(edge), ALL_CLASSES}) {
+        double[] sum = sums.computeIfAbsent(key, k -> new double[2]);
+        sum[0] += weighted;
+        sum[1] += length;
+      }
     }
-    Map<String, Double> medians = new HashMap<>();
-    samples.forEach(
-        (key, values) -> {
-          Collections.sort(values);
-          int n = values.size();
-          medians.put(
-              key,
-              n % 2 == 1 ? values.get(n / 2) : (values.get(n / 2 - 1) + values.get(n / 2)) / 2.0);
-        });
-    return medians;
+    Map<String, Double> byClass = new HashMap<>();
+    sums.forEach((key, sum) -> byClass.put(key, sum[1] > 0.0 ? sum[0] / sum[1] : 0.0));
+    return byClass;
   }
 
   private static String highwayClass(EdgeGraph edge) {
@@ -170,6 +184,6 @@ public final class NightLighting {
   /** Drops the derived sets, so a re-imported network is not answered from the old one. */
   public static void clearCaches() {
     taggedLitEdges = null;
-    typicalLuxByClass = null;
+    expectedDarknessByClass = null;
   }
 }

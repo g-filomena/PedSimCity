@@ -113,11 +113,15 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
     if (nightAgent.knowsLightingOf(edge)) {
       return false;
     }
-    double assumed = NightRouteCost.factor(nightAgent, edge, NightLighting.typicalLux(edge), false);
+    double assumed =
+        NightRouteCost.factor(nightAgent, edge, NightLighting.expectedDarkness(edge), false);
     nightAgent.lightingSeenThisTrip.add(edge);
     double seen =
         NightRouteCost.factor(
-            nightAgent, edge, NightLighting.measuredLux(edge), Crowdness.isEdgeCrowded(edge));
+            nightAgent,
+            edge,
+            NightLighting.darkness(NightLighting.measuredLux(edge)),
+            Crowdness.isEdgeCrowded(edge));
     if (seen <= assumed) {
       return false;
     }

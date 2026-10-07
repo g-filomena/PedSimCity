@@ -18,30 +18,33 @@ import sim.graph.EdgeGraph;
  * before setting off and the re-plan made on the way, so the two cannot disagree about what
  * darkness is worth.
  *
- * <p><b>What the agent takes the lux to be.</b> For a street it knows, or has already seen on this
- * trip, the measured value; for any other, the typical value of its class ({@link
- * NightLighting#typicalLux}). A busy street costs no darkness: the presence of others reassures
- * (Ferraro 1995), and only an agent standing at it can see that it is busy.
+ * <p><b>How dark the agent takes a street to be.</b> For a street it knows, or has already seen on
+ * this trip, the darkness of its measured illuminance; for any other, the expected darkness of its
+ * class ({@link NightLighting#expectedDarkness}). A busy street costs no darkness: the presence of
+ * others reassures (Ferraro 1995), and only an agent standing at it can see that it is busy.
  */
 public final class NightRouteCost {
 
   private NightRouteCost() {}
 
-  /** The illuminance the agent believes an edge to have. */
-  public static double believedLux(NightAgent agent, EdgeGraph edge) {
+  /** How dark the agent believes an edge to be, in [0, 1]. */
+  public static double believedDarkness(NightAgent agent, EdgeGraph edge) {
     return agent.knowsLightingOf(edge)
-        ? NightLighting.measuredLux(edge)
-        : NightLighting.typicalLux(edge);
+        ? NightLighting.darkness(NightLighting.measuredLux(edge))
+        : NightLighting.expectedDarkness(edge);
   }
 
   /**
-   * The cost multiplier, at least 1.0, of an edge at a given illuminance.
+   * The cost multiplier, at least 1.0, of an edge at a given darkness.
    *
+   * @param darkness how dark the edge is taken to be, in [0, 1]
    * @param busy whether the edge is busy, which removes the darkness term
    */
-  public static double factor(NightAgent agent, EdgeGraph edge, double lux, boolean busy) {
+  public static double factor(NightAgent agent, EdgeGraph edge, double darkness, boolean busy) {
     boolean vulnerable = agent.isVulnerable();
-    double darkness = busy ? 0.0 : NightLighting.darkness(lux);
+    if (busy) {
+      darkness = 0.0;
+    }
     double darknessWeight =
         vulnerable ? NightPars.darknessWeightVulnerable : NightPars.darknessWeightNonVulnerable;
     double parkWater =
@@ -53,9 +56,9 @@ public final class NightRouteCost {
     return (1.0 + darknessWeight * darkness) * (1.0 + parkWater);
   }
 
-  /** The multiplier the agent plans with: believed illuminance, busyness unseen. */
+  /** The multiplier the agent plans with: believed darkness, busyness unseen. */
   public static double plannedFactor(NightAgent agent, EdgeGraph edge) {
-    return factor(agent, edge, believedLux(agent, edge), false);
+    return factor(agent, edge, believedDarkness(agent, edge), false);
   }
 
   /** The planned cost of walking a sequence of edges, without perception error. */
