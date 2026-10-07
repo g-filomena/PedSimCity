@@ -1,0 +1,267 @@
+{
+  "city": "Melbourne",
+  "preparation": {
+    "written": "2026-10-05T21:37:03+01:00",
+    "source": "read back from run logs: /mnt/home/gabriele/runs/prep_melbourne_220_deadends_removed.log, /mnt/home/gabriele/runs/prep_melbourne_220.log",
+    "stages": {
+      "buildings": {
+        "started": "2026-10-05 17:36:31,404",
+        "checkpoints": [
+          "obstructions",
+          "buildings_analysed"
+        ],
+        "computed": "2026-10-05 17:36:35,510",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_melbourne_220_deadends_removed.log",
+          "options": null,
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      },
+      "network": {
+        "started": "2026-10-05 19:22:30,709",
+        "checkpoints": [
+          "nodes_network",
+          "edges_network",
+          "nodesDual",
+          "edgesDual"
+        ],
+        "computed": "2026-10-05 19:23:42,652",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_melbourne_220.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=100.0, min_building_area=0.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      },
+      "districts": {
+        "started": "2026-10-05 19:23:42,687",
+        "checkpoints": [
+          "nodes_districts"
+        ],
+        "computed": "2026-10-05 19:24:53,204",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_melbourne_220.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=100.0, min_building_area=0.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      },
+      "elevation": {
+        "started": "2026-10-05 19:24:53,213",
+        "checkpoints": [
+          "nodes_z"
+        ],
+        "computed": "2026-10-05 19:24:53,877",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_melbourne_220.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=100.0, min_building_area=0.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      },
+      "barriers": {
+        "started": "2026-10-05 19:24:53,879",
+        "checkpoints": [
+          "barriers",
+          "edges_barriers"
+        ],
+        "computed": "2026-10-05 19:27:10,835",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_melbourne_220.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=100.0, min_building_area=0.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      },
+      "pois": {
+        "started": "2026-10-05 17:40:04,600",
+        "checkpoints": [
+          "pois"
+        ],
+        "computed": "2026-10-05 17:40:06,456",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_melbourne_220_deadends_removed.log",
+          "options": null,
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      },
+      "sightlines": {
+        "started": "2026-10-05 19:27:10,844",
+        "checkpoints": [
+          "sight_lines"
+        ],
+        "computed": "2026-10-05 20:48:32,686",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_melbourne_220.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=100.0, min_building_area=0.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      },
+      "landmarks": {
+        "started": "2026-10-05 20:48:32,771",
+        "checkpoints": [
+          "landmarks"
+        ],
+        "computed": "2026-10-05 21:01:03,113",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_melbourne_220.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=100.0, min_building_area=0.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      }
+    },
+    "recorded_with": {
+      "python": "3.11.15",
+      "host": "gdsl1",
+      "packages": {
+        "cityImage": "2.2.0",
+        "osmnx": "2.1.1",
+        "geopandas": "1.1.4",
+        "shapely": "2.1.2",
+        "pyogrio": "0.12.1",
+        "networkx": "3.6.1",
+        "numpy": "2.4.6",
+        "pandas": "3.0.3",
+        "rasterio": "1.4.4"
+      },
+      "pedsimcity": {
+        "commit": "17d7f848481fac2b83aa15053ec47cbd4664e3c6",
+        "local_changes": [
+          "inputData/Torino/Torino_nodes_2m_densified_illuminated.gpkg",
+          "inputData/Torino/Torino_streetlights_with_radius.gpkg",
+          "pipeline/00_city_preparation.py",
+          "pipeline/build_lighting.py",
+          "pipeline/os_mastermap_buildings.py",
+          "src/main/resources/Melbourne/Melbourne_barriers.gpkg",
+          "src/main/resources/Melbourne/Melbourne_buildings.gpkg",
+          "src/main/resources/Melbourne/Melbourne_edges.gpkg",
+          "src/main/resources/Melbourne/Melbourne_edgesDual.gpkg",
+          "src/main/resources/Melbourne/Melbourne_nodes.gpkg",
+          "src/main/resources/Melbourne/Melbourne_nodesDual.gpkg",
+          "src/main/resources/Melbourne/Melbourne_obstructions.gpkg",
+          "src/main/resources/Melbourne/Melbourne_sight_lines2D.gpkg",
+          "src/main/resources/Torino/Torino_POIs.gpkg",
+          "src/main/resources/Torino/Torino_barriers.gpkg",
+          "src/main/resources/Torino/Torino_buildings.gpkg",
+          "src/main/resources/Torino/Torino_directional_lighting_lookup.csv",
+          "src/main/resources/Torino/Torino_edges.gpkg",
+          "src/main/resources/Torino/Torino_edgesDual.gpkg",
+          "src/main/resources/Torino/Torino_edges_illuminated_continuous.gpkg",
+          "src/main/resources/Torino/Torino_nodes.gpkg",
+          "src/main/resources/Torino/Torino_nodesDual.gpkg"
+        ]
+      },
+      "cityImage": {
+        "path": "/mnt/home/gabriele/cityImage/cityImage",
+        "git": {
+          "commit": "b56ba8997f068bb898018809df8a77deb8f22b4c",
+          "local_changes": []
+        }
+      }
+    },
+    "outputs": [
+      {
+        "file": "Melbourne_POIs.gpkg",
+        "bytes": 2048000,
+        "sha256": "d0ce6582b76c6880e14f3f6fb299347537a78a65239a51e2038259ea0177680a",
+        "modified": "2026-10-05T21:01:07+01:00",
+        "features": {
+          "Melbourne_POIs": 16576
+        }
+      },
+      {
+        "file": "Melbourne_barriers.gpkg",
+        "bytes": 663552,
+        "sha256": "516ba3da40dc35c4aafe3432660d675c5a97cc43ef0a4ef1af355512e75cacd9",
+        "modified": "2026-10-05T21:01:06+01:00",
+        "features": {
+          "Melbourne_barriers": 2028
+        }
+      },
+      {
+        "file": "Melbourne_buildings.gpkg",
+        "bytes": 10518528,
+        "sha256": "02c58b971145972ee767d1e318c7cc75d9212dd8489e3526acf6df93a182b271",
+        "modified": "2026-10-05T21:01:07+01:00",
+        "features": {
+          "Melbourne_buildings": 16574
+        }
+      },
+      {
+        "file": "Melbourne_edges.gpkg",
+        "bytes": 6017024,
+        "sha256": "4a1e8ef03e391cd8c020fd449a387ef2bbbc7a98835798016f56c0cb49cb6663",
+        "modified": "2026-10-05T21:01:04+01:00",
+        "features": {
+          "Melbourne_edges": 23059
+        }
+      },
+      {
+        "file": "Melbourne_edgesDual.gpkg",
+        "bytes": 10080256,
+        "sha256": "9c59bd51f84ef9fb07cc43c80a810d29cf55c13ed155583f03ecdcd782be67aa",
+        "modified": "2026-10-05T21:01:06+01:00",
+        "features": {
+          "Melbourne_edgesDual": 54212
+        }
+      },
+      {
+        "file": "Melbourne_nodes.gpkg",
+        "bytes": 2097152,
+        "sha256": "21c0e775327d97c400c23739fbd80b493fa8548b3a58a6bbf93904cb983cd6ba",
+        "modified": "2026-10-05T21:01:04+01:00",
+        "features": {
+          "Melbourne_nodes": 15258
+        }
+      },
+      {
+        "file": "Melbourne_nodesDual.gpkg",
+        "bytes": 4202496,
+        "sha256": "c86ee1628e1a84ee22a851b0809706f20c797a94c97ce0ddb1b3ce0cbe21710f",
+        "modified": "2026-10-05T21:01:05+01:00",
+        "features": {
+          "Melbourne_nodesDual": 23059
+        }
+      },
+      {
+        "file": "Melbourne_obstructions.gpkg",
+        "bytes": 7815168,
+        "sha256": "2f6a91d7a1666738706baa4a9b023894217fae00da9aae113f56423c3d64b253",
+        "modified": "2026-10-05T21:01:07+01:00",
+        "features": {
+          "Melbourne_obstructions": 19710
+        }
+      },
+      {
+        "file": "Melbourne_sight_lines2D.gpkg",
+        "bytes": 90562560,
+        "sha256": "7f95bb2feec19c1c1b77aae653e12dddfeb51899ffcddbdbcae8ba89792354f7",
+        "modified": "2026-10-05T21:01:13+01:00",
+        "features": {
+          "Melbourne_sight_lines2D": 547178
+        }
+      }
+    ]
+  },
+  "updated": "2026-10-05T21:37:03+01:00"
+}
