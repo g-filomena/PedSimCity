@@ -68,6 +68,28 @@ partitions the drive network's dual graph with python-louvain weighted by the **
 between segments (`rad`); until cityImage 2.2.0 that weight was missing from the dual graph and every
 partition was topological.
 
+**Every city says how it was built: `src/main/resources/<City>/<City>_provenance.json`.**
+`00_city_preparation.py` writes its `preparation` section: the command line, every setting, the
+pedsimcity and cityImage commits (and whether either had local changes), the package versions, the
+inputs and the outputs with size, sha256 and feature count, and one record per stage - when it
+computed its checkpoints and with what, or that this run reused them. A stage records itself in
+`prep_staging/stage_provenance.json` when it computes, because a checkpoint reused by a later run
+was made by an earlier one, possibly on another cityImage. `build_lighting.py` adds a `lighting`
+section (steps run, the constants that shape the layer, inputs, outputs), and a raw input with a
+`<file>.provenance.json` beside it - `os_mastermap_buildings.py` writes one - is carried in. A
+GeoPackage stores its write time, so the same data written twice has two hashes: the sha256 names
+the file, not the data. For layers built before this existed, `python pipeline/provenance.py
+--city <City> --from-log <run log>` reads the stages back from the run's log.
+
+**How the network is shaped is saved with the city.** `--consolidate-network`,
+`--consolidate-tolerance`, `--remove-dead-ends`, `--network-clip-buffer` and
+`--min-building-area` (the smallest analysed footprint; smaller buildings only occlude) are
+written to `prep_config.json` like the place and EPSG, and a later run without them uses the saved values, so
+a rebuild cannot fall back to a default that changes every node. Torino and Melbourne are built
+without consolidation (Melbourne clipped 100 m inside its boundary): at 15 m it folds the
+separately mapped sidewalks into the roads, and on Torino it halves the network (30,900 -> 13,526
+nodes). The launchers pass these only when answered, so a blank answer keeps the saved choice.
+
 Two options for where the data comes from. `--districts-place '<OSM place>'` identifies the
 districts on that place's drive network rather than the study area's, then assigns them to the
 pedestrian nodes - regions are a property of the whole city, e.g. `'Greater London, UK'` for central
@@ -113,7 +135,12 @@ projected in the city CRS:
 **OS MasterMap (Great Britain).** `pipeline/os_mastermap_buildings.py --city <City> --order
 <unzipped Digimap order>` turns a Digimap order of OS MasterMap Topography Layer (GeoPackage,
 Buildings) and Building Height Attribute (CSV) into `<City>_officialBuildings.gpkg`. Heights join on
-the OS TOID; `height` is RelHMax (roof top above ground). `base` is left empty so the pipeline
+the OS TOID; `height` is RelHMax (roof top above ground). Where OS has no height and
+`<City>_DSM.tif` (EA first-return composite) and `<City>_DTM.tif` cover the footprint, the height is
+the surface's 90th percentile inside it minus the median terrain, recorded in `height_source`
+(`os_bha` / `lidar_dsm`); on London that matches RelHMax to a median -1.0 m and lifts coverage from
+77% to 97% of footprints. Archways, footbridges and bridges are left out: extruded from the ground,
+they would block the view under them. `base` is left empty so the pipeline
 samples it from `<City>_DTM.tif`, the same raster that gives the network nodes their `z`; a `base`
 already present is used as is and the DTM is then ignored for buildings. `--base zero` writes 0 for a
 city without a DTM, `--base absolute` writes AbsHMin. RelH2 and AbsHMin are kept as columns.
@@ -295,6 +322,12 @@ back there. Only the step-3/4 outputs the sim reads land in resources. The gener
 defaults live as constants at the top of `02_street_lights_generic.py`.
 
 ## Utilities
+
+`remap_track_nodes.py --city <City> --tracks <layer>` points a track layer's origin and destination
+node IDs (London's GPS tracks) at a rebuilt network: each end takes the node nearest the first
+track point within 25 m, walking in from that end, so a track entering from outside the network
+takes the node it enters by. The previous IDs are kept as `<column>_old`, with `_snap_m` and
+`_outside_m` beside them.
 
 | Script | Effect |
 |---|---|

@@ -194,12 +194,11 @@ switch ($stageChoice) {
 }
 
 Write-Host ''
-$consolidate = Read-Host 'Consolidate network nodes? yes/no [yes]'
-if ($consolidate -eq '') { $consolidate = 'yes' }
+# Blank keeps the city's saved choice (prep_config.json), or yes / 15 m for a new city.
+$consolidate = Read-Host 'Consolidate network nodes? yes/no [saved]'
 $consTol = ''
-if ($consolidate -notmatch '^(no|n)$') {
-    $consTol = Read-Host 'Consolidation tolerance in metres [15]'
-    if ($consTol -eq '') { $consTol = '15' }
+if ($consolidate -ne '' -and $consolidate -notmatch '^(no|n)$') {
+    $consTol = Read-Host 'Consolidation tolerance in metres [saved]'
 }
 
 # --- build the python argument list ----------------------------------------
@@ -207,7 +206,7 @@ $pyArgs = @('--city', $city)
 if ($place -ne '') { $pyArgs += @('--place', $place) }
 if ($epsg  -ne '') { $pyArgs += @('--epsg', $epsg) }
 if ($stages -ne '') { $pyArgs += @('--stages', $stages) }
-$pyArgs += @('--consolidate-network', $consolidate)
+if ($consolidate -ne '') { $pyArgs += @('--consolidate-network', $consolidate) }
 if ($consTol -ne '') { $pyArgs += @('--consolidate-tolerance', $consTol) }
 $remoteArgs = ($pyArgs | ForEach-Object { BashQuote $_ }) -join ' '
 
