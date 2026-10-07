@@ -1,0 +1,278 @@
+{
+  "city": "London",
+  "preparation": {
+    "written": "2026-10-06T12:32:25+01:00",
+    "source": "read back from run logs: /mnt/home/gabriele/runs/prep_london_220_stages_to_pois.log, /mnt/home/gabriele/runs/prep_london_220_sightlines.log, /mnt/home/gabriele/runs/prep_london_220.log",
+    "stages": {
+      "buildings": {
+        "started": "2026-10-05 19:19:28,365",
+        "checkpoints": [
+          "obstructions",
+          "buildings_analysed"
+        ],
+        "computed": "2026-10-05 19:19:37,240",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_london_220_stages_to_pois.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=300.0, min_building_area=50.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      },
+      "network": {
+        "started": "2026-10-05 19:19:37,336",
+        "checkpoints": [
+          "nodes_network",
+          "edges_network",
+          "nodesDual",
+          "edgesDual"
+        ],
+        "computed": "2026-10-05 19:33:00,315",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_london_220_stages_to_pois.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=300.0, min_building_area=50.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      },
+      "districts": {
+        "started": "2026-10-05 19:33:00,370",
+        "checkpoints": [
+          "nodes_districts"
+        ],
+        "computed": "2026-10-05 19:50:08,477",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_london_220_stages_to_pois.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=300.0, min_building_area=50.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      },
+      "elevation": {
+        "started": "2026-10-05 19:50:08,603",
+        "checkpoints": [
+          "nodes_z"
+        ],
+        "computed": "2026-10-05 19:50:10,911",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_london_220_stages_to_pois.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=300.0, min_building_area=50.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      },
+      "barriers": {
+        "started": "2026-10-05 19:50:10,922",
+        "checkpoints": [
+          "barriers",
+          "edges_barriers"
+        ],
+        "computed": "2026-10-05 20:19:16,595",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_london_220_stages_to_pois.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=300.0, min_building_area=50.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      },
+      "pois": {
+        "started": "2026-10-05 20:19:16,630",
+        "checkpoints": [
+          "pois"
+        ],
+        "computed": "2026-10-05 20:22:50,170",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_london_220_stages_to_pois.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=300.0, min_building_area=50.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      },
+      "sightlines": {
+        "started": "2026-10-05 21:35:51,271",
+        "checkpoints": [
+          "sight_lines"
+        ],
+        "computed": "2026-10-06 10:40:25,214",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_london_220_sightlines.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=300.0, min_building_area=50.0",
+          "cityImage": null
+        }
+      },
+      "landmarks": {
+        "started": "2026-10-06 12:06:27,547",
+        "checkpoints": [
+          "landmarks"
+        ],
+        "computed": "2026-10-06 12:31:24,342",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_london_220.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=300.0, min_building_area=50.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      }
+    },
+    "recorded_with": {
+      "python": "3.11.15",
+      "host": "gdsl1",
+      "packages": {
+        "cityImage": "2.2.0",
+        "osmnx": "2.1.1",
+        "geopandas": "1.1.4",
+        "shapely": "2.1.2",
+        "pyogrio": "0.12.1",
+        "networkx": "3.6.1",
+        "numpy": "2.4.6",
+        "pandas": "3.0.3",
+        "rasterio": "1.4.4"
+      },
+      "pedsimcity": {
+        "commit": "17d7f848481fac2b83aa15053ec47cbd4664e3c6",
+        "local_changes": [
+          "inputData/Torino/Torino_nodes_2m_densified_illuminated.gpkg",
+          "inputData/Torino/Torino_streetlights_with_radius.gpkg",
+          "pipeline/00_city_preparation.py",
+          "pipeline/build_lighting.py",
+          "pipeline/os_mastermap_buildings.py",
+          "src/main/resources/Melbourne/Melbourne_barriers.gpkg",
+          "src/main/resources/Melbourne/Melbourne_buildings.gpkg",
+          "src/main/resources/Melbourne/Melbourne_edges.gpkg",
+          "src/main/resources/Melbourne/Melbourne_edgesDual.gpkg",
+          "src/main/resources/Melbourne/Melbourne_nodes.gpkg",
+          "src/main/resources/Melbourne/Melbourne_nodesDual.gpkg",
+          "src/main/resources/Melbourne/Melbourne_obstructions.gpkg",
+          "src/main/resources/Melbourne/Melbourne_sight_lines2D.gpkg",
+          "src/main/resources/Torino/Torino_POIs.gpkg",
+          "src/main/resources/Torino/Torino_barriers.gpkg",
+          "src/main/resources/Torino/Torino_buildings.gpkg",
+          "src/main/resources/Torino/Torino_directional_lighting_lookup.csv",
+          "src/main/resources/Torino/Torino_edges.gpkg",
+          "src/main/resources/Torino/Torino_edgesDual.gpkg",
+          "src/main/resources/Torino/Torino_edges_illuminated_continuous.gpkg",
+          "src/main/resources/Torino/Torino_nodes.gpkg",
+          "src/main/resources/Torino/Torino_nodesDual.gpkg"
+        ]
+      },
+      "cityImage": {
+        "path": "/mnt/home/gabriele/cityImage/cityImage",
+        "git": {
+          "commit": "b56ba8997f068bb898018809df8a77deb8f22b4c",
+          "local_changes": [
+            "cityImage/landmarks.py",
+            "cityImage/visibility3d.py",
+            "tests/test_landmarks_scores.py",
+            "tests/test_visibility3d_pipeline.py"
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "file": "London_GPSIES_tracks.gpkg",
+        "bytes": 1806336,
+        "sha256": "9f5baadaf4bdbc86605fa5dd3664f40ba8e494e8456baaa094d74c78a4dcee68",
+        "modified": "2026-09-28T16:41:42+01:00",
+        "features": {
+          "London_landmarks_GPSIES_tracks": 240
+        }
+      },
+      {
+        "file": "London_POIs.gpkg",
+        "bytes": 6361088,
+        "sha256": "d6a41d3bfc0a303e8f00e94f6b9fb72fd2109514e7d4c6cdfa83f82a61ed3065",
+        "modified": "2026-10-06T12:31:42+01:00",
+        "features": {
+          "London_POIs": 51183
+        }
+      },
+      {
+        "file": "London_barriers.gpkg",
+        "bytes": 1847296,
+        "sha256": "179f2ff014deb96ba058b82f335ce6b67ed3e5b66bc96c4db4102493666585fb",
+        "modified": "2026-10-06T12:31:33+01:00",
+        "features": {
+          "London_barriers": 6979
+        }
+      },
+      {
+        "file": "London_buildings.gpkg",
+        "bytes": 62115840,
+        "sha256": "9ed79e80e3f8877505e4e2e0420b52a53a9125737dfbf00b61383e7cba5bcaf0",
+        "modified": "2026-10-06T12:31:37+01:00",
+        "features": {
+          "London_buildings": 85561
+        }
+      },
+      {
+        "file": "London_edges.gpkg",
+        "bytes": 21786624,
+        "sha256": "c894dfd429a59e9b828fba95da6aff6c0226d9d4a50abef12ef2d16e73565ab6",
+        "modified": "2026-10-06T12:31:29+01:00",
+        "features": {
+          "London_edges": 77288
+        }
+      },
+      {
+        "file": "London_edgesDual.gpkg",
+        "bytes": 31899648,
+        "sha256": "ef46390b555577aa6fba0e45cb16dfe091e819e9f9b2dad89a9b6d27e1c96477",
+        "modified": "2026-10-06T12:31:33+01:00",
+        "features": {
+          "London_edgesDual": 171263
+        }
+      },
+      {
+        "file": "London_nodes.gpkg",
+        "bytes": 7176192,
+        "sha256": "a03bb1c09e6bb057e27394df24378e5aeaa986e17bf4d14d79fdf6580eb1a927",
+        "modified": "2026-10-06T12:31:27+01:00",
+        "features": {
+          "London_nodes": 52997
+        }
+      },
+      {
+        "file": "London_nodesDual.gpkg",
+        "bytes": 15343616,
+        "sha256": "c999105e479a85a491472c739ca3a7330a221be47da8a3fcb80bb7371b840b11",
+        "modified": "2026-10-06T12:31:31+01:00",
+        "features": {
+          "London_nodesDual": 77288
+        }
+      },
+      {
+        "file": "London_obstructions.gpkg",
+        "bytes": 89329664,
+        "sha256": "20230b186fdcf35351d84fd3f2c43ea0d2136860ef8dd58ac78603c0eb371305",
+        "modified": "2026-10-06T12:31:41+01:00",
+        "features": {
+          "London_obstructions": 222117
+        }
+      },
+      {
+        "file": "London_sight_lines2D.gpkg",
+        "bytes": 120995840,
+        "sha256": "2de196e742f36bd8dc09bdfe8a5ae04980824d5c70dfa82885131e807438879a",
+        "modified": "2026-10-06T12:31:47+01:00",
+        "features": {
+          "London_sight_lines2D": 722813
+        }
+      }
+    ]
+  },
+  "updated": "2026-10-06T12:32:26+01:00"
+}
