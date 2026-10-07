@@ -89,6 +89,7 @@ import requests
 import cityImage as ci
 
 import paths
+import provenance
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)s  %(message)s")
 log = logging.getLogger("city_preparation")
@@ -694,13 +695,24 @@ def _select_analysis_buildings(obstructions, args):
                  len(subset), len(obstructions), args.analysis_radius)
     else:
         log.info("buildings: no study area or --analysis-radius; analysing all obstructions")
-        return obstructions.copy()
+        return _drop_small_buildings(obstructions.copy(), args)
 
     if subset.empty:
         log.warning("buildings: analysis area selected 0 buildings; "
                     "falling back to all obstructions")
-        return obstructions.copy()
-    return subset
+        subset = obstructions.copy()
+    return _drop_small_buildings(subset, args)
+
+
+def _drop_small_buildings(buildings, args):
+    """Analysed buildings at least --min-building-area square metres in footprint. The rest stay
+    in the obstructions, where they still occlude; they are only not scored or targeted."""
+    if not args.min_building_area:
+        return buildings
+    kept = buildings[buildings.geometry.area >= args.min_building_area].copy()
+    log.info("buildings: %d/%d analysed buildings of at least %.0f m2 (the rest only occlude)",
+             len(kept), len(buildings), args.min_building_area)
+    return kept
 
 
 def _load_or_build_obstructions(args):
@@ -983,6 +995,11 @@ def _write_output(gdf: gpd.GeoDataFrame, path) -> None:
     """
     Path(path).unlink(missing_ok=True)
     gdf.to_file(path, driver="GPKG")
+    WRITTEN.append(Path(path))
+
+
+# The outputs this run wrote, for the provenance file.
+WRITTEN: list[Path] = []
 
 
 def finalize(args, stager: Stager) -> None:
@@ -1055,6 +1072,14 @@ def finalize(args, stager: Stager) -> None:
 
     log.info("final outputs written to %s with prefix %s_*", out, args.city_name)
 
+    inputs = [_find_raster(args, kind) for kind in ("DTM", "DEM", "DSM")]
+    inputs += [_find_official(args)] + [
+        _find_raw(args, suffix)
+        for suffix in ("studyArea.gpkg", "extent.gpkg", "buildingHeights.gpkg")]
+    inputs += [args.raw_dir / f"{args.city_name}_obstructions.gpkg", args.raw_dir / CONFIG_NAME]
+    written = provenance.write_preparation(args, stager.dir, inputs, WRITTEN, args.computed_stages)
+    log.info("provenance written to %s", written)
+
 
 # ----------------------------------------------------------------------------
 # Entry point
@@ -1084,7 +1109,21 @@ def _save_config(args) -> None:
     }
     if args.districts_place:
         config["districts_place"] = args.districts_place
+    for option in SAVED_OPTIONS:
+        config[option] = getattr(args, option)
     config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
+
+
+# How the network and the analysed buildings are shaped, part of a city's identity like its place:
+# a rebuild that silently fell back to a default here would change every node, edge or landmark.
+# CLI wins, then prep_config.json, then these defaults.
+SAVED_OPTIONS = {
+    "consolidate_network": True,
+    "consolidate_tolerance": 15.0,
+    "remove_dead_ends": True,
+    "network_clip_buffer": 300.0,
+    "min_building_area": 0.0,
+}
 
 
 def _yes_no(value):
@@ -1111,17 +1150,19 @@ def parse_args(argv=None):
                              f"(optional once {CONFIG_NAME} exists in inputData/<City>)")
     parser.add_argument("--download_method", default=None,
                         help="cityImage download method (default OSMplace)")
-    parser.add_argument("--consolidate-network", type=_yes_no, default=True,
+    parser.add_argument("--consolidate-network", type=_yes_no, default=None,
                         metavar="yes/no",
                         help="consolidate nearby network nodes in the network stage "
-                             "(yes/no, default yes); uses --consolidate-tolerance")
-    parser.add_argument("--consolidate-tolerance", type=float, default=15.0,
+                             f"(yes/no, default yes; saved in {CONFIG_NAME}); uses "
+                             "--consolidate-tolerance")
+    parser.add_argument("--consolidate-tolerance", type=float, default=None,
                         help="node consolidation tolerance in metres, used when "
-                             "--consolidate-network yes (default 15)")
-    parser.add_argument("--remove-dead-ends", type=_yes_no, default=True, metavar="yes/no",
+                             f"--consolidate-network yes (default 15; saved in {CONFIG_NAME})")
+    parser.add_argument("--remove-dead-ends", type=_yes_no, default=None, metavar="yes/no",
                         help="drop dead-end streets when cleaning the network (yes/no, default "
                              "yes). Laneways and cul-de-sacs are dead ends, so a network matched "
-                             "to footpath counters on them needs no")
+                             "to footpath counters on them needs no. Saved in "
+                             f"{CONFIG_NAME}")
     parser.add_argument("--overpass-url", default=None,
                         help="Overpass API endpoint for every OSM download, e.g. "
                              "https://maps.mail.ru/osm/tools/overpass/api (default: OSMnx's, "
@@ -1138,9 +1179,13 @@ def parse_args(argv=None):
                         help="radius in metres from the obstructions' union centroid that "
                              "delimits the analysed buildings when no <City>_studyArea.gpkg "
                              "is supplied (default: analyse the whole place)")
-    parser.add_argument("--network-clip-buffer", type=float, default=300.0,
+    parser.add_argument("--network-clip-buffer", type=float, default=None,
                         help="margin in metres kept around the study area / obstructions hull when "
-                             "clipping the network (default 300)")
+                             f"clipping the network (default 300; saved in {CONFIG_NAME})")
+    parser.add_argument("--min-building-area", type=float, default=None,
+                        help="smallest footprint, in m2, among the analysed buildings (landmark "
+                             "scores and sight-line targets); smaller ones only occlude "
+                             f"(default 0, all; saved in {CONFIG_NAME})")
     parser.add_argument("--workers", type=int, default=None,
                         help="parallel workers for the sight lines (default cpu/2)")
     parser.add_argument("--max-sightline-distance", type=float, default=2000.0,
@@ -1165,6 +1210,9 @@ def parse_args(argv=None):
     args.epsg = args.epsg or config.get("epsg")
     args.download_method = args.download_method or config.get("download_method") or "OSMplace"
     args.districts_place = args.districts_place or config.get("districts_place")
+    for option, default in SAVED_OPTIONS.items():
+        if getattr(args, option) is None:
+            setattr(args, option, config.get(option, default))
     extent_path = _find_raw(args, "extent.gpkg")
     if (not args.place and extent_path is None) or not args.epsg:
         parser.error(
@@ -1172,6 +1220,8 @@ def parse_args(argv=None):
             f"run (no {CONFIG_NAME} in {args.raw_dir})"
         )
     _save_config(args)
+    log.info("saved options: %s",
+             ", ".join(f"{option}={getattr(args, option)}" for option in SAVED_OPTIONS))
 
     args.crs = f"EPSG:{args.epsg}"
     if extent_path is not None:
@@ -1231,6 +1281,7 @@ def _invalidate_downstream(args, stager: Stager, stage: str) -> None:
         removed = [path for path in stale if path.exists()]
         for path in removed:
             path.unlink()
+        provenance.forget_stages(stager.dir, [child])
         if removed and child not in args.run_stages:
             log.warning("%s is recomputed, so the %s output from the previous run is removed: "
                         "re-run --stages %s to rebuild it", stage, child, child)
@@ -1259,6 +1310,7 @@ def main(argv=None) -> int:
         "sightlines": stage_sightlines,
         "landmarks": stage_landmarks,
     }
+    args.computed_stages = set()
     for stage in STAGES:
         if stage not in args.run_stages:
             continue
@@ -1268,6 +1320,8 @@ def main(argv=None) -> int:
         # Only a stage that wrote new checkpoints makes the ones downstream stale; a stage that
         # skipped (checkpoints present) or had nothing to write (no DTM, no heights) does not.
         if _checkpoint_times(stager, stage) != before:
+            args.computed_stages.add(stage)
+            provenance.record_stage(stager.dir, stage, args, list(STAGE_CHECKPOINTS[stage]))
             _invalidate_downstream(args, stager, stage)
 
     finalize(args, stager)
