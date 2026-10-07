@@ -44,12 +44,19 @@ public class TripDiagnostic {
         : filename.substring(0, dot) + "_job" + job + filename.substring(dot);
   }
 
-  /** Resolves relative filenames under outputs/, or preserves an explicit absolute path. */
+  /**
+   * Resolves a relative filename under {@code outputs/}, or {@code outputs/<outputTag>/} when a tag
+   * is set, so concurrent runs do not overwrite each other; an absolute path is kept as given.
+   */
   public static String outputsPath(String filename) {
     if (java.nio.file.Path.of(filename).isAbsolute()) return filename;
-    File dir = new File("outputs");
+    String base =
+        pedsim.core.parameters.Pars.outputTag.isBlank()
+            ? "outputs"
+            : "outputs" + File.separator + pedsim.core.parameters.Pars.outputTag;
+    File dir = new File(base);
     if (!dir.exists()) dir.mkdirs();
-    return "outputs" + File.separator + filename;
+    return base + File.separator + filename;
   }
 
   /** Writes diagnostics from the completed trips of one job. */

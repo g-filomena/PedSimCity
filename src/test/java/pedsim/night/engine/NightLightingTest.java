@@ -41,6 +41,28 @@ class NightLightingTest {
     }
   }
 
+  /**
+   * A class whose median street is lit but a quarter of whose length is at 2 lux is expected to be
+   * a quarter as dark as those streets, not lit: the darkness of the median would be 0.
+   */
+  @Test
+  void aMostlyLitClassIsExpectedToBeAsDarkAsItsDarkShare() {
+    NightPars.reassuranceLux = 10.0;
+    double[] lengths = {100.0, 100.0, 100.0, 100.0};
+    double[] lux = {20.0, 20.0, 20.0, 2.0};
+    assertEquals(0.0, NightLighting.darkness(20.0));
+    assertEquals(
+        0.25 * NightLighting.darkness(2.0), NightLighting.expectedDarkness(lengths, lux), 1e-12);
+  }
+
+  @Test
+  void expectedDarknessWeighsStreetsByLength() {
+    NightPars.reassuranceLux = 10.0;
+    double[] lengths = {300.0, 100.0};
+    double[] lux = {0.0, 20.0};
+    assertEquals(0.75, NightLighting.expectedDarkness(lengths, lux), 1e-12);
+  }
+
   @Test
   void aZeroReassuranceLevelMakesNothingDark() {
     NightPars.reassuranceLux = 0.0;

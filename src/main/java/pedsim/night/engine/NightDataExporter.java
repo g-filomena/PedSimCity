@@ -11,6 +11,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Locale;
 import java.util.logging.Logger;
+import pedsim.core.engine.Exporter;
 import pedsim.core.engine.TripDiagnostic;
 import pedsim.core.engine.TripRouteRecorder;
 import pedsim.core.parameters.TimePars;
@@ -42,9 +43,12 @@ public final class NightDataExporter {
 
   private NightDataExporter() {}
 
-  /** Writes both files under {@code outputs/PedSimCityNight/data/}. */
+  /**
+   * Writes both files under {@code data/} in the night module's output directory, {@code
+   * outputs/PedSimCityNight[/<outputTag>]} ({@link Exporter#outputDirectory}).
+   */
   public static void export(int job, List<TripRouteRecorder.TripRecord> trips, Path volumesFile) {
-    Path dir = Paths.get("outputs", "PedSimCityNight", "data");
+    Path dir = Paths.get(Exporter.outputDirectory("PedSimCityNight"), "data");
     try {
       Files.createDirectories(dir);
     } catch (IOException e) {
