@@ -82,8 +82,10 @@ the file, not the data. For layers built before this existed, `python pipeline/p
 --city <City> --from-log <run log>` reads the stages back from the run's log.
 
 **How the network is shaped is saved with the city.** `--consolidate-network`,
-`--consolidate-tolerance`, `--remove-dead-ends`, `--network-clip-buffer` and
-`--min-building-area` (the smallest analysed footprint; smaller buildings only occlude) are
+`--consolidate-tolerance`, `--remove-dead-ends`, `--network-clip-buffer`, `--sidewalk-policy`
+(cityImage's: `keep_both`, the default, or `sidewalks`, which drops a centreline whose sidewalks
+are all drawn as walkways) and `--min-building-area` (the smallest analysed footprint; smaller
+buildings only occlude) are
 written to `prep_config.json` like the place and EPSG, and a later run without them uses the saved values, so
 a rebuild cannot fall back to a default that changes every node. Torino and Melbourne are built
 without consolidation (Melbourne clipped 100 m inside its boundary): at 15 m it folds the
@@ -331,6 +333,7 @@ takes the node it enters by. The previous IDs are kept as `<column>_old`, with `
 
 | Script | Effect |
 |---|---|
+| `street_corridors.py` | writes `<City>_streets.csv`: for every `edgeID` of `<City>_edges.gpkg`, the street it belongs to (`street_id`, `street_name`, `street_role`), from cityImage's `street_corridors` - a corso with its controviali and sidewalks, or a pedestrian street with its arcades, is one street. Reads the network and never rewrites it, so edge IDs stay valid; re-run after a network rebuild. Not read by the sim; for per-street volumes and lighting. `python pipeline/street_corridors.py --city Torino` |
 | `street_isovists.py` | writes `<City>_street_isovists.csv`, how open each street is (smallest and mean isovist area) and how many corners along it hide what is beyond, from cityImage's `street_isovists` over the building footprints, plus a GeoPackage and two maps for inspection. Read by the night module's enclosure cost. Keyed by `edgeID`: re-run after a network rebuild. `python pipeline/street_isovists.py Torino --workers 8` |
 | `active_frontages.py` | writes `<City>_edges_with_frontages.gpkg` to `inputData/<City>/` — **optional**, not yet read by the sim; run directly |
 

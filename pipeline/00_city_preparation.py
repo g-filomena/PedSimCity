@@ -330,7 +330,7 @@ def stage_network(args, stager: Stager) -> None:
     log.info("network: downloading pedestrian network for %s", args.query_label)
     nodes, edges = _from_osm(
         "network", ci.pedestrian_network_from_osm, args.query, crs=args.crs,
-        download_method=args.query_method,
+        download_method=args.query_method, sidewalk_policy=args.sidewalk_policy,
     )
 
     nodes, edges = _clip_network_to_boundary(args, stager, nodes, edges)
@@ -1123,6 +1123,7 @@ SAVED_OPTIONS = {
     "remove_dead_ends": True,
     "network_clip_buffer": 300.0,
     "min_building_area": 0.0,
+    "sidewalk_policy": "keep_both",
 }
 
 
@@ -1182,6 +1183,12 @@ def parse_args(argv=None):
     parser.add_argument("--network-clip-buffer", type=float, default=None,
                         help="margin in metres kept around the study area / obstructions hull when "
                              f"clipping the network (default 300; saved in {CONFIG_NAME})")
+    parser.add_argument("--sidewalk-policy", default=None,
+                        choices=("keep_both", "centrelines", "sidewalks"),
+                        help="how separately mapped sidewalks and road centrelines are reconciled "
+                             "(cityImage's sidewalk_policy): keep_both keeps both; sidewalks drops "
+                             "a centreline whose sidewalks are all drawn as walkways (default "
+                             f"keep_both; saved in {CONFIG_NAME})")
     parser.add_argument("--min-building-area", type=float, default=None,
                         help="smallest footprint, in m2, among the analysed buildings (landmark "
                              "scores and sight-line targets); smaller ones only occlude "
