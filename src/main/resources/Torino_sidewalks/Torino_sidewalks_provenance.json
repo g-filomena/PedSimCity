@@ -1,0 +1,710 @@
+{
+  "city": "Torino",
+  "lighting": {
+    "written": "2026-10-05T20:37:15+01:00",
+    "command": [
+      "build_lighting.py",
+      "--city",
+      "Torino",
+      "--force"
+    ],
+    "steps": {
+      "02": "ran 02_street_lights_torino.py 2026-10-05T20:28:39+01:00",
+      "03": "ran 03_street_lights.py 2026-10-05T20:36:11+01:00",
+      "04": "ran 04_directional_lighting.py 2026-10-05T20:37:15+01:00"
+    },
+    "constants": {
+      "lighting.py:FALLOFF_LAW": "\"isotropic\"",
+      "lighting.py:MIN_LUX": "5.0",
+      "lighting.py:NEGLIGIBLE_LUX": "0.05",
+      "02_street_lights_torino.py:NO_POLE_HEIGHT_M": "4.0",
+      "02_street_lights_torino.py:DEFAULT_POWER_W": "100.0",
+      "02_street_lights_torino.py:DEFAULT_HEIGHT_M": "9.0",
+      "02_street_lights_torino.py:DEFAULT_EFFICACY_LM_W": "70.0",
+      "03_street_lights.py:SAMPLE_SPACING_M": "2.0",
+      "03_street_lights.py:ARCADE_DEPTH_M": "5.0",
+      "04_directional_lighting.py:VISIBILITY_HORIZON_M": "15.0"
+    },
+    "environment": {
+      "python": "3.11.15",
+      "host": "gdsl1",
+      "packages": {
+        "cityImage": "2.2.0",
+        "osmnx": "2.1.1",
+        "geopandas": "1.1.4",
+        "shapely": "2.1.2",
+        "pyogrio": "0.12.1",
+        "networkx": "3.6.1",
+        "numpy": "2.4.6",
+        "pandas": "3.0.3",
+        "rasterio": "1.4.4"
+      },
+      "pedsimcity": {
+        "commit": "17d7f848481fac2b83aa15053ec47cbd4664e3c6",
+        "local_changes": [
+          "inputData/Torino/Torino_nodes_2m_densified_illuminated.gpkg",
+          "inputData/Torino/Torino_streetlights_with_radius.gpkg",
+          "pipeline/00_city_preparation.py",
+          "pipeline/build_lighting.py",
+          "pipeline/os_mastermap_buildings.py",
+          "src/main/resources/Melbourne/Melbourne_barriers.gpkg",
+          "src/main/resources/Melbourne/Melbourne_buildings.gpkg",
+          "src/main/resources/Melbourne/Melbourne_edges.gpkg",
+          "src/main/resources/Melbourne/Melbourne_edgesDual.gpkg",
+          "src/main/resources/Melbourne/Melbourne_nodes.gpkg",
+          "src/main/resources/Melbourne/Melbourne_nodesDual.gpkg",
+          "src/main/resources/Melbourne/Melbourne_obstructions.gpkg",
+          "src/main/resources/Melbourne/Melbourne_sight_lines2D.gpkg",
+          "src/main/resources/Torino/Torino_POIs.gpkg",
+          "src/main/resources/Torino/Torino_barriers.gpkg",
+          "src/main/resources/Torino/Torino_buildings.gpkg",
+          "src/main/resources/Torino/Torino_directional_lighting_lookup.csv",
+          "src/main/resources/Torino/Torino_edges.gpkg",
+          "src/main/resources/Torino/Torino_edgesDual.gpkg",
+          "src/main/resources/Torino/Torino_edges_illuminated_continuous.gpkg",
+          "src/main/resources/Torino/Torino_nodes.gpkg",
+          "src/main/resources/Torino/Torino_nodesDual.gpkg"
+        ]
+      },
+      "cityImage": {
+        "path": "/mnt/home/gabriele/cityImage/cityImage",
+        "git": {
+          "commit": "b56ba8997f068bb898018809df8a77deb8f22b4c",
+          "local_changes": []
+        }
+      }
+    },
+    "inputs": [
+      {
+        "file": "Torino_puntiLuce.gpkg",
+        "bytes": 28622848,
+        "sha256": "c76cd2969c76ec4efc13f0596943c17a07a6151301ede8f9ce4e89d05de57d7c",
+        "modified": "2026-09-14T22:10:57+01:00",
+        "features": {
+          "Torino_puntiLuce": 99742
+        }
+      },
+      {
+        "file": "Torino_streetlights_with_radius.gpkg",
+        "bytes": 32276480,
+        "sha256": "587170529b7bb1bc878a798cca17514595f40d0c90b20d7067603a015d4a219d",
+        "modified": "2026-10-05T20:28:38+01:00",
+        "features": {
+          "Torino_streetlights_with_radius": 99742
+        }
+      },
+      {
+        "file": "Torino_edges.gpkg",
+        "bytes": 11341824,
+        "sha256": "e2b65874f603c086992126fc543ec29c55e3759683a3c4d8c686c94412fef3fc",
+        "modified": "2026-10-05T20:28:15+01:00",
+        "features": {
+          "Torino_edges": 41893
+        }
+      },
+      {
+        "file": "Torino_buildings.gpkg",
+        "bytes": 24764416,
+        "sha256": "c18ce66860ea3c8a955e7096731a8326590c1cc3530fdaa2ff75ff50e0d0deb1",
+        "modified": "2026-10-05T20:28:27+01:00",
+        "features": {
+          "Torino_buildings": 25508
+        }
+      },
+      {
+        "file": "Torino_obstructions.gpkg",
+        "bytes": 20049920,
+        "sha256": "d5b5e643cca3ed11a701b9474a7b335561d5d754b8f76df0cd8c8a0bbcf48b1a",
+        "modified": "2026-10-05T17:20:31+01:00",
+        "features": {
+          "Torino_obstructions": 25508
+        }
+      }
+    ],
+    "outputs": [
+      {
+        "file": "Torino_edges_illuminated_continuous.gpkg",
+        "bytes": 12218368,
+        "sha256": "e0568b16ea51fac3a7b03d38813a06599835f1b7b4a72cbda3880c3f87aedb1e",
+        "modified": "2026-10-05T20:36:05+01:00",
+        "features": {
+          "Torino_edges_illuminated_continuous": 41893
+        }
+      },
+      {
+        "file": "Torino_directional_lighting_lookup.csv",
+        "bytes": 4444537,
+        "sha256": "23a80bf9b8aeda39c83ef241ca00d2c3b737ad7f251eb781715b600a5718a3ae",
+        "modified": "2026-10-05T20:37:15+01:00"
+      },
+      {
+        "file": "Torino_nodes_2m_densified_illuminated.gpkg",
+        "bytes": 158035968,
+        "sha256": "a64a7cfd34cea0e63bacd4117fe4c748d7e3163f6b6e6d6f3a56b7b682fd4576",
+        "modified": "2026-10-05T20:36:11+01:00",
+        "features": {
+          "Torino_nodes_2m_densified_illuminated": 1183130
+        }
+      }
+    ]
+  },
+  "updated": "2026-10-19T15:33:17+01:00",
+  "preparation": {
+    "written": "2026-10-05T21:37:02+01:00",
+    "source": "read back from run logs: /mnt/home/gabriele/runs/prep_torino_220.log",
+    "stages": {
+      "buildings": {
+        "started": "2026-10-05 19:19:28,320",
+        "checkpoints": [
+          "obstructions",
+          "buildings_analysed"
+        ],
+        "computed": "2026-10-05 19:19:42,479",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_torino_220.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=300.0, min_building_area=0.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      },
+      "network": {
+        "started": "2026-10-05 19:19:42,497",
+        "checkpoints": [
+          "nodes_network",
+          "edges_network",
+          "nodesDual",
+          "edgesDual"
+        ],
+        "computed": "2026-10-05 19:23:01,510",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_torino_220.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=300.0, min_building_area=0.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      },
+      "districts": {
+        "started": "2026-10-05 19:23:01,536",
+        "checkpoints": [
+          "nodes_districts"
+        ],
+        "computed": "2026-10-05 19:25:48,411",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_torino_220.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=300.0, min_building_area=0.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      },
+      "barriers": {
+        "started": "2026-10-05 19:25:48,432",
+        "checkpoints": [
+          "barriers",
+          "edges_barriers"
+        ],
+        "computed": "2026-10-05 19:29:33,411",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_torino_220.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=300.0, min_building_area=0.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      },
+      "pois": {
+        "started": "2026-10-05 19:29:33,427",
+        "checkpoints": [
+          "pois"
+        ],
+        "computed": "2026-10-05 19:29:38,556",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_torino_220.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=300.0, min_building_area=0.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      },
+      "landmarks": {
+        "started": "2026-10-05 19:29:42,808",
+        "checkpoints": [
+          "landmarks"
+        ],
+        "computed": "2026-10-05 20:28:13,627",
+        "run": {
+          "log": "/mnt/home/gabriele/runs/prep_torino_220.log",
+          "options": "consolidate_network=False, consolidate_tolerance=15.0, remove_dead_ends=False, network_clip_buffer=300.0, min_building_area=0.0",
+          "cityImage": {
+            "version": "2.2.0",
+            "path": "/mnt/home/gabriele/cityImage/cityImage/__init__.py"
+          }
+        }
+      }
+    },
+    "recorded_with": {
+      "python": "3.11.15",
+      "host": "gdsl1",
+      "packages": {
+        "cityImage": "2.2.0",
+        "osmnx": "2.1.1",
+        "geopandas": "1.1.4",
+        "shapely": "2.1.2",
+        "pyogrio": "0.12.1",
+        "networkx": "3.6.1",
+        "numpy": "2.4.6",
+        "pandas": "3.0.3",
+        "rasterio": "1.4.4"
+      },
+      "pedsimcity": {
+        "commit": "17d7f848481fac2b83aa15053ec47cbd4664e3c6",
+        "local_changes": [
+          "inputData/Torino/Torino_nodes_2m_densified_illuminated.gpkg",
+          "inputData/Torino/Torino_streetlights_with_radius.gpkg",
+          "pipeline/00_city_preparation.py",
+          "pipeline/build_lighting.py",
+          "pipeline/os_mastermap_buildings.py",
+          "src/main/resources/Melbourne/Melbourne_barriers.gpkg",
+          "src/main/resources/Melbourne/Melbourne_buildings.gpkg",
+          "src/main/resources/Melbourne/Melbourne_edges.gpkg",
+          "src/main/resources/Melbourne/Melbourne_edgesDual.gpkg",
+          "src/main/resources/Melbourne/Melbourne_nodes.gpkg",
+          "src/main/resources/Melbourne/Melbourne_nodesDual.gpkg",
+          "src/main/resources/Melbourne/Melbourne_obstructions.gpkg",
+          "src/main/resources/Melbourne/Melbourne_sight_lines2D.gpkg",
+          "src/main/resources/Torino/Torino_POIs.gpkg",
+          "src/main/resources/Torino/Torino_barriers.gpkg",
+          "src/main/resources/Torino/Torino_buildings.gpkg",
+          "src/main/resources/Torino/Torino_directional_lighting_lookup.csv",
+          "src/main/resources/Torino/Torino_edges.gpkg",
+          "src/main/resources/Torino/Torino_edgesDual.gpkg",
+          "src/main/resources/Torino/Torino_edges_illuminated_continuous.gpkg",
+          "src/main/resources/Torino/Torino_nodes.gpkg",
+          "src/main/resources/Torino/Torino_nodesDual.gpkg"
+        ]
+      },
+      "cityImage": {
+        "path": "/mnt/home/gabriele/cityImage/cityImage",
+        "git": {
+          "commit": "b56ba8997f068bb898018809df8a77deb8f22b4c",
+          "local_changes": []
+        }
+      }
+    },
+    "outputs": [
+      {
+        "file": "Torino_POIs.gpkg",
+        "bytes": 2772992,
+        "sha256": "75856c4380c36b45611a0511d0d8866aa06bb1e46c5e29bbcf07a6ac94699c5d",
+        "modified": "2026-10-05T20:28:35+01:00",
+        "features": {
+          "Torino_POIs": 22325
+        }
+      },
+      {
+        "file": "Torino_barriers.gpkg",
+        "bytes": 630784,
+        "sha256": "4abb576875e0e80c5f963f70f35ecb4ef432da2378ec7a39b3c8a496c4246a4e",
+        "modified": "2026-10-05T20:28:18+01:00",
+        "features": {
+          "Torino_barriers": 1578
+        }
+      },
+      {
+        "file": "Torino_buildings.gpkg",
+        "bytes": 24764416,
+        "sha256": "c18ce66860ea3c8a955e7096731a8326590c1cc3530fdaa2ff75ff50e0d0deb1",
+        "modified": "2026-10-05T20:28:27+01:00",
+        "features": {
+          "Torino_buildings": 25508
+        }
+      },
+      {
+        "file": "Torino_censusData.gpkg",
+        "bytes": 4186112,
+        "sha256": "ebede34a6ff21028739663f9f4be227ea9f38a424d079430a882bfdc6a15e995",
+        "modified": "2026-09-25T22:04:33+01:00",
+        "features": {
+          "Torino_censusData": 6775
+        }
+      },
+      {
+        "file": "Torino_edges.gpkg",
+        "bytes": 11341824,
+        "sha256": "e2b65874f603c086992126fc543ec29c55e3759683a3c4d8c686c94412fef3fc",
+        "modified": "2026-10-05T20:28:15+01:00",
+        "features": {
+          "Torino_edges": 41893
+        }
+      },
+      {
+        "file": "Torino_edgesDual.gpkg",
+        "bytes": 18210816,
+        "sha256": "5f1c339b6f6af7df91794a2e22f139862b2ca231604ce6d22e183659731dbe5b",
+        "modified": "2026-10-05T20:28:18+01:00",
+        "features": {
+          "Torino_edgesDual": 97775
+        }
+      },
+      {
+        "file": "Torino_edges_illuminated_continuous.gpkg",
+        "bytes": 12218368,
+        "sha256": "e0568b16ea51fac3a7b03d38813a06599835f1b7b4a72cbda3880c3f87aedb1e",
+        "modified": "2026-10-05T20:36:05+01:00",
+        "features": {
+          "Torino_edges_illuminated_continuous": 41893
+        }
+      },
+      {
+        "file": "Torino_nodes.gpkg",
+        "bytes": 3485696,
+        "sha256": "200df6e5b76650f0f6d8740e0adbbeacb32ab24114ebb6bdcd882398fbc3557c",
+        "modified": "2026-10-05T20:28:15+01:00",
+        "features": {
+          "Torino_nodes": 27334
+        }
+      },
+      {
+        "file": "Torino_nodesDual.gpkg",
+        "bytes": 7950336,
+        "sha256": "221f043ee3897ed1dd85134c9f14b3b6028906cdd845ab2d8e4d0e6dfe5a3d0d",
+        "modified": "2026-10-05T20:28:17+01:00",
+        "features": {
+          "Torino_nodesDual": 41893
+        }
+      },
+      {
+        "file": "Torino_obstructions.gpkg",
+        "bytes": 20049920,
+        "sha256": "aa0d6634daaec332330a7d15e743434513dffba49eed557da5d3a73397f3d1cf",
+        "modified": "2026-10-05T20:28:35+01:00",
+        "features": {
+          "Torino_obstructions": 25508
+        }
+      }
+    ]
+  },
+  "employment": {
+    "written": "2026-10-18T12:31:42+01:00",
+    "source": "ISTAT, Censimento dell'industria e dei servizi 2011, ADDETTI per sezione",
+    "urls": [
+      "https://www.istat.it/storage/cartografia/variabili-censuarie/dati-sce_2011.zip",
+      "https://www.istat.it/storage/cartografia/basi_territoriali/WGS_84_UTM/2011/R01_11_WGS84.zip"
+    ],
+    "settings": {
+      "city": "Torino",
+      "procom": 1272,
+      "region": 1
+    },
+    "environment": {
+      "python": "3.11.16",
+      "host": "MWS-1052487",
+      "packages": {
+        "cityImage": "2.1.1",
+        "osmnx": "2.1.1",
+        "geopandas": "1.1.4",
+        "shapely": "2.1.2",
+        "pyogrio": "0.12.1",
+        "networkx": "3.6.1",
+        "numpy": "2.4.6",
+        "pandas": "3.0.5",
+        "rasterio": "1.4.4"
+      },
+      "pedsimcity": {
+        "commit": "24f84e875a52dde5cee160f5f75fcb174e1d9807",
+        "local_changes": [
+          "CHANGELOG.md",
+          "README.md",
+          "references/README.md",
+          "scripts/aggregate_season_volumes.py",
+          "scripts/build_city.bat",
+          "scripts/export_network_geojson.py",
+          "scripts/publish_site.bat",
+          "scripts/publish_site.py",
+          "scripts/site/seasons.html",
+          "src/main/java/pedsim/activity/agents/ActivityAgent.java",
+          "src/main/java/pedsim/activity/agents/DestinationChoice.java",
+          "src/main/java/pedsim/activity/parameters/ActivityPars.java",
+          "src/main/java/pedsim/core/agents/AgentMovement.java",
+          "src/main/java/pedsim/core/engine/FlowHandler.java",
+          "src/main/java/pedsim/night/README.md",
+          "src/main/java/pedsim/night/agents/NightAgent.java",
+          "src/main/java/pedsim/night/agents/NightAgentMovement.java",
+          "src/main/java/pedsim/night/engine/NightEnvironment.java",
+          "src/main/java/pedsim/night/engine/NightImport.java",
+          "src/main/java/pedsim/night/engine/NightLighting.java",
+          "src/main/java/pedsim/night/engine/NightPopulate.java",
+          "src/main/java/pedsim/night/engine/NightSimulationModule.java",
+          "src/main/java/pedsim/night/engine/PedSimCityNight.java",
+          "src/main/java/pedsim/night/parameters/NightPars.java",
+          "src/main/java/pedsim/night/routing/NightRouteCost.java",
+          "src/main/resources/Torino/Torino.properties",
+          "src/test/java/pedsim/night/engine/NightLightingTest.java"
+        ]
+      },
+      "cityImage": {
+        "path": "E:\\OneDrive - The University of Liverpool\\Scripts\\cityImage\\cityImage",
+        "git": {
+          "commit": "32dc6e4813674a3ae0e43c006304bb5212722899",
+          "local_changes": [
+            "CHANGELOG.md",
+            "cityImage/__init__.py",
+            "cityImage/visibility2d.py"
+          ]
+        }
+      }
+    },
+    "inputs": [
+      {
+        "file": "dati-sce_2011.zip",
+        "bytes": 22080953,
+        "sha256": "220c84f8c1b08913d49c3b7ef9116059206872a4e1ffbe9e0c184d86a25afd61",
+        "modified": "2026-10-18T12:31:31+01:00"
+      },
+      {
+        "file": "R01_11_WGS84.zip",
+        "bytes": 43392363,
+        "sha256": "2250f17710224c3b190b9be20c983f7729722a03e57bd716e686463b306e6e89",
+        "modified": "2026-10-18T12:31:31+01:00"
+      }
+    ],
+    "output": {
+      "file": "Torino_employment.gpkg",
+      "bytes": 1929216,
+      "sha256": "e02ed60279ee1818872c982275473f80956cf6a64d11dc9c20cee60fdd7ce36d",
+      "modified": "2026-10-18T12:31:42+01:00",
+      "features": {
+        "Torino_employment": 3852
+      }
+    },
+    "employees": 404164
+  },
+  "streets": {
+    "written": "2026-10-19T15:33:16+01:00",
+    "method": "cityImage.street_corridors",
+    "cityImage": "2.2.0",
+    "settings": {
+      "city": "Torino_sidewalks",
+      "max_width": 40.0,
+      "max_gap": 250.0,
+      "max_offset": 25.0,
+      "max_angle": 20.0,
+      "overpass_url": "https://maps.mail.ru/osm/tools/overpass/api"
+    },
+    "environment": {
+      "python": "3.11.16",
+      "host": "MWS-1052487",
+      "packages": {
+        "cityImage": "2.1.1",
+        "osmnx": "2.1.1",
+        "geopandas": "1.1.4",
+        "shapely": "2.1.2",
+        "pyogrio": "0.12.1",
+        "networkx": "3.6.1",
+        "numpy": "2.4.6",
+        "pandas": "3.0.5",
+        "rasterio": "1.4.4"
+      },
+      "pedsimcity": {
+        "commit": "24f84e875a52dde5cee160f5f75fcb174e1d9807",
+        "local_changes": [
+          "CHANGELOG.md",
+          "README.md",
+          "pipeline/00_city_preparation.py",
+          "pipeline/README.md",
+          "references/README.md",
+          "scripts/aggregate_season_volumes.py",
+          "scripts/build_city.bat",
+          "scripts/export_network_geojson.py",
+          "scripts/publish_site.bat",
+          "scripts/publish_site.py",
+          "scripts/site/seasons.html",
+          "src/main/java/pedsim/activity/agents/ActivityAgent.java",
+          "src/main/java/pedsim/activity/agents/DestinationChoice.java",
+          "src/main/java/pedsim/activity/engine/ActivityEnvironment.java",
+          "src/main/java/pedsim/activity/engine/ActivityImport.java",
+          "src/main/java/pedsim/activity/engine/PedSimCityActivity.java",
+          "src/main/java/pedsim/activity/engine/PoiClassifier.java",
+          "src/main/java/pedsim/activity/parameters/ActivityPars.java",
+          "src/main/java/pedsim/core/agents/AgentMovement.java",
+          "src/main/java/pedsim/core/engine/FlowHandler.java",
+          "src/main/java/pedsim/night/README.md",
+          "src/main/java/pedsim/night/agents/NightAgent.java",
+          "src/main/java/pedsim/night/agents/NightAgentMovement.java",
+          "src/main/java/pedsim/night/engine/NightEnvironment.java",
+          "src/main/java/pedsim/night/engine/NightImport.java",
+          "src/main/java/pedsim/night/engine/NightLighting.java",
+          "src/main/java/pedsim/night/engine/NightPopulate.java",
+          "src/main/java/pedsim/night/engine/NightSimulationModule.java",
+          "src/main/java/pedsim/night/engine/PedSimCityNight.java",
+          "src/main/java/pedsim/night/parameters/NightPars.java",
+          "src/main/java/pedsim/night/routing/NightRouteCost.java",
+          "src/main/resources/Torino/Torino.properties",
+          "src/main/resources/Torino/Torino_provenance.json",
+          "src/test/java/pedsim/night/engine/NightLightingTest.java"
+        ]
+      },
+      "cityImage": {
+        "path": "E:\\OneDrive - The University of Liverpool\\Scripts\\cityImage\\cityImage",
+        "git": {
+          "commit": "32dc6e4813674a3ae0e43c006304bb5212722899",
+          "local_changes": [
+            "CHANGELOG.md",
+            "cityImage/__init__.py",
+            "cityImage/pedestrian.py",
+            "cityImage/visibility2d.py",
+            "tests/test_pedestrian_network.py"
+          ]
+        }
+      }
+    },
+    "inputs": [
+      {
+        "file": "Torino_sidewalks_edges.gpkg",
+        "bytes": 10702848,
+        "sha256": "b722d7905e8bcd57316d0841b7c7501f2b71a2539b09af4e18d56e5da651696e",
+        "modified": "2026-10-19T15:28:48+01:00",
+        "features": {
+          "Torino_sidewalks_edges": 39265
+        }
+      },
+      {
+        "file": "Torino_sidewalks_osm_roads.gpkg",
+        "bytes": 4149248,
+        "sha256": "67ea916455ba334e61c51ce0f76cc83321d78a4769fa62fd32f9b630bd4ec6bb",
+        "modified": "2026-10-19T15:28:50+01:00",
+        "features": {
+          "Torino_osm_roads": 16309
+        }
+      }
+    ],
+    "output": {
+      "file": "Torino_sidewalks_streets.csv",
+      "bytes": 1287371,
+      "sha256": "7be9a3f8ada9121ac41d9cd4459df8d712791ca8e67a1c1b08501731f64d80af",
+      "modified": "2026-10-19T15:33:16+01:00"
+    },
+    "streets": 2344,
+    "km_by_role": {
+      "carriageway": 1231.2,
+      "crossing": 70.4,
+      "path": 337.2,
+      "pedestrian_street": 58.9,
+      "side_road": 143.7,
+      "sidewalk": 336.4
+    }
+  },
+  "drop_duplicate_centrelines": {
+    "written": "2026-10-19T15:28:50+01:00",
+    "from_city": "Torino",
+    "settings": {
+      "city": "Torino",
+      "out": "Torino_sidewalks",
+      "min_coverage": 0.8,
+      "detour_ratio": 1.5,
+      "detour_slack": 50.0,
+      "max_stub": 25.0
+    },
+    "environment": {
+      "python": "3.11.16",
+      "host": "MWS-1052487",
+      "packages": {
+        "cityImage": "2.1.1",
+        "osmnx": "2.1.1",
+        "geopandas": "1.1.4",
+        "shapely": "2.1.2",
+        "pyogrio": "0.12.1",
+        "networkx": "3.6.1",
+        "numpy": "2.4.6",
+        "pandas": "3.0.5",
+        "rasterio": "1.4.4"
+      },
+      "pedsimcity": {
+        "commit": "24f84e875a52dde5cee160f5f75fcb174e1d9807",
+        "local_changes": [
+          "CHANGELOG.md",
+          "README.md",
+          "pipeline/00_city_preparation.py",
+          "pipeline/README.md",
+          "references/README.md",
+          "scripts/aggregate_season_volumes.py",
+          "scripts/build_city.bat",
+          "scripts/export_network_geojson.py",
+          "scripts/publish_site.bat",
+          "scripts/publish_site.py",
+          "scripts/site/seasons.html",
+          "src/main/java/pedsim/activity/agents/ActivityAgent.java",
+          "src/main/java/pedsim/activity/agents/DestinationChoice.java",
+          "src/main/java/pedsim/activity/engine/ActivityEnvironment.java",
+          "src/main/java/pedsim/activity/engine/ActivityImport.java",
+          "src/main/java/pedsim/activity/engine/PedSimCityActivity.java",
+          "src/main/java/pedsim/activity/engine/PoiClassifier.java",
+          "src/main/java/pedsim/activity/parameters/ActivityPars.java",
+          "src/main/java/pedsim/core/agents/AgentMovement.java",
+          "src/main/java/pedsim/core/engine/FlowHandler.java",
+          "src/main/java/pedsim/night/README.md",
+          "src/main/java/pedsim/night/agents/NightAgent.java",
+          "src/main/java/pedsim/night/agents/NightAgentMovement.java",
+          "src/main/java/pedsim/night/engine/NightEnvironment.java",
+          "src/main/java/pedsim/night/engine/NightImport.java",
+          "src/main/java/pedsim/night/engine/NightLighting.java",
+          "src/main/java/pedsim/night/engine/NightPopulate.java",
+          "src/main/java/pedsim/night/engine/NightSimulationModule.java",
+          "src/main/java/pedsim/night/engine/PedSimCityNight.java",
+          "src/main/java/pedsim/night/parameters/NightPars.java",
+          "src/main/java/pedsim/night/routing/NightRouteCost.java",
+          "src/main/resources/Torino/Torino.properties",
+          "src/main/resources/Torino/Torino_provenance.json",
+          "src/test/java/pedsim/night/engine/NightLightingTest.java"
+        ]
+      },
+      "cityImage": {
+        "path": "E:\\OneDrive - The University of Liverpool\\Scripts\\cityImage\\cityImage",
+        "git": {
+          "commit": "32dc6e4813674a3ae0e43c006304bb5212722899",
+          "local_changes": [
+            "CHANGELOG.md",
+            "cityImage/__init__.py",
+            "cityImage/pedestrian.py",
+            "cityImage/visibility2d.py",
+            "tests/test_pedestrian_network.py"
+          ]
+        }
+      }
+    },
+    "summary": {
+      "candidates": {
+        "edges": 2001,
+        "km": 69.2
+      },
+      "removed": {
+        "edges": 1558,
+        "km": 60.7
+      },
+      "kept_for_detour": {
+        "edges": 443,
+        "km": 8.5
+      },
+      "stubs_trimmed": {
+        "edges": 291,
+        "km": 2.11
+      },
+      "pseudo_nodes_dissolved": 779,
+      "edges": [
+        41893,
+        39265
+      ],
+      "nodes": [
+        27334,
+        26264
+      ]
+    }
+  }
+}
