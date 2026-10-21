@@ -6,17 +6,70 @@ follows [Keep a Changelog](https://keepachangelog.com); the project is not yet v
 ## 2026-10-21
 
 ### Added
+- **Overnight tourists.** A night's tourists are the month's presences over its days
+  (`ActivityPars.touristNightsByMonth`), built as `Persona.TOURIST` agents after the residents so
+  the residents' draws are unchanged. Each sleeps at a node drawn in proportion to its beds
+  (`<City>_accommodation.csv`) and follows a `TouristDay`: out among the sights until late
+  afternoon, lunch at the first stop after the lunch hour, back to the accommodation, out again for
+  dinner, then a bar or a show for `touristNightlifeShare` of them. A tourist does not revisit a
+  sight, looks for sights within `touristChoiceSetRadiusMetres` (8 km), and goes by public
+  transport when stops serve both ends of a leg it does not walk, otherwise by taxi; it has no car.
+  Tourists are outside the residents' leg budget, statistics and discretionary release
+  (`ActivityAgent.isResident`). The day summary counts taxi legs.
+- **`ActivityPurpose.SIGHTSEEING`**, from the `tourism` values attraction, museum, gallery,
+  viewpoint, zoo and theme_park. Its attraction is yearly visitors per sight when the city has
+  `<City>_sights.csv`, the tag count otherwise.
+- **`engine.Tourists`** reads `<City>_accommodation.csv` and `<City>_sights.csv`; a city without
+  them, or without `touristNightsByMonth`, has no tourists.
+- **Lunch at home.** A worker goes home for lunch with probability `lunchHomeShareWorker`, by the
+  commute's mode, when a break of `lunchHomeBreakMinMinutes` to `lunchHomeBreakMaxMinutes` (60-90
+  min) leaves at least `lunchStayMinMinutes` at home after the journey there and back; otherwise
+  it eats at work. Inbound commuters do not. The day summary counts lunches out, at home, and at
+  work for want of time.
 - `pipeline/accommodation.py` (generic) and `accommodation_torino.py` (the Regione Piemonte
   register, 2020), `pipeline/sights.py` and `inputData/Torino/sights/visitors.csv` (Osservatorio
   Culturale del Piemonte 2023). Turin: 23,581 beds on 245 nodes, 111 sights on 97 nodes.
 
+### Changed
+- **Turin's lunch shares are for employed people**: 14% out (restaurant and bar), 50% at home,
+  from ISTAT's figures for the employed in Italy scaled to Piedmont (derivation in
+  `Torino.properties`). They were the figures for everyone aged 3 and over, divided by the
+  employed share.
+- Turin's tourist nights: Osservatorio Turistico della Regione Piemonte, 3.86 million presences in
+  the city in 2022, in the monthly profile of 2023.
+
 ## 2026-10-20
 
 ### Added
+- **Public transport legs.** A commute or leg that is not walked goes by bus, tram or metro with
+  probability `transitShareWorker` / `Student` / `Discretionary` (Turin: ISTAT 2011 commutes inside
+  the city). The agent walks to a stop within `transitAccessRadiusMetres` (500 m) of its origin,
+  drawn by departures, is away for half the headway plus the ride at `transitSpeedKmh`, and walks
+  from a stop near its destination; after an outing by transit it goes home by transit when stops
+  serve both ends. Stops and their weekday departures are `<City>_transit_stops.csv`, written by
+  `scripts/build_transit_layer.py` from any GTFS feed.
+- **Car legs into a restricted zone.** Of what is neither walked nor by transit,
+  `carShareWorker` / `Student` / `Discretionary` is driven. A car driven to a destination in the
+  zone (`<City>_restricted_zone_nodes.csv`) is left in a parking structure within
+  `carParkRadiusMetres` and the rest walked; elsewhere it is left at the door. Commuters take a
+  space for the day within the structures' capacity at the run's scale (`CarParks.reserve`); one
+  who finds none goes by transit or puts no one on the street. A shorter visit needs a space left
+  free.
+- **Inbound commuters**: everyone who lives outside the city and works or studies in it
+  (`<City>_inbound_commuters.csv`, 179,715 people in Turin from the ISTAT 2011 matrix), built as
+  agents when their journey reaches the street: by train at a station the trains from their origin
+  call at (`<City>_rail_reach.csv`, the one nearest the job), by tram, metro or bus at a stop near
+  the job, by car at a car park when the job is in the restricted zone. Their departure and
+  journey times come from the matrix's bands. They are outside the residents' budget and
+  statistics.
+- **A lunch break from work**: `lunchOutShareWorker` of workers go to a dining destination near
+  the workplace between `lunchEarliestMinute` and `lunchLatestMinute` (12:00-13:30), for 20-40
+  minutes (Nomisma for Cirfood).
 - `AgentStatus.AWAY` and the core seams `travelUnwalked`, `walksBack`, `returnFromAway` and
   `legRole`: a module can send an agent off the street for a ride and resume it.
 - A `leg` column in `trip_diagnostic.csv`: `walk`, `to_stop`, `from_stop`, `to_car` or
   `from_car`.
+- `pedsim.activity.mobility`: `ModeChoice`, `CommuteMode`, `Ride`, `TransitStops`, `CarParks`.
 - Pipeline: `inbound_commuters_istat.py`, `rail_reach.py` (any rail GTFS; also writes
   `<City>_rail_stations.csv`), `parking.py` (generic) and `parking_5t_torino.py`.
 

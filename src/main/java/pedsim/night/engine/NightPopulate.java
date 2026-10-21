@@ -60,6 +60,7 @@ public class NightPopulate extends ActivityPopulate {
       registerAgent(vulnerableTwin);
       registerAgent(normalTwin);
     }
+    allocateCarParks(new java.util.ArrayList<>());
     LoggerUtil.getLogger()
         .info("Spawned " + pairs + " A/B twin pairs (vulnerable vs non-vulnerable).");
   }
@@ -82,6 +83,21 @@ public class NightPopulate extends ActivityPopulate {
     assignVulnerabilityStatus(agent);
     agent.drawReassuranceLux();
     return agent;
+  }
+
+  @Override
+  protected pedsim.activity.agents.ActivityAgent createNonResidentAgent(int agentID) {
+    NightAgent agent = new NightAgent(this.state, false);
+    agent.agentID = agentID;
+    return agent;
+  }
+
+  @Override
+  protected void finishNonResidentAgent(pedsim.activity.agents.ActivityAgent agent) {
+    if (agent instanceof NightAgent nightAgent) {
+      assignVulnerabilityStatus(nightAgent);
+      nightAgent.drawReassuranceLux();
+    }
   }
 
   /**

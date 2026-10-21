@@ -32,6 +32,41 @@ public class PedSimCityActivity extends PedSimCity {
     legsInDarkness.reset();
   }
 
+  /** Legs made by public transport today, walking to and from a stop; commutes among them. */
+  public final java.util.concurrent.atomic.LongAdder transitJourneys =
+      new java.util.concurrent.atomic.LongAdder();
+
+  public final java.util.concurrent.atomic.LongAdder transitCommutes =
+      new java.util.concurrent.atomic.LongAdder();
+
+  /** Legs driven today to a car park in the limited-traffic zone and walked from it. */
+  public final java.util.concurrent.atomic.LongAdder carJourneys =
+      new java.util.concurrent.atomic.LongAdder();
+
+  public final java.util.concurrent.atomic.LongAdder carCommutes =
+      new java.util.concurrent.atomic.LongAdder();
+
+  /** Legs tourists made by taxi today, with no one on the street until they arrive. */
+  public final java.util.concurrent.atomic.LongAdder taxiJourneys =
+      new java.util.concurrent.atomic.LongAdder();
+
+  /** Legs not walked and not made by public transport today, so with no one on the street. */
+  public final java.util.concurrent.atomic.LongAdder unwalkedOffStreet =
+      new java.util.concurrent.atomic.LongAdder();
+
+  /**
+   * Workers who went out for lunch today, who went home for it, and who drew a lunch at home the
+   * break left no time for.
+   */
+  public final java.util.concurrent.atomic.LongAdder lunchesOut =
+      new java.util.concurrent.atomic.LongAdder();
+
+  public final java.util.concurrent.atomic.LongAdder lunchesHome =
+      new java.util.concurrent.atomic.LongAdder();
+
+  public final java.util.concurrent.atomic.LongAdder lunchesHomeNoTime =
+      new java.util.concurrent.atomic.LongAdder();
+
   /** Distance bands (m) the realised walking share is reported over. */
   public static final double[] MODE_DISTANCE_BANDS = {500.0, 1000.0, 2000.0, 5000.0};
 
@@ -154,6 +189,15 @@ public class PedSimCityActivity extends PedSimCity {
 
   /** Clears the day's mode-choice counters. */
   public void resetModeChoiceCounters() {
+    transitJourneys.reset();
+    transitCommutes.reset();
+    carJourneys.reset();
+    carCommutes.reset();
+    taxiJourneys.reset();
+    unwalkedOffStreet.reset();
+    lunchesOut.reset();
+    lunchesHome.reset();
+    lunchesHomeNoTime.reset();
     for (int i = 0; i < legsOfferedByBand.length; i++) {
       legsOfferedByBand[i].reset();
       legsWalkedByBand[i].reset();

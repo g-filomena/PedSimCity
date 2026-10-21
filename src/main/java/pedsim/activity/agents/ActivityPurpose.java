@@ -40,7 +40,13 @@ public enum ActivityPurpose {
   LEISURE(7.0, 23.0, 60, 0.55),
 
   /** A walk for its own sake; always available, uniform destination choice. */
-  STROLL(0.0, 24.0, 30, 0.40);
+  STROLL(0.0, 24.0, 30, 0.40),
+
+  /**
+   * A sight a visitor goes to see. Residents never draw it; their visits to the same places are
+   * LEISURE. Opening hours and the stay are unsourced: museum hours, and the better part of an hour.
+   */
+  SIGHTSEEING(9.0, 19.0, 50, 0.60);
 
   // Not final: the constants above are generic defaults, replaceable per city through the
   // purpose.<NAME>.<setting> keys CityConfig reads. The defaults are kept alongside so a second
@@ -248,9 +254,14 @@ public enum ActivityPurpose {
     "amenity", "use", "fclass", "type", "building", "landuse", "land_use"
   };
 
+  /** {@code tourism} values that make a feature a sight, as {@code pipeline/sights.py} reads them. */
+  private static final Set<String> SIGHT_VALUES =
+      Set.of("attraction", "museum", "gallery", "viewpoint", "zoo", "theme_park");
+
   /**
-   * Classifies every recognised use of a feature: the single purpose from {@link #classify} plus
-   * one purpose per label of the optional {@code land_uses} column — the full list of cityImage
+   * Classifies every recognised use of a feature: the single purpose from {@link #classify}, {@link
+   * #SIGHTSEEING} for a sight's {@code tourism} tag, plus one purpose per label of the optional
+   * {@code land_uses} column — the full list of cityImage
    * macro-groups the preparation pipeline writes on buildings, stored in the GeoPackage as a
    * stringified Python list (e.g. {@code "['commercial', 'sustenance']"}). A mixed-use building
    * thus attracts every purpose it hosts, not only the first-listed one.
@@ -263,6 +274,10 @@ public enum ActivityPurpose {
     ActivityPurpose scalar = classify(attributes);
     if (scalar != null) {
       purposes.add(scalar);
+    }
+    String tourism = tagValue(attributes, "tourism");
+    if (tourism != null && SIGHT_VALUES.contains(tourism)) {
+      purposes.add(SIGHTSEEING);
     }
     String rawList = tagValue(attributes, "land_uses");
     if (rawList != null && rawList.startsWith("[") && rawList.endsWith("]")) {
