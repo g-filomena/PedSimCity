@@ -331,6 +331,7 @@ takes the node it enters by. The previous IDs are kept as `<column>_old`, with `
 
 | Script | Effect |
 |---|---|
+| `street_isovists.py` | writes `<City>_street_isovists.csv`, how open each street is (smallest and mean isovist area) and how many corners along it hide what is beyond, from cityImage's `street_isovists` over the building footprints, plus a GeoPackage and two maps for inspection. Read by the night module's enclosure cost. Keyed by `edgeID`: re-run after a network rebuild. `python pipeline/street_isovists.py Torino --workers 8` |
 | `active_frontages.py` | writes `<City>_edges_with_frontages.gpkg` to `inputData/<City>/` — **optional**, not yet read by the sim; run directly |
 
 ## Filename contract

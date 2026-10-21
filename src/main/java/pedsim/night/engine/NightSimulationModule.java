@@ -89,8 +89,10 @@ public final class NightSimulationModule implements SimulationModule {
         NightPars.crowdednessPercentile,
         "directionalLuxStatistic",
         NightPars.directionalLuxStatistic.toString(),
-        "nonVulnerableLightSensitivity",
-        NightPars.nonVulnerableLightSensitivity,
+        "minReassuranceLux",
+        NightPars.minReassuranceLux,
+        "maxReassuranceLux",
+        NightPars.maxReassuranceLux,
         "useGravityModel",
         pedsim.core.parameters.RouteChoicePars.useGravityModel);
   }
@@ -102,7 +104,8 @@ public final class NightSimulationModule implements SimulationModule {
         "abTestPairs", "int",
         "crowdednessPercentile", "double",
         "directionalLuxStatistic", "enum:MIN|MEAN",
-        "nonVulnerableLightSensitivity", "double",
+        "minReassuranceLux", "double",
+        "maxReassuranceLux", "double",
         "useGravityModel", "boolean");
   }
 }

@@ -31,7 +31,7 @@ The 24h clock (`isDark`), workplace/night-POI data and time-of-day destination s
 | `routing/NightRouteCost` | what a street costs after dark: length raised by darkness and by parks or water, weighted by vulnerability |
 | `routing/routers/RoadDistancePathFinder`, `routing/search/DijkstraRoadDistanceNight` | night route planning: least cost under `NightRouteCost` after dark, road distance by day |
 | `engine/NightLighting` | whether a street reads as lit, how dark an illuminance is, and the typical lux of a street class |
-| `parameters/NightPars` | darkness and park/water weights, the reassurance level, light-sensitivity thresholds, crowdedness percentile, A/B flag |
+| `parameters/NightPars` | darkness, park/water, enclosure and empty-street weights, the range reassurance levels are drawn from, crowdedness percentile, A/B flag |
 
 ## Data layers
 
@@ -48,11 +48,12 @@ Under A/B testing the split is experimental and set by construction, so it does 
 ## How it works
 
 1. **Clock** — `isDark` comes from `Daylight.isDark(time)`: sunrise and sunset for the simulated date at the city's own latitude and longitude, measured from the street network.
-2. **Vulnerability** — when `enableLightABTesting = false`, `NightPopulate.assignVulnerabilityStatus` makes every woman vulnerable; `NightAgent.initSensitivity` sets the light-sensitivity threshold.
+2. **Vulnerability and light** — when `enableLightABTesting = false`, `NightPopulate.assignVulnerabilityStatus` makes every woman vulnerable. `NightAgent.drawReassuranceLux` draws each agent's reassurance level, the illuminance at which darkness stops mattering to it, uniformly between `minReassuranceLux` and `maxReassuranceLux` (8.9 and 26 lx, the range of the plateau in Portnov, Fotios et al. 2024), whatever its vulnerability. A/B twins share theirs.
 3. **Destinations** — workplace POIs by day, night POIs after dark.
-4. **Route planning** — when dark, `NightAgent` plans the least-cost route under `NightRouteCost`: `length × (1 + darknessWeight × darkness(lux)) × (1 + parkWaterWeight)`, the park term only on park or waterside streets. `darkness` is 1 at 0 lux and falls concavely to 0 at `reassuranceLux` (10 lx, where reassurance plateaus). Both weights are higher for vulnerable agents. The agent plans with the measured lux of the streets it knows and the typical lux of their class for the rest.
-5. **Walking** — arriving at a street it did not know, the agent sees its real lighting and whether it is busy (a busy street costs no darkness). If the street is darker than assumed, it plans again from where it stands and takes the new route only if that is cheaper than finishing the old one. A street seen once is known for the rest of the trip, so each re-plan lowers the cost of what is left and none can repeat. On a street that reads as unlit at its own sensitivity and is not busy, the agent walks faster.
-6. **A/B testing** — with `enableLightABTesting = true`, `NightPopulate` spawns identical vulnerable/non-vulnerable twin pairs. In this mode the vulnerable/non-vulnerable split is experimental and does not read the agent's sex.
+4. **Walk or not** — after dark, the decision to walk a discretionary leg reads the walk-share curve at the leg's length times what its night route costs per metre (`NightRouteCost.perceivedLengthRatio`). A leg through dark, enclosed or empty streets is walked as rarely as a longer one, and more rarely by vulnerable agents, whose weights are higher. The route the decision was priced on is the one walked.
+5. **Route planning** — when dark, `NightAgent` plans the least-cost route under `NightRouteCost`: length raised by darkness, by parks or water, by enclosure and by an empty street. `darkness` is 1 at 0 lux and falls concavely to 0 at the agent's reassurance level. Every weight is higher for vulnerable agents. The agent plans with the measured lux of the streets it knows and the expected darkness of their class for the rest.
+6. **Walking** — arriving at a street it did not know, the agent sees its real lighting and whether it is busy (a busy street costs no darkness). If the street is darker than assumed, it plans again from where it stands and takes the new route only if that is cheaper than finishing the old one. A street seen once is known for the rest of the trip, so each re-plan lowers the cost of what is left and none can repeat. On a street below its reassurance level and not busy, the agent walks faster.
+7. **A/B testing** — with `enableLightABTesting = true`, `NightPopulate` spawns identical vulnerable/non-vulnerable twin pairs. In this mode the vulnerable/non-vulnerable split is experimental and does not read the agent's sex.
 
 ## Lighting semantics
 
@@ -67,9 +68,9 @@ The binary `lit` flag is only a pass/fail fallback when measured lux is missing.
 | `MIN` | `visibility_min_lux` | minimum lux near the edge entrance; about one lamp spacing wide, so it measures distance from the nearest lamp rather than how the street ahead is lit |
 | `MEAN` | `visibility_mean_lux` | average lux near the edge entrance — the default |
 
-Mean-light passes if measured `mean_lux` exists and exceeds the agent threshold, or if the binary `lit` fallback says the edge is lit. It then also has to clear the dark-spot test: `min_lux`, the darkest sample point on the edge, against `NightPars.darkSpotLuxThreshold` (5 lux, the pipeline's service level) rather than against the agent's own threshold, which a minimum over a whole edge would almost never clear. An edge carrying no `min_lux` passes that test, so a city without the lighting pipeline is gated on the mean alone. Entrance-light passes if directional lux exists and exceeds the threshold, or if the binary `lit` fallback says the edge is lit. Otherwise the check fails closed.
+Mean-light passes if measured `mean_lux` exists and reaches the agent's reassurance level, or if the binary `lit` fallback says the edge is lit. It then also has to clear the dark-spot test: `min_lux`, the darkest sample point on the edge, against `NightPars.darkSpotLuxThreshold` (5 lux, the pipeline's service level) rather than against the agent's own threshold, which a minimum over a whole edge would almost never clear. An edge carrying no `min_lux` passes that test, so a city without the lighting pipeline is gated on the mean alone. Entrance-light passes if directional lux exists and exceeds the threshold, or if the binary `lit` fallback says the edge is lit. Otherwise the check fails closed.
 
-By default `nonVulnerableLightSensitivity = 5.0`, so non-vulnerable agents also respond to darkness, treating an edge below 5 lux as dark (the same unlit threshold as the vulnerable-agent minimum). Set `nonVulnerableLightSensitivity = 0.0` to make non-vulnerable agents insensitive to darkness — lux-driven behaviour then applies only to vulnerable agents, apart from parks/water logic.
+To make agents insensitive to darkness, set the darkness weights to 0 (`darknessWeightVulnerable`, `darknessWeightNonVulnerable`); that is the baseline the day/night comparison runs against.
 
 ## Diagnostics
 
@@ -110,7 +111,8 @@ Module-specific REST parameters handled by `NightSimulationModule`:
 | `enableLightABTesting` | boolean | `NightPars.enableLightABTesting` |
 | `crowdednessPercentile` | double | `NightPars.crowdednessPercentile` |
 | `directionalLuxStatistic` | `MIN` \| `MEAN` | default `MEAN` |
-| `nonVulnerableLightSensitivity` | double | `NightPars.nonVulnerableLightSensitivity` |
+| `minReassuranceLux` | double | `NightPars.minReassuranceLux` (8.9) |
+| `maxReassuranceLux` | double | `NightPars.maxReassuranceLux` (26.0) |
 | `useGravityModel` | boolean | `RouteChoicePars.useGravityModel` |
 
 ## Open items

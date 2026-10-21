@@ -41,13 +41,14 @@ public class NightPopulate extends ActivityPopulate {
       vulnerableTwin.agentID = currentAgentID++;
       defineHomeWorkLocations(vulnerableTwin);
       vulnerableTwin.setVulnerable(true);
-      vulnerableTwin.initSensitivity();
+      vulnerableTwin.drawReassuranceLux();
 
       NightAgent normalTwin = new NightAgent(this.state, false);
       normalTwin.agentID = currentAgentID++;
       normalTwin.setHomeAndWorkplace(vulnerableTwin.homeNode, vulnerableTwin.workNode);
       normalTwin.setVulnerable(false);
-      normalTwin.initSensitivity();
+      // Twins differ in vulnerability only, so they need the same amount of light.
+      normalTwin.reassuranceLux = vulnerableTwin.reassuranceLux;
       // These two are built here rather than through defineHomeWorkLocations, so the commute mode
       // has to be settled explicitly; without it both twins defaulted to walking their commute.
       vulnerableTwin.decideCommuteMode();
@@ -79,7 +80,7 @@ public class NightPopulate extends ActivityPopulate {
     agent.agentID = agentID;
     defineHomeWorkLocations(agent);
     assignVulnerabilityStatus(agent);
-    agent.initSensitivity();
+    agent.drawReassuranceLux();
     return agent;
   }
 
