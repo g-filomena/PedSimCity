@@ -132,7 +132,7 @@ Each runnable module has Maven exec profiles (headless run, and REST + browser d
 |---|---|
 | `src/main/java/pedsim/<module>/` | Java source, one folder per module (each with a README) |
 | `src/test/java/` | unit tests; anything needing a city is tagged `slow` |
-| `scripts/` | build, publish and dashboard launchers (`build_city.bat`, `publish_site.py`, …) |
+| `scripts/` | build and dashboard launchers, and the scripts that write the results site's data (`build_city.bat`, `aggregate_season_volumes.py`, …) |
 | `src/main/resources/<City>/` | per-city GIS input layers read by the simulation (`<City>_*.gpkg`) |
 | `inputData/<City>/` | raw preparation material (DTM/DEM rasters, detailed building layers, source notes); `00_city_preparation.py` searches it automatically after the resources folder |
 | `pipeline/` | Python data-prep scripts + `build_lighting*.py` orchestrators — see [`pipeline/README.md`](pipeline/README.md) |
@@ -161,30 +161,18 @@ conventions.
 maps) under `outputs/<appName>/`, with trip diagnostics and the HTML dashboard at the `outputs/`
 root.
 
-**Publishing results** — the result pages under `outputs/results/` are self-contained HTML.
-`python scripts/publish_site.py` (or `scripts/publish_site.bat`) stages them into `outputs/site/` — an overview
-page plus one sub-page per city — and deploys to Cloudflare Pages (project `pedsimcity`),
-served at [pedsimcity.inclusivestreets.org](https://pedsimcity.inclusivestreets.org), with each
-city at `pedsimcity.inclusivestreets.org/<City>`. Use `--no-deploy` to only stage the folder
-(drag-and-drop it in the Pages dashboard instead), or `--open` to preview it locally. One-time
-toolchain setup (per machine): `npm install -g wrangler`, `wrangler login`,
-`wrangler pages project create pedsimcity`; the subdomain is then attached once in the
-Cloudflare dashboard (Workers & Pages → pedsimcity → Custom domains). Where wrangler is
-installed outside `PATH`, point `$WRANGLER` at the executable.
+**Publishing results** — the results site, [pedsimcity.inclusivestreets.org](https://pedsimcity.inclusivestreets.org),
+is built and deployed from outside this repository, in `../inclusivestreets/torino-di-notte/`
+(pages, logos, the publisher), with the umbrella `inclusivestreets.org` beside it in
+`../inclusivestreets/apex/`. They are two Cloudflare Pages projects, because a project serves
+the same deployment on every domain attached to it.
 
-**The apex is a second Pages project, deliberately.** A Pages project serves the *same*
-deployment on every domain attached to it, so `inclusivestreets.org` and
-`pedsimcity.inclusivestreets.org` cannot differ inside one project. The umbrella site —
-project `inclusivestreets`, apex + www — is a container that links to the projects under it,
-and it lives outside this repository, in `../inclusivestreets/`. Nothing here deploys it.
-
-**Per-city web data** — `outputs/site_data/<City>/` is staged to `<City>/data/` and published
-with the site. It holds the street network as WGS84 GeoJSON
-(`scripts/export_network_geojson.py`) and one aggregated file per season
-(`scripts/aggregate_season_volumes.py`); `publish_site.py` indexes them into
-`data/seasons/summary.json` and ships `scripts/site/seasons.html`, the map that reads them, as
-`<City>/seasons`. A city with that data but no exported run page is published for the data
-alone.
+What stays here is what reads the model's output and writes the site's data folder,
+`../inclusivestreets/torino-di-notte/data/<City>/`: the street network as WGS84 GeoJSON
+(`scripts/export_network_geojson.py`), one aggregated file per season
+(`scripts/aggregate_season_volumes.py`, run where the run is) and the street-lighting images
+(`scripts/render_city_light.py`). The publisher also picks up the single-run dashboards in
+`outputs/results/`.
 
 **How to use the Web Dashboard:**
 

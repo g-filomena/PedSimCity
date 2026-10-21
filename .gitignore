@@ -78,6 +78,7 @@ desktop.ini
 
 /cache/
 /obsolete/
+/analysis/
 /outputs/
 /src/main/java/pedsim/social/
 /src/main/java/pedsim/learning/
