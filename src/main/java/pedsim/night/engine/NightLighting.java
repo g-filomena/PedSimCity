@@ -1,7 +1,10 @@
 package pedsim.night.engine;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
@@ -65,41 +68,49 @@ public final class NightLighting {
   }
 
   /**
-   * How dark an illuminance reads, from 1.0 at 0 lux to 0.0 at {@link NightPars#reassuranceLux}
-   * and above, falling as {@code 1 - ln(1 + lux) / ln(1 + reassuranceLux)}.
+   * How dark an illuminance reads to an agent with a given reassurance level, from 1.0 at 0 lux to
+   * 0.0 at that level and above, falling as {@code 1 - ln(1 + lux) / ln(1 + reassuranceLux)}.
    *
    * <p>Concave, because reassurance gains most from the first few lux and little past the
-   * plateau (Fotios, Unwin and Farrall 2015; Portnov, Fotios et al. 2024): a street at 2 lux reads
-   * as 0.54 dark, one at 5 lux as 0.25.
+   * plateau (Fotios, Unwin and Farrall 2015; Portnov, Fotios et al. 2024): at a 10 lx level a
+   * street at 2 lux reads as 0.54 dark, one at 5 lux as 0.25.
+   *
+   * @param lux the street's illuminance
+   * @param reassuranceLux the illuminance at and above which the agent is not troubled by the dark
    */
-  public static double darkness(double lux) {
-    double reference = NightPars.reassuranceLux;
-    if (reference <= 0.0 || lux >= reference) {
+  public static double darkness(double lux, double reassuranceLux) {
+    if (reassuranceLux <= 0.0 || lux >= reassuranceLux) {
       return 0.0;
     }
     if (lux <= 0.0) {
       return 1.0;
     }
-    return 1.0 - Math.log1p(lux) / Math.log1p(reference);
+    return 1.0 - Math.log1p(lux) / Math.log1p(reassuranceLux);
   }
 
   /**
-   * How dark an agent expects a street it does not know to be: the {@link #darkness} of the city's
-   * streets of the same OSM {@code highway} class, averaged over their length, or of all streets
-   * for a class with none. The same expectation for every agent.
+   * How dark an agent with a given reassurance level expects a street it does not know to be: the
+   * {@link #darkness} of the city's streets of the same OSM {@code highway} class, averaged over
+   * their length, or of all streets for a class with none.
    *
-   * <p>The expected darkness, not the darkness of the typical illuminance: darkness is 0 above
-   * {@link NightPars#reassuranceLux}, so a class whose median street is lit, as residential
-   * streets are in Turin, would read as entirely lit although a quarter of its length is not.
+   * <p>The expected darkness, not the darkness of the typical illuminance: a class whose median
+   * street is lit, as residential streets are in Turin, would otherwise read as entirely lit
+   * although a quarter of its length is not.
+   *
+   * @param edge the street
+   * @param reassuranceLux the agent's reassurance level
    */
-  public static double expectedDarkness(EdgeGraph edge) {
-    Map<String, Double> byClass = expectedDarknessByClass;
+  public static double expectedDarkness(EdgeGraph edge, double reassuranceLux) {
+    Map<String, ClassLighting> byClass = lightingByClass;
     if (byClass == null) {
-      byClass = computeExpectedDarknessByClass();
-      expectedDarknessByClass = byClass;
+      byClass = computeLightingByClass();
+      lightingByClass = byClass;
     }
-    Double darkness = byClass.get(highwayClass(edge));
-    return darkness != null ? darkness : byClass.getOrDefault(ALL_CLASSES, 0.0);
+    ClassLighting lighting = byClass.get(highwayClass(edge));
+    if (lighting == null) {
+      lighting = byClass.get(ALL_CLASSES);
+    }
+    return lighting == null ? 0.0 : lighting.expectedDarkness(reassuranceLux);
   }
 
   /**
@@ -107,35 +118,93 @@ public final class NightLighting {
    *
    * @param lengths each street's length
    * @param lux each street's illuminance, in the same order
+   * @param reassuranceLux the reassurance level darkness is read at
    * @return the expected darkness, 0 for no length
    */
-  static double expectedDarkness(double[] lengths, double[] lux) {
-    double weighted = 0.0;
-    double total = 0.0;
-    for (int i = 0; i < lengths.length; i++) {
-      weighted += lengths[i] * darkness(lux[i]);
-      total += lengths[i];
+  static double expectedDarkness(double[] lengths, double[] lux, double reassuranceLux) {
+    return new ClassLighting(lengths, lux).expectedDarkness(reassuranceLux);
+  }
+
+  /**
+   * The lighting of one street class, held so that its expected darkness can be read at any
+   * reassurance level without a pass over the streets. With the streets sorted by illuminance, the
+   * streets below a level {@code R} contribute {@code length - length * ln(1 + lux) / ln(1 + R)},
+   * so two running sums over the sorted streets give the expectation by binary search.
+   */
+  static final class ClassLighting {
+    private final double[] sortedLux;
+    private final double[] lengthBelow;
+    private final double[] logWeightedLengthBelow;
+    private final double totalLength;
+
+    ClassLighting(double[] lengths, double[] lux) {
+      Integer[] order = new Integer[lux.length];
+      for (int i = 0; i < order.length; i++) {
+        order[i] = i;
+      }
+      Arrays.sort(order, (a, b) -> Double.compare(lux[a], lux[b]));
+      sortedLux = new double[lux.length];
+      lengthBelow = new double[lux.length + 1];
+      logWeightedLengthBelow = new double[lux.length + 1];
+      for (int k = 0; k < order.length; k++) {
+        int i = order[k];
+        double streetLux = Math.max(0.0, lux[i]);
+        sortedLux[k] = streetLux;
+        lengthBelow[k + 1] = lengthBelow[k] + lengths[i];
+        logWeightedLengthBelow[k + 1] =
+            logWeightedLengthBelow[k] + lengths[i] * Math.log1p(streetLux);
+      }
+      totalLength = lengthBelow[lux.length];
     }
-    return total > 0.0 ? weighted / total : 0.0;
+
+    double expectedDarkness(double reassuranceLux) {
+      if (totalLength <= 0.0 || reassuranceLux <= 0.0) {
+        return 0.0;
+      }
+      int below = firstAtOrAbove(reassuranceLux);
+      double dark = lengthBelow[below] - logWeightedLengthBelow[below] / Math.log1p(reassuranceLux);
+      return dark / totalLength;
+    }
+
+    /** The number of streets whose illuminance is below the given level. */
+    private int firstAtOrAbove(double level) {
+      int low = 0;
+      int high = sortedLux.length;
+      while (low < high) {
+        int mid = (low + high) >>> 1;
+        if (sortedLux[mid] < level) {
+          low = mid + 1;
+        } else {
+          high = mid;
+        }
+      }
+      return low;
+    }
   }
 
   private static final String ALL_CLASSES = "";
 
-  private static volatile Map<String, Double> expectedDarknessByClass;
+  private static volatile Map<String, ClassLighting> lightingByClass;
 
-  private static Map<String, Double> computeExpectedDarknessByClass() {
-    Map<String, double[]> sums = new HashMap<>();
+  private static Map<String, ClassLighting> computeLightingByClass() {
+    Map<String, List<double[]>> streets = new HashMap<>();
     for (EdgeGraph edge : SharedCognitiveMap.getCommunityPrimalNetwork().getEdges()) {
-      double length = edge.getLength();
-      double weighted = length * darkness(measuredLux(edge));
+      double[] street = {edge.getLength(), measuredLux(edge)};
       for (String key : new String[] {highwayClass(edge), ALL_CLASSES}) {
-        double[] sum = sums.computeIfAbsent(key, k -> new double[2]);
-        sum[0] += weighted;
-        sum[1] += length;
+        streets.computeIfAbsent(key, k -> new ArrayList<>()).add(street);
       }
     }
-    Map<String, Double> byClass = new HashMap<>();
-    sums.forEach((key, sum) -> byClass.put(key, sum[1] > 0.0 ? sum[0] / sum[1] : 0.0));
+    Map<String, ClassLighting> byClass = new HashMap<>();
+    streets.forEach(
+        (key, list) -> {
+          double[] lengths = new double[list.size()];
+          double[] lux = new double[list.size()];
+          for (int i = 0; i < lengths.length; i++) {
+            lengths[i] = list.get(i)[0];
+            lux[i] = list.get(i)[1];
+          }
+          byClass.put(key, new ClassLighting(lengths, lux));
+        });
     return byClass;
   }
 
@@ -184,6 +253,6 @@ public final class NightLighting {
   /** Drops the derived sets, so a re-imported network is not answered from the old one. */
   public static void clearCaches() {
     taggedLitEdges = null;
-    expectedDarknessByClass = null;
+    lightingByClass = null;
   }
 }

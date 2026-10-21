@@ -310,11 +310,25 @@ public class ActivityAgent extends Agent {
     }
     double metres =
         origin.getCoordinate().distance(destination.getCoordinate()) * Pars.networkCircuityFactor;
-    boolean walks = random.nextDouble() < state.travelDemand().walkProbability(metres);
+    double perceived = perceivedLegMetres(origin, destination, metres);
+    boolean walks = random.nextDouble() < state.travelDemand().walkProbability(perceived);
     if (state instanceof PedSimCityActivity activityState) {
       activityState.recordModeChoice(metres, walks, homeNode);
     }
     return walks;
+  }
+
+  /**
+   * The length the decision to walk weighs: the leg's metres. A module that prices a street by more
+   * than its length answers with what the leg would feel like to walk.
+   *
+   * @param origin where the leg starts
+   * @param destination where it ends
+   * @param metres the leg's estimated walked length
+   * @return the length to read the walk-share curve at
+   */
+  protected double perceivedLegMetres(NodeGraph origin, NodeGraph destination, double metres) {
+    return metres;
   }
 
   /** A chain that never set off leaves no agenda behind. */

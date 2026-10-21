@@ -3,7 +3,44 @@
 Notable changes to PedSimCity, most recent first, dated by the day they landed. The format
 follows [Keep a Changelog](https://keepachangelog.com); the project is not yet versioned.
 
+## 2026-10-16
+
+### Changed
+- **After dark, the cost of the route decides whether a leg is walked at all.** The walk-share
+  curve is read at the leg's length times what its night route costs per metre
+  (`NightRouteCost.perceivedLengthRatio`, through a new `ActivityAgent.perceivedLegMetres` seam),
+  so a leg through dark, enclosed or empty streets is walked as rarely as a longer one, and more
+  rarely by vulnerable agents. Fewer people walk after dark than in daylight at the same clock time
+  (Uttley and Fotios 2017); the night weights now act on that as well as on the route.
+- **Each night agent draws its own reassurance level**, uniformly between `minReassuranceLux` and
+  `maxReassuranceLux` (8.9 and 26 lx, the plateau range of Portnov, Fotios et al. 2024), and it
+  sets the darkness in the route cost, the expected darkness of unknown streets and the hurry rule.
+  The class expectation is exact at any level (running sums over each class's streets sorted by
+  illuminance). A/B twins share their level.
+
+### Fixed
+- **A night agent's first leg out of home crosses the mode choice.** `NightAgent.planTrip`
+  restated `Agent.planTrip` without `walksLeg`, so every outbound leg was walked however long it
+  was, and only chained legs were offered another mode; the override is gone. On a summer day at
+  20% of Turin's residents the night module now plans about half the metres it did (85,600
+  against 163,000 km on the first day of one run), in line with the activity tier. Night results before this date
+  over-count long walked legs.
+
+### Removed
+- `NightPars.reassuranceLux`, `minVulnerableLightSensitivity`, `maxVulnerableLightSensitivity`,
+  `nonVulnerableLightSensitivity` and `NightAgent.lightSensitivityThreshold`: the drawn threshold
+  only decided where an agent walked faster, while the cost used a fixed 10 lx for everyone.
+
 ## 2026-10-08
+
+### Added
+- **Enclosure and empty streets in the night route cost.** A street costs more after dark the
+  smaller its smallest isovist (`Enclosure`, 0 at `enclosedAreaM2` = 5,000 m2 and above; Fisher and
+  Nasar 1992) and the fewer open venues along it (`EyesOnStreet`, saturating at
+  `eyesSaturationPer100m`; Jacobs 1961, Ferraro 1995), each by a weight per vulnerability
+  (`enclosureWeight*`, `emptyStreetWeight*`, 1.0 and 0.5, unsourced).
+- `pipeline/street_isovists.py` writes `<City>_street_isovists.csv` from cityImage's
+  `street_isovists`.
 
 ### Removed
 - `scripts/publish_site.py`, `publish_site.bat` and `scripts/site/`: the results site is built and

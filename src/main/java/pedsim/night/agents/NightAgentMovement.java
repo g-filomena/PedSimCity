@@ -30,8 +30,7 @@ import sim.routing.Route;
  * Bode 2022); what bounds a detour here is its cost, as in revealed-preference route choice (e.g.
  * Broach and Dill 2015), not a forbidden set of streets.
  *
- * <p><b>Walking faster.</b> On a street that reads as unlit at the agent's own sensitivity and is
- * not busy, the agent speeds up - pedestrians hurry through dim and unfamiliar places (Fotios et
+ * <p><b>Walking faster.</b> On a street below the agent's own reassurance level and not busy, the agent speeds up - pedestrians hurry through dim and unfamiliar places (Fotios et
  * al. 2019; Basu et al. 2022). This is the reaction to a street it is walking, not a choice of
  * where to go.
  */
@@ -113,14 +112,13 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
     if (nightAgent.knowsLightingOf(edge)) {
       return false;
     }
-    double assumed =
-        NightRouteCost.factor(nightAgent, edge, NightLighting.expectedDarkness(edge), false);
+    double assumed = NightRouteCost.plannedFactor(nightAgent, edge);
     nightAgent.lightingSeenThisTrip.add(edge);
     double seen =
         NightRouteCost.factor(
             nightAgent,
             edge,
-            NightLighting.darkness(NightLighting.measuredLux(edge)),
+            NightRouteCost.seenDarkness(nightAgent, edge),
             Crowdness.isEdgeCrowded(edge));
     if (seen <= assumed) {
       return false;
@@ -149,12 +147,12 @@ public class NightAgentMovement extends pedsim.core.agents.AgentMovement {
   }
 
   /**
-   * Whether the edge reads as lit to this agent: bright enough on average with no unlit gap ({@link
-   * NightLighting#isLit}), and bright enough where the agent enters it. With no directional value
-   * for the entrance, the OSM tag decides.
+   * Whether the edge reads as lit to this agent: at or above its reassurance level on average with
+   * no unlit gap ({@link NightLighting#isLit}), and where the agent enters it. With no directional
+   * value for the entrance, the OSM tag decides.
    */
   private boolean readsAsLit(EdgeGraph edge) {
-    double threshold = nightAgent.lightSensitivityThreshold;
+    double threshold = nightAgent.reassuranceLux;
     if (!NightLighting.isLit(edge, threshold)) {
       return false;
     }

@@ -21,6 +21,60 @@ public class NightImport extends ActivityImport {
     super.importFiles();
     readIlluminatedEdges();
     readDirectionalLighting();
+    readStreetIsovists();
+  }
+
+  /**
+   * Loads each street's smallest isovist area ({@code iso_area_min} of {@code
+   * <City>_street_isovists.csv}, written by {@code pipeline/street_isovists.py}) into {@link
+   * PedSimCityNight#streetIsovistAreaMin}, by {@code edgeID}. A city without the file has no
+   * enclosed streets.
+   */
+  protected void readStreetIsovists() {
+    PedSimCityNight.streetIsovistAreaMin.clear();
+    String resourceName =
+        pedsim.core.parameters.Pars.cityName
+            + "/"
+            + pedsim.core.parameters.Pars.cityName
+            + "_street_isovists.csv";
+    URL fileUrl = CLASSLOADER.getResource(resourceName);
+    if (fileUrl == null) {
+      logger.info("Street isovists not found at: " + resourceName + " - no street is enclosed.");
+      return;
+    }
+    int skipped = 0;
+    try (BufferedReader br =
+        new BufferedReader(new InputStreamReader(fileUrl.openStream(), StandardCharsets.UTF_8))) {
+      String headerLine = br.readLine();
+      List<String> header =
+          headerLine == null ? List.of() : Arrays.asList(headerLine.split(",", -1));
+      int idIdx = header.indexOf("edgeID");
+      int areaIdx = header.indexOf("iso_area_min");
+      if (idIdx < 0 || areaIdx < 0) {
+        logger.warning(
+            "Street isovists CSV lacks edgeID or iso_area_min; header=" + header + " - skipped.");
+        return;
+      }
+      String line;
+      while ((line = br.readLine()) != null) {
+        String[] parts = line.split(",", -1);
+        try {
+          PedSimCityNight.streetIsovistAreaMin.put(
+              Integer.parseInt(parts[idIdx].trim()), Double.parseDouble(parts[areaIdx].trim()));
+        } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+          skipped++;
+        }
+      }
+    } catch (Exception e) {
+      logger.warning("Failed to load street isovists: " + e.getMessage());
+      return;
+    }
+    logger.info(
+        "Street isovists: "
+            + PedSimCityNight.streetIsovistAreaMin.size()
+            + " streets ("
+            + skipped
+            + " rows skipped).");
   }
 
   /**

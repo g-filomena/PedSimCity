@@ -15,13 +15,6 @@ public class NightPars {
    */
   public static DirectionalLuxStatistic directionalLuxStatistic = DirectionalLuxStatistic.MEAN;
 
-  // GUI Configurable parameters for light sensitivity (Lux)
-  public static double minVulnerableLightSensitivity = 5.0;
-  public static double maxVulnerableLightSensitivity = 15.0;
-  // Non-vulnerable agents treat an edge as dark only below 5 lux (the pipeline's
-  // UNLIT_LUX_THRESHOLD).
-  public static double nonVulnerableLightSensitivity = 5.0;
-
   // Nominal illuminance (lux) credited to edges known lit only via the binary "lit" flag (no
   // continuous mean_lux), for the per-agent lux metric. Defaults to the lit/unlit threshold as a
   // conservative lower bound (a lit edge is at least this bright); raise for a more representative
@@ -55,16 +48,22 @@ public class NightPars {
   public static int abTestPairs = 72;
 
   /**
-   * Illuminance at which darkness stops costing anything, in lux. Reassurance rises with
-   * illuminance and plateaus: Fotios, Unwin and Farrall (2015) put the optimum near 10 lx, and
-   * Portnov, Fotios et al. (2024) find the final breakpoint between 8.9 and 26 lx by location.
+   * Lower bound of the illuminance at which darkness stops mattering to an agent, in lux. Each
+   * agent draws its own level uniformly between this and {@link #maxReassuranceLux}. Reassurance
+   * rises with illuminance and plateaus, and Portnov, Fotios et al. (2024) find the final
+   * breakpoint between 8.9 and 26 lx; Fotios, Unwin and Farrall (2015) put the optimum near 10 lx.
+   * That range is between locations, not between people, so spreading people over it is an
+   * assumption.
    */
-  public static double reassuranceLux = 10.0;
+  public static double minReassuranceLux = 8.9;
+
+  /** Upper bound of the drawn reassurance level, in lux; see {@link #minReassuranceLux}. */
+  public static double maxReassuranceLux = 26.0;
 
   /**
    * How much a fully dark street costs a vulnerable walker, as a fraction of its length on top of
-   * the length itself: at 1.0 an unlit street costs twice its length, a street at {@link
-   * #reassuranceLux} or brighter costs its length. The direction is supported - women avoid
+   * the length itself: at 1.0 an unlit street costs twice its length, a street at the agent's
+   * reassurance level or brighter costs its length. The direction is supported - women avoid
    * unlit routes at night (Basu, Sevtsuk et al. 2023) - the magnitude is not: no source gives the
    * metres of detour a given darkness is worth, so this is an assumption to state and sweep.
    */
@@ -87,4 +86,42 @@ public class NightPars {
 
   /** The same for a non-vulnerable walker, at the ratio used for darkness. */
   public static double parkWaterWeightNonVulnerable = 0.5;
+
+  /**
+   * Extra cost, as a fraction of length, of a street with no eyes on it after dark for a vulnerable
+   * walker: the factor is {@code 1 + emptyStreetWeight * (1 - eyes)}, eyes from {@code
+   * EyesOnStreet}, so a deserted street costs more than a lively one however well lit both are.
+   * Streets watched by open, active frontages feel safer (Jacobs 1961) and others' presence
+   * reassures (Ferraro 1995). Magnitude unsourced; sweep it.
+   */
+  public static double emptyStreetWeightVulnerable = 1.0;
+
+  /** The same for a non-vulnerable walker, at the ratio used for darkness. */
+  public static double emptyStreetWeightNonVulnerable = 0.5;
+
+  /**
+   * Open venues per 100 m of street at which its eyes reach {@code 1 - 1/e}, about 0.63. Two: a
+   * shop or bar every 50 m on one side. Unsourced; it sets the scale, the weight above the effect.
+   */
+  public static double eyesSaturationPer100m = 2.0;
+
+  /** How far from a street a venue may be and still count on it, in metres. */
+  public static double eyesSnapMetres = 25.0;
+
+  /**
+   * Smallest isovist area, in m2, at and above which a street counts as open ({@code Enclosure}
+   * 0). 5,000: about the 12th percentile of Turin's streets, a 25 m wide street seen 100 m each
+   * way. Unsourced; it sets the scale, the weights below the effect.
+   */
+  public static double enclosedAreaM2 = 5000.0;
+
+  /**
+   * Extra cost, as a fraction of length, of a fully enclosed street after dark for a vulnerable
+   * walker: low prospect and places to hide make a route feel unsafe (Fisher and Nasar 1992).
+   * Magnitude unsourced; sweep it.
+   */
+  public static double enclosureWeightVulnerable = 1.0;
+
+  /** The same for a non-vulnerable walker, at the ratio used for darkness. */
+  public static double enclosureWeightNonVulnerable = 0.5;
 }

@@ -10,6 +10,8 @@ import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.utilities.StringEnum.Vulnerable;
 import pedsim.night.engine.PedSimCityNight;
+import pedsim.night.parameters.NightPars;
+import pedsim.night.routing.NightRouteCost;
 import pedsim.night.routing.routers.RoadDistancePathFinder;
 import sim.engine.SimState;
 import sim.graph.EdgeGraph;
@@ -17,11 +19,20 @@ import sim.graph.Graph;
 import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
 import sim.graph.NodesLookup;
+import sim.routing.Route;
 
 /**
  * Pedestrian agent for the night module. Inherits the 24h activity pattern (time-of-day destination
  * selection) from {@link ActivityAgent} and adds the night layer: routes priced by darkness and by
  * parks and water after dark, re-planned when a street turns out darker than assumed.
+ *
+ * <p><b>Darkness weighs on whether to walk, not only on where.</b> After dark the decision to walk
+ * a discretionary leg reads the walk-share curve at the leg's length times what its night route
+ * costs per metre ({@link NightRouteCost#perceivedLengthRatio}), so a leg through dark, empty or
+ * enclosed streets is walked as rarely as a longer one would be. The cost is the route planner's,
+ * weights and all, so a vulnerable agent declines more dark legs than a non-vulnerable one for the
+ * same reasons it detours more. Fewer people walk after dark than in daylight at the same clock
+ * time (Uttley and Fotios 2017; Fotios, Uttley and Fox 2019).
  *
  * <p><b>A night agent walks its whole trip.</b> The model has no transit, so an evening journey
  * that a real person would make by bus or metro is either walked in full or, where the commute
@@ -41,7 +52,17 @@ public class NightAgent extends ActivityAgent {
   /** Whether this agent is vulnerable after dark; drawn per agent by {@code NightPopulate}. */
   private boolean vulnerable;
 
-  public double lightSensitivityThreshold;
+  /**
+   * The illuminance, in lux, at and above which this agent is not troubled by the dark; see {@link
+   * #drawReassuranceLux()}.
+   */
+  public double reassuranceLux;
+
+  /** The night route a dark leg's mode decision was priced on, walked if the agent walks the leg. */
+  private Route pricedRoute;
+
+  private NodeGraph pricedOrigin;
+  private NodeGraph pricedDestination;
 
   /** Edges whose lighting this agent has seen on the current trip; cleared as each trip starts. */
   final Set<EdgeGraph> lightingSeenThisTrip = new HashSet<>();
@@ -70,18 +91,15 @@ public class NightAgent extends ActivityAgent {
   }
 
   /**
-   * Sets the light-sensitivity threshold: a uniform draw in [min, max] for vulnerable agents, the
-   * fixed non-vulnerable value otherwise. It decides which streets read as unlit to the agent, and
-   * so where it walks faster.
+   * Draws the agent's reassurance level uniformly in [{@link NightPars#minReassuranceLux}, {@link
+   * NightPars#maxReassuranceLux}], whatever its vulnerability: people differ in how much light they
+   * need, and vulnerability acts through the weights. It sets how dark every street reads to the
+   * agent, in the route cost and in the decision to walk faster.
    */
-  public void initSensitivity() {
-    if (isVulnerable()) {
-      double min = state.getMinVulnerableLightSensitivity();
-      double max = state.getMaxVulnerableLightSensitivity();
-      this.lightSensitivityThreshold = min + random.nextDouble() * (max - min);
-    } else {
-      this.lightSensitivityThreshold = state.getNonVulnerableLightSensitivity();
-    }
+  public void drawReassuranceLux() {
+    double min = NightPars.minReassuranceLux;
+    double max = NightPars.maxReassuranceLux;
+    this.reassuranceLux = min + random.nextDouble() * (max - min);
   }
 
   /** Called every tick: plans a trip when idle, otherwise advances along the night-aware path. */
@@ -108,31 +126,6 @@ public class NightAgent extends ActivityAgent {
     }
   }
 
-  /**
-   * Plans one trip. Destination is home when heading home, the workplace when the persona's work
-   * rule fires (weekday, inside the start window, daylight), otherwise a random reachable node —
-   * avoiding parks/water when dark. Routing is night-aware after dark and plain shortest path
-   * during the day (see {@link #planRoute()}).
-   */
-  @Override
-  protected void planTrip() {
-    defineOrigin();
-    if (isGoingHome()) {
-      destinationNode = homeNode;
-    } else if (shouldGoToWork()) {
-      destinationNode = workNode;
-    } else {
-      defineRandomDestination();
-    }
-    if (sameOriginDestination()) {
-      return;
-    }
-    planRoute();
-    tripStartStep = state.schedule.getSteps();
-    agentMovement = createMovement();
-    agentMovement.initialisePath(getRoute());
-  }
-
   /** Every trip — including chained agenda trips — uses the lighting-aware movement handler. */
   @Override
   protected pedsim.core.agents.AgentMovement createMovement() {
@@ -141,10 +134,20 @@ public class NightAgent extends ActivityAgent {
 
   /**
    * Night-cost routing after dark ({@code DijkstraRoadDistanceNight}: darkness and parks or water
-   * priced by vulnerability); plain shortest path during the day.
+   * priced by vulnerability); plain shortest path during the day. A leg whose mode decision was
+   * priced on a night route walks that route.
    */
   @Override
   protected void planRoute() {
+    Route priced = pricedRoute;
+    pricedRoute = null;
+    if (priced != null
+        && state.isDark
+        && originNode == pricedOrigin
+        && destinationNode == pricedDestination) {
+      initialiseRoute(priced);
+      return;
+    }
     initialiseHeuristics(true);
     RoadDistancePathFinder pathFinder = new RoadDistancePathFinder();
     initialiseRoute(
@@ -153,12 +156,26 @@ public class NightAgent extends ActivityAgent {
             : pathFinder.roadDistance(originNode, destinationNode, this));
   }
 
-  private boolean sameOriginDestination() {
-    if (destinationNode.getID() == originNode.getID()) {
-      reachedDestination.set(true);
-      return true;
+  /**
+   * After dark, the leg's metres times what its night route costs per metre; by day, the metres.
+   * The route is planned here and kept, so a leg the agent decides to walk is walked on the route it
+   * was judged by.
+   */
+  @Override
+  protected double perceivedLegMetres(NodeGraph origin, NodeGraph destination, double metres) {
+    pricedRoute = null;
+    if (!state.isDark || origin.equals(destination)) {
+      return metres;
     }
-    return false;
+    initialiseHeuristics(true);
+    Route route = new RoadDistancePathFinder().roadDistanceNight(origin, destination, this);
+    pricedRoute = route;
+    pricedOrigin = origin;
+    pricedDestination = destination;
+    if (route == null || route.directedEdgesSequence == null) {
+      return metres;
+    }
+    return metres * NightRouteCost.perceivedLengthRatio(this, route.directedEdgesSequence);
   }
 
   /**

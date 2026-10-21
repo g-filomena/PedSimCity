@@ -25,6 +25,9 @@ public class PedSimCityNight extends PedSimCityActivity {
   // Directional entrance light mapping (Node_A -> Node_B : min_lux), keyed by packed long.
   public static final Map<Long, Double> directionalLuxMap = new ConcurrentHashMap<>();
 
+  /** Smallest isovist area along each street, by edgeID; see {@link Enclosure}. */
+  public static final Map<Integer, Double> streetIsovistAreaMin = new ConcurrentHashMap<>();
+
   /** Packs two node IDs into a single long to avoid String allocation per lookup. */
   public static long luxKey(int fromId, int toId) {
     return ((long) fromId << 32) | (toId & 0xFFFFFFFFL);
@@ -51,30 +54,6 @@ public class PedSimCityNight extends PedSimCityActivity {
   }
 
   // --- Getters & Setters for GUI ---
-
-  public double getMinVulnerableLightSensitivity() {
-    return pedsim.night.parameters.NightPars.minVulnerableLightSensitivity;
-  }
-
-  public void setMinVulnerableLightSensitivity(double minVulnerableLightSensitivity) {
-    pedsim.night.parameters.NightPars.minVulnerableLightSensitivity = minVulnerableLightSensitivity;
-  }
-
-  public double getMaxVulnerableLightSensitivity() {
-    return pedsim.night.parameters.NightPars.maxVulnerableLightSensitivity;
-  }
-
-  public void setMaxVulnerableLightSensitivity(double maxVulnerableLightSensitivity) {
-    pedsim.night.parameters.NightPars.maxVulnerableLightSensitivity = maxVulnerableLightSensitivity;
-  }
-
-  public double getNonVulnerableLightSensitivity() {
-    return pedsim.night.parameters.NightPars.nonVulnerableLightSensitivity;
-  }
-
-  public void setNonVulnerableLightSensitivity(double nonVulnerableLightSensitivity) {
-    pedsim.night.parameters.NightPars.nonVulnerableLightSensitivity = nonVulnerableLightSensitivity;
-  }
 
   public boolean getEnableLightABTesting() {
     return pedsim.night.parameters.NightPars.enableLightABTesting;
@@ -111,7 +90,9 @@ public class PedSimCityNight extends PedSimCityActivity {
 
   public static void clearNightStaticData() {
     NightLighting.clearCaches();
+    EyesOnStreet.clearCaches();
     directionalLuxMap.clear();
+    streetIsovistAreaMin.clear();
     // clear() the layer itself: getGeometries() returns a defensive copy, so clearing that
     // copy would leave the layer (and its spatial index) populated across re-initialisations.
     illuminatedEdges.clear();

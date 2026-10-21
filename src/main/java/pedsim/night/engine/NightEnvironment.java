@@ -8,8 +8,9 @@ import sim.util.geo.MasonGeometry;
 
 /**
  * Environment preparation for the night module. Extends the activity-based
- * {@link ActivityEnvironment} (graph, census, workplace + night POI) with the night lighting join:
- * illuminated-edge {@code mean_lux} and {@code min_lux}.
+ * {@link ActivityEnvironment} (graph, census, workplace + night POI) with the night lighting join,
+ * illuminated-edge {@code mean_lux} and {@code min_lux}, and with the eyes on each street ({@link
+ * EyesOnStreet}).
  */
 public class NightEnvironment extends ActivityEnvironment {
 
@@ -22,6 +23,7 @@ public class NightEnvironment extends ActivityEnvironment {
     if (!PedSimCityNight.illuminatedEdges.isEmpty()) {
       joinIlluminatedEdges();
     }
+    EyesOnStreet.prepare();
   }
 
   /**
