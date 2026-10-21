@@ -1,115 +1,145 @@
 # Activity module (`pedsim.activity`)
 
 The **activity-based foundation** for modules that run a full 24-hour daily routine. Activity sits
-between `core` (pure infrastructure) and the routine modules (`night`, `learning`), adding the things
-those modules share: a census-driven **population** (homes, headcount), an OSM-tag-driven
-**activity POI** pattern (work and discretionary destinations), and a 24-hour **day/night clock**.
+between `core` (pure infrastructure) and the routine modules (`night`, `learning`, `social`), adding
+what those modules share: a census-driven **population**, an **activity programme** for each person,
+**destination choice** over purpose-typed attraction, **mode choice** for every leg, and a 24-hour
+**day/night clock**.
 
-Activity is not census/lighting-agnostic like core, but it is *neutral* about perception and safety:
-it has no vulnerability and no street-lighting behaviour. A plain activity run models people who
-live in residence-weighted census zones and follow **personas** (worker / student / retiree / flex)
-through home-based **trip chains**: a mandatory work/study leg on weekdays (inside a persona start
-window), chained with discretionary stops typed by **activity purpose** (shopping, errands, dining,
-nightlife, leisure, stroll) whose destinations are drawn from **OSM-tag-derived POI attraction**
-and revisited habitually, with purpose-specific stay durations and opening hours, under a
-day-of-week release curve and **seasonal daylight**.
+Activity is *neutral* about perception and safety: it has no vulnerability and no street-lighting
+behaviour. A plain activity run models residents who follow **personas** (worker / student /
+retiree / flex) through home-based **trip chains**, plus the people who come into the city every
+day to work or study, and the night's **tourists**.
 
 ## Relationship to core
 
-Activity specialises each of core's four seams and adds an engine of its own:
-
 | Concern | Core class | Activity class |
 |---|---|---|
-| Simulation state + activity data | `PedSimCity` | `PedSimCityActivity` (census, POI layers, purpose weights, `isDark`) |
-| Engine wiring + 24h clock | `Engine` | `ActivityEngine` (activity import/environment, `onStepUpdate` sets `isDark` — seasonal via `Daylight`) |
-| Data import | `Import` | `ActivityImport` (census GPKG + optional tagged-POI GPKG) |
-| Environment preparation | `Environment` | `ActivityEnvironment` (census-zone spatial join) + `PoiClassifier` (OSM tags → per-node purpose weights) |
-| Population | `Populate` | `ActivityPopulate` (residence-weighted home, work from WORK-tag attraction, persona assignment) |
-| Agent | `Agent` | `ActivityAgent` (persona, daily agenda + trip chaining, purpose/habit destination choice, per-purpose stays) |
+| Simulation state + activity data | `PedSimCity` | `PedSimCityActivity` (census, purpose weights, `isDark`, day counters) |
+| Engine wiring + 24h clock | `Engine` | `ActivityEngine` (sets `isDark` from `Daylight` each step) |
+| Data import | `Import` | `ActivityImport` (census, POIs, employment) |
+| Environment preparation | `Environment` | `ActivityEnvironment` (census zones, `PoiClassifier`, employment, stops, car parks, tourists) |
+| Population | `Populate` | `ActivityPopulate` (homes, workplaces, personas, inbound commuters, tourists, car-park spaces) |
+| Travel demand | `BaselineTravelDemand` | `ActivityTravelDemand` (mandatory departures, the day's leg budget, `DepartureProfile`) |
+| Agent | `Agent` | `ActivityAgent` (persona, agenda, chaining, destination and mode choice, rides) |
 
-Supporting types (all in `pedsim.activity`): `Persona`, `ActivityPurpose`, `DailyAgenda`,
-`Daylight`, `PoiClassifier`, `parameters.ActivityPars`.
+Packages: `agents` (`Persona`, `ActivityPurpose`, `DailyAgenda`, `TouristDay`,
+`DestinationChoice`, `WorkplaceChoice`, `DepartureProfile`), `engine` (the classes above plus
+`Daylight`, `Weather`, `InboundCommuters`, `Tourists`, `DaySummary`), `mobility` (`ModeChoice`,
+`CommuteMode`, `Ride`, `TransitStops`, `CarParks`), `parameters` (`ActivityPars`, `CityConfig`).
 
-## The 24-hour activity pattern
+## A day
 
-1. **Clock** — `ActivityEngine.onStepUpdate` sets `PedSimCityActivity.isDark` from `Daylight`,
-   which is the model's only definition of darkness: sunrise and sunset for the simulation date at
-   `Pars.cityLatitude` / `cityLongitude`, with a civil-twilight buffer, converted from solar to clock
-   time through `ActivityPars.timeZoneId`. The position is measured from the street network by
-   core's `CityLocation`; a city whose network declares no usable CRS falls back to the fixed
-   `dayStartHour`/`nightStartHour` window (06:00–20:00 by default), and the run says which regime is
-   in force at startup. The exporter splits its volumes by the same model, so behaviour and outputs
-   cannot disagree; the night module inherits `isDark` and never recomputes it, and core holds only
-   the overridable `splitsVolumesByDarkness()` / `isDarkHour()` pair on `PedSimCity`. The release curve in `TimePars` is day-of-week aware:
-   weekday commute peaks, a Friday night shift, and a weekend curve with no morning commute.
-2. **Population** — `ActivityPopulate` draws each agent's **home** from residence-weighted census
-   zones (the census is population structure only) and its **work** from the WORK-purpose
-   attraction weights derived from OSM use tags (offices, commercial, industrial…), with gravity
-   decay from home; it degrades gracefully to core's DMA → uniform-random fallback when either
-   dataset is absent. Each agent gets a **persona**, sampled per home zone when the census carries
-   age-structure shares (`retiree_pct`/`student_pct`; global `ActivityPars` shares otherwise):
-   retirees/flex adults have no work node, students are re-targeted to education-tagged nodes when
-   available, and walking speed varies by persona (±10% individual noise).
-3. **Trip chains** — on release, the agent builds a `DailyAgenda`: the mandatory work/study leg is decided
-   by the persona's weekday + start-window rule (`shouldGoToWork`), and discretionary stops are
-   sampled from the persona's purpose mix restricted to each purpose's opening hours. After each
-   stay (persona-specific at work, purpose-specific lognormal elsewhere) the agent **chains**
-   directly to the next open activity from where it is, and heads home when the agenda is done.
-3b. **Release realism** — who is out when is shaped three ways on top of the day-of-week curve:
-   a **walk-share filter** keeps most short sampled trip distances and few long ones (logit,
-   `ActivityPars.walkShare*`), **persona × hour affinities** favour commuters at the peaks and
-   retirees midday (`Persona.releaseAffinity`), and seeded per-day **weather** scales the release
-   budget on rainy days while thinning optional chained stops harder than commutes (`Weather`,
-   `ActivityPars.rain*`). All three run through core seams (`tripAcceptanceProbability`,
-   `releaseCandidateWeight`, `releaseBudgetMultiplier`) so core stays module-agnostic.
-4. **Destinations** — `ActivityAgent.getPOIWeight` weights candidates by the current purpose's
-   per-node attraction, built by `PoiClassifier` from OSM-like use tags (`amenity`, `shop`,
-   `leisure`, `office`, `use`, …) on the buildings and POI layers. The purpose does not scale the
-   distance: candidates are the nodes nearest the released distance, weighted by attraction and
-   corrected for the radial density of the choice set. Agents keep a **familiar set** of at most 25
-   places, revisited with a probability that grows as the set fills and drawn by visit frequency.
-   Without tags, choice is uniform — the census plays no role in destination selection.
+1. **Clock.** `PedSimCityActivity.isDark` comes from `Daylight`: sunrise and sunset for the date at
+   the city's position, measured from the street network, converted to clock time through
+   `ActivityPars.timeZoneId`. A network with no usable CRS falls back to the fixed
+   `dayStartHour`/`nightStartHour` window, and the run says which regime is in force. The exporter
+   splits its volumes by the same model.
+2. **Population.** Each resident's home is drawn from residence-weighted census zones, and its
+   persona from the home zone's shares (`retiree_pct`, `student_pct`, `worker_pct`; flex is the
+   residual). Workers get a workplace drawn by employees (or WORK attraction) with distance decay,
+   students an education node.
+3. **Mandatory travel.** Everyone with a workplace whose persona attends that day gets a departure
+   minute inside the persona's start window, and goes (`planMandatoryDeparture`). How the commute
+   is made is settled once per person (`ModeChoice.commute`): walked with the probability the
+   ISTAT-fitted commute curve gives at its distance, otherwise by transit, car or a mode that puts
+   no one on the street.
+4. **Lunch.** On a working day that spans the break, a worker goes out to a dining destination near
+   the workplace (`lunchOutShareWorker`), or home by the commute's mode when the break leaves time
+   to eat there (`lunchHomeShareWorker`), or stays.
+5. **Discretionary travel.** The day's legs are `tripsPerPersonPerDay` (2.04, ISFORT, every mode)
+   per resident; the commutes take theirs and the rest is bought as trip chains, released along
+   `DepartureProfile` with persona-by-hour affinities and, on rainy days (`Weather`), fewer of them.
+   A chain is a `DailyAgenda` of purposes open at that hour; after each stay the agent chains to the
+   next stop from where it is, and goes home when the agenda is done.
+6. **Destinations.** `DestinationChoice` is a logit over 60 nodes drawn within
+   `choiceSetRadiusMetres` among those that hold something for the purpose:
+   `sizeWeight * ln(attraction) - distanceWeight * metres + habitWeight * known`. Agents keep a
+   familiar set of at most 25 places and return to them by exploration / preferential return
+   (Song et al. 2010; Alessandretti et al. 2018).
+7. **Mode.** Every outbound and chained leg crosses `walksLeg`: walked with the probability the
+   general walk-share curve gives at its length. A leg not walked goes by public transport, by car,
+   or off the street; see below. The way home is walked if the agent went out on foot, and made as
+   the outing was otherwise (`walksBack`).
+
+## Legs that are not walked
+
+`ModeChoice` decides what follows a no, by the shares in `ActivityPars` (zero unless the city file
+states them). Each mode is a `Ride`: the agent is `AWAY` for the ride and reappears on the street
+where it ends.
+
+- **Public transport.** The agent walks to a stop within `transitAccessRadiusMetres` of its origin,
+  drawn in proportion to the stop's weekday departures (`<City>_transit_stops.csv`), waits half the
+  headway, rides at `transitSpeedKmh`, and walks from a stop near its destination. After an outing
+  by transit it goes home by transit when stops serve both ends.
+- **Car.** A car driven to a destination inside the restricted zone
+  (`<City>_restricted_zone_nodes.csv`) is left in a parking structure within `carParkRadiusMetres`
+  and the rest is walked; the way home starts with the walk back to it. Elsewhere the car is left at
+  the door and the journey puts no one on the street. Commuters take a space for the day within the
+  structures' capacity (`<City>_parking.csv`); a shorter visit needs a space they left free.
+- **Anything else** (bicycle, motorbike, a car outside the zone) puts no one on the street.
+
+`trip_diagnostic.csv` names each walked leg's role: `walk`, `to_stop`, `from_stop`, `to_car` or
+`from_car`.
+
+## People who do not live in the city
+
+Both groups are added after the residents, so they leave the residents' draws unchanged, and both
+are outside the residents' leg budget, statistics and discretionary release
+(`ActivityAgent.isResident`).
+
+- **Inbound commuters** (`InboundCommuters`): everyone who lives elsewhere and works or studies in
+  the city, from `<City>_inbound_commuters.csv`, built when their journey reaches the street. By
+  train they arrive at the station nearest the job among those their origin's trains call at
+  (`<City>_rail_reach.csv`); by tram, metro or bus at a stop near the job; by car at a car park when
+  the job is in the restricted zone. Departure and journey times come from the file's minute
+  windows.
+- **Tourists** (`Tourists`, `TouristDay`): the night's tourists are the month's presences
+  (`touristNightsByMonth`) over its days, each sleeping at a node drawn by beds
+  (`<City>_accommodation.csv`). A day is two outings: sights until late afternoon with lunch on
+  the way, back to the accommodation, then dinner and, for `touristNightlifeShare` of them, a bar
+  or a show. Sights are the `SIGHTSEEING` purpose, weighted by yearly visitors
+  (`<City>_sights.csv`), looked for within `touristChoiceSetRadiusMetres`, never revisited. A
+  tourist has no car: a leg it does not walk goes by public transport where stops serve both ends,
+  by taxi otherwise.
 
 ## Data layers
 
-A **single** optional GeoPackage, `<City>_censusData.gpkg`, carries the **population structure** as
-columns. It loads only if present; otherwise the
-model falls back gracefully to DMA / uniform-random selection. The census never drives destination
-choice — that is the POI/tag layers' job below.
+All optional, all under `src/main/resources/<City>/`. A city without one runs without the mechanism
+it feeds, and the run log says so.
+
+| File | Written by | Feeds |
+|---|---|---|
+| `<City>_censusData.gpkg` | `pipeline/01_census_istat.py` | homes, headcount, sex and persona shares per census zone |
+| `<City>_POIs.gpkg`, tags on `<City>_buildings.gpkg` | `pipeline/00_city_preparation.py` (`pois`) | attraction per purpose (`PoiClassifier`) |
+| `<City>_employment.gpkg` | `pipeline/employment_istat.py` | WORK attraction: employees per census section |
+| `<City>_transit_stops.csv` | `scripts/build_transit_layer.py` | stops and their weekday departures |
+| `<City>_parking.csv`, `<City>_restricted_zone_nodes.csv` | `pipeline/parking.py` | car parks with capacity; where a car is parked in one |
+| `<City>_inbound_commuters.csv` | `pipeline/inbound_commuters_istat.py` | people who come in to work or study |
+| `<City>_rail_stations.csv`, `<City>_rail_reach.csv` | `pipeline/rail_reach.py` | the stations a commuter's trains reach |
+| `<City>_accommodation.csv` | `pipeline/accommodation.py` | beds per node, where tourists sleep |
+| `<City>_sights.csv` | `pipeline/sights.py` | SIGHTSEEING attraction, visitors per sight |
+| `<City>.properties` | by hand | the city's behavioural facts, with their sources (`CityConfig`) |
+
+The census columns:
 
 | Column | Type | Purpose |
 |---|---|---|
 | `residence_pct` | share | residence-weighted home selection (0 for non-residential zones) |
 | `residents` | count | absolute headcount; when present the population size is census-driven |
-| `female_pct` | rate [0,1] | share of adult residents who are women — each agent's sex is drawn from it |
-| `retiree_pct` | rate [0,1] | optional: share of adult residents 65+ — conditions the persona mix per home zone |
-| `student_pct` | rate [0,1] | optional: share of adult residents 15–24 — conditions the persona mix per home zone |
+| `female_pct` | rate [0,1] | share of adult residents who are women; each agent's sex is drawn from it |
+| `retiree_pct` | rate [0,1] | share of adult residents 65+ |
+| `student_pct` | rate [0,1] | share of adult residents 15-24 |
+| `worker_pct` | rate [0,1] | share of adult residents employed (ISTAT P101) |
 
-The layer is produced by `pipeline/01_census_istat.py` (run via `scripts/build_census.bat`) — an
-**ISTAT adapter for Italian cities**; other countries need a sibling adapter emitting the
-same columns from their own raw census (the Java side is country-agnostic).
-All zones are kept: non-residential zones (streets, parks, commercial) simply get `residence_pct = 0`.
-Each zone claims the network nodes within 50 m (growing to 100/200/400 m if none), which is how a
-zone's residents are placed on the street network. The per-zone **rates** are read from the home
-zone an agent was sampled from, not from the node it was placed on: a node in a city of small
-census sections is claimed by several zones at once, so a rate resolved per node would answer for
-whichever of them the tie-break happened to pick.
+Each zone claims the network nodes within 50 m (growing to 100/200/400 m if none). Per-zone rates
+are read from the home zone an agent was sampled from, not from the node it was placed on.
 
-A second optional GeoPackage, `<City>_POIs.gpkg`, carries point/polygon POIs with **OSM-like use
-tags**; the buildings layer may carry the same tag columns. `PoiClassifier` reads, in order, the
-value-bearing keys `amenity`, `use`, `fclass`, `type`, `building`, `landuse`, `land_use` and the
-presence-only keys `shop`, `leisure`, `tourism`, `sport`, `office`, classifying each feature into
-`ActivityPurpose`s and snapping it to its nearest network node (≤ `ActivityPars.poiClaimRadius`).
-The recognised vocabulary covers both raw OSM values (`pub`, `supermarket`, …) and the cityImage
-macro-groups the pipeline writes (`sustenance`, `healthcare`, `entertainment_arts_culture`, …).
-Buildings also carry `land_uses` — the **full list** of macro-groups as a stringified Python list —
-and `ActivityPurpose.classifyAll` classifies every label in it, so a mixed-use building attracts
-each purpose it hosts, not only the first-listed one. The two layers weigh differently: a POI is a
-**venue** (1.0 each), a building is **fabric** and weighs its footprint area in units of
-`ActivityPars.buildingAreaPerAttractionUnit` (200 m² ≈ one venue, min 1.0) — an office block pulls
-proportionally more WORK trips than a corner office. No tags → empty purpose maps → uniform choice.
-The POI layer is produced by the `pois` stage of `pipeline/00_city_preparation.py` (run via
-`scripts/build_city.bat`).
+`PoiClassifier` reads the value-bearing keys `amenity`, `use`, `fclass`, `type`, `building`,
+`landuse`, `land_use` and the presence-only keys `shop`, `leisure`, `tourism`, `sport`, `office`,
+classifies each feature into `ActivityPurpose`s and snaps it to its nearest node within
+`ActivityPars.poiClaimRadius`. A POI weighs 1.0; a building weighs its footprint in units of
+`buildingAreaPerAttractionUnit` (200 m2, at least 1.0), for each purpose in its `land_uses` list.
 
 ## For module authors
 
@@ -117,18 +147,15 @@ A new 24h-routine module should extend the activity tier, not core:
 
 - state → `extends PedSimCityActivity`
 - engine → `extends ActivityEngine`
-- populate → `extends ActivityPopulate`
+- populate → `extends ActivityPopulate` (non-residents go through `createNonResidentAgent` /
+  `finishNonResidentAgent`)
 - agent → `extends ActivityAgent`
 
-and add only its own layer on top. See `night` (vulnerability + lighting) and `learning`
-(incremental cognitive map) for worked examples. Remember to clear your module's static data in the
-engine's `clearStaticData()` (activity's is cleared for you by `ActivityEngine`).
+and add only its own layer on top. See `night` (vulnerability and lighting) and `learning`
+(incremental cognitive map). Clear your module's static data in the engine's `clearStaticData()`
+(activity's is cleared by `ActivityEngine`).
 
 ## Running
-
-Activity is both the shared foundation for the routine modules *and* a runnable plain-activity model
-in its own right. It compiles in every module profile (it is never excluded) and is launched via
-`ActivityLauncher`, mirroring night:
 
 ```bash
 mvn compile exec:java@activity-website   # REST API + browser dashboard
@@ -140,11 +167,8 @@ Start a run via REST once the server is up:
 ```bash
 curl -X POST http://localhost:8081/api/start \
   -H "Content-Type: application/json" \
-  -d '{"module":"activity","cityName":"Melbourne","days":7,"jobs":1}'
+  -d '{"module":"activity","cityName":"Torino","days":1,"jobs":1}'
 ```
 
-The bundled city options are **Melbourne** and **Torino**. With no census/POI datasets present for the
-chosen city, the model degrades gracefully to uniform-random home/work and destination selection.
-
-## Open items
-
+Torino carries every layer above and a city file. Other bundled cities run without the layers
+they lack.

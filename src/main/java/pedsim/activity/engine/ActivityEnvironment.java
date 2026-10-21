@@ -8,6 +8,8 @@ import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.index.strtree.STRtree;
 import pedsim.activity.agents.ActivityPurpose;
+import pedsim.activity.mobility.CarParks;
+import pedsim.activity.mobility.TransitStops;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.Environment;
 import pedsim.core.parameters.Pars;
@@ -54,6 +56,10 @@ public class ActivityEnvironment extends Environment {
     if (!PedSimCityActivity.employmentLayer.isEmpty()) {
       buildWorkFromEmployment();
     }
+    TransitStops.load();
+    InboundCommuters.load();
+    CarParks.load();
+    Tourists.load();
   }
 
   /**

@@ -1,11 +1,18 @@
 package pedsim.activity.agents;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import pedsim.activity.engine.InboundCommuters;
 import pedsim.activity.engine.PedSimCityActivity;
+import pedsim.activity.mobility.CarParks;
+import pedsim.activity.mobility.CommuteMode;
+import pedsim.activity.mobility.ModeChoice;
+import pedsim.activity.mobility.Ride;
+import pedsim.activity.mobility.TransitStops;
 import pedsim.activity.parameters.ActivityPars;
 import pedsim.core.agents.Agent;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
@@ -96,11 +103,107 @@ public class ActivityAgent extends Agent {
    * imposed on the agents. {@code ActivityTravelDemand.prepare} logs it against the ISTAT figures
    * once per simulated day; a poor match is a finding about the curve, not a number to adjust.
    *
-   * <p>The commuters who do not walk are absent from the street entirely: their access and egress
-   * walks around stops are real pedestrian metres this model does not produce. The model has no
-   * transit, so there is nothing here that represents the non-walked part of a journey.
+   * <p>A commuter who does not walk goes by public transport, walking to and from the stops; drives
+   * to a workplace inside the limited-traffic zone and walks from the car park; or goes by some
+   * other mode and is then absent from the street ({@link ModeChoice#commute}).
    */
-  protected boolean walksToWork = true;
+  protected CommuteMode commuteMode = CommuteMode.WALK;
+
+  /** The ride under way, by public transport or by car; set by startRide, cleared on alighting. */
+  private Ride ride;
+
+  /** The structure holding this agent's car on a working day, when it drives into the zone. */
+  private NodeGraph commuteCarPark;
+
+  /** Gives this commuter's car a space ({@link CarParks#reserve}). */
+  public void assignCommuteCarPark(NodeGraph park) {
+    this.commuteCarPark = park;
+  }
+
+  /**
+   * No space was left for this commuter's car in the zone, so it does not drive there: it takes
+   * public transport where stops serve home and workplace, and otherwise is off the street.
+   */
+  public void loseCommuteCarPark() {
+    commuteCarPark = null;
+    commuteMode =
+        TransitStops.servesBoth(homeNode, workNode) ? CommuteMode.TRANSIT : CommuteMode.OFF_STREET;
+  }
+
+  /** Whether a leg of the current outing went by public transport; cleared on reaching home. */
+  private boolean outByTransit = false;
+
+  /** Whether the current outing went by car, and the structure the car was left in. */
+  private boolean outByCar = false;
+
+  private NodeGraph parkedAt;
+
+  // The lunch break from work: when it starts, when the working day then ends, whether the agent
+  // is on it now, and whether it is eaten at home and for how long.
+  private boolean lunchPending = false;
+  private boolean onLunchBreak = false;
+  private boolean lunchAtHome = false;
+  private int lunchHomeStayMinutes = 0;
+  private double workEndsAtStep = -1;
+
+  /**
+   * The commuting flow this agent belongs to when it lives outside the city ({@link
+   * InboundCommuters}); null for a resident. Its home node is then where it arrives in the city.
+   */
+  private InboundCommuters.Flow inboundFlow;
+
+  /**
+   * Makes this agent one of the people who come into the city every day: it arrives at its home
+   * node, by the flow's mode, at a time drawn from the flow's departure and duration bands.
+   */
+  public void setInbound(InboundCommuters.Flow flow) {
+    this.inboundFlow = flow;
+  }
+
+  /** Whether this agent lives outside the city and only commutes into it. */
+  public boolean isInbound() {
+    return inboundFlow != null;
+  }
+
+  /**
+   * Whether this agent is staying in the city as a tourist ({@link #makeTourist}); its home node is
+   * then where it sleeps.
+   */
+  private boolean tourist = false;
+
+  /** Today's programme, for a tourist; drawn by {@link #planTouristDay()}. */
+  private TouristDay touristDay;
+
+  /** Sights this tourist has already been to, so it goes to see something else. */
+  private final java.util.Set<NodeGraph> sightsSeen = new java.util.LinkedHashSet<>();
+
+  /** Makes this agent a tourist, sleeping at its home node. */
+  public void makeTourist() {
+    this.tourist = true;
+  }
+
+  /** Whether this agent is a tourist. */
+  public boolean isTourist() {
+    return tourist;
+  }
+
+  /** Whether this agent lives in the city: neither an inbound commuter nor a tourist. */
+  public boolean isResident() {
+    return !isInbound() && !tourist;
+  }
+
+  /**
+   * Draws today's programme for a tourist ({@link TouristDay}) and schedules its first outing.
+   * Tourists go out every day.
+   */
+  public void planTouristDay() {
+    touristDay = TouristDay.draw(random);
+    mandatoryDepartureMinute = touristDay.leaveMinute();
+  }
+
+  // The role of the leg under way, and of the next one to start.
+  private String legRole = WALK_LEG;
+  private String nextLegRole = WALK_LEG;
 
   /**
    * Whether this agent is a woman, drawn once from the home zone's census sex ratio. A demographic
@@ -131,7 +234,7 @@ public class ActivityAgent extends Agent {
    */
   public void decideCommuteMode() {
     if (homeNode == null || workNode == null) {
-      walksToWork = false;
+      commuteMode = CommuteMode.OFF_STREET;
       return;
     }
     // Scaled to walked metres, like the distance term in DestinationChoice: the curve was fitted
@@ -141,8 +244,9 @@ public class ActivityAgent extends Agent {
     double commuteMetres =
         homeNode.getCoordinate().distance(workNode.getCoordinate()) * Pars.networkCircuityFactor;
     boolean student = persona == Persona.STUDENT;
-    walksToWork =
+    boolean walks =
         random.nextDouble() < state.travelDemand().commuteWalkProbability(commuteMetres, student);
+    commuteMode = ModeChoice.commute(walks, homeNode, workNode, student, isInbound(), random);
   }
 
   /**
@@ -164,7 +268,17 @@ public class ActivityAgent extends Agent {
 
   /** Whether this agent walks its commute; false when it would use some other mode. */
   public boolean walksToWork() {
-    return walksToWork;
+    return commuteMode == CommuteMode.WALK;
+  }
+
+  /** How this agent makes its commute. */
+  public CommuteMode commuteMode() {
+    return commuteMode;
+  }
+
+  /** Whether the commute puts this agent on the street at all. */
+  private boolean commuteOnStreet() {
+    return commuteMode.onStreet();
   }
 
   /** Minute of the day this agent sets out for its mandatory activity; -1 when it has none today. */
@@ -189,7 +303,8 @@ public class ActivityAgent extends Agent {
    * season decides whether it is light when they do.
    *
    * @param day the day being prepared
-   * @return whether this agent has a walked mandatory trip today
+   * @return whether this agent's mandatory trip today puts it on the street, walked or by public
+   *     transport
    */
   /**
    * Whether this agent travels to its mandatory activity today, <b>by any mode</b>. The day's trip
@@ -209,10 +324,14 @@ public class ActivityAgent extends Agent {
     mandatoryDepartureMinute = -1;
     if (persona == null
         || workNode == null
-        || !walksToWork
+        || !commuteOnStreet()
         || !persona.hasMandatoryActivity()
         || !persona.worksOn(day.getDayOfWeek())) {
       return false;
+    }
+    if (isInbound()) {
+      mandatoryDepartureMinute = InboundCommuters.arrivalMinute(inboundFlow, random);
+      return true;
     }
     int from = (int) Math.round(persona.getMandatoryStartEarliest() * 60.0);
     int to = (int) Math.round(persona.getMandatoryStartLatest() * 60.0);
@@ -270,13 +389,17 @@ public class ActivityAgent extends Agent {
    * there is, by the population most exposed to unlit streets.
    */
   protected boolean shouldGoToWork() {
-    if (workNode == null || hasWorkedToday || !walksToWork) {
+    if (workNode == null || hasWorkedToday || !commuteOnStreet()) {
       return false;
     }
     if (persona == null) {
       return true;
     }
     LocalDateTime now = now();
+    if (isInbound()) {
+      // Released only by its scheduled arrival, whose time comes from the commuting data.
+      return persona.worksOn(now.getDayOfWeek());
+    }
     return persona.worksOn(now.getDayOfWeek()) && persona.isWithinMandatoryStartWindow(hourOf(now));
   }
 
@@ -300,19 +423,21 @@ public class ActivityAgent extends Agent {
    *
    * <p>Distance enters as a cost, not as a filter on which trips exist: the destination was chosen
    * before this is asked, and what is decided is how the journey to it is made. A leg that is not
-   * walked produces no pedestrian metres at all, which is where the model is silent about the walk
-   * to and from a stop.
+   * walked goes by public transport or leaves no one on the street ({@link #travelUnwalked()}).
    */
   @Override
   protected boolean walksLeg(NodeGraph origin, NodeGraph destination) {
-    if (destination == null || destination.equals(workNode)) {
+    if (destination == null) {
       return true;
+    }
+    if (isCommute(origin, destination)) {
+      return commuteMode != CommuteMode.TRANSIT && commuteMode != CommuteMode.CAR_TO_ZONE;
     }
     double metres =
         origin.getCoordinate().distance(destination.getCoordinate()) * Pars.networkCircuityFactor;
     double perceived = perceivedLegMetres(origin, destination, metres);
     boolean walks = random.nextDouble() < state.travelDemand().walkProbability(perceived);
-    if (state instanceof PedSimCityActivity activityState) {
+    if (isResident() && state instanceof PedSimCityActivity activityState) {
       activityState.recordModeChoice(metres, walks, homeNode);
     }
     return walks;
@@ -331,6 +456,81 @@ public class ActivityAgent extends Agent {
     return metres;
   }
 
+  /**
+   * The way home after going out by public transport is a mode decision of its own: from the
+   * workplace it is the commute's, otherwise the walk-share curve's at the distance home. An outing
+   * by car goes home by car, from where it was left. An outing made on foot is walked back.
+   */
+  @Override
+  protected boolean walksBack(NodeGraph origin, NodeGraph home) {
+    if (tourist) {
+      double metres = walkedMetres(origin, home);
+      return random.nextDouble()
+          < state.travelDemand().walkProbability(perceivedLegMetres(origin, home, metres));
+    }
+    if (outByCar && parkedAt != null) {
+      return false;
+    }
+    if (!outByTransit) {
+      return true;
+    }
+    if (origin.equals(workNode)) {
+      return commuteMode != CommuteMode.TRANSIT;
+    }
+    double metres =
+        origin.getCoordinate().distance(home.getCoordinate()) * Pars.networkCircuityFactor;
+    return random.nextDouble()
+        < state.travelDemand().walkProbability(perceivedLegMetres(origin, home, metres));
+  }
+
+  /**
+   * A leg not walked goes by public transport when the agent takes it - a commute by its commute
+   * mode, the way home after going out by it whenever stops serve both ends, any other leg against
+   * {@link ActivityPars#transitShareDiscretionary} - and otherwise leaves no one on the street. The
+   * way home is always made: walked when public transport does not take the agent there, since
+   * nothing else in the model can.
+   */
+  @Override
+  protected void travelUnwalked() {
+    if (tourist) {
+      startTouristRide();
+      return;
+    }
+    boolean commute = isCommute(originNode, destinationNode);
+    if (isGoingHome() && outByCar && parkedAt != null) {
+      startRide(new Ride(parkedAt, destinationNode, destinationNode, status, true), commute);
+      return;
+    }
+    boolean byTransit;
+    if (commute) {
+      byTransit = commuteMode == CommuteMode.TRANSIT;
+    } else if (isGoingHome()) {
+      byTransit = outByTransit && TransitStops.servesBoth(originNode, destinationNode);
+    } else {
+      byTransit = ModeChoice.takesTransit(originNode, destinationNode, random);
+    }
+    if (byTransit) {
+      if (!startTransitLeg(commute)) {
+        // One stop serves both ends: the leg is short enough to walk.
+        reinitializeMovementPath();
+      }
+      return;
+    }
+    if (!isGoingHome()
+        && (commute
+            ? commuteMode == CommuteMode.CAR_TO_ZONE
+            : ModeChoice.drivesToZone(destinationNode, random))
+        && startCarLeg(commute)) {
+      return;
+    }
+    if (isGoingHome()) {
+      reinitializeMovementPath();
+      return;
+    }
+    countOffStreet();
+    super.travelUnwalked();
+  }
+
   /** A chain that never set off leaves no agenda behind. */
   @Override
   protected void abandonUnwalkedLeg() {
@@ -339,13 +539,302 @@ public class ActivityAgent extends Agent {
     super.abandonUnwalkedLeg();
   }
 
-  /** Arriving at the workplace is what spends the day's commute. */
+  /**
+   * A leg a tourist does not walk: by public transport where stops serve both ends, otherwise by
+   * taxi, which leaves it at the door. A tourist has no car of its own.
+   */
+  private void startTouristRide() {
+    Ride ride =
+        TransitStops.servesBoth(originNode, destinationNode)
+            ? Ride.byTransit(originNode, destinationNode, status, random)
+            : null;
+    if (ride == null) {
+      ride = new Ride(originNode, destinationNode, destinationNode, status, true);
+    }
+    startRide(ride, false);
+  }
+
+  /**
+   * Whether a leg is made as the commute is: to the workplace, or from it home, except to and from
+   * a lunch eaten out, which are legs like any other.
+   */
+  private boolean isCommute(NodeGraph origin, NodeGraph destination) {
+    if (workNode == null || (onLunchBreak && !lunchAtHome)) {
+      return false;
+    }
+    return workNode.equals(destination)
+        || (workNode.equals(origin) && (isGoingHome() || homeNode.equals(destination)));
+  }
+
+  /**
+   * Drives from where the agent is to a structure near the destination, and walks from it: a
+   * commute to the space it was given, any other leg to a space commuters left free. Home from the
+   * workplace, it walks back to the car and drives it home.
+   */
+  private boolean startCarLeg(boolean commute) {
+    if (outByCar && parkedAt != null && destinationNode.equals(homeNode)) {
+      startRide(new Ride(parkedAt, homeNode, homeNode, status, true), countsAsCommute(commute));
+      return true;
+    }
+    NodeGraph park = commute ? commuteCarPark : CarParks.nearFree(destinationNode, random);
+    Ride car = Ride.byCar(originNode, park, destinationNode, status);
+    if (car == null) {
+      return false;
+    }
+    startRide(car, countsAsCommute(commute));
+    return true;
+  }
+
+  /**
+   * Sets off by public transport from {@code originNode} to {@code destinationNode} ({@link
+   * Ride#byTransit}). Returns false, changing nothing, when one stop would serve both ends.
+   */
+  private boolean startTransitLeg(boolean commute) {
+    Ride transit = Ride.byTransit(originNode, destinationNode, status, random);
+    if (transit == null) {
+      return false;
+    }
+    startRide(transit, countsAsCommute(commute));
+    return true;
+  }
+
+  /** A journey home for lunch and back is made as the commute is, but is not counted as one. */
+  private boolean countsAsCommute(boolean commute) {
+    return commute && !onLunchBreak;
+  }
+
+  /** Takes {@code next}: walks to where it starts unless the agent is there, then rides. */
+  private void startRide(Ride next, boolean commute) {
+    ride = next;
+    if (next.byCar()) {
+      // A tourist's car is a taxi: nothing is left parked to go back to.
+      outByCar = !tourist;
+    } else {
+      outByTransit = true;
+    }
+    if (state instanceof PedSimCityActivity activityState) {
+      (next.byCar()
+              ? (tourist ? activityState.taxiJourneys : activityState.carJourneys)
+              : activityState.transitJourneys)
+          .increment();
+      if (commute) {
+        (next.byCar() ? activityState.carCommutes : activityState.transitCommutes).increment();
+      }
+    }
+    if (next.from().equals(originNode)) {
+      beginRide();
+    } else {
+      destinationNode = next.from();
+      nextLegRole = next.walkToRole();
+      reinitializeMovementPath();
+    }
+  }
+
+  /** At the boarding stop or the car: off the street until the ride is over. */
+  private void beginRide() {
+    reachedDestination.set(false);
+    updateAgentPosition(ride.from().getCoordinate());
+    state.agentsWalking.remove(this);
+    pedsim.core.engine.SimulationStateStore.getInstance().removeAgent(agentID);
+    status = AgentStatus.AWAY;
+    awayUntilStep = state.schedule.getSteps() + ride.minutes() * TimePars.MINUTE_TO_STEPS;
+  }
+
+  /** Off the vehicle: walks from the stop or the car park to where the leg was going. */
+  @Override
+  protected void returnFromAway() {
+    Ride done = ride;
+    ride = null;
+    originNode = done.to();
+    destinationNode = done.destination();
+    status = done.resumeAs();
+    if (done.byCar() && !tourist) {
+      parkedAt = done.to().equals(homeNode) ? null : done.to();
+    }
+    updateAgentPosition(originNode.getCoordinate());
+    state.agentsWalking.add(this);
+    if (originNode.equals(destinationNode)) {
+      reachedDestination.set(true);
+      return;
+    }
+    nextLegRole = done.walkFromRole();
+    reinitializeMovementPath();
+  }
+
+  /** Each leg starts as what the caller named it, a walk unless it is to or from a stop. */
+  @Override
+  public void reinitializeMovementPath() {
+    legRole = nextLegRole;
+    nextLegRole = WALK_LEG;
+    super.reinitializeMovementPath();
+  }
+
+  @Override
+  public String legRole() {
+    return legRole;
+  }
+
+  /** Reaching the boarding stop or the car starts the ride; anything else is an arrival. */
+  @Override
+  protected void handleReachedDestination() {
+    if (ride != null && !isAway() && ride.from().equals(destinationNode)) {
+      beginRide();
+      return;
+    }
+    super.handleReachedDestination();
+  }
+
+  private void countOffStreet() {
+    if (state instanceof PedSimCityActivity activityState) {
+      activityState.unwalkedOffStreet.increment();
+    }
+  }
+
+  /**
+   * Arriving at the workplace is what spends the day's commute, and is when the day's lunch break
+   * is settled; arriving back from it resumes the working day. Arriving home for lunch is a stay,
+   * not the end of the day's outing.
+   */
   @Override
   protected void handleReachedSoloDestination() {
     if (lastDestination != null && lastDestination.equals(workNode)) {
+      if (onLunchBreak) {
+        onLunchBreak = false;
+        lunchAtHome = false;
+        status = AgentStatus.AT_DESTINATION;
+        timeAtDestination = workEndsAtStep;
+        return;
+      }
       hasWorkedToday = true;
+      super.handleReachedSoloDestination();
+      planLunchBreak();
+      return;
+    }
+    if (onLunchBreak && lunchAtHome && homeNode.equals(lastDestination)) {
+      state.agentsAtHome.remove(this);
+      status = AgentStatus.AT_DESTINATION;
+      timeAtDestination =
+          state.schedule.getSteps() + lunchHomeStayMinutes * TimePars.MINUTE_TO_STEPS;
+      return;
     }
     super.handleReachedSoloDestination();
+  }
+
+  /**
+   * A worker goes out for lunch with probability {@link ActivityPars#lunchOutShareWorker}, and
+   * otherwise goes home for it with probability {@link ActivityPars#lunchHomeShareWorker}, leaving
+   * at a minute between {@link ActivityPars#lunchEarliestMinute} and {@link
+   * ActivityPars#lunchLatestMinute} when the working day spans the break. Going home needs a
+   * resident, and a break of {@link ActivityPars#lunchHomeBreakMinMinutes} to {@link
+   * ActivityPars#lunchHomeBreakMaxMinutes} that leaves {@link ActivityPars#lunchStayMinMinutes} at
+   * home once the commute is made both ways; otherwise the worker eats at work.
+   */
+  private void planLunchBreak() {
+    if (persona != Persona.WORKER) {
+      return;
+    }
+    double draw = random.nextDouble();
+    boolean out = draw < ActivityPars.lunchOutShareWorker;
+    boolean home =
+        !out
+            && !isInbound()
+            && draw < ActivityPars.lunchOutShareWorker + ActivityPars.lunchHomeShareWorker;
+    if (!out && !home) {
+      return;
+    }
+    int breakMinutes = 60;
+    if (home) {
+      int breakSpan = ActivityPars.lunchHomeBreakMaxMinutes - ActivityPars.lunchHomeBreakMinMinutes;
+      breakMinutes =
+          ActivityPars.lunchHomeBreakMinMinutes
+              + (breakSpan > 0 ? random.nextInt(breakSpan + 1) : 0);
+      int stay = (int) (breakMinutes - 2.0 * commuteMinutes());
+      if (stay < ActivityPars.lunchStayMinMinutes) {
+        if (state instanceof PedSimCityActivity activityState) {
+          activityState.lunchesHomeNoTime.increment();
+        }
+        return;
+      }
+      lunchHomeStayMinutes = stay;
+    }
+    int span = ActivityPars.lunchLatestMinute - ActivityPars.lunchEarliestMinute;
+    int minute = ActivityPars.lunchEarliestMinute + (span > 0 ? random.nextInt(span) : 0);
+    LocalDateTime now = now();
+    int nowMinute = now.getHour() * 60 + now.getMinute();
+    double steps = state.schedule.getSteps();
+    double lunchStep = steps + (minute - nowMinute) * TimePars.MINUTE_TO_STEPS;
+    if (minute <= nowMinute
+        || lunchStep + breakMinutes * TimePars.MINUTE_TO_STEPS >= timeAtDestination) {
+      return;
+    }
+    workEndsAtStep = timeAtDestination;
+    timeAtDestination = lunchStep;
+    lunchPending = true;
+    lunchAtHome = home;
+    if (state instanceof PedSimCityActivity activityState) {
+      (home ? activityState.lunchesHome : activityState.lunchesOut).increment();
+    }
+  }
+
+  /**
+   * Minutes from the workplace home by the commute's mode: walked at the agent's pace; by public
+   * transport, the walks to and from stops plus the ride; by car, the walk to the car park plus the
+   * drive. Straight lines scaled by the network's circuity, as everywhere a journey is estimated.
+   */
+  private double commuteMinutes() {
+    double walkPerMinute = Pars.moveRate / TimePars.STEP_DURATION * 60.0 * getSpeedFactor();
+    switch (commuteMode) {
+      case TRANSIT -> {
+        Ride ride = Ride.byTransit(workNode, homeNode, status, random);
+        if (ride != null) {
+          return (walkedMetres(workNode, ride.from()) + walkedMetres(ride.to(), homeNode))
+                  / walkPerMinute
+              + ride.minutes();
+        }
+      }
+      case CAR_TO_ZONE -> {
+        if (commuteCarPark != null) {
+          return walkedMetres(workNode, commuteCarPark) / walkPerMinute
+              + new Ride(commuteCarPark, homeNode, homeNode, status, true).minutes();
+        }
+      }
+      default -> {}
+    }
+    return walkedMetres(workNode, homeNode) / walkPerMinute;
+  }
+
+  private static double walkedMetres(NodeGraph from, NodeGraph to) {
+    return from.getCoordinate().distance(to.getCoordinate()) * Pars.networkCircuityFactor;
+  }
+
+  /**
+   * Out to a place to eat near the workplace, chosen as any dining destination is, or home by the
+   * commute's mode.
+   */
+  private void startLunchBreak() {
+    lunchPending = false;
+    onLunchBreak = true;
+    currentPurpose = lunchAtHome ? null : ActivityPurpose.DINING;
+    if (!startChainedTrip(lunchAtHome ? homeNode : null)) {
+      onLunchBreak = false;
+      lunchAtHome = false;
+      currentPurpose = null;
+      status = AgentStatus.AT_DESTINATION;
+      timeAtDestination = workEndsAtStep;
+    }
+  }
+
+  /** Back to work; if the way back is neither walked nor ridden, the agent is simply there. */
+  private void returnFromLunchBreak() {
+    currentPurpose = null;
+    if (!startChainedTrip(workNode)) {
+      onLunchBreak = false;
+      lunchAtHome = false;
+      lastDestination = workNode;
+      updateAgentPosition(workNode.getCoordinate());
+      status = AgentStatus.AT_DESTINATION;
+      timeAtDestination = workEndsAtStep;
+    }
   }
 
   // ----------------------------------------------------------------
@@ -355,6 +844,15 @@ public class ActivityAgent extends Agent {
   /** Builds the trip chain agenda when the release manager sends this agent out. */
   @Override
   public void startWalkingAlone() {
+    if (tourist && touristDay != null) {
+      touristDay.startOuting();
+      // The evening's outing is the next departure, from the accommodation.
+      mandatoryDepartureMinute = touristDay.eveningMinute();
+      agenda = null;
+      currentPurpose = null;
+      super.startWalkingAlone();
+      return;
+    }
     if (persona != null) {
       boolean rainy =
           state instanceof PedSimCityActivity activityState && activityState.isRainyNow();
@@ -371,7 +869,18 @@ public class ActivityAgent extends Agent {
    */
   @Override
   protected void goHome() {
-    ActivityPurpose next = (agenda != null) ? agenda.pollOpenActivity(hourOf(now())) : null;
+    if (lunchPending) {
+      startLunchBreak();
+      return;
+    }
+    if (onLunchBreak) {
+      returnFromLunchBreak();
+      return;
+    }
+    ActivityPurpose next =
+        tourist && touristDay != null
+            ? touristDay.next(minuteOf(now()))
+            : (agenda != null) ? agenda.pollOpenActivity(hourOf(now())) : null;
     if (next == null || lastDestination == null) {
       currentPurpose = null;
       super.goHome();
@@ -406,9 +915,35 @@ public class ActivityAgent extends Agent {
     if (destinationNode == null) {
       return false;
     }
-    if (!walksLeg(originNode, destinationNode)) {
-      // The chain ends here rather than continuing by another mode; the caller walks the agent
-      // home, which is the leg it would have walked anyway once its day was over.
+    boolean walked = walksLeg(originNode, destinationNode);
+    if (tourist) {
+      state.agentsWalking.add(this);
+      status = AgentStatus.WALKING_ALONE;
+      if (destinationNode.getID() == originNode.getID()) {
+        reachedDestination.set(true);
+      } else if (walked) {
+        reinitializeMovementPath();
+      } else {
+        startTouristRide();
+      }
+      return true;
+    }
+    boolean commute = isCommute(originNode, destinationNode);
+    boolean byTransit =
+        !walked
+            && (commute
+                ? commuteMode == CommuteMode.TRANSIT
+                : ModeChoice.takesTransit(originNode, destinationNode, random));
+    boolean byCar =
+        !walked
+            && !byTransit
+            && (commute
+                ? commuteMode == CommuteMode.CAR_TO_ZONE
+                : ModeChoice.drivesToZone(destinationNode, random));
+    if (!walked && !byTransit && !byCar) {
+      // The chain ends here; the caller sends the agent home, which is the leg it would have made
+      // anyway once its day was over.
+      countOffStreet();
       return false;
     }
 
@@ -419,7 +954,12 @@ public class ActivityAgent extends Agent {
       reachedDestination.set(true);
       return true;
     }
-
+    if (byTransit && startTransitLeg(commute)) {
+      return true;
+    }
+    if (byCar && startCarLeg(commute)) {
+      return true;
+    }
     reinitializeMovementPath();
     return true;
   }
@@ -430,6 +970,20 @@ public class ActivityAgent extends Agent {
     agenda = null;
     currentPurpose = null;
     hasWorkedToday = false;
+    outByTransit = false;
+    outByCar = false;
+    parkedAt = null;
+    lunchPending = false;
+    onLunchBreak = false;
+    lunchAtHome = false;
+    if (tourist && mandatoryDepartureMinute >= 0) {
+      // Back after the evening's outing was due: out again once it has been in a while.
+      int soonest = minuteOf(now()) + 15;
+      if (mandatoryDepartureMinute < soonest) {
+        mandatoryDepartureMinute =
+            soonest <= ActivityPars.touristEveningLatestMinute + 60 ? soonest : -1;
+      }
+    }
     super.handleReachedHome();
   }
 
@@ -448,6 +1002,10 @@ public class ActivityAgent extends Agent {
       // No persona to ask, so a working day as anyone would guess it: six to nine hours. Unsourced,
       // and the persona distribution above is the one to prefer.
       timeAtDestination = ((360 + random.nextInt(181)) * TimePars.MINUTE_TO_STEPS) + steps;
+    } else if (onLunchBreak) {
+      int span = ActivityPars.lunchStayMaxMinutes - ActivityPars.lunchStayMinMinutes;
+      int minutes = ActivityPars.lunchStayMinMinutes + (span > 0 ? random.nextInt(span + 1) : 0);
+      timeAtDestination = minutes * TimePars.MINUTE_TO_STEPS + steps;
     } else if (currentPurpose != null) {
       timeAtDestination =
           currentPurpose.sampleStayMinutes(random) * TimePars.MINUTE_TO_STEPS + steps;
@@ -499,14 +1057,29 @@ public class ActivityAgent extends Agent {
    */
   protected void chooseDestination() {
     Graph network = SharedCognitiveMap.getCommunityPrimalNetwork();
+    boolean sightseeing = currentPurpose == ActivityPurpose.SIGHTSEEING;
     List<NodeGraph> candidates =
         NodesLookup.getNodesBetweenDistanceInterval(
-            network, originNode, 0.0, ActivityPars.choiceSetRadiusMetres);
+            network,
+            originNode,
+            0.0,
+            sightseeing
+                ? ActivityPars.touristChoiceSetRadiusMetres
+                : ActivityPars.choiceSetRadiusMetres);
     Map<NodeGraph, Double> attraction =
         currentPurpose == null ? null : PedSimCityActivity.nodesPurposeWeight.get(currentPurpose);
-    destinationNode =
-        DestinationChoice.choose(
-            candidates, originNode, attraction, favouritePlaces.get(currentPurpose), random);
+    if (sightseeing) {
+      destinationNode =
+          DestinationChoice.choose(
+              unseenSights(candidates, attraction), originNode, attraction, null, random);
+      if (destinationNode != null) {
+        sightsSeen.add(destinationNode);
+      }
+    } else {
+      destinationNode =
+          DestinationChoice.choose(
+              candidates, originNode, attraction, favouritePlaces.get(currentPurpose), random);
+    }
     if (destinationNode == null) {
       state.trace().recordDestinationFallback();
       destinationNode = NodesLookup.randomNode(network, random);
@@ -539,7 +1112,11 @@ public class ActivityAgent extends Agent {
     if (nearby.isEmpty()) {
       return anchors;
     }
-    for (ActivityPurpose purpose : persona.strongestPurposes(2)) {
+    List<ActivityPurpose> purposes =
+        tourist
+            ? List.of(ActivityPurpose.SIGHTSEEING, ActivityPurpose.DINING)
+            : persona.strongestPurposes(2);
+    for (ActivityPurpose purpose : purposes) {
       Map<NodeGraph, Double> attraction = PedSimCityActivity.nodesPurposeWeight.get(purpose);
       if (attraction == null || attraction.isEmpty()) {
         continue;
@@ -553,6 +1130,13 @@ public class ActivityAgent extends Agent {
   }
 
   protected void ensureCurrentPurpose() {
+    if (currentPurpose == null && tourist && touristDay != null) {
+      currentPurpose = touristDay.next(minuteOf(now()));
+      if (currentPurpose == null) {
+        currentPurpose = ActivityPurpose.STROLL;
+      }
+      return;
+    }
     if (currentPurpose == null && agenda != null && persona != null) {
       currentPurpose = agenda.pollOpenActivity(hourOf(now()));
       if (currentPurpose == null) {
@@ -734,5 +1318,28 @@ public class ActivityAgent extends Agent {
 
   private static double hourOf(LocalDateTime time) {
     return time.getHour() + time.getMinute() / 60.0;
+  }
+
+  private static int minuteOf(LocalDateTime time) {
+    return time.getHour() * 60 + time.getMinute();
+  }
+
+  /**
+   * The candidates without the sights this tourist has seen, unless that leaves no sight at all,
+   * when it goes back to one.
+   */
+  private List<NodeGraph> unseenSights(List<NodeGraph> candidates, Map<NodeGraph, Double> sights) {
+    if (sights == null || sightsSeen.isEmpty()) {
+      return candidates;
+    }
+    List<NodeGraph> unseen = new ArrayList<>(candidates.size());
+    boolean anySight = false;
+    for (NodeGraph candidate : candidates) {
+      if (!sightsSeen.contains(candidate)) {
+        unseen.add(candidate);
+        anySight |= sights.getOrDefault(candidate, 0.0) > 0.0;
+      }
+    }
+    return anySight ? unseen : candidates;
   }
 }

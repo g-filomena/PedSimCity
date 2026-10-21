@@ -97,6 +97,26 @@ public final class DaySummary {
 
     logger.info(String.format("day %s: %d of %d legs set off in darkness", date, legsDark, legs));
     logWalkShares(activityState, date);
+    logger.info(
+        String.format(
+            "day %s: %d legs by public transport (%d of them commutes), walked to and from a stop;"
+                + " %d legs by car to the limited-traffic zone (%d commutes), walked from the car"
+                + " park; %d legs not walked left no one on the street",
+            date,
+            activityState.transitJourneys.sum(),
+            activityState.transitCommutes.sum(),
+            activityState.carJourneys.sum(),
+            activityState.carCommutes.sum(),
+            activityState.unwalkedOffStreet.sum()));
+    logger.info(
+        String.format(
+            "day %s: %d workers went out for lunch, %d went home for it, %d drew lunch at home with"
+                + " no time for it and ate at work; %d legs by tourists' taxis",
+            date,
+            activityState.lunchesOut.sum(),
+            activityState.lunchesHome.sum(),
+            activityState.lunchesHomeNoTime.sum(),
+            activityState.taxiJourneys.sum()));
 
     activityState.resetDarknessCounters();
     activityState.resetModeChoiceCounters();

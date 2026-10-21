@@ -8,11 +8,16 @@ import pedsim.activity.agents.ActivityAgent;
 import pedsim.activity.agents.ActivityPurpose;
 import pedsim.activity.agents.Persona;
 import pedsim.activity.agents.WorkplaceChoice;
+import pedsim.activity.mobility.CarParks;
+import pedsim.activity.mobility.CommuteMode;
+import pedsim.activity.mobility.TransitStops;
 import pedsim.activity.parameters.ActivityPars;
 import pedsim.core.agents.Agent;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.Populate;
+import pedsim.core.parameters.Pars;
 import pedsim.core.parameters.RouteChoicePars;
+import pedsim.core.parameters.TimePars;
 import pedsim.core.utilities.LoggerUtil;
 import sim.graph.NodeGraph;
 
@@ -41,7 +46,224 @@ public class ActivityPopulate extends Populate {
     }
     super.populate(state);
     logRealisedSexRatio();
+    allocateCarParks(addInboundCommuters());
+    addTourists();
   }
+
+  /**
+   * Adds the night's tourists ({@link Tourists}), at the same share of the real number as the
+   * residents, each sleeping at a node drawn in proportion to its beds. Built last, so every other
+   * agent's generator is seeded as it is without them. Their sex is drawn at the city's adult
+   * ratio: the accommodation statistics do not record it.
+   */
+  private void addTourists() {
+    if (!Tourists.available()) {
+      return;
+    }
+    double expected =
+        Tourists.nightsOn(TimePars.SIMULATION_START_DATE) * Pars.percentagePopulationAgent;
+    int count = (int) Math.floor(expected) + (random.nextDouble() < expected % 1.0 ? 1 : 0);
+    int nextID = state.agentsList.stream().mapToInt(a -> a.agentID).max().orElse(-1) + 1;
+    int firstID = nextID;
+    for (int i = 0; i < count; i++) {
+      NodeGraph accommodation = Tourists.drawAccommodation(random);
+      ActivityAgent agent = createNonResidentAgent(nextID++);
+      agent.setHomeAndWorkplace(accommodation, null);
+      agent.setFemale(random.nextDouble() < ActivityPars.femaleShare);
+      agent.setPersona(Persona.TOURIST);
+      agent.makeTourist();
+      agent.decideCommuteMode();
+      finishNonResidentAgent(agent);
+      agent.currentLocation.geometry = GEOMETRY_FACTORY.createPoint(accommodation.getCoordinate());
+      state.agents.addGeometry(agent.getLocation());
+      agent.updateAgentLists(false, true);
+    }
+    LoggerUtil.getLogger()
+        .info(
+            String.format(
+                "tourists: %d agents (IDs %d-%d) for %.0f tourist nights on %s",
+                count,
+                firstID,
+                nextID - 1,
+                Tourists.nightsOn(TimePars.SIMULATION_START_DATE),
+                TimePars.SIMULATION_START_DATE));
+  }
+
+  /** An inbound commuter who drives to a workplace in the zone, built once a space is found. */
+  protected record CarClaim(InboundCommuters.Flow flow, NodeGraph work) {}
+
+  /**
+   * Gives every commuter who drives into the limited-traffic zone a space ({@link
+   * CarParks#reserve}), residents and inbound commuters alike, in an order drawn from the seed so
+   * that neither group is served first. A resident left without one changes mode ({@link
+   * ActivityAgent#loseCommuteCarPark}); an inbound commuter left without one does not come into the
+   * city by car, and is not built.
+   *
+   * @param inbound the inbound commuters waiting for a space
+   */
+  protected void allocateCarParks(List<CarClaim> inbound) {
+    if (!CarParks.available()) {
+      return;
+    }
+    CarParks.scaleTo(Pars.percentagePopulationAgent);
+    List<ActivityAgent> residents = new ArrayList<>();
+    for (Agent agent : state.agentsList) {
+      if (agent instanceof ActivityAgent activityAgent
+          && activityAgent.isResident()
+          && activityAgent.commuteMode() == CommuteMode.CAR_TO_ZONE) {
+        residents.add(activityAgent);
+      }
+    }
+    residents.sort(java.util.Comparator.comparingInt(a -> a.agentID));
+    List<Object> claims = new ArrayList<>(residents);
+    claims.addAll(inbound);
+    for (int i = claims.size() - 1; i > 0; i--) {
+      java.util.Collections.swap(claims, i, random.nextInt(i + 1));
+    }
+    int nextID = state.agentsList.stream().mapToInt(a -> a.agentID).max().orElse(-1) + 1;
+    int residentsParked = 0;
+    int residentsToTransit = 0;
+    int residentsOff = 0;
+    int inboundParked = 0;
+    int inboundOff = 0;
+    for (Object claim : claims) {
+      if (claim instanceof ActivityAgent resident) {
+        NodeGraph park = CarParks.reserve(resident.workNode, random);
+        if (park != null) {
+          resident.assignCommuteCarPark(park);
+          residentsParked++;
+        } else {
+          resident.loseCommuteCarPark();
+          if (resident.commuteMode() == CommuteMode.TRANSIT) {
+            residentsToTransit++;
+          } else {
+            residentsOff++;
+          }
+        }
+      } else if (claim instanceof CarClaim car) {
+        NodeGraph park = CarParks.reserve(car.work(), random);
+        if (park == null) {
+          inboundOff++;
+          continue;
+        }
+        placeInbound(car.flow(), car.work(), park, nextID++);
+        inboundParked++;
+      }
+    }
+    LoggerUtil.getLogger()
+        .info(
+            String.format(
+                "car parks: %d residents and %d inbound commuters drive into the zone; %d residents"
+                    + " found no space (%d to public transport, %d off the street), %d inbound"
+                    + " commuters did not drive in; %d spaces left for shorter visits",
+                residentsParked,
+                inboundParked,
+                residentsToTransit + residentsOff,
+                residentsToTransit,
+                residentsOff,
+                inboundOff,
+                CarParks.freeSpaces()));
+  }
+
+  /**
+   * Adds the people who come into the city to work or study ({@link InboundCommuters}), at the same
+   * share of the real number as the residents: {@code --percentage} of each flow, the remainder
+   * drawn. Only those whose journey reaches the street become agents. Each is given a workplace or
+   * place of study in proportion to the city's employees or education attraction - from outside
+   * the city every part of it is about as far - and arrives where its mode leaves it: the railway
+   * station on the shortest line from home to work, or a stop near the workplace.
+   */
+  private List<CarClaim> addInboundCommuters() {
+    List<CarClaim> carClaims = new ArrayList<>();
+    List<InboundCommuters.Flow> flows = InboundCommuters.flows();
+    if (flows.isEmpty()) {
+      return carClaims;
+    }
+    double share = Pars.percentagePopulationAgent;
+    int nextID = state.agentsList.stream().mapToInt(a -> a.agentID).max().orElse(-1) + 1;
+    int rail = 0;
+    int stop = 0;
+    int unplaced = 0;
+    double offStreet = 0.0;
+    for (InboundCommuters.Flow flow : flows) {
+      if (flow.arrival() == InboundCommuters.Arrival.OFF_STREET) {
+        offStreet += flow.people();
+        continue;
+      }
+      double expected = flow.people() * share;
+      int count = (int) Math.floor(expected) + (random.nextDouble() < expected % 1.0 ? 1 : 0);
+      for (int i = 0; i < count; i++) {
+        ActivityPurpose purpose = flow.study() ? ActivityPurpose.EDUCATION : ActivityPurpose.WORK;
+        java.util.Map<NodeGraph, Double> attraction =
+            PedSimCityActivity.nodesPurposeWeight.get(purpose);
+        if (attraction == null || attraction.isEmpty()) {
+          unplaced++;
+          continue;
+        }
+        NodeGraph anyNode = attraction.keySet().iterator().next();
+        NodeGraph work = WorkplaceChoice.draw(anyNode, attraction, 0.0, 0.0, random);
+        if (work == null) {
+          unplaced++;
+          continue;
+        }
+        if (flow.arrival() == InboundCommuters.Arrival.CAR) {
+          if (CarParks.available() && CarParks.inZone(work)) {
+            carClaims.add(new CarClaim(flow, work));
+          } else {
+            offStreet += 1.0 / share;
+          }
+          continue;
+        }
+        NodeGraph arrival =
+            flow.arrival() == InboundCommuters.Arrival.RAIL
+                ? InboundCommuters.stationFor(flow, work)
+                : TransitStops.near(work, random);
+        if (arrival == null) {
+          unplaced++;
+          continue;
+        }
+        placeInbound(flow, work, arrival, nextID++);
+        if (flow.arrival() == InboundCommuters.Arrival.RAIL) {
+          rail++;
+        } else {
+          stop++;
+        }
+      }
+    }
+    LoggerUtil.getLogger()
+        .info(
+            String.format(
+                "inbound commuters: %d agents (%d by train, %d by tram, metro or bus; %d not"
+                    + " placed), %d driving to the limited-traffic zone waiting for a space; %.0f"
+                    + " people by car elsewhere or other modes leave no one on the street",
+                rail + stop, rail, stop, unplaced, carClaims.size(), offStreet * share));
+    return carClaims;
+  }
+
+  /** Builds and registers one inbound commuter arriving at {@code arrival}. */
+  private void placeInbound(
+      InboundCommuters.Flow flow, NodeGraph work, NodeGraph arrival, int agentID) {
+    ActivityAgent agent = createNonResidentAgent(agentID);
+    agent.setHomeAndWorkplace(arrival, work);
+    agent.setFemale(flow.female());
+    agent.setPersona(flow.study() ? Persona.STUDENT : Persona.WORKER);
+    agent.setInbound(flow);
+    agent.decideCommuteMode();
+    finishNonResidentAgent(agent);
+    agent.currentLocation.geometry = GEOMETRY_FACTORY.createPoint(arrival.getCoordinate());
+    state.agents.addGeometry(agent.getLocation());
+    agent.updateAgentLists(false, true);
+  }
+
+  /** An inbound commuter or tourist of this module's agent class, not yet placed. */
+  protected ActivityAgent createNonResidentAgent(int agentID) {
+    ActivityAgent agent = new ActivityAgent(this.state, false);
+    agent.agentID = agentID;
+    return agent;
+  }
+
+  /** What a module adds to an inbound commuter or tourist once it is placed; nothing here. */
+  protected void finishNonResidentAgent(ActivityAgent agent) {}
 
   /**
    * Logs the share of the population that is female against the census expectation - the
@@ -52,7 +274,7 @@ public class ActivityPopulate extends Populate {
     long women = 0;
     long adults = 0;
     for (Agent agent : state.agentsList) {
-      if (agent instanceof ActivityAgent activityAgent) {
+      if (agent instanceof ActivityAgent activityAgent && activityAgent.isResident()) {
         adults++;
         if (activityAgent.isFemale()) {
           women++;

@@ -268,6 +268,143 @@ public class ActivityPars {
   public static double walkShareSteepness = 0.00084;
 
   /**
+   * Share of the work commutes not walked that are made by public transport, the rest by car,
+   * bicycle or anything else that puts no one on the street. A journey by public transport walks to
+   * a stop near its origin and from a stop near its destination ({@code TransitStops}).
+   *
+   * <p>A city fact, so zero here and stated in the city file. For Turin it is ISTAT's 2011
+   * commuting matrix restricted to commutes inside the city: bus, tram and metro are 28.4% of work
+   * commutes and walking 16.3%, so 28.4 / 83.7 of those not walked (see
+   * {@code COMMUTE_DISTANCE.md}).
+   */
+  public static double transitShareWorker = 0.0;
+
+  /** The same share for study commutes; 33.1 / 62.0 in Turin. See {@link #transitShareWorker}. */
+  public static double transitShareStudent = 0.0;
+
+  /**
+   * The same share for discretionary trips. No source gives it for Turin, so the city file states
+   * the work commute's figure until one does.
+   */
+  public static double transitShareDiscretionary = 0.0;
+
+  /**
+   * Share of the work commutes neither walked nor made by public transport that are driven. Only a
+   * driven commute to a workplace inside the limited-traffic zone puts anyone on the street, walking
+   * from the car park ({@code CarParks}); elsewhere the car is left at the door. A city fact, zero
+   * here: for Turin, ISTAT 2011, car drivers are 43.7% of work commutes inside the city and those
+   * neither walked nor by public transport 55.3%.
+   */
+  public static double carShareWorker = 0.0;
+
+  /** The same share for study commutes (car passengers 24.0 of 28.9 in Turin). */
+  public static double carShareStudent = 0.0;
+
+  /** The same share for discretionary trips; no Turin source, the city file states the work one. */
+  public static double carShareDiscretionary = 0.0;
+
+  /**
+   * How far from a destination in the limited-traffic zone a car park is looked for, straight line;
+   * the nearest is taken when none is this close. Unsourced.
+   */
+  public static double carParkRadiusMetres = 800.0;
+
+  /** Speed of a car journey, km/h; it decides only when the driver reappears. Unsourced. */
+  public static double carSpeedKmh = 20.0;
+
+  /**
+   * Share of workers who leave the workplace for lunch on a working day, to a dining destination
+   * near it. A city fact, zero here; see the city file for Turin's derivation.
+   */
+  public static double lunchOutShareWorker = 0.0;
+
+  /**
+   * Share of workers who go home for lunch, by the commute's mode, when the break leaves time to
+   * eat there. A city fact, zero here; see the city file for Turin's derivation.
+   */
+  public static double lunchHomeShareWorker = 0.0;
+
+  /**
+   * Shortest and longest lunch break of a worker who goes home for it, minutes, travel included.
+   * Unsourced: the one to one and a half hours an Italian working day commonly allows.
+   */
+  public static int lunchHomeBreakMinMinutes = 60;
+
+  public static int lunchHomeBreakMaxMinutes = 90;
+
+  /**
+   * Tourist nights spent in the city in each month, January to December, comma-separated: the
+   * accommodation statistics' presences. A night's tourists are the month's nights over its days.
+   * A city fact, empty here; a city without it has no tourists.
+   */
+  public static String touristNightsByMonth = "";
+
+  /**
+   * A tourist's day, each time drawn uniformly in its window, minutes of the day: out among the
+   * sights, lunch on the way, back to the accommodation, out again for dinner. Unsourced: an
+   * ordinary sightseeing day, nothing measured.
+   */
+  public static int touristLeaveEarliestMinute = 540;
+
+  public static int touristLeaveLatestMinute = 630;
+
+  public static int touristLunchEarliestMinute = 750;
+
+  public static int touristLunchLatestMinute = 810;
+
+  public static int touristBackEarliestMinute = 990;
+
+  public static int touristBackLatestMinute = 1110;
+
+  public static int touristEveningEarliestMinute = 1170;
+
+  public static int touristEveningLatestMinute = 1230;
+
+  /** Share of tourists who go on from dinner to a bar or a show. Unsourced. */
+  public static double touristNightlifeShare = 0.3;
+
+  /**
+   * How far from where a tourist stands a sight is considered, straight line. Wider than {@link
+   * #choiceSetRadiusMetres}: a visitor crosses the city for a sight it came to see. Unsourced.
+   */
+  public static double touristChoiceSetRadiusMetres = 8000.0;
+
+  /**
+   * Earliest and latest minute of the day a lunch break starts. Unsourced: the hours Italian
+   * workplaces break for lunch.
+   */
+  public static int lunchEarliestMinute = 720;
+
+  public static int lunchLatestMinute = 810;
+
+  /**
+   * Shortest and longest stay at the place eaten at, minutes. Nomisma for the Cirfood Osservatorio
+   * Buona Pausa Pranzo (1,200 interviews): a lunch break out rarely lasts more than 40 minutes.
+   */
+  public static int lunchStayMinMinutes = 20;
+
+  public static int lunchStayMaxMinutes = 40;
+
+  /**
+   * How far a stop may be from where a journey starts or ends, straight line, for that stop to
+   * serve it. 500 m is the planning convention for a walk to a stop, not a measurement.
+   */
+  public static double transitAccessRadiusMetres = 500.0;
+
+  /**
+   * Speed on board, km/h, for the time an agent spends away between two stops (distance between
+   * them times the network's circuity). Unsourced: a figure for urban surface transit; it decides
+   * only when the rider reappears, not where anyone walks.
+   */
+  public static double transitSpeedKmh = 15.0;
+
+  /**
+   * Hours a day the network runs, to turn a stop's daily departures into a headway; the wait is
+   * half of it, between one and fifteen minutes. Unsourced, like {@link #transitSpeedKmh}.
+   */
+  public static double transitServiceHours = 19.0;
+
+  /**
    * How many alternatives the choice is actually computed over.
    *
    * <p>Drawn uniformly from the opportunities within reach. Uniform sampling is what makes this

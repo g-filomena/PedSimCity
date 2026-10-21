@@ -26,7 +26,13 @@ public enum Persona {
   RETIREE(0.75, Double.NaN, Double.NaN, 0, 0, new double[] {0.25, 0.30, 0.05, 0.00, 0.20, 0.20}),
 
   /** Flexible / non-employed adult: no mandatory activity, balanced mix. */
-  FLEX(1.00, Double.NaN, Double.NaN, 0, 0, new double[] {0.25, 0.15, 0.15, 0.10, 0.25, 0.10});
+  FLEX(1.00, Double.NaN, Double.NaN, 0, 0, new double[] {0.25, 0.15, 0.15, 0.10, 0.25, 0.10}),
+
+  /**
+   * A visitor staying in the city. Never drawn from the census; its day is a {@link TouristDay},
+   * and the weights here are its two strongest purposes' fallback only.
+   */
+  TOURIST(1.00, Double.NaN, Double.NaN, 0, 0, new double[] {0.10, 0.00, 0.35, 0.25, 0.15, 0.15});
 
   /** Discretionary purposes, in the order of each persona's preference-weight array. */
   private static final ActivityPurpose[] DISCRETIONARY = {
@@ -306,6 +312,8 @@ public enum Persona {
         if (hour >= 6 && hour <= 8) yield 0.8;
         yield 0.4;
       }
+      // Sets off by its own programme, never by the release draw.
+      case TOURIST -> 0.0;
     };
   }
 

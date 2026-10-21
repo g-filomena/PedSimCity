@@ -89,6 +89,15 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
       if (!(agent instanceof ActivityAgent activityAgent)) {
         continue;
       }
+      if (!activityAgent.isResident()) {
+        // Scheduled, but outside the residents' trip budget and their statistics.
+        if (activityAgent.isTourist()) {
+          activityAgent.planTouristDay();
+        } else {
+          activityAgent.planMandatoryDeparture(today);
+        }
+        continue;
+      }
       Persona persona = activityAgent.getPersona();
       if (persona != null && persona.ordinal() < personaCounts.length) {
         personaCounts[persona.ordinal()]++;
@@ -157,7 +166,8 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
 
     LOGGER.info(
         String.format(
-            "day %s: %.0f commute legs (%.0f of them walked) of a %.0f-leg budget; %.3f"
+            "day %s: %.0f commute legs (%.0f of them on the street, walked or by public transport)"
+                + " of a %.0f-leg budget; %.3f"
                 + " discretionary chains per person at %.2f legs each",
             time.toLocalDate(),
             commuteLegs,
@@ -296,6 +306,11 @@ public class ActivityTravelDemand extends BaselineTravelDemand {
    */
   @Override
   public double releaseCandidateWeight(Agent agent, int hour) {
+    if (agent instanceof ActivityAgent activityAgent && !activityAgent.isResident()) {
+      // Someone who lives elsewhere sets off by its own schedule: a commuter from the station it
+      // arrives at, a tourist by its day's programme.
+      return 0.0;
+    }
     if (!ActivityPars.usePersonaReleaseWeights
         || !(agent instanceof ActivityAgent activityAgent)
         || activityAgent.getPersona() == null) {

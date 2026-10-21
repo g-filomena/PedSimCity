@@ -102,7 +102,7 @@ its own README under `src/main/java/pedsim/<module>/`:
 | Module | Role |
 |---|---|
 | [`core`](src/main/java/pedsim/core/README.md) | shared infrastructure: engine, routing, cognition, REST/dashboard |
-| [`activity`](src/main/java/pedsim/activity/README.md) | activity-based **24h foundation**: census home/work, workplace/night POI destinations, day/night clock |
+| [`activity`](src/main/java/pedsim/activity/README.md) | activity-based **24h foundation**: census population, daily programmes, destination and mode choice (walking to and from public transport and car parks), inbound commuters and tourists, day/night clock |
 | [`night`](src/main/java/pedsim/night/README.md) | extends `activity` — vulnerability + lighting-aware night routing |
 | [`learning`](src/main/java/pedsim/learning/README.md) | extends `activity` — incremental, decaying cognitive map |
 | [`empirical`](src/main/java/pedsim/empirical/README.md) | extends `core` — **empirical ABM**: behaviour calibrated on empirical data |
