@@ -3,6 +3,13 @@
 Notable changes to PedSimCity, most recent first, dated by the day they landed. The format
 follows [Keep a Changelog](https://keepachangelog.com); the project is not yet versioned.
 
+## 2026-10-21
+
+### Added
+- `pipeline/accommodation.py` (generic) and `accommodation_torino.py` (the Regione Piemonte
+  register, 2020), `pipeline/sights.py` and `inputData/Torino/sights/visitors.csv` (Osservatorio
+  Culturale del Piemonte 2023). Turin: 23,581 beds on 245 nodes, 111 sights on 97 nodes.
+
 ## 2026-10-20
 
 ### Added
@@ -10,6 +17,12 @@ follows [Keep a Changelog](https://keepachangelog.com); the project is not yet v
   `legRole`: a module can send an agent off the street for a ride and resume it.
 - A `leg` column in `trip_diagnostic.csv`: `walk`, `to_stop`, `from_stop`, `to_car` or
   `from_car`.
+- Pipeline: `inbound_commuters_istat.py`, `rail_reach.py` (any rail GTFS; also writes
+  `<City>_rail_stations.csv`), `parking.py` (generic) and `parking_5t_torino.py`.
+
+### Changed
+- `scripts/build_transit_layer.py` reads a GTFS folder or zip (`--gtfs`), the extended route types,
+  and counts each stop's departures on a weekday (`--date`).
 
 ## 2026-10-19
 
