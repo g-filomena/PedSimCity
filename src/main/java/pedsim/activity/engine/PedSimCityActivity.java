@@ -183,8 +183,14 @@ public class PedSimCityActivity extends PedSimCity {
   // carry the same tags. Both feed the purpose classifier below.
   public static VectorLayer poisLayer = new VectorLayer();
 
+  // Optional employment layer (<City>_employment.gpkg): zones with the number of people working in
+  // them. When present, the WORK attraction is built from it instead of from tags.
+  public static VectorLayer employmentLayer = new VectorLayer();
+
   // Per-node attraction weights per activity purpose, derived from OSM-like use tags on the
-  // buildings/POI layers by PoiClassifier. Empty when the city carries no tags.
+  // buildings/POI layers by PoiClassifier, and for WORK from the employment layer when there is
+  // one.
+  // Empty when the city carries neither.
   public static Map<ActivityPurpose, Map<NodeGraph, Double>> nodesPurposeWeight =
       new EnumMap<>(ActivityPurpose.class);
 
@@ -217,6 +223,7 @@ public class PedSimCityActivity extends PedSimCity {
     // clear() the layers themselves: getGeometries() returns a defensive copy.
     censusLayer.clear();
     poisLayer.clear();
+    employmentLayer.clear();
     censusZones.clear();
     nodesPurposeWeight.clear();
   }

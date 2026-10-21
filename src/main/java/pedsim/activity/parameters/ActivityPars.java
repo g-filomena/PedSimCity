@@ -180,8 +180,8 @@ public class ActivityPars {
   public static boolean useDestinationChoice = true;
 
   /**
-   * Weight on the size term, {@code ln(1 + attraction)}. At 1.0 a node with ten times the
-   * opportunities of another is about 2.4 utility points ahead of it, before distance.
+   * Weight on the size term, {@code ln(attraction)}. At 1.0 a node's pull is proportional to its
+   * opportunities: ten times the attraction is ln(10), about 2.3 utility points, before distance.
    */
   public static double sizeWeight = 1.0;
 

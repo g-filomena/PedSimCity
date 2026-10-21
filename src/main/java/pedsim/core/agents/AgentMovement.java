@@ -32,6 +32,9 @@ public class AgentMovement {
   protected List<DirectedEdge> directedEdgesSequence = new ArrayList<>();
   protected Agent agent;
   protected List<DirectedEdge> edgesWalkedSoFar = new ArrayList<>();
+  // The simulation scenario (for the time-aware modules, the hour) in force as each edge of
+  // edgesWalkedSoFar was entered, index for index.
+  protected List<Enum<?>> scenariosAtEntry = new ArrayList<>();
   protected Set<EdgeGraph> edgesToAvoid = new HashSet<>();
 
   PedSimCity state;
@@ -61,6 +64,7 @@ public class AgentMovement {
     // volumes this module exists to compare were cumulative, not per trip. Core and activity agents
     // never saw it because reinitializeMovementPath() builds a fresh movement handler per trip.
     edgesWalkedSoFar.clear();
+    scenariosAtEntry.clear();
     if (route == null
         || route.directedEdgesSequence == null
         || route.directedEdgesSequence.isEmpty()) {
@@ -207,6 +211,7 @@ public class AgentMovement {
    */
   protected void updateCounts() {
     edgesWalkedSoFar.add(currentDirectedEdge);
+    scenariosAtEntry.add(agent.getSimulationScenario());
     currentEdge.incrementAgentCount();
     agent.metersWalkedTot += currentEdge.getLength();
     agent.metersWalkedDay += currentEdge.getLength();
@@ -227,7 +232,7 @@ public class AgentMovement {
         .trace()
         .recordWalkedEdges(edgesWalkedSoFar.size(), new HashSet<>(edgesWalkedSoFar).size());
     state.flowHandler.updateFlowsData(
-        agent, agent.getRoute(), agent.getAgentScenario(), agent.getSimulationScenario());
+        agent, agent.getRoute(), agent.getAgentScenario(), scenariosAtEntry);
     agent
         .getState()
         .tripRecorder
