@@ -42,6 +42,8 @@ public class StringEnum {
     WAITING,
     GOING_HOME,
     AT_DESTINATION,
+    /** Travelling by a mode the model does not simulate, off the street until it reappears. */
+    AWAY,
   }
 
   public enum LandmarkNavigationMode {

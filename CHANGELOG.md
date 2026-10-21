@@ -3,6 +3,14 @@
 Notable changes to PedSimCity, most recent first, dated by the day they landed. The format
 follows [Keep a Changelog](https://keepachangelog.com); the project is not yet versioned.
 
+## 2026-10-20
+
+### Added
+- `AgentStatus.AWAY` and the core seams `travelUnwalked`, `walksBack`, `returnFromAway` and
+  `legRole`: a module can send an agent off the street for a ride and resume it.
+- A `leg` column in `trip_diagnostic.csv`: `walk`, `to_stop`, `from_stop`, `to_car` or
+  `from_car`.
+
 ## 2026-10-19
 
 ### Added

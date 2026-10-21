@@ -45,6 +45,12 @@ public class Agent implements Steppable {
   protected AgentStatus status;
   protected double timeAtDestination = Double.MAX_VALUE;
 
+  /** {@link #legRole()} of a leg that is a journey made on foot. */
+  public static final String WALK_LEG = "walk";
+
+  /** Step at which an agent that is {@link AgentStatus#AWAY} reappears on the street. */
+  protected double awayUntilStep = Double.MAX_VALUE;
+
   public NodeGraph originNode = null;
   public NodeGraph destinationNode = null;
   public List<Pair<NodeGraph, NodeGraph>> OD = new LinkedList<>();
@@ -152,6 +158,8 @@ public class Agent implements Steppable {
       }
     } else if (reachedDestination.get()) {
       handleReachedDestination();
+    } else if (isAway()) {
+      stepAway();
     } else if (isAtDestination() && timeAtDestination <= state.schedule.getSteps()) {
       goHome();
     } else if (isAtDestination()) {
@@ -159,6 +167,30 @@ public class Agent implements Steppable {
     } else {
       agentMovement.keepWalking();
     }
+  }
+
+  /**
+   * What the leg being walked is part of, for the trip record: {@link #WALK_LEG}, a journey made on
+   * foot, unless a module names the walk to or from another mode.
+   */
+  public String legRole() {
+    return WALK_LEG;
+  }
+
+  /** While away, waits for {@link #awayUntilStep} and then reappears. */
+  protected void stepAway() {
+    if (awayUntilStep <= state.schedule.getSteps()) {
+      awayUntilStep = Double.MAX_VALUE;
+      returnFromAway();
+    }
+  }
+
+  /**
+   * Puts the agent back on the street after a stretch {@link AgentStatus#AWAY}. Core never sends an
+   * agent away, so it has nothing to resume; a module that does answers here.
+   */
+  protected void returnFromAway() {
+    status = AgentStatus.WAITING;
   }
 
   /**
@@ -178,13 +210,36 @@ public class Agent implements Steppable {
       reachedDestination.set(true);
       return;
     }
-    // Asked on the outbound leg only. Having walked out, an agent walks back: the return is part of
-    // the same journey, not a mode decision of its own.
-    if (isWalkingAlone() && !walksLeg(originNode, destinationNode)) {
-      abandonUnwalkedLeg();
+    boolean walked =
+        isWalkingAlone()
+            ? walksLeg(originNode, destinationNode)
+            : walksBack(originNode, destinationNode);
+    if (!walked) {
+      travelUnwalked();
       return;
     }
     reinitializeMovementPath();
+  }
+
+  /**
+   * Whether the way home is walked. Core walks it: having walked out, an agent walks back, so the
+   * return is part of the same journey rather than a mode decision of its own. A module whose
+   * agents can go out by another mode answers for the way back.
+   *
+   * @param origin where the agent is
+   * @param home its home
+   * @return whether the agent walks home
+   */
+  protected boolean walksBack(NodeGraph origin, NodeGraph home) {
+    return true;
+  }
+
+  /**
+   * The leg just planned is not walked. Core leaves it off the street; a module that represents
+   * another mode makes the leg by it here, walking whatever part of it is walked.
+   */
+  protected void travelUnwalked() {
+    abandonUnwalkedLeg();
   }
 
   /**
@@ -738,6 +793,15 @@ public class Agent implements Steppable {
    */
   protected boolean isAtDestination() {
     return status.equals(AgentStatus.AT_DESTINATION);
+  }
+
+  /**
+   * Checks if the agent is travelling by a mode the model does not simulate.
+   *
+   * @return true if the agent is away, false otherwise.
+   */
+  protected boolean isAway() {
+    return status.equals(AgentStatus.AWAY);
   }
 
   /**

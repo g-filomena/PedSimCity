@@ -27,6 +27,7 @@ public class TripRouteRecorder {
     public double startStep;
     public double endStep;
     public boolean vulnerable;
+    public String legRole = pedsim.core.agents.Agent.WALK_LEG;
     public int originNodeId;
     public int destNodeId;
     public double meanLux =
@@ -61,6 +62,7 @@ public class TripRouteRecorder {
     record.endStep = endStep;
     record.vulnerable = vulnerable;
     record.meanLux = agent.getTripMeanLux();
+    record.legRole = agent.legRole();
     record.spookLocations = new ArrayList<>(agent.spookLocations);
 
     // First node of the first edge is the origin node

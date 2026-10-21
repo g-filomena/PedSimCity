@@ -69,7 +69,7 @@ class TripRecordingTest {
       recorder.saveToFile(raw.toString());
       TripDiagnostic.save(diagnostic.toString(), recorder.getRecords());
       assertEquals(8, Files.readAllLines(raw).get(1).split(",", -1).length);
-      assertEquals(9, Files.readAllLines(diagnostic).get(1).split(",", -1).length);
+      assertEquals(10, Files.readAllLines(diagnostic).get(1).split(",", -1).length);
     } finally {
       Locale.setDefault(previous);
     }

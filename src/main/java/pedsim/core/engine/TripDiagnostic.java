@@ -22,6 +22,9 @@ import pedsim.core.utilities.LoggerUtil;
  *   <li>nodes_walked    – semicolon-separated list of node IDs visited</li>
  *   <li>edges_walked    – semicolon-separated list of edge IDs traversed</li>
  *   <li>vulnerable      – true/false</li>
+ *   <li>mean_lux        – mean illuminance along the leg, 0 where the module tracks none</li>
+ *   <li>leg             – what the leg is part of: {@code walk}, a journey on foot, or the walk to
+ *       or from a stop of one made by another mode ({@link pedsim.core.agents.Agent#legRole()})</li>
  * </ul>
  *
  * <p>Call {@link #save(String, List)} once after the simulation finishes.
@@ -68,7 +71,7 @@ public class TripDiagnostic {
 
       // Header
       fw.write(
-          "agent_id,start_time,end_time,duration_min,distance_m,nodes_walked,edges_walked,vulnerable,mean_lux\n");
+          "agent_id,start_time,end_time,duration_min,distance_m,nodes_walked,edges_walked,vulnerable,mean_lux,leg\n");
 
       for (TripRouteRecorder.TripRecord t : trips) {
 
@@ -88,7 +91,7 @@ public class TripDiagnostic {
         fw.write(
             String.format(
                 java.util.Locale.ROOT,
-                "%d,%s,%s,%d,%.1f,%s,%s,%b,%.2f%n",
+                "%d,%s,%s,%d,%.1f,%s,%s,%b,%.2f,%s%n",
                 t.agentId,
                 startTime,
                 endTime,
@@ -97,7 +100,8 @@ public class TripDiagnostic {
                 nodes,
                 edges,
                 t.vulnerable,
-                luxVal));
+                luxVal,
+                t.legRole));
       }
 
       logger.info("[TripDiagnostic] Saved successfully → " + filename);
