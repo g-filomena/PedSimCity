@@ -6,6 +6,13 @@ follows [Keep a Changelog](https://keepachangelog.com); the project is not yet v
 ## 2026-10-05
 
 ### Changed
+- **A night agent expects an unknown street to be as dark as its class is on average.** It used
+  the darkness of the class's median illuminance, which is 0 for every major class in Turin (median
+  15-20 lx) although a quarter of residential and footway length is under 10 lx: 88% of the dim
+  length was believed lit by anyone who did not know it, so planning ignored darkness off the known
+  network and the darkness weights had almost nothing to act on. The expectation is the
+  length-weighted mean darkness of the class (`NightLighting.expectedDarkness`); the re-plan on
+  surprise compares it with the darkness seen.
 - **Angular routing searches the primal graph; the dual graph is gone.** A search state is a
   street walked in one direction, and a turn costs the deflection between the two streets' chords
   at the junction (`Deflection`) - the same angle cityImage writes as `deg`, to under 1e-6 degrees
@@ -37,6 +44,18 @@ follows [Keep a Changelog](https://keepachangelog.com); the project is not yet v
 - **A parameter the running module does not declare stops the run**, naming it and the closest
   declared name; it used to be ignored, so a misspelt or removed parameter ran the default.
   `LearningPars.halfLifeMemoryForRoutes` is `halfLife`, its command-line name.
+- **Each city's layers carry a provenance file**, `resources/<City>/<City>_provenance.json`: the
+  pipeline's command, settings, code commits and package versions, inputs and outputs with sha256,
+  and a record per stage of when and with what it was computed (a reused checkpoint keeps the record
+  of the run that made it). The lighting chain adds its own section; `pipeline/provenance.py
+  --from-log` reconstructs the stages of an earlier run from its log.
+- **London's official buildings** leave out archways, footbridges and bridges, and take the heights
+  OS does not supply from the EA LiDAR first-return DSM (`height_source`); the pipeline's
+  `--min-building-area` keeps smaller buildings as occluders only.
+- **A city's network options are saved in `prep_config.json`** (consolidation and its tolerance,
+  dead-end removal, the clip buffer) and reused by any later run that does not give them; the
+  launchers no longer turn a blank answer into "consolidate". A Torino rebuild on 5 Oct ran with the
+  default consolidation and halved the network before it was caught.
 
 ### Fixed
 - `scripts/run_night_comparison.bat` defaulted its baseline arm to the removed

@@ -126,13 +126,14 @@ set "STAGE_ARGS=--stages %CUSTOM_STAGES%"
 :consolidation
 echo.
 echo Network node consolidation (merges nearby graph nodes; affects the network stage).
-set /p CONSOLIDATE=Consolidate network nodes? yes/no [yes]:
-if "%CONSOLIDATE%"=="" set "CONSOLIDATE=yes"
+echo Blank keeps the city's saved choice (prep_config.json), or yes / 15 m for a new city.
+set /p CONSOLIDATE=Consolidate network nodes? yes/no [saved]:
+if "%CONSOLIDATE%"=="" goto :run_pipeline
 set "CONSOLIDATE_ARGS=--consolidate-network %CONSOLIDATE%"
 if /I "%CONSOLIDATE%"=="no" goto :run_pipeline
 if /I "%CONSOLIDATE%"=="n" goto :run_pipeline
-set /p CONS_TOL=Consolidation tolerance in metres [15]:
-if "%CONS_TOL%"=="" set "CONS_TOL=15"
+set /p CONS_TOL=Consolidation tolerance in metres [saved]:
+if "%CONS_TOL%"=="" goto :run_pipeline
 set "CONSOLIDATE_ARGS=%CONSOLIDATE_ARGS% --consolidate-tolerance %CONS_TOL%"
 
 :run_pipeline
