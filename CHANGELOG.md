@@ -14,8 +14,19 @@ follows [Keep a Changelog](https://keepachangelog.com); the project is not yet v
 ## 2026-10-18
 
 ### Added
+- **WORK attraction is employees** when the city has `<City>_employment.gpkg`
+  (`pipeline/employment_istat.py`: ISTAT 2011 industry census, 404,164 employees in Turin), split
+  evenly over the nodes each census section claims. Within 1 km of Piazza Castello it holds 14.6%
+  of Turin's jobs, against 2.3% from building footprints; the walked worker commute share is 16.8%
+  (ISTAT 16.3%).
 - `pipeline/street_corridors.py` writes `<City>_streets.csv`, the street each edge belongs to
   (a corso with its side roads and sidewalks, a pedestrian street with its arcades).
+
+### Changed
+- **Destination candidates are the nodes that hold something for the purpose** (all nodes only
+  where none does), and the size term is `ln(attraction)`. With `ln(1 + attraction)` over every
+  node in reach, 67-96% of discretionary legs ended at a node without the purpose.
+- **An edge's hourly volume counts the hour it was entered**, not the hour the trip ended.
 
 ## 2026-10-16
 

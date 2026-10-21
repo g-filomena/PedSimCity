@@ -1,10 +1,13 @@
 package pedsim.activity.engine;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.index.strtree.STRtree;
+import pedsim.activity.agents.ActivityPurpose;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.Environment;
 import pedsim.core.parameters.Pars;
@@ -17,7 +20,8 @@ import sim.util.geo.MasonGeometry;
  * buildings, barriers, regions) by building the {@link CensusZone} model from the census layer:
  * per-zone residence weights (population structure) and the network nodes associated with each
  * zone by proximity. Destination attraction is no census matter — it comes from the OSM-tag
- * purpose weights built by {@link PoiClassifier}.
+ * purpose weights built by {@link PoiClassifier}, and for WORK from the employment layer when the
+ * city has one.
  *
  * <p>Nodes are assigned to zones by proximity rather than strict containment, because graph nodes
  * sit on the street network (inside road zones) while population/POIs are attributed to the
@@ -47,6 +51,54 @@ public class ActivityEnvironment extends Environment {
       buildCensusZones();
     }
     PoiClassifier.buildPurposeWeights();
+    if (!PedSimCityActivity.employmentLayer.isEmpty()) {
+      buildWorkFromEmployment();
+    }
+  }
+
+  /**
+   * Replaces the WORK attraction with the employment layer: each zone's {@code employees} split
+   * evenly over the network nodes it claims ({@link #claimNodes}), so a node's weight is the number
+   * of people working around it. Tagged offices and industry then no longer count: a building's
+   * footprint says how big it is, not how many people work in it.
+   */
+  private static void buildWorkFromEmployment() {
+    List<NodeGraph> allNodes = SharedCognitiveMap.getCommunityPrimalNetwork().getNodes();
+    STRtree nodeIndex = buildNodeIndex(allNodes);
+
+    // LinkedHashMap: weighted draws walk the entries in order, so the order must not depend on
+    // identity hashes (see PoiClassifier).
+    Map<NodeGraph, Double> work = new LinkedHashMap<>();
+    double employees = 0.0;
+    double unplaced = 0.0;
+    int zones = 0;
+    for (MasonGeometry geom : PedSimCityActivity.employmentLayer.getGeometries()) {
+      double zoneEmployees = zoneValue(geom, "employees");
+      if (geom.getGeometry() == null || zoneEmployees <= 0.0) {
+        continue;
+      }
+      zones++;
+      employees += zoneEmployees;
+      List<NodeGraph> nodes = claimNodes(geom.getGeometry(), nodeIndex);
+      if (nodes.isEmpty()) {
+        unplaced += zoneEmployees;
+        continue;
+      }
+      double share = zoneEmployees / nodes.size();
+      for (NodeGraph node : nodes) {
+        work.merge(node, share, Double::sum);
+      }
+    }
+    if (work.isEmpty()) {
+      logger.warning("employment: no zone placed on the network; WORK attraction kept from tags.");
+      return;
+    }
+    PedSimCityActivity.nodesPurposeWeight.put(ActivityPurpose.WORK, work);
+    logger.info(
+        String.format(
+            "employment: WORK attraction from %d zones, %.0f employees over %d nodes"
+                + " (%.0f in zones with no node within %.0f m)",
+            zones, employees, work.size(), unplaced, CLAIM_RADII[CLAIM_RADII.length - 1]));
   }
 
   private static void buildCensusZones() {

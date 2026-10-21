@@ -22,13 +22,16 @@ import sim.graph.NodeGraph;
  * <p>Here distance is a cost inside one utility, next to attraction and habit:
  *
  * <pre>{@code
- * U(j) = sizeWeight * ln(1 + attraction_j) - distanceWeight * d_ij + habitWeight * known_j
+ * U(j) = sizeWeight * ln(attraction_j) - distanceWeight * d_ij + habitWeight * known_j
  * P(j) = exp(U_j) / sum_k exp(U_k)
  * }</pre>
  *
- * <p>The logarithm on attraction is the standard size term: twice the opportunities is not twice
- * the pull. Habit is a term rather than a branch that skips everything else, so a familiar place
- * competes with a better or nearer one instead of overriding it.
+ * <p>The alternatives are the nodes holding something for the purpose: a node is an aggregate of
+ * the opportunities snapped to it, and the logarithm of their number is the standard size term, so
+ * at {@code sizeWeight = 1} a node with twice the opportunities draws twice the trips, and below one
+ * it draws less than twice. A node with nothing for the purpose is not an alternative. Habit is a
+ * term rather than a branch that skips everything else, so a familiar place competes with a better
+ * or nearer one instead of overriding it.
  *
  * <p><b>The trip-length distribution is now an output.</b> Nothing here targets a length;
  * {@code distanceWeight} shapes one, and whether the shape matches what travel surveys observe is
@@ -44,7 +47,8 @@ public final class DestinationChoice {
   /**
    * Draws a destination for a purpose, from the opportunities around an origin.
    *
-   * @param candidates the choice set: nodes reachable from the origin
+   * @param candidates nodes reachable from the origin; those with no attraction for the purpose are
+   *     dropped, unless none has any, when all of them are kept
    * @param origin where the agent is standing
    * @param attraction per-node attraction for the purpose, or null when the city carries no tags
    * @param familiar places this agent already knows for this purpose; may be null or empty
@@ -60,6 +64,18 @@ public final class DestinationChoice {
 
     if (candidates == null || candidates.isEmpty()) {
       return null;
+    }
+
+    if (attraction != null && !attraction.isEmpty()) {
+      List<NodeGraph> opportunities = new ArrayList<>();
+      for (NodeGraph candidate : candidates) {
+        if (attraction.getOrDefault(candidate, 0.0) > 0.0) {
+          opportunities.add(candidate);
+        }
+      }
+      if (!opportunities.isEmpty()) {
+        candidates = opportunities;
+      }
     }
 
     // Sampling of alternatives. Enumerating every opportunity within reach costs about five times
@@ -92,7 +108,8 @@ public final class DestinationChoice {
           origin.getCoordinate().distance(candidate.getCoordinate()) * Pars.networkCircuityFactor;
 
       double pull = attraction == null ? 0.0 : attraction.getOrDefault(candidate, 0.0);
-      double u = ActivityPars.sizeWeight * Math.log1p(pull) - ActivityPars.distanceWeight * metres;
+      double size = pull > 0.0 ? ActivityPars.sizeWeight * Math.log(pull) : 0.0;
+      double u = size - ActivityPars.distanceWeight * metres;
       if (familiar != null && familiar.containsKey(candidate)) {
         u += ActivityPars.habitWeight;
       }

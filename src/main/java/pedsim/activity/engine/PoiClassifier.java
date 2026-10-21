@@ -28,7 +28,8 @@ import sim.util.geo.MasonGeometry;
  * proportionally more WORK trips than a single office venue.
  *
  * <p>The resulting maps drive purpose-aware destination choice in {@code ActivityAgent} and
- * work-node assignment in {@code ActivityPopulate}. Cities without tags simply produce empty maps:
+ * work-node assignment in {@code ActivityPopulate}. Where the city has an employment layer, {@code
+ * ActivityEnvironment} replaces the WORK map built here with employees per node. Cities without tags simply produce empty maps:
  * destination choice degrades to uniform and work assignment to the DMA / distance fallbacks.
  */
 public final class PoiClassifier {

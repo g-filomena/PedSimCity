@@ -110,27 +110,45 @@ public class FlowHandler {
   }
 
   /**
-   * Updates the edge data on the basis of the passed agent's route and its edges sequence.
+   * Counts a walked route into the edge volumes: each edge once, under the agent's scenario and the
+   * simulation scenario in force when the agent entered that edge, so a trip spanning two hours
+   * counts each street in the hour it was walked.
    *
-   * @param agent The agent for which edge data is updated.
-   * @param route The route taken by the agent.
+   * @param agent the agent that walked the route
+   * @param route the edges walked, in order
+   * @param agentScenarioValue the agent's scenario, or null
+   * @param edgeScenarioValues the simulation scenario per edge of {@code route.edgesSequence}, index
+   *     for index; the last one also labels the route record
    */
   public synchronized void updateFlowsData(
-      Agent agent, Route route, Enum<?> agentScenarioValue, Enum<?> scenarioValue) {
+      Agent agent, Route route, Enum<?> agentScenarioValue, List<Enum<?>> edgeScenarioValues) {
 
-    String attribute =
-        (agentScenarioValue != null && scenarioValue != null)
-            ? agentScenarioValue.toString() + "_" + scenarioValue.toString()
-            : (agentScenarioValue != null ? agentScenarioValue.toString() : "DEFAULT");
-
-    RouteData routeData = createRouteData(agent, route, attribute);
-    for (EdgeGraph edgeGraph : route.edgesSequence) {
+    if (edgeScenarioValues.size() != route.edgesSequence.size()) {
+      throw new IllegalArgumentException(
+          edgeScenarioValues.size()
+              + " scenarios for a route of "
+              + route.edgesSequence.size()
+              + " edges");
+    }
+    Enum<?> lastScenario =
+        edgeScenarioValues.isEmpty() ? null : edgeScenarioValues.get(edgeScenarioValues.size() - 1);
+    RouteData routeData =
+        createRouteData(agent, route, attribute(agentScenarioValue, lastScenario));
+    for (int i = 0; i < route.edgesSequence.size(); i++) {
+      String attribute = attribute(agentScenarioValue, edgeScenarioValues.get(i));
       Map<String, Integer> edgeVolume =
-          volumesMap.computeIfAbsent(edgeGraph.getID(), k -> new HashMap<>());
+          volumesMap.computeIfAbsent(route.edgesSequence.get(i).getID(), k -> new HashMap<>());
       edgeVolume.put(attribute, edgeVolume.getOrDefault(attribute, 0) + 1);
     }
     routeData.edgeIDsSequence = GraphUtils.getEdgeIDs(route.edgesSequence);
     routesData.add(routeData);
+  }
+
+  /** The volume key for an agent scenario and a simulation scenario, either of which may be null. */
+  private static String attribute(Enum<?> agentScenarioValue, Enum<?> scenarioValue) {
+    return (agentScenarioValue != null && scenarioValue != null)
+        ? agentScenarioValue.toString() + "_" + scenarioValue.toString()
+        : (agentScenarioValue != null ? agentScenarioValue.toString() : "DEFAULT");
   }
 
   /**
