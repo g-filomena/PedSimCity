@@ -3,6 +3,17 @@
 Notable changes to PedSimCity, most recent first, dated by the day they landed. The format
 follows [Keep a Changelog](https://keepachangelog.com); the project is not yet versioned.
 
+## 2026-10-19
+
+### Added
+- `--sidewalk-policy` in the city pipeline, saved in `prep_config.json`.
+
+## 2026-10-18
+
+### Added
+- `pipeline/street_corridors.py` writes `<City>_streets.csv`, the street each edge belongs to
+  (a corso with its side roads and sidewalks, a pedestrian street with its arcades).
+
 ## 2026-10-16
 
 ### Changed
