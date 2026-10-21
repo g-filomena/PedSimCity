@@ -6,6 +6,9 @@ follows [Keep a Changelog](https://keepachangelog.com); the project is not yet v
 ## 2026-10-19
 
 ### Added
+- **`Torino_sidewalks`**, Torino without the road centrelines whose sidewalks are drawn along both
+  sides (`pipeline/drop_duplicate_centrelines.py`): 1,558 centrelines (60.7 km) removed, 41,893 to
+  39,265 edges, surviving IDs kept.
 - `--sidewalk-policy` in the city pipeline, saved in `prep_config.json`.
 
 ## 2026-10-18
