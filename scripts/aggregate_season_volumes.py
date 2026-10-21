@@ -9,10 +9,12 @@ This sums the hourly columns over every day-job of one season, drops the edges t
 nothing, and writes a single JSON file holding flat integer arrays. Gzipped by the web server
 it lands in the low hundreds of kB.
 
-    python aggregate_season_volumes.py <run_dir> --season autumn --out autumn.json
+    python aggregate_season_volumes.py <run_dir> [<run_dir> ...] --season autumn --out autumn.json
 
 ``run_dir`` is the directory holding ``streetVolumes/`` and ``daySummary/`` - for a night run,
-``<run>/outputs/PedSimCityNight``.
+``<run>/outputs/PedSimCityNight``, or ``outputs/PedSimCityNight/<tag>`` for a tagged one. Several
+run directories - one seed each - are pooled, every job of every directory counting as one
+replicate, named ``<directory>/<job>``.
 
 Standard library only: gdsl1 has no numpy, and this has to run where the data is.
 """
@@ -51,37 +53,45 @@ def hour_columns(header: list[str]) -> tuple[dict[int, int], dict[int, int]]:
     return vuln, nonvuln
 
 
-def read_day_summary(run_dir: Path, max_day: int | None = None) -> list[dict[str, str]]:
-    """Every row of every daySummary file, in file order, up to ``max_day``."""
+def read_day_summary(run_dirs: list[Path], max_day: int | None = None) -> list[dict[str, str]]:
+    """Every row of every daySummary file, in file order, up to ``max_day``. With several run
+    directories a row's ``job`` names its directory too, so the replicates stay apart."""
     rows: list[dict[str, str]] = []
-    for path in sorted((run_dir / "daySummary").glob("*.csv")):
-        with path.open(newline="") as handle:
-            for row in csv.DictReader(handle):
-                # A concatenated file repeats its header; skip those rows.
-                if not row.get("day") or row["day"] == "day":
-                    continue
-                if max_day is not None and int(row["day"]) > max_day:
-                    continue
-                rows.append(row)
+    for run_dir in run_dirs:
+        for path in sorted((run_dir / "daySummary").glob("*.csv")):
+            with path.open(newline="") as handle:
+                for row in csv.DictReader(handle):
+                    # A concatenated file repeats its header; skip those rows.
+                    if not row.get("day") or row["day"] == "day":
+                        continue
+                    if max_day is not None and int(row["day"]) > max_day:
+                        continue
+                    if len(run_dirs) > 1:
+                        row["job"] = f"{run_dir.name}/{row.get('job', '')}"
+                    rows.append(row)
     return rows
 
 
-def aggregate(run_dir: Path, max_day: int | None = None) -> dict:
-    volume_dir = run_dir / "streetVolumes"
-    files = sorted(p for p in volume_dir.glob("*.csv") if VOLUME_NAME.match(p.name))
+def aggregate(run_dirs: list[Path], max_day: int | None = None) -> dict:
+    files = []
+    for run_dir in run_dirs:
+        found = sorted(p for p in (run_dir / "streetVolumes").glob("*.csv")
+                       if VOLUME_NAME.match(p.name))
+        if not found:
+            sys.exit(f"no street volume files under {run_dir / 'streetVolumes'}")
+        files += [(run_dir, p) for p in found]
     if max_day is not None:
-        files = [p for p in files if int(VOLUME_NAME.match(p.name).group("day")) <= max_day]
-    if not files:
-        sys.exit(f"no street volume files under {volume_dir}")
+        files = [(d, p) for d, p in files
+                 if int(VOLUME_NAME.match(p.name).group("day")) <= max_day]
 
     vuln_totals: dict[int, list[int]] = defaultdict(lambda: [0] * HOURS)
     nonvuln_totals: dict[int, list[int]] = defaultdict(lambda: [0] * HOURS)
     jobs: set[str] = set()
     days: set[str] = set()
 
-    for path in files:
+    for run_dir, path in files:
         meta = VOLUME_NAME.match(path.name)
-        jobs.add(meta.group("job"))
+        jobs.add(f"{run_dir.name}/{meta.group('job')}" if len(run_dirs) > 1 else meta.group("job"))
         days.add(meta.group("day"))
         with path.open(newline="") as handle:
             reader = csv.reader(handle)
@@ -136,7 +146,8 @@ def aggregate(run_dir: Path, max_day: int | None = None) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("run_dir", type=Path, help="directory holding streetVolumes/ and daySummary/")
+    parser.add_argument("run_dir", type=Path, nargs="+",
+                        help="directory holding streetVolumes/ and daySummary/; several are pooled")
     parser.add_argument("--season", required=True, help="label for this run, e.g. autumn")
     parser.add_argument("--out", type=Path, required=True, help="JSON file to write")
     parser.add_argument(

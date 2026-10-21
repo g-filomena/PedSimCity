@@ -7,7 +7,8 @@ the same edges as WGS84 GeoJSON, simplified and with coordinates rounded, small 
 Only the geometry travels. Volumes arrive separately from ``aggregate_season_volumes.py`` and
 are joined in the page by ``edgeID``, so one geometry file serves every season.
 
-    python export_network_geojson.py Torino --out site_data/Torino_edges.geojson
+    python export_network_geojson.py Torino \
+        --out ../inclusivestreets/torino-di-notte/data/Torino/Torino_edges.geojson
 
 Run it in the *activated* conda env (``conda activate pedsimcity-prep``); calling the env's
 python.exe by path leaves Library\\bin off PATH and GDAL fails on a delay-loaded DLL.

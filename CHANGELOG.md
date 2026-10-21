@@ -3,6 +3,12 @@
 Notable changes to PedSimCity, most recent first, dated by the day they landed. The format
 follows [Keep a Changelog](https://keepachangelog.com); the project is not yet versioned.
 
+## 2026-10-08
+
+### Removed
+- `scripts/publish_site.py`, `publish_site.bat` and `scripts/site/`: the results site is built and
+  deployed from `../inclusivestreets/`.
+
 ## 2026-10-05
 
 ### Changed
