@@ -116,6 +116,8 @@ public class NightAgent extends ActivityAgent {
       planTrip();
     } else if (reachedDestination.get()) {
       handleReachedDestination();
+    } else if (isAway()) {
+      stepAway();
     } else if (isAtDestination()) {
       if (timeAtDestination <= state.schedule.getSteps()) {
         goHome();
