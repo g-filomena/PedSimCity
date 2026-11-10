@@ -45,7 +45,8 @@ public abstract class LandmarkNavigation implements NavigationElement {
         || !agent.getProperties().isUsingLocalLandmarks()) {
       return;
     }
-    double localLandmarkThreshold = agent.getHeuristics().getLocalLandmarksThreshold();
+    double localLandmarkThreshold =
+        agent.getCognitiveMap().getLocalLandmarkThreshold(originNode, destinationNode);
     agent.getCognitiveMap().findKnownLocalLandmarks(localLandmarkThreshold);
   }
 
