@@ -49,7 +49,10 @@ public class GlobalLandmarkNavigation extends LandmarkNavigation {
 
     // while the wayfindingEasiness is lower than the threshold the agent looks for
     // intermediate-points.
-    while (wayfindingEasiness < agent.getCognitiveMap().getWayfindingEasinessThreshold(false)) {
+    while (wayfindingEasiness
+        < agent
+            .getCognitiveMap()
+            .getWayfindingEasinessThreshold(currentNode, destinationNode, false)) {
       NodeGraph bestNode = findOnRouteMark(salientNodes, searchDistance);
       if (bestNode == null || bestNode.equals(currentNode)) {
         break;

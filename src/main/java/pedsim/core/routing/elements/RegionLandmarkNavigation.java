@@ -90,7 +90,8 @@ public class RegionLandmarkNavigation extends LandmarkNavigation {
 
     // while the wayfindingEasiness is lower than the threshold the agent looks for
     // intermediate-points.
-    while (wayfindingEasiness < agent.getCognitiveMap().getWayfindingEasinessThreshold(true)) {
+    while (wayfindingEasiness
+        < agent.getCognitiveMap().getWayfindingEasinessThreshold(currentNode, exitGateway, true)) {
       NodeGraph bestNode = findOnRouteMarkRegion(exitGateway, salientNodes, searchDistance);
       if (bestNode == null || bestNode.equals(exitGateway) || bestNode.equals(destinationNode))
         break;

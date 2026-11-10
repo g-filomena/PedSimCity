@@ -51,12 +51,6 @@ public class StringEnum {
     REGION_BASED
   }
 
-  public enum RouteMeaningfulnessFactor {
-    EASINESS,
-    EXPOSURE,
-    NOVELTY
-  }
-
   public enum Learner {
     LEARNER,
     NOT_LEARNER

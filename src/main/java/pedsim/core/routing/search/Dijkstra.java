@@ -236,9 +236,13 @@ public abstract class Dijkstra {
    * lists and intersecting them with retainAll.
    *
    * @param commonEdge The street whose cost is perceived.
-   * @return The computed cost perception error.
+   * @return The computed cost perception error, times the agent's own factor for the street.
    */
   protected double costPerceptionError(EdgeGraph commonEdge) {
+    return agent.edgeCostFactor(commonEdge) * perceptionError(commonEdge);
+  }
+
+  private double perceptionError(EdgeGraph commonEdge) {
 
     if (!properties.shouldOnlyUseMinimization()) {
       Set<Integer> knownBarriers = agent.getCognitiveMap().getAgentKnownBarriers();

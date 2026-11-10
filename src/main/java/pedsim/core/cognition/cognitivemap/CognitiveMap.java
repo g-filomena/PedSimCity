@@ -121,6 +121,26 @@ public class CognitiveMap extends SharedCognitiveMap {
     formed = true;
   }
 
+  /**
+   * Makes this map hold what {@code other} holds: its anchors, bone and known space, with the known
+   * network built afresh from them. For an agent that must start from exactly another's knowledge.
+   */
+  public void copyKnowledgeFrom(CognitiveMap other) {
+    anchors = new ArrayList<>(other.anchors);
+    activityBoneNodes = new HashSet<>(other.activityBoneNodes);
+    activityBoneEdges = new HashSet<>(other.activityBoneEdges);
+    agentKnownNodes = new HashSet<>(other.agentKnownNodes);
+    agentKnownEdges = new HashSet<>(other.agentKnownEdges);
+    agentKnownRegions = new HashSet<>(other.agentKnownRegions);
+    agentKnownBarriers = new HashSet<>(other.agentKnownBarriers);
+    agentKnownLocalLandmarks = new HashSet<>(other.agentKnownLocalLandmarks);
+    cognitiveCollage = new ArrayList<>(other.cognitiveCollage);
+    networkBuilder = new NetworkBuilder(this);
+    networkBuilder.buildKnownNetwork();
+    individualised = other.individualised;
+    formed = other.formed;
+  }
+
   private void buildActivityBone() {
 
     List<NodeGraph> knownNodes = agent.cognitiveAnchors();
@@ -177,7 +197,7 @@ public class CognitiveMap extends SharedCognitiveMap {
       }
     }
 
-    if (RouteChoicePars.cityCentreRegionsID.length > 0) {
+    if (knowsCityCentre() && RouteChoicePars.cityCentreRegionsID.length > 0) {
       for (Integer regionID : RouteChoicePars.cityCentreRegionsID) {
         Region r = PedSimCity.regionsMap.get(regionID);
         if (r != null) activityBoneNodesTmp.addAll(r.nodes);
@@ -238,11 +258,25 @@ public class CognitiveMap extends SharedCognitiveMap {
     }
   }
 
-  private void fuseBoneWithCommunityNetwork() {
+  /**
+   * Whether the city-centre regions are part of what this agent knows. Every agent knows them; a
+   * module that models someone new to the city says otherwise.
+   */
+  protected boolean knowsCityCentre() {
+    return true;
+  }
 
-    for (Integer regionID : RouteChoicePars.cityCentreRegionsID) {
-      agentKnownRegions.add(regionID);
-      agentKnownNodes.addAll(GraphUtils.getNodeIDs(PedSimCity.regionsMap.get(regionID).nodes));
+  /**
+   * Adds to the known space the agent's activity bone and the community's known network. A module
+   * that gives an agent a narrower share of the community's network overrides this.
+   */
+  protected void fuseBoneWithCommunityNetwork() {
+
+    if (knowsCityCentre()) {
+      for (Integer regionID : RouteChoicePars.cityCentreRegionsID) {
+        agentKnownRegions.add(regionID);
+        agentKnownNodes.addAll(GraphUtils.getNodeIDs(PedSimCity.regionsMap.get(regionID).nodes));
+      }
     }
 
     agentKnownNodes.addAll(activityBoneNodes);
