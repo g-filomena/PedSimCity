@@ -10,6 +10,7 @@ import pedsim.core.routing.RoutePlanner;
 import pedsim.core.utilities.StringEnum.Learner;
 import pedsim.learning.cognitivemap.CognitiveMap;
 import pedsim.learning.cognitivemap.IncrementalLearning;
+import pedsim.learning.cognitivemap.MemoryProfile;
 import pedsim.learning.habit.RouteHabit;
 import sim.engine.SimState;
 import sim.graph.EdgeGraph;
@@ -78,6 +79,11 @@ public class LearningAgent extends ActivityAgent {
     this.learning = new IncrementalLearning(this);
   }
 
+  /** How this agent builds and keeps what it learns. */
+  public MemoryProfile memoryProfile() {
+    return learning.profile();
+  }
+
   /** Typed accessor for the learning cognitive map (the inherited getter returns the core type). */
   public CognitiveMap getLearningCognitiveMap() {
     return (CognitiveMap) cognitiveMap;
@@ -86,14 +92,14 @@ public class LearningAgent extends ActivityAgent {
   /**
    * Runs the core agent step, then applies time-based memory decay for learners. Decay is applied
    * every step because its factor is calibrated per {@code STEP_DURATION}; it is a no-op until the
-   * agent has accumulated route memory (the vividness grid is created lazily). The agent's stable
-   * {@code spatialAbility} modulates the rate (higher ability → slower decay).
+   * agent has accumulated route memory (the vividness grid is created lazily). The agent's memory
+   * profile sets how fast the lasting part fades.
    */
   @Override
   public void step(SimState state) {
     super.step(state);
     if (isLearner()) {
-      learning.applyDecay(getLearningCognitiveMap().spatialAbility);
+      learning.applyDecay();
     }
   }
 

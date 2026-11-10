@@ -10,6 +10,7 @@ import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.utilities.LoggerUtil;
 import pedsim.learning.agents.LearningAgent;
+import pedsim.learning.cognitivemap.MemoryProfile;
 import pedsim.learning.cognitivemap.RecognitionStats;
 import pedsim.learning.parameters.LearningPars;
 import sim.graph.EdgeGraph;
@@ -55,13 +56,18 @@ final class LearningDayReport {
         into[1] += drained[1];
       }
     }
+    int[] profiles = new int[MemoryProfile.values().length];
+    for (LearningAgent learner : learners) {
+      profiles[learner.memoryProfile().ordinal()]++;
+    }
     logger.info(
         String.format(
             "learning day %d: known network (edges, mean; of them beyond the community's) learners"
                 + " %.0f (%.0f) over %d, others %.0f (%.0f) over %d; learners' recognition:"
                 + " local-landmark threshold %.2f at vividness %.2f (%d queries), easiness"
                 + " threshold %.2f at vividness %.2f (%d queries); route efficiency (straight line"
-                + " / walked) learners %.4f over %d trips, others %.4f over %d",
+                + " / walked) learners %.4f over %d trips, others %.4f over %d; learners by memory"
+                + " profile (integrators / non-integrators / imprecise) %d / %d / %d",
             day,
             meanKnownEdges(learners, false),
             meanKnownEdges(learners, true),
@@ -78,7 +84,10 @@ final class LearningDayReport {
             efficiencyLearners[0] / efficiencyLearners[1],
             (int) efficiencyLearners[1],
             efficiencyOthers[0] / efficiencyOthers[1],
-            (int) efficiencyOthers[1]));
+            (int) efficiencyOthers[1],
+            profiles[MemoryProfile.INTEGRATOR.ordinal()],
+            profiles[MemoryProfile.NON_INTEGRATOR.ordinal()],
+            profiles[MemoryProfile.IMPRECISE.ordinal()]));
   }
 
   /**

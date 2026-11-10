@@ -28,6 +28,9 @@ public class IncrementalLearning {
   /** Whether fading has changed the grid since the map was last derived from it. */
   private boolean fadedSinceRebuild = false;
 
+  /** The agent's group, from its spatial ability; set on first use. */
+  private MemoryProfile profile;
+
   public IncrementalLearning(LearningAgent agent) {
     this.agent = agent;
     this.cognitiveMap = agent.getLearningCognitiveMap();
@@ -39,6 +42,14 @@ public class IncrementalLearning {
     consolidatedFadedTo = other.consolidatedFadedTo;
     rebuiltOn = other.rebuiltOn;
     fadedSinceRebuild = other.fadedSinceRebuild;
+  }
+
+  /** How this agent builds and keeps what it learns. */
+  public MemoryProfile profile() {
+    if (profile == null) {
+      profile = MemoryProfile.of(cognitiveMap.spatialAbility);
+    }
+    return profile;
   }
 
   /** The agent's accumulated vividness grid, or {@code null} before any route memory is built. */
@@ -104,14 +115,17 @@ public class IncrementalLearning {
     if (routeVisibilitySpace == null || routeVisibilitySpace.isEmpty()) {
       return;
     }
-    if (vividnessGrid == null)
+    if (vividnessGrid == null) {
       vividnessGrid =
           new VividnessGrid(routeVisibilitySpace.getEnvelopeInternal(), LearningPars.cellSize);
+      vividnessGrid.setKeep(profile().keep());
+    }
 
     double exposure = routeProperties.landmarkExposure();
     vividnessGrid.setDay(currentDay());
+    double gain = profile().routeGain();
     vividnessGrid.stamp(
-        routeVisibilitySpace, novelty -> RouteMeaningfulness.walks(novelty, exposure));
+        routeVisibilitySpace, novelty -> gain * RouteMeaningfulness.walks(novelty, exposure));
   }
 
   /** Re-derives the agent's known network from the vividness grid as it currently stands. */
@@ -125,25 +139,24 @@ public class IncrementalLearning {
   }
 
   /**
-   * Fades the vividness grid by one simulation step, by the agent's own rate.
+   * Fades the vividness grid by one simulation step. The walked traces fade at one rate for every
+   * agent; the consolidated store fades at the rate of the agent's {@link MemoryProfile}.
    *
    * <p>The grid fades as one scale factor, in constant time. The known space is the cells holding at
    * least {@code LearningPars.memoryThreshold} walks, so the cognitive map is rebuilt when the
    * fade takes the weakest of them below it, or the consolidated store fades, at most once every
    * {@code LearningPars.rebuildEveryDays}.
-   *
-   * @param memoryAbility value between 0 and 1 (higher = better memory, slower decay)
    */
-  public void applyDecay(double memoryAbility) {
+  public void applyDecay() {
     if (vividnessGrid == null) return;
-    vividnessGrid.decay(computeDecayFactor(memoryAbility));
+    vividnessGrid.decay(computeDecayFactor());
     fadedSinceRebuild |= vividnessGrid.collageHasFaded();
 
     long today = currentDay();
     if (consolidatedFadedTo < 0) {
       consolidatedFadedTo = today;
     } else if (today > consolidatedFadedTo) {
-      double factor = consolidatedDecayFactor(memoryAbility, today - consolidatedFadedTo);
+      double factor = consolidatedDecayFactor(profile(), today - consolidatedFadedTo);
       consolidatedFadedTo = today;
       if (factor < 1.0) {
         vividnessGrid.decayConsolidated(factor);
@@ -160,30 +173,21 @@ public class IncrementalLearning {
   }
 
   /**
-   * The factor the consolidated store fades by over some days: the labile rate's ability scaling
-   * with {@code LearningPars.consolidatedHalfLife} as the half-life. 1 when that is 0.
+   * The factor the consolidated store fades by over some days: half-life {@code
+   * LearningPars.consolidatedHalfLife}, the profile's {@link MemoryProfile#fade} times as fast. 1
+   * when the half-life is 0.
    */
-  public static double consolidatedDecayFactor(double memoryAbility, long days) {
+  public static double consolidatedDecayFactor(MemoryProfile profile, long days) {
     if (LearningPars.consolidatedHalfLife <= 0.0) {
       return 1.0;
     }
-    double rate =
-        Math.log(2.0) / LearningPars.consolidatedHalfLife * Math.pow(2.0, 1.0 - memoryAbility);
+    double rate = Math.log(2.0) / LearningPars.consolidatedHalfLife * profile.fade();
     return Math.exp(-rate * days);
   }
 
-  /**
-   * Compute the per-step decay factor given the base decay rate and individual memory ability.
-   *
-   * <p>Memory ability is a value between 0 and 1: 1.0 decays at the base rate, 0.0 at twice it.
-   *
-   * @param memoryAbility between 0 and 1
-   * @return per-step decay factor (multiplier per tick)
-   */
-  public static double computeDecayFactor(double memoryAbility) {
-    double lambda = computeBaseDecayRate();
-    double adjustedLambda = lambda * Math.pow(2.0, 1.0 - memoryAbility);
-    return Math.exp(-adjustedLambda * TimePars.STEP_DURATION);
+  /** The per-step factor the fading store is multiplied by: the same for every agent. */
+  public static double computeDecayFactor() {
+    return Math.exp(-computeBaseDecayRate() * TimePars.STEP_DURATION);
   }
 
   /**

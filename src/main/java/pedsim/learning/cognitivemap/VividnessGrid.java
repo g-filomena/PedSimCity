@@ -21,7 +21,8 @@ import pedsim.learning.parameters.LearningPars;
  *
  * <p>A cell holds the number of walked routes that let the agent see it, in two stores. The labile
  * store takes every walk and fades. The consolidated store takes {@code
- * LearningPars.consolidatedShare} of a walk, but only the first to reach the cell on a given day,
+ * LearningPars.consolidatedShare} of a walk (times the grid's {@link #setKeep keep}), but only the
+ * first to reach the cell on a given day,
  * and fades far more slowly, by {@link #decayConsolidated}. A cell's strength is the sum of the
  * two, so a place seen on one day is eventually left with a floor, and a place seen on several
  * days with a floor above the known-space threshold.
@@ -61,6 +62,9 @@ public class VividnessGrid {
 
   /** The simulated day the walks being added belong to. */
   private long day = 0;
+
+  /** What this grid's owner keeps of {@code LearningPars.consolidatedShare}, as a multiple. */
+  private double keep = 1.0;
 
   private double scale = 1.0;
 
@@ -113,6 +117,7 @@ public class VividnessGrid {
     copy.consolidated = consolidated.clone();
     copy.consolidatedOn = consolidatedOn.clone();
     copy.day = day;
+    copy.keep = keep;
     copy.scale = scale;
     copy.collageThreshold = collageThreshold;
     copy.weakestRatio = weakestRatio;
@@ -126,6 +131,14 @@ public class VividnessGrid {
   /** Sets the simulated day the walks added from now on belong to. */
   public void setDay(long day) {
     this.day = day;
+  }
+
+  /**
+   * Sets the multiple of {@code LearningPars.consolidatedShare} that walks added from now on leave
+   * in the consolidated store.
+   */
+  public void setKeep(double keep) {
+    this.keep = keep;
   }
 
   /**
@@ -170,7 +183,7 @@ public class VividnessGrid {
    * consolidated deposit today gets the labile part only.
    */
   private void deposit(int[] cellIndices, double weight) {
-    double share = Math.max(0.0, Math.min(1.0, LearningPars.consolidatedShare));
+    double share = Math.max(0.0, Math.min(1.0, LearningPars.consolidatedShare * keep));
     float labile = (float) ((1.0 - share) * weight / scale);
     float lasting = (float) (share * weight);
     int today = (int) day + 1;

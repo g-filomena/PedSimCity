@@ -3,10 +3,45 @@ package pedsim.learning.parameters;
 public class LearningPars {
 
   /**
-   * Half-life, in days, of a cell's vividness for an agent whose spatial ability is 1. An agent with
-   * ability 0 forgets twice as fast. See {@code IncrementalLearning.computeDecayFactor}.
+   * Half-life, in days, of the part of a cell's vividness that fades, the same for every agent:
+   * Ishikawa (2013) finds landmark and route knowledge fading fast whatever the sense of direction.
+   * See {@code IncrementalLearning.computeDecayFactor}.
    */
   public static double halfLife = 14;
+
+  /**
+   * The share of the population that relates the routes it walks into a map (integrators); the
+   * lowest {@code impreciseShare} are imprecise navigators, the rest non-integrators. Weisberg and
+   * Newcombe's four samples (294 people) hold 88 integrators; the split of the rest comes from one
+   * sample of 49, in which 14 were imprecise, so both are approximate.
+   */
+  public static double integratorShare = 0.30;
+
+  /** The share of the population that is imprecise: see {@code integratorShare}. */
+  public static double impreciseShare = 0.30;
+
+  /**
+   * What an imprecise navigator adds to its memory of a route, as a share of what the others add.
+   * Weisberg and Newcombe: they named 4.06 of the buildings of a route against 5.44 for
+   * non-integrators and 6.33 for integrators, 4.06 over the mean of the two.
+   */
+  public static double impreciseRouteGain = 0.7;
+
+  /**
+   * The share of {@code consolidatedShare} that a non-integrator or an imprecise navigator keeps of
+   * a walk. Ishikawa (2013): people with a poor sense of direction made a mean error of 73 degrees
+   * pointing between places against 49 for those with a good one, at a chance of 90, so they were
+   * (90 - 73) / (90 - 49) = 0.4 as accurate. The groups are not his, and his route was one video.
+   */
+  public static double unintegratedKeep = 0.4;
+
+  /**
+   * How many times faster than an integrator a non-integrator or an imprecise navigator loses the
+   * consolidated store. Ishikawa (2013), survey knowledge by sketch map: effect sizes of forgetting
+   * -0.84 for poor and -0.36 for good sense of direction after the same time, 2.3 times. A ratio of
+   * effect sizes, not of rates.
+   */
+  public static double unintegratedFade = 2.3;
 
   /**
    * The least strength, in walks, a cell needs to be part of the known space. A cell walked once is
@@ -24,9 +59,9 @@ public class LearningPars {
   public static double consolidatedShare = 0.32;
 
   /**
-   * Half-life, in days, of the consolidated part of a cell's memory for an agent whose spatial
-   * ability is 1, with the same ability scaling as {@link #halfLife}. 0 means it never fades. Our
-   * own assumption: Menzemer et al. follow retention for up to 12 months and see a floor, so what
+   * Half-life, in days, of the consolidated part of a cell's memory for an integrator; the other
+   * groups lose it {@link #unintegratedFade} times as fast. 0 means it never fades. Our own
+   * assumption: Menzemer et al. follow retention for up to 12 months and see a floor, so what
    * happens after that is not observed.
    */
   public static double consolidatedHalfLife = 365;
