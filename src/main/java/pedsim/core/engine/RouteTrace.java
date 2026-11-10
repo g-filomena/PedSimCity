@@ -183,7 +183,51 @@ public class RouteTrace {
       return;
     }
     recordPlannedRoute(route.getLength());
+    recordMechanisms(agent);
     writeLeg(agent, route);
+  }
+
+  /**
+   * Legs planned today, by the route-choice mechanisms still switched on once the leg was planned:
+   * a pure minimisation counts under its cost, an element-based leg under each element it kept. A
+   * planner that disables a mechanism for the trip, because the trip cannot use it, is therefore
+   * not counted as having used it.
+   */
+  private final LongAdder legsMinimisingDistance = new LongAdder();
+
+  private final LongAdder legsMinimisingAngular = new LongAdder();
+  private final LongAdder legsLocalLandmarks = new LongAdder();
+  private final LongAdder legsRegions = new LongAdder();
+  private final LongAdder legsBarriers = new LongAdder();
+  private final LongAdder legsDistantLandmarks = new LongAdder();
+
+  private void recordMechanisms(Agent agent) {
+    pedsim.core.agents.AgentProperties properties = agent.getProperties();
+    if (properties == null) {
+      return;
+    }
+    if (properties.shouldOnlyUseMinimization()) {
+      (properties.isMinimisingDistance() ? legsMinimisingDistance : legsMinimisingAngular)
+          .increment();
+      return;
+    }
+    if (properties.isUsingLocalLandmarks()) legsLocalLandmarks.increment();
+    if (properties.isRegionBasedNavigation()) legsRegions.increment();
+    if (properties.isBarrierBasedNavigation()) legsBarriers.increment();
+    if (properties.isUsingDistantLandmarks()) legsDistantLandmarks.increment();
+  }
+
+  /** The day's legs by route-choice mechanism, for the summary line. */
+  public String mechanismSummary() {
+    return String.format(
+        "legs by route choice: %d shortest, %d simplest, with %d local landmarks, %d regions,"
+            + " %d barrier sub-goals, %d distant landmarks",
+        legsMinimisingDistance.sum(),
+        legsMinimisingAngular.sum(),
+        legsLocalLandmarks.sum(),
+        legsRegions.sum(),
+        legsBarriers.sum(),
+        legsDistantLandmarks.sum());
   }
 
   /**
@@ -333,6 +377,12 @@ public class RouteTrace {
     angularAttempts.reset();
     fullNetworkEscalations.reset();
     fullNetworkEscalationsAngular.reset();
+    legsMinimisingDistance.reset();
+    legsMinimisingAngular.reset();
+    legsLocalLandmarks.reset();
+    legsRegions.reset();
+    legsBarriers.reset();
+    legsDistantLandmarks.reset();
     edgeTraversals.reset();
     distinctEdgesWalked.reset();
     worstLegRevisit.reset();

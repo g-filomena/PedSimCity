@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import org.apache.commons.math3.distribution.NormalDistribution;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Polygon;
@@ -35,10 +36,20 @@ import sim.routing.Astar;
 public class CognitiveMap extends SharedCognitiveMap {
 
   /**
-   * Mean of the spatial ability an agent is given, which is then spread half a point either way.
-   * A trait every agent has, learning module or not, which is why it lives in core.
+   * Mean of the Santa Barbara Sense-of-Direction scale (Hegarty et al. 2002), a 15-item self-report
+   * on a 1-7 average: the mean over seven national samples (n = 1,048) of the Danish SBSoD
+   * validation, Table 9 - Danish 3.7, American 4.6, German 4.2, Japanese 3.6, Chinese 4.4, Turkish
+   * 3.2, British 3.8.
    */
-  private static final double MEAN_SPATIAL_ABILITY = 0.75;
+  private static final double SBSOD_MEAN = 3.83;
+
+  /** Within-sample standard deviation of the same scale, weighted over the same seven samples. */
+  private static final double SBSOD_SD = 1.06;
+
+  private static final double SBSOD_MIN = 1.0;
+  private static final double SBSOD_MAX = 7.0;
+
+  private static final NormalDistribution STANDARD_NORMAL = new NormalDistribution(0.0, 1.0);
 
   Geometry activityBone;
 
@@ -59,19 +70,44 @@ public class CognitiveMap extends SharedCognitiveMap {
   GeometryFactory GEOMETRY_FACTORY = new GeometryFactory();
   public boolean formed = false;
 
+  /** The places the activity bone was built around, home first; empty before the map is formed. */
+  protected List<NodeGraph> anchors = new ArrayList<>();
+
+  /**
+   * Self-rated sense of direction, rescaled from the SBSOD's 1-7 range to [0, 1]: a normal draw
+   * with the scale's own mean and standard deviation, cut at the scale's ends.
+   */
   public double spatialAbility;
+
   public boolean individualised;
 
   /**
    * Constructs an AgentCognitiveMap.
+   *
+   * <p>One uniform draw is consumed and turned into a normal deviate through the inverse CDF, so the
+   * agent's random stream is the same whatever distribution the trait follows.
    */
   public CognitiveMap(Agent agent) {
 
     this.agent = agent;
-    spatialAbility =
-        Math.min(
-            1.0,
-            Math.max(0.0, MEAN_SPATIAL_ABILITY + (agent.getRandom().nextDouble() - 0.5) * 0.5));
+    spatialAbility = spatialAbilityAt(agent.getRandom().nextDouble());
+  }
+
+  /**
+   * The spatial ability at a quantile of the SBSOD distribution.
+   *
+   * @param quantile a uniform draw in [0, 1)
+   * @return the rescaled score in [0, 1]
+   */
+  public static double spatialAbilityAt(double quantile) {
+    double score = SBSOD_MEAN + SBSOD_SD * STANDARD_NORMAL.inverseCumulativeProbability(quantile);
+    score = Math.min(SBSOD_MAX, Math.max(SBSOD_MIN, score));
+    return (score - SBSOD_MIN) / (SBSOD_MAX - SBSOD_MIN);
+  }
+
+  /** The anchors the activity bone was built around, home first. */
+  public List<NodeGraph> getAnchors() {
+    return anchors;
   }
 
   public void formCognitiveMap() {
@@ -88,6 +124,7 @@ public class CognitiveMap extends SharedCognitiveMap {
   private void buildActivityBone() {
 
     List<NodeGraph> knownNodes = agent.cognitiveAnchors();
+    anchors = new ArrayList<>(knownNodes);
     if (knownNodes.isEmpty()) {
       return;
     }
@@ -569,22 +606,34 @@ public class CognitiveMap extends SharedCognitiveMap {
    * marks and every model built on it returns the plain minimisation route, leaving the
    * distant-landmark weight inside {@code Dijkstra} as the only landmark term in the model.
    *
-   * <p>The learning module overrides this and derives the threshold from the agent's spatial
-   * ability.
+   * <p>The learning module overrides this and derives the threshold from how vividly the agent
+   * knows the space between the two places.
    *
+   * @param from where the space being judged starts
+   * @param to where it ends
    * @param regionBased whether the space being judged is a region leg rather than the whole trip
    * @return the easiness above which no further on-route mark is sought
    */
-  public double getWayfindingEasinessThreshold(boolean regionBased) {
+  public double getWayfindingEasinessThreshold(NodeGraph from, NodeGraph to, boolean regionBased) {
     return regionBased
         ? RouteChoicePars.wayfindingEasinessThresholdRegionsCommunity
         : RouteChoicePars.wayfindingEasinessThresholdCommunity;
   }
-  //
-  // public double getLocalLandmarkThreshold() {
-  // // TODO Auto-generated method stub
-  // return 0;
-  // }
+
+  /**
+   * The local-landmarkness above which this agent recognises a building as a landmark on a route
+   * between two places.
+   *
+   * <p>The community's threshold for every agent whose recognition does not change; the learning
+   * module overrides it with one driven by how vividly the agent knows the space between the two.
+   *
+   * @param originNode where the route starts
+   * @param destinationNode where it ends
+   * @return the minimum local-landmarkness to recognise
+   */
+  public double getLocalLandmarkThreshold(NodeGraph originNode, NodeGraph destinationNode) {
+    return RouteChoicePars.localLandmarkThresholdCommunity;
+  }
 
   // /**
   // * Gets local landmarks for a specific region.

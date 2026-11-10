@@ -5,6 +5,7 @@ import java.util.EnumSet;
 import java.util.Objects;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.parameters.RouteChoicePars;
+import pedsim.core.utilities.StringEnum.LandmarkType;
 import pedsim.core.utilities.StringEnum.LocalHeuristicMode;
 import pedsim.core.utilities.StringEnum.MinimisationMode;
 import pedsim.core.utilities.StringEnum.RouteChoiceElement;
@@ -15,12 +16,14 @@ import pedsim.core.utilities.StringEnum.RouteChoiceElement;
  * <p>Two paths:
  *
  * <ul>
- *   <li><b>Default</b> (no activation probabilities set): pure minimisation, sampling shortest
- *       (distance) vs least-turn (angular) by the {@link RouteChoicePars} default split.
- *   <li><b>Activated</b> (after {@link #setActivationProbabilities}): probability-driven choice of
- *       minimisation, local heuristic and route-choice elements (landmarks, regions, barriers),
- *       with each mechanism gated by the data the city actually loaded — landmark elements need
- *       landmark scores, barrier sub-goals need barriers, and so on.
+ *   <li><b>Default</b> (no activation set): pure minimisation, sampling shortest (distance) vs
+ *       least-turn (angular) by the {@link RouteChoicePars} default split.
+ *   <li><b>Activated</b> (after {@link #setActivation}): the survey-style draw the empirical
+ *       module makes per respondent - elements or a pure minimisation; if elements, a local
+ *       heuristic, region gateways, local-landmark or barrier sub-goals and distant landmarks - with
+ *       each mechanism gated by the data the city actually loaded: landmark elements need landmark
+ *       scores, barrier sub-goals need barriers, regions need regions. A trip for which nothing is
+ *       available is a pure minimisation.
  * </ul>
  *
  * <p>It returns a model rather than writing into the agent's properties. An agent that was built
@@ -29,11 +32,7 @@ import pedsim.core.utilities.StringEnum.RouteChoiceElement;
  */
 public final class Heuristics {
 
-  private double probabilityDistanceMinimisation;
-  private double probabilityAngularMinimisation;
-  private double probabilityDistantLandmarks;
-  private double probabilityUsingRegions;
-  private double probabilityBarrierSubGoals;
+  private RouteChoiceActivation activation;
 
   private final MersenneTwisterFast random;
 
@@ -43,10 +42,15 @@ public final class Heuristics {
       RouteChoicePars.globalLandmarknessWeightAngularCommunity;
 
   public Heuristics(Agent agent) {
-    Objects.requireNonNull(agent);
-    // The agent's own seeded generator: route choice is sampled per trip, so an unseeded one here
-    // put every routing decision of the run beyond replay.
-    this.random = agent.getRandom();
+    this(Objects.requireNonNull(agent).getRandom());
+  }
+
+  /**
+   * @param random the agent's own seeded generator: route choice is sampled per trip, so an
+   *     unseeded one would put every routing decision of the run beyond replay
+   */
+  Heuristics(MersenneTwisterFast random) {
+    this.random = random;
   }
 
   /**
@@ -63,64 +67,81 @@ public final class Heuristics {
   }
 
   /**
-   * Samples a model from the activation probabilities, or falls back to pure minimisation when none
-   * are set.
+   * Samples a model from the activation, or falls back to pure minimisation when none is set.
    *
    * @return the sampled model
    */
   public RouteChoiceModel defineRouteChoiceMechanisms() {
 
-    // No activation probabilities set for this agent: use pure minimisation, alternating shortest
-    // path (distance) and least-turn (angular / simplest path) by the default distribution.
-    if (!hasActivationProbabilities()) {
+    // No activation set for this agent: use pure minimisation, alternating shortest path
+    // (distance) and least-turn (angular / simplest path) by the default distribution.
+    if (activation == null) {
       return RouteChoiceModel.minimising(defaultMinimisationMode());
     }
 
-    // Probability-driven route choice, with each mechanism gated by the data the city loaded.
-    if (isGlobalMinimisationDominant()) {
-      return RouteChoiceModel.minimising(sampleMinimisationMode());
+    boolean landmarks = landmarksAvailable();
+    boolean regions = regionsAvailable();
+    boolean barriers = barriersAvailable();
+
+    if (!(landmarks || regions || barriers) || random.nextDouble() >= activation.usingElements()) {
+      return RouteChoiceModel.minimising(
+          sampleDistanceOverAngular(activation.onlyDistance(), activation.onlyAngular())
+              ? MinimisationMode.DISTANCE
+              : MinimisationMode.ANGULAR);
     }
 
-    LocalHeuristicMode localHeuristic = sampleLocalHeuristicMode();
+    LocalHeuristicMode localHeuristic =
+        sampleDistanceOverAngular(activation.localDistance(), activation.localAngular())
+            ? LocalHeuristicMode.DISTANCE
+            : LocalHeuristicMode.ANGULAR;
     EnumSet<RouteChoiceElement> elements = EnumSet.noneOf(RouteChoiceElement.class);
 
-    if (barriersAvailable() && random.nextDouble() < probabilityBarrierSubGoals) {
-      elements.add(RouteChoiceElement.BARRIER_BASED_NAVIGATION);
-    } else if (landmarksAvailable()) {
-      elements.add(RouteChoiceElement.LOCAL_LANDMARKS);
-    }
-
-    if (landmarksAvailable() && random.nextDouble() < probabilityDistantLandmarks) {
-      elements.add(RouteChoiceElement.DISTANT_LANDMARKS);
-    }
-
-    if (regionsAvailable() && random.nextDouble() < probabilityUsingRegions) {
+    if (regions && random.nextDouble() < activation.regions()) {
       elements.add(RouteChoiceElement.REGION_BASED_NAVIGATION);
     }
 
-    // BarrierPreferences.NONE, and that is the decision rather than a gap. How an agent perceives
-    // barriers - which kinds it notices, what they do to an edge's cost - is survey-derived
-    // route-choice data, and the two modules that have it are the ones that configure their own
-    // model: cityImage names a BarrierPreferences per scenario, empirical draws one from its
-    // cluster. A core, activity, night or learning agent has no such data behind it, so it gets
-    // none, and Dijkstra.costPerceptionError falls straight through to the plain perception error
-    // for every one of them. Barrier *sub-goals* are a separate mechanism and are sampled above.
-    return RouteChoiceModel.usingElements(
-        localHeuristic, elements, null, RouteChoiceModel.BarrierPreferences.NONE);
-  }
+    // One sub-goal mechanism at most: local landmarks, barriers, or neither, in proportion to
+    // their weights and to what is left over.
+    double landmarkWeight = landmarks ? activation.localLandmarks() : 0.0;
+    double barrierWeight = barriers ? activation.barrierSubGoals() : 0.0;
+    double neither = Math.max(0.0, 1.0 - landmarkWeight - barrierWeight);
+    double draw = random.nextDouble() * (landmarkWeight + barrierWeight + neither);
+    boolean localLandmarks = draw < landmarkWeight;
+    boolean barrierSubGoals = !localLandmarks && draw < landmarkWeight + barrierWeight;
+    if (localLandmarks) {
+      elements.add(RouteChoiceElement.LOCAL_LANDMARKS);
+    } else if (barrierSubGoals) {
+      elements.add(RouteChoiceElement.BARRIER_BASED_NAVIGATION);
+    }
 
-  /** Whether any activation probability has been set for this agent. */
-  private boolean hasActivationProbabilities() {
-    return probabilityDistanceMinimisation > 0.0
-        || probabilityAngularMinimisation > 0.0
-        || probabilityDistantLandmarks > 0.0
-        || probabilityUsingRegions > 0.0
-        || probabilityBarrierSubGoals > 0.0;
+    if (landmarks && random.nextDouble() < activation.distantLandmarks()) {
+      elements.add(RouteChoiceElement.DISTANT_LANDMARKS);
+    }
+
+    // The survey's own fallback: a respondent who uses elements and activated none uses local
+    // landmarks - or, with no landmark scores in the city, a barrier sub-goal.
+    if (elements.isEmpty()) {
+      if (landmarks) {
+        elements.add(RouteChoiceElement.LOCAL_LANDMARKS);
+        localLandmarks = true;
+      } else if (barriers) {
+        elements.add(RouteChoiceElement.BARRIER_BASED_NAVIGATION);
+        barrierSubGoals = true;
+      } else {
+        return RouteChoiceModel.minimising(defaultMinimisationMode());
+      }
+    }
+
+    return RouteChoiceModel.usingElements(
+        localHeuristic,
+        elements,
+        localLandmarks || barrierSubGoals ? LandmarkType.LOCAL : null,
+        activation.barriers());
   }
 
   /**
-   * Minimisation mode when no activation probabilities drive the agent: samples distance vs
-   * angular by the {@link RouteChoicePars} default split.
+   * Minimisation mode when no activation drives the agent: samples distance vs angular by the
+   * {@link RouteChoicePars} default split.
    */
   private MinimisationMode defaultMinimisationMode() {
     return sampleDistanceOverAngular(
@@ -142,24 +163,6 @@ public final class Heuristics {
     return !PedSimCity.barriersMap.isEmpty();
   }
 
-  private boolean isGlobalMinimisationDominant() {
-    return probabilityDistanceMinimisation > 0.90 || probabilityAngularMinimisation > 0.90;
-  }
-
-  private MinimisationMode sampleMinimisationMode() {
-    return sampleDistanceOverAngular(
-            probabilityDistanceMinimisation, probabilityAngularMinimisation)
-        ? MinimisationMode.DISTANCE
-        : MinimisationMode.ANGULAR;
-  }
-
-  private LocalHeuristicMode sampleLocalHeuristicMode() {
-    return sampleDistanceOverAngular(
-            probabilityDistanceMinimisation, probabilityAngularMinimisation)
-        ? LocalHeuristicMode.DISTANCE
-        : LocalHeuristicMode.ANGULAR;
-  }
-
   /** Weighted coin flip between the two minimisation flavours; distance wins ties and zeros. */
   private boolean sampleDistanceOverAngular(double distanceWeight, double angularWeight) {
     double d = Math.max(0.0, distanceWeight);
@@ -174,25 +177,13 @@ public final class Heuristics {
   }
 
   /**
-   * Sets the per-mechanism activation probabilities that switch this agent from the default pure
-   * minimisation to probability-driven route choice (e.g. sampled from group-level parameters).
+   * Switches this agent from the default pure minimisation to the survey-style draw of {@link
+   * #defineRouteChoiceMechanisms()}.
+   *
+   * @param activation the agent's own probabilities, or null for the default
    */
-  public void setActivationProbabilities(
-      double probabilityDistanceMinimisation,
-      double probabilityAngularMinimisation,
-      double probabilityDistantLandmarks,
-      double probabilityUsingRegions,
-      double probabilityBarrierSubGoals) {
-
-    this.probabilityDistanceMinimisation = probabilityDistanceMinimisation;
-    this.probabilityAngularMinimisation = probabilityAngularMinimisation;
-    this.probabilityDistantLandmarks = probabilityDistantLandmarks;
-    this.probabilityUsingRegions = probabilityUsingRegions;
-    this.probabilityBarrierSubGoals = probabilityBarrierSubGoals;
-  }
-
-  public double getLocalLandmarksThreshold() {
-    return RouteChoicePars.localLandmarkThresholdCommunity;
+  public void setActivation(RouteChoiceActivation activation) {
+    this.activation = activation;
   }
 
   public double getGlobalLandmarkWeight(boolean angular) {

@@ -22,6 +22,7 @@ import pedsim.core.utilities.StringEnum.AgentStatus;
 import sim.engine.SimState;
 import sim.engine.Steppable;
 import sim.engine.Stoppable;
+import sim.graph.EdgeGraph;
 import sim.graph.Graph;
 import sim.graph.GraphUtils;
 import sim.graph.NodeGraph;
@@ -670,6 +671,7 @@ public class Agent implements Steppable {
    */
   protected void initialiseHeuristics(boolean onlyDistanceMinimisation) {
     heuristics = new Heuristics(this);
+    configureHeuristics(heuristics);
     if (agentProperties == null) {
       return;
     }
@@ -679,6 +681,29 @@ public class Agent implements Steppable {
     RouteChoiceModel assigned = assignedRouteChoice();
     agentProperties.applyModel(
         assigned != null ? assigned : heuristics.defineHeuristic(onlyDistanceMinimisation));
+  }
+
+  /**
+   * Gives this trip's {@link Heuristics} the agent's own route-choice activation, if it has one.
+   *
+   * <p>Core, activity and night agents have none, so they sample distance or angular minimisation.
+   * A module whose agents have route-choice probabilities of their own overrides this and calls
+   * {@link Heuristics#setActivation}.
+   *
+   * @param heuristics the heuristics built for this trip
+   */
+  protected void configureHeuristics(Heuristics heuristics) {}
+
+  /**
+   * The factor a street's cost is multiplied by when this agent plans a route. 1 for an agent whose
+   * costs do not depend on what it has walked; a module whose agents prefer streets they know
+   * overrides it.
+   *
+   * @param edge the street being priced
+   * @return a positive multiplier
+   */
+  public double edgeCostFactor(EdgeGraph edge) {
+    return 1.0;
   }
 
   /**
