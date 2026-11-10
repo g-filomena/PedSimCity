@@ -293,6 +293,7 @@ public class AgentReleaseManager implements AutoCloseable {
             state.trace().fullNetworkEscalations(),
             state.trace().fullNetworkEscalationsAngular(),
             sim.graph.Islands.incompleteMerges()));
+    logger.info("Day " + dayNumber + ": " + state.trace().mechanismSummary());
     String sideStreets = pedsim.core.cognition.network.NetworkBuilder.sideStreetSummary();
     if (!sideStreets.isEmpty()) {
       logger.info(sideStreets);
