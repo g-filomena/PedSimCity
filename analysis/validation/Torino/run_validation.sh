@@ -1,5 +1,6 @@
 #!/bin/bash
-# The validation runs of the night model on Torino_sidewalks, on gdsl1, from a clean checkout.
+# The validation runs of the night model on Torino_sidewalks (CITY=<name> for another network), on
+# gdsl1, from a clean checkout.
 #
 # One Wednesday and one Sunday for each of four months: February, April and July for Cuebiq (2025)
 # and for Vodafone's winter, spring and summer windows; October for Vodafone's autumn window. The
@@ -18,6 +19,7 @@ PERCENT=${1:?share of the census residents, e.g. 0.5}
 HEAP=${HEAP:-200g}
 PARALLEL=${PARALLEL:-8}
 SEED=20261110
+CITY=${CITY:-Torino_sidewalks}   # the network to run on; CITY=Torino for the centreline one
 JAVA=/usr/local/software/java/jdk-21.0.6/bin/java
 RUNS=/mnt/home/gabriele/runs/validation_torino
 cd "$(git rev-parse --show-toplevel)"
@@ -38,20 +40,20 @@ mkdir -p "$RUNS/logs"
   echo "java   $($JAVA -version 2>&1 | head -1)"
   echo "seed   $SEED"
   echo "share  $PERCENT of the census residents"
-  echo "city   Torino_sidewalks, night module, one day per run, 1 job"
+  echo "city   $CITY, night module, one day per run, 1 job"
   echo "resources (sha256):"
-  (cd src/main/resources/Torino_sidewalks && sha256sum * | sed 's/^/  /')
+  (cd src/main/resources/$CITY && sha256sum * | sed 's/^/  /')
 } > "$RUNS/PROVENANCE"
 
 run() {  # run <tag> <date>
   local tag=$1 date=$2 t0=$(date +%s)
   $JAVA -Xmx$HEAP -cp "target/classes:$(cat cp.txt)" pedsim.night.launcher.NightLauncher --headless \
-    --cityName=Torino_sidewalks --percentage=$PERCENT --days=1 --jobs=1 --stepDelayMs=0 \
+    --cityName=$CITY --percentage=$PERCENT --days=1 --jobs=1 --stepDelayMs=0 \
     --exportHtmlDashboard=false --SIMULATION_START_DATE=$date --seed=$SEED --outputTag=$tag \
     > "$RUNS/logs/$tag.log" 2>&1
   echo "$(date +%H:%M:%S) $tag rc=$? $(( $(date +%s) - t0 ))s" >> "$RUNS/SUMMARY"
 }
-export -f run; export RUNS JAVA HEAP PERCENT SEED
+export -f run; export RUNS JAVA HEAP PERCENT SEED CITY
 echo "$(date +%H:%M:%S) START" >> "$RUNS/SUMMARY"
 printf '%s\n' \
   "val_feb_wed 2025-02-12" "val_feb_sun 2025-02-16" \
