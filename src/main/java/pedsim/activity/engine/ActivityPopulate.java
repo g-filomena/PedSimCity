@@ -343,7 +343,7 @@ public class ActivityPopulate extends Populate {
   }
 
   /** Persona draw: zone-conditioned when enabled and the home zone carries census shares. */
-  private Persona samplePersona() {
+  protected Persona samplePersona() {
     if (ActivityPars.useCensusPersonas && homeZone != null) {
       return Persona.sample(
           random, homeZone.retireeShare, homeZone.studentShare, homeZone.workerShare);

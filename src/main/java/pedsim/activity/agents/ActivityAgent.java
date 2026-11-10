@@ -229,6 +229,17 @@ public class ActivityAgent extends Agent {
   }
 
   /**
+   * Makes this agent the same person as {@code other} in everything the activity tier draws: sex,
+   * persona, walking speed and commute mode. Home and workplace are set separately.
+   */
+  public void copyPersonFrom(ActivityAgent other) {
+    this.female = other.female;
+    this.persona = other.persona;
+    this.speedFactor = other.speedFactor;
+    this.commuteMode = other.commuteMode;
+  }
+
+  /**
    * Settles whether this agent's commute is walked, from the distance between home and workplace.
    * Call once both are assigned; agents with no workplace never commute anyway.
    */
