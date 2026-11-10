@@ -43,17 +43,21 @@ module.
 1. **Population** — `LearningPopulate` creates `LearningAgent`s (activity agents: persona, agenda,
    commute), assigns home/work via `ActivityPopulate.defineHomeWorkLocations`, and alternates
    `LEARNER` / `NOT_LEARNER` per agent ID. Each agent's `spatialAbility` is drawn from the Santa
-   Barbara Sense-of-Direction scale (core `CognitiveMap`).
+   Barbara Sense-of-Direction scale (core `CognitiveMap`), and sorts it into one of three memory
+   profiles (`MemoryProfile`): the lowest 30% imprecise navigators, the highest 30% integrators,
+   the rest non-integrators (Weisberg and Newcombe's groups).
 2. **Map formation** — on first activity, `formCognitiveMap()` builds the core activity bone and
    known network around the agent's cognitive anchors, then seeds initial route memory with one
    route from home to each other anchor (`IncrementalLearning.buildBasicMemory`).
 3. **Reinforcement** — after each completed trip, `LEARNER` agents call `updateAgentMemory(route)`:
    the route's visibility space is stamped into the `VividnessGrid` and the known space is
    recomputed from the cells holding at least `memoryThreshold` walks.
-4. **Decay** — every step, each `LEARNER` fades its memory (`IncrementalLearning.applyDecay`,
-   half-life `LearningPars.halfLife` for the best agent, up to twice as fast for the worst, by
-   `spatialAbility`). The known space is rebuilt when a known cell fades below `memoryThreshold`.
-   Wired in `LearningAgent.step()`.
+4. **Decay** — every step, each `LEARNER` fades its memory (`IncrementalLearning.applyDecay`). The
+   walked traces fade at `LearningPars.halfLife` for everybody. The consolidated part (a share of
+   each walk) fades at `consolidatedHalfLife` for integrators and `unintegratedFade` times faster
+   for the others, who also keep `unintegratedKeep` of the share; imprecise navigators add
+   `impreciseRouteGain` of what a walk adds. The known space is rebuilt when a known cell fades
+   below `memoryThreshold`. Wired in `LearningAgent.step()`.
 5. **LEARNER vs NOT_LEARNER** is the experimental contrast: learners' maps evolve and decay;
    non-learners keep their initial map.
 6. **Route choice** is sampled per trip from the learner's own survey-derived probabilities: a
@@ -94,6 +98,9 @@ Module-specific (`LearningSimulationModule`):
 | `halfLife` | double | route-memory half-life (days) |
 | `memoryThreshold` | double | `memoryThreshold` (walks a cell needs to be known) |
 | `consolidatedShare` | double | share of a walk that does not fade |
+| `integratorShare`, `impreciseShare` | double | shares of the population in the two outer memory profiles |
+| `impreciseRouteGain` | double | what an imprecise navigator adds of a walk |
+| `unintegratedKeep`, `unintegratedFade` | double | share kept and speed of loss of the consolidated part, for non-integrators and imprecise navigators |
 | `meaningfulnessGain` | double | what a meaningful route adds to its one walk; 0 is off |
 
 ## Notes
