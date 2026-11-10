@@ -148,7 +148,7 @@
       }
     ]
   },
-  "updated": "2026-10-19T15:33:17+01:00",
+  "updated": "2026-11-10T13:40:18+00:00",
   "preparation": {
     "written": "2026-10-05T21:37:02+01:00",
     "source": "read back from run logs: /mnt/home/gabriele/runs/prep_torino_220.log",
@@ -706,5 +706,371 @@
         26264
       ]
     }
+  },
+  "inbound_commuters": {
+    "written": "2026-11-10T13:39:46+00:00",
+    "source": "ISTAT, Matrice del pendolarismo 2011, L records into the city",
+    "urls": [
+      "https://www.istat.it/storage/cartografia/matrici_pendolarismo/matrici_pendolarismo_2011.zip",
+      "https://www.istat.it/storage/cartografia/basi_territoriali/WGS_84_UTM/2011/R01_11_WGS84.zip"
+    ],
+    "settings": {
+      "city": "Torino_sidewalks",
+      "procom": 1272,
+      "region": 1
+    },
+    "environment": {
+      "python": "3.11.16",
+      "host": "MWS-1052487",
+      "packages": {
+        "cityImage": "2.1.1",
+        "osmnx": "2.1.1",
+        "geopandas": "1.1.4",
+        "shapely": "2.1.2",
+        "pyogrio": "0.12.1",
+        "networkx": "3.6.1",
+        "numpy": "2.4.6",
+        "pandas": "3.0.5",
+        "rasterio": "1.4.4"
+      },
+      "pedsimcity": {
+        "commit": "81a8dbb95af6bae5d8820aa3391907157abf49de",
+        "local_changes": [
+          "CHANGELOG.md",
+          "references/README.md",
+          "src/main/resources/Torino_sidewalks/Torino_sidewalks.properties"
+        ]
+      },
+      "cityImage": {
+        "path": "E:\\OneDrive - The University of Liverpool\\Scripts\\cityImage\\cityImage",
+        "git": {
+          "commit": "1a25d36aad447f53beb58fbf0ffb8085b9e96c1a",
+          "local_changes": []
+        }
+      }
+    },
+    "inputs": [
+      {
+        "file": "matrici_pendolarismo_2011.zip",
+        "bytes": 36016150,
+        "sha256": "36ab2a95a23c75f48019274d06506887e996c2833c9ac5e994f6ced175ad3586",
+        "modified": "2026-11-10T13:38:51+00:00"
+      },
+      {
+        "file": "R01_11_WGS84.zip",
+        "bytes": 43392363,
+        "sha256": "2250f17710224c3b190b9be20c983f7729722a03e57bd716e686463b306e6e89",
+        "modified": "2026-11-10T13:38:52+00:00"
+      }
+    ],
+    "output": {
+      "file": "Torino_sidewalks_inbound_commuters.csv",
+      "bytes": 1643087,
+      "sha256": "3945a4c71e109c4d1e3b103bbcd97ee5e6f963daa951e68a564efb67738c1935",
+      "modified": "2026-11-10T13:39:46+00:00"
+    },
+    "people": 179715
+  },
+  "rail_reach": {
+    "written": "2026-11-10T13:39:53+00:00",
+    "sources": [
+      "Regione Piemonte regional trains GTFS (CSI Piemonte, CC-BY 2.5), GTFS_RAIL_IT_PIE.zip",
+      "SFM Torino GTFS 2014-2016 (5T/GTT; Mobility Database tfs-664), sfm_2016.zip"
+    ],
+    "settings": {
+      "city": "Torino_sidewalks",
+      "gtfs": null,
+      "source": [
+        "Regione Piemonte regional trains GTFS (CSI Piemonte, CC-BY 2.5), GTFS_RAIL_IT_PIE.zip",
+        "SFM Torino GTFS 2014-2016 (5T/GTT; Mobility Database tfs-664), sfm_2016.zip"
+      ],
+      "origins": null,
+      "origin_id": "origin_id",
+      "origin_x": "origin_x",
+      "origin_y": "origin_y",
+      "home_radius": 5000.0,
+      "max_home_metres": 15000.0,
+      "merge_metres": 300.0,
+      "max_snap_metres": 250.0
+    },
+    "environment": {
+      "python": "3.11.16",
+      "host": "MWS-1052487",
+      "packages": {
+        "cityImage": "2.1.1",
+        "osmnx": "2.1.1",
+        "geopandas": "1.1.4",
+        "shapely": "2.1.2",
+        "pyogrio": "0.12.1",
+        "networkx": "3.6.1",
+        "numpy": "2.4.6",
+        "pandas": "3.0.5",
+        "rasterio": "1.4.4"
+      },
+      "pedsimcity": {
+        "commit": "81a8dbb95af6bae5d8820aa3391907157abf49de",
+        "local_changes": [
+          "CHANGELOG.md",
+          "references/README.md",
+          "src/main/resources/Torino_sidewalks/Torino_sidewalks.properties",
+          "src/main/resources/Torino_sidewalks/Torino_sidewalks_provenance.json"
+        ]
+      },
+      "cityImage": {
+        "path": "E:\\OneDrive - The University of Liverpool\\Scripts\\cityImage\\cityImage",
+        "git": {
+          "commit": "1a25d36aad447f53beb58fbf0ffb8085b9e96c1a",
+          "local_changes": []
+        }
+      }
+    },
+    "inputs": [
+      {
+        "file": "GTFS_RAIL_IT_PIE.zip",
+        "bytes": 98013,
+        "sha256": "61e6955f24bd313fba0cbe2043afa11419d875098725b107315bdde1f080a009",
+        "modified": "2026-11-10T13:38:52+00:00"
+      },
+      {
+        "file": "sfm_2016.zip",
+        "bytes": 202471,
+        "sha256": "b0696a9a3cf886563c6b3991098a4c9687e97d34cfbfbd2ebff87a71d2a3b59b",
+        "modified": "2026-11-10T13:38:52+00:00"
+      },
+      {
+        "file": "Torino_sidewalks_inbound_commuters.csv",
+        "bytes": 1643087,
+        "sha256": "3945a4c71e109c4d1e3b103bbcd97ee5e6f963daa951e68a564efb67738c1935",
+        "modified": "2026-11-10T13:39:46+00:00"
+      }
+    ],
+    "outputs": [
+      {
+        "file": "Torino_sidewalks_rail_stations.csv",
+        "bytes": 449,
+        "sha256": "7e865f8322d8280b6b42a35e1c252b78d0c5528de72979ec767a807bfabcc032",
+        "modified": "2026-11-10T13:39:53+00:00"
+      },
+      {
+        "file": "Torino_sidewalks_rail_reach.csv",
+        "bytes": 55095,
+        "sha256": "4ba3d4111c4797dfbd85a143bc5f240a251c16ae01d3a8819290859f94a8f8d3",
+        "modified": "2026-11-10T13:39:53+00:00"
+      }
+    ],
+    "stations": 8,
+    "origins_served": 516
+  },
+  "parking": {
+    "written": "2026-11-10T13:40:02+00:00",
+    "sources": [
+      "5T get_pk (CC-BY), via parking_5t_torino.py",
+      "Comune di Torino geoportale, ztl_geo.zip"
+    ],
+    "settings": {
+      "city": "Torino_sidewalks",
+      "parking": "../inputData/Torino/parking/parking.csv",
+      "capacity_column": "capacity",
+      "name_column": "name",
+      "zone": "zip://../inputData/Torino/parking/ztl_geo.zip",
+      "source": [
+        "5T get_pk (CC-BY), via parking_5t_torino.py",
+        "Comune di Torino geoportale, ztl_geo.zip"
+      ],
+      "max_snap_metres": 250.0,
+      "overpass_url": "https://maps.mail.ru/osm/tools/overpass/api"
+    },
+    "environment": {
+      "python": "3.11.16",
+      "host": "MWS-1052487",
+      "packages": {
+        "cityImage": "2.1.1",
+        "osmnx": "2.1.1",
+        "geopandas": "1.1.4",
+        "shapely": "2.1.2",
+        "pyogrio": "0.12.1",
+        "networkx": "3.6.1",
+        "numpy": "2.4.6",
+        "pandas": "3.0.5",
+        "rasterio": "1.4.4"
+      },
+      "pedsimcity": {
+        "commit": "81a8dbb95af6bae5d8820aa3391907157abf49de",
+        "local_changes": [
+          "CHANGELOG.md",
+          "references/README.md",
+          "src/main/resources/Torino_sidewalks/Torino_sidewalks.properties",
+          "src/main/resources/Torino_sidewalks/Torino_sidewalks_provenance.json"
+        ]
+      },
+      "cityImage": {
+        "path": "E:\\OneDrive - The University of Liverpool\\Scripts\\cityImage\\cityImage",
+        "git": {
+          "commit": "1a25d36aad447f53beb58fbf0ffb8085b9e96c1a",
+          "local_changes": []
+        }
+      }
+    },
+    "inputs": [
+      {
+        "file": "parking.csv",
+        "bytes": 1448,
+        "sha256": "de075a10dc0a5c7f6ef96ba99e5921068cf6fab2d0d41d4f38061f344ae0a677",
+        "modified": "2026-10-20T17:47:45+01:00"
+      }
+    ],
+    "outputs": [
+      {
+        "file": "Torino_sidewalks_parking.csv",
+        "bytes": 1927,
+        "sha256": "8b6b07d663689eee66f56a3f8bae7bc0176b690e4f48835204cf25c3f4e8d085",
+        "modified": "2026-11-10T13:40:02+00:00"
+      },
+      {
+        "file": "Torino_sidewalks_restricted_zone_nodes.csv",
+        "bytes": 13076,
+        "sha256": "4f375a9815add6cd34ff6b3bb8e0d330d9fb1d75fce254a5dcc853ed14eeae49",
+        "modified": "2026-11-10T13:40:02+00:00"
+      }
+    ]
+  },
+  "accommodation": {
+    "written": "2026-11-10T13:40:11+00:00",
+    "sources": [
+      "Regione Piemonte register of accommodation 2020, via Comune di Torino open data (CC-BY)"
+    ],
+    "settings": {
+      "city": "Torino_sidewalks",
+      "accommodation": "../inputData/Torino/accommodation/accommodation.csv",
+      "beds_column": "beds",
+      "default_beds": 20.0,
+      "source": [
+        "Regione Piemonte register of accommodation 2020, via Comune di Torino open data (CC-BY)"
+      ],
+      "max_snap_metres": 250.0,
+      "overpass_url": "https://maps.mail.ru/osm/tools/overpass/api"
+    },
+    "environment": {
+      "python": "3.11.16",
+      "host": "MWS-1052487",
+      "packages": {
+        "cityImage": "2.1.1",
+        "osmnx": "2.1.1",
+        "geopandas": "1.1.4",
+        "shapely": "2.1.2",
+        "pyogrio": "0.12.1",
+        "networkx": "3.6.1",
+        "numpy": "2.4.6",
+        "pandas": "3.0.5",
+        "rasterio": "1.4.4"
+      },
+      "pedsimcity": {
+        "commit": "81a8dbb95af6bae5d8820aa3391907157abf49de",
+        "local_changes": [
+          "CHANGELOG.md",
+          "references/README.md",
+          "src/main/resources/Torino_sidewalks/Torino_sidewalks.properties",
+          "src/main/resources/Torino_sidewalks/Torino_sidewalks_provenance.json"
+        ]
+      },
+      "cityImage": {
+        "path": "E:\\OneDrive - The University of Liverpool\\Scripts\\cityImage\\cityImage",
+        "git": {
+          "commit": "1a25d36aad447f53beb58fbf0ffb8085b9e96c1a",
+          "local_changes": []
+        }
+      }
+    },
+    "inputs": [
+      {
+        "file": "accommodation.csv",
+        "bytes": 23569,
+        "sha256": "dc035a5352da2f222f6d2fc5ebf73b2e22ce3989515aee0927047fb953731ea0",
+        "modified": "2026-10-21T11:35:36+01:00"
+      }
+    ],
+    "outputs": [
+      {
+        "file": "Torino_sidewalks_accommodation.csv",
+        "bytes": 26421,
+        "sha256": "0d069596830b15589b3b63e9f09985ad30a15e314dec8a1832ac13a7436e8276",
+        "modified": "2026-11-10T13:40:11+00:00"
+      }
+    ]
+  },
+  "sights": {
+    "written": "2026-11-10T13:40:17+00:00",
+    "sources": [
+      "Osservatorio Culturale del Piemonte, Relazione annuale 2023-2024 (as reported by Calcio e Finanza, 24 Oct 2024)",
+      "OpenStreetMap POIs (Torino_POIs.gpkg)"
+    ],
+    "settings": {
+      "city": "Torino_sidewalks",
+      "visitors": "../inputData/Torino/sights/visitors.csv",
+      "tourism_values": "attraction,museum,gallery,viewpoint,zoo,theme_park",
+      "default_visitors": 10000.0,
+      "merge_metres": 150.0,
+      "source": [
+        "Osservatorio Culturale del Piemonte, Relazione annuale 2023-2024 (as reported by Calcio e Finanza, 24 Oct 2024)",
+        "OpenStreetMap POIs (Torino_POIs.gpkg)"
+      ],
+      "max_snap_metres": 250.0
+    },
+    "environment": {
+      "python": "3.11.16",
+      "host": "MWS-1052487",
+      "packages": {
+        "cityImage": "2.1.1",
+        "osmnx": "2.1.1",
+        "geopandas": "1.1.4",
+        "shapely": "2.1.2",
+        "pyogrio": "0.12.1",
+        "networkx": "3.6.1",
+        "numpy": "2.4.6",
+        "pandas": "3.0.5",
+        "rasterio": "1.4.4"
+      },
+      "pedsimcity": {
+        "commit": "81a8dbb95af6bae5d8820aa3391907157abf49de",
+        "local_changes": [
+          "CHANGELOG.md",
+          "references/README.md",
+          "src/main/resources/Torino_sidewalks/Torino_sidewalks.properties",
+          "src/main/resources/Torino_sidewalks/Torino_sidewalks_provenance.json"
+        ]
+      },
+      "cityImage": {
+        "path": "E:\\OneDrive - The University of Liverpool\\Scripts\\cityImage\\cityImage",
+        "git": {
+          "commit": "1a25d36aad447f53beb58fbf0ffb8085b9e96c1a",
+          "local_changes": []
+        }
+      }
+    },
+    "inputs": [
+      {
+        "file": "Torino_sidewalks_POIs.gpkg",
+        "bytes": 2772992,
+        "sha256": "75856c4380c36b45611a0511d0d8866aa06bb1e46c5e29bbcf07a6ac94699c5d",
+        "modified": "2026-10-19T15:28:50+01:00",
+        "features": {
+          "Torino_POIs": 22325
+        }
+      },
+      {
+        "file": "visitors.csv",
+        "bytes": 895,
+        "sha256": "9f02a77d1d90446a56f7cd44d873f178728627e112e1ae92fd552046a502d9fd",
+        "modified": "2026-10-21T11:32:34+01:00"
+      }
+    ],
+    "outputs": [
+      {
+        "file": "Torino_sidewalks_sights.csv",
+        "bytes": 6968,
+        "sha256": "1d3b1cc2a6a3d9d4c7c24f9c19e10b75df0f60f9310ef238c9a8b9d84b093dc4",
+        "modified": "2026-11-10T13:40:17+00:00"
+      }
+    ]
   }
 }
