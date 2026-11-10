@@ -19,6 +19,9 @@ public class NightPopulate extends ActivityPopulate {
   @Override
   public void populate(PedSimCity state) {
     this.state = (PedSimCityNight) state;
+    // The field above hides the inherited one, which the A/B branch never sets and car-park
+    // allocation reads.
+    super.state = state;
     seedFrom(state);
     if (this.state.getEnableLightABTesting()) {
       populateABTest();
@@ -46,13 +49,11 @@ public class NightPopulate extends ActivityPopulate {
       NightAgent normalTwin = new NightAgent(this.state, false);
       normalTwin.agentID = currentAgentID++;
       normalTwin.setHomeAndWorkplace(vulnerableTwin.homeNode, vulnerableTwin.workNode);
+      // Persona, sex, speed and commute mode come with the home and workplace: the twins differ in
+      // vulnerability and light need only.
+      normalTwin.copyPersonFrom(vulnerableTwin);
       normalTwin.setVulnerable(false);
-      // Twins differ in vulnerability only, so they need the same amount of light.
       normalTwin.reassuranceLux = vulnerableTwin.reassuranceLux;
-      // These two are built here rather than through defineHomeWorkLocations, so the commute mode
-      // has to be settled explicitly; without it both twins defaulted to walking their commute.
-      vulnerableTwin.decideCommuteMode();
-      normalTwin.decideCommuteMode();
 
       vulnerableTwin.abTestTwin = normalTwin;
       normalTwin.abTestTwin = vulnerableTwin;

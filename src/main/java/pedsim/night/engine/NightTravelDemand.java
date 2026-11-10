@@ -16,11 +16,17 @@ public class NightTravelDemand extends ActivityTravelDemand {
   private final PedSimCityNight night;
 
   /**
-   * How many dark release events have happened today, which is the index of the next pair to send
-   * out. Counted rather than derived from the step, because pairs are released into darkness only
-   * and the dark events are not the first {@code n} events of the day.
+   * How many pairs have been sent out today, which is the index of the next one. Counted rather
+   * than derived from the step, because pairs are released into darkness only and the dark events
+   * are not the first {@code n} events of the day.
    */
   private int pairsReleased = 0;
+
+  /** Pairs sent out at each dark release event; 0 until the first event sizes it. */
+  private int pairsPerEvent = 0;
+
+  /** The twins by agent ID, built when the first pair is released. */
+  private java.util.Map<Integer, NightAgent> twins;
 
   private boolean announcedCapacity = false;
 
@@ -30,19 +36,13 @@ public class NightTravelDemand extends ActivityTravelDemand {
   }
 
   /**
-   * With light A/B testing enabled, day 1 releases one vulnerable/non-vulnerable twin pair per
-   * <b>dark</b> release event (agents {@code 2i} and {@code 2i+1} for the {@code i}-th such event)
-   * instead of the standard release.
+   * With light A/B testing enabled, day 1 releases vulnerable/non-vulnerable twin pairs (agents
+   * {@code 2i} and {@code 2i+1} for the {@code i}-th pair) at the <b>dark</b> release events
+   * instead of the standard release: {@code ceil(abTestPairs / dark events)} pairs at each, until
+   * {@code abTestPairs} have gone.
    *
-   * <p><b>Pairs depart into darkness only.</b> One pair per release event across the whole day left
-   * the majority of them setting off in daylight, where the lighting manipulation does nothing:
-   * with {@code releaseAgentsEveryMinutes = 20} a day holds 72 release events and, on a Turin June
-   * day, only about 31 of those are dark. The experiment's size was therefore not
-   * {@code abTestPairs} but whatever fraction of it happened to fall after sunset, and it moved
-   * with the date without anything saying so. Skipping the light events makes {@code abTestPairs}
-   * mean what it says, up to the number of dark events the date allows - which
-   * {@link #darkReleaseEventsToday} counts and logs at the start of the day, so an experiment too
-   * big for its night is reported rather than silently truncated.
+   * <p><b>Pairs depart into darkness only</b>, where the lighting manipulation can act; the
+   * number of dark release events the date allows is counted and logged at the start of the day.
    */
   @Override
   public int releaseAgentsOverride(double steps, int dayNumber) {
@@ -57,24 +57,37 @@ public class NightTravelDemand extends ActivityTravelDemand {
       return 0;
     }
 
-    int pairIndex = pairsReleased;
-    if (pairIndex >= Math.max(1, NightPars.abTestPairs)) {
-      return 0;
+    int requested = Math.max(1, NightPars.abTestPairs);
+    if (pairsPerEvent == 0) {
+      pairsPerEvent = pairsPerEvent(requested, darkReleaseEventsToday(dayNumber));
     }
-
-    NightAgent vulnAgent = null;
-    NightAgent normalAgent = null;
-    for (Agent agent : night.agentsList) {
-      if (agent instanceof NightAgent nightAgent) {
-        if (nightAgent.agentID == pairIndex * 2) {
-          vulnAgent = nightAgent;
-        } else if (nightAgent.agentID == pairIndex * 2 + 1) {
-          normalAgent = nightAgent;
+    if (twins == null) {
+      twins = new java.util.HashMap<>();
+      for (Agent agent : night.agentsList) {
+        if (agent instanceof NightAgent nightAgent) {
+          twins.put(nightAgent.agentID, nightAgent);
         }
       }
     }
+
+    int released = 0;
+    for (int k = 0; k < pairsPerEvent && pairsReleased < requested; k++) {
+      released += releasePair(pairsReleased, steps);
+    }
+    return 2 * released;
+  }
+
+  /**
+   * Sends out the twins {@code 2 * pairIndex} and {@code 2 * pairIndex + 1}, and moves on to the
+   * next pair whether or not this one exists.
+   *
+   * @return 1 if the pair departed, 0 if it was never built
+   */
+  private int releasePair(int pairIndex, double steps) {
+    NightAgent vulnAgent = twins.get(pairIndex * 2);
+    NightAgent normalAgent = twins.get(pairIndex * 2 + 1);
     if (vulnAgent == null || normalAgent == null) {
-      // Advance past the gap rather than retrying it: the index is a counter now, not a function of
+      // Advance past the gap rather than retrying it: the index is a counter, not a function of
       // the step, so a pair that was never built would otherwise consume every remaining dark event
       // of the day and nothing would depart at all.
       pairsReleased++;
@@ -103,7 +116,7 @@ public class NightTravelDemand extends ActivityTravelDemand {
                 + normalAgent.agentID
                 + ") at step "
                 + steps);
-    return 2;
+    return 1;
   }
 
   /**
@@ -120,15 +133,15 @@ public class NightTravelDemand extends ActivityTravelDemand {
     String message =
         String.format(
             "A/B light experiment: %d requested pairs, %d dark release events on %s"
-                + " (%d-minute cadence) - %d pairs will depart after dark.",
+                + " (%d-minute cadence), %d pairs at each.",
             requested,
             darkEvents,
             dateOf(dayNumber),
             TimePars.releaseAgentsEveryMinutes,
-            Math.min(requested, darkEvents));
-    if (requested > darkEvents) {
+            pairsPerEvent(requested, darkEvents));
+    if (darkEvents == 0) {
       LoggerUtil.getLogger()
-          .warning(message + " The remaining " + (requested - darkEvents) + " stay at home.");
+          .warning(message + " There is no dark release event on this date: no pair departs.");
     } else {
       LoggerUtil.getLogger().info(message);
     }
@@ -151,6 +164,15 @@ public class NightTravelDemand extends ActivityTravelDemand {
       }
     }
     return dark;
+  }
+
+  /**
+   * The pairs sent out at each dark release event: {@code requested} spread over the events, rounded
+   * up so that the events together can hold all of them. With no dark event the whole experiment
+   * goes at the first one that comes.
+   */
+  static int pairsPerEvent(int requested, int darkEvents) {
+    return (int) Math.ceil(requested / (double) Math.max(1, darkEvents));
   }
 
   private static LocalDate dateOf(int dayNumber) {
