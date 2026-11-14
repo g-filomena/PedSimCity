@@ -1,0 +1,79 @@
+cff-version: 1.2.0
+message: "If you use PedSimCity, please cite the software and the paper for the part of the model you used."
+type: software
+title: "PedSimCity: an agent-based model of pedestrian movement in cities"
+abstract: >-
+  An agent-based model of pedestrian movement across the street network of a city. Agents carry
+  cognitive maps of streets, landmarks, districts and barriers and choose routes by distance,
+  angular change or urban elements. Modules add a census population and a day of activities,
+  lighting-aware walking after dark, and cognitive maps that are learnt and forgotten.
+authors:
+  - family-names: Filomena
+    given-names: Gabriele
+repository-code: "https://github.com/g-filomena/PedSimCity"
+license: GPL-3.0-only
+keywords:
+  - agent-based model
+  - pedestrian simulation
+  - route choice
+  - cognitive maps
+  - urban analytics
+  - street lighting
+references:
+  - type: article
+    title: "A computational approach to 'The Image of the City'"
+    authors:
+      - family-names: Filomena
+        given-names: Gabriele
+      - family-names: Verstegen
+        given-names: Judith A.
+      - family-names: Manley
+        given-names: Ed
+    journal: Cities
+    volume: 89
+    start: 14
+    end: 25
+    year: 2019
+    doi: 10.1016/j.cities.2019.01.006
+  - type: article
+    title: "Perception of urban subdivisions in pedestrian movement simulation"
+    authors:
+      - family-names: Filomena
+        given-names: Gabriele
+      - family-names: Manley
+        given-names: Ed
+      - family-names: Verstegen
+        given-names: Judith A.
+    journal: PLOS ONE
+    volume: 15
+    start: e0244099
+    year: 2020
+    doi: 10.1371/journal.pone.0244099
+  - type: article
+    title: "Modelling the effect of landmarks on pedestrian dynamics in urban environments"
+    authors:
+      - family-names: Filomena
+        given-names: Gabriele
+      - family-names: Verstegen
+        given-names: Judith A.
+    journal: "Computers, Environment and Urban Systems"
+    volume: 86
+    start: 101573
+    year: 2021
+    doi: 10.1016/j.compenvurbsys.2020.101573
+  - type: article
+    title: "Empirical characterisation of agents' spatial behaviour in pedestrian movement simulation"
+    authors:
+      - family-names: Filomena
+        given-names: Gabriele
+      - family-names: Kirsch
+        given-names: Lia
+      - family-names: Schwering
+        given-names: Angela
+      - family-names: Verstegen
+        given-names: Judith A.
+    journal: "Journal of Environmental Psychology"
+    volume: 82
+    start: 101807
+    year: 2022
+    doi: 10.1016/j.jenvp.2022.101807

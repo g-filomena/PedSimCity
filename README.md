@@ -1,207 +1,186 @@
-# PedSimCity #
+# PedSimCity
 
-## An Agent-Based Model for simulating pedestrian movement in large urban areas ##
+**An agent-based model of how people walk through cities: where they go, which streets they take,
+and what they know of the city they are walking in.**
 
 [![GitHub CI](https://github.com/g-filomena/PedSimCity/actions/workflows/build.yaml/badge.svg)](https://github.com/g-filomena/PedSimCity/actions/workflows/build.yaml)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.en.html)
+![Java 21](https://img.shields.io/badge/Java-21-orange.svg)
 
-This model simulates the movement of pedestrians across the street network of large urban areas. The novelty of the model lies on the inclusion of cognitive representations of space (cognitive maps) in the behavioural architecture of the pedestrian agents.
+![Street lighting in Turin as the night module reads it](figures/torino_street_lighting.jpg)
+*Turin's streets coloured by measured illuminance, from the city's lamp inventory: what a
+pedestrian in the night module plans with after dark.*
 
-More specifically, a computational approach to Kevin Lynch's The Image of the City (see related paper in [Cities](https://www.sciencedirect.com/science/article/pii/S0264275118309776)) is employed to incorporate salient urban elements in the cognitive maps of the agents - alongside perception of distances and angular relationships between road segments. 
-It is argued that the include of certain urban elements in one’s cognitive map shapes their route choice behaviour, that is how they formulate a route between an origin and a destination. 
+PedSimCity simulates pedestrians across the full street network of a city, from a few hundred
+agents to tens of thousands. Its agents do not follow the shortest path by default. Each one
+carries a **cognitive map** - the streets, landmarks, districts and barriers it knows, after Kevin
+Lynch's *The Image of the City* - and chooses routes the way people have been observed to: by
+distance, by fewest turns, towards landmarks, through districts, along or away from barriers.
 
-The ABM has been built following a stepwise approach, so as to explore and assess the effect of the inclusion in the cognitive map of the agents of different urban elements (1. landmarks, 2. regions and barriers). 
+On top of that route-choice core, the model can reproduce a whole day of a city:
 
-The impact of element-based route choice models within the model was assessed in comparison with minimisation-based route choice models (i.e. distance shortest path, least cumulative angular change). 
-The inclusion of these urban elements has been tested, in combination with existing route choice models:
-* Landmark-based navigation: London - Methods, results and evaluation are documented in *Modelling the effect of landmarks on pedestrian dynamics*, published in [Computers, Environment and Urban Systems](https://doi.org/10.1016/j.compenvurbsys.2020.101573).
-* Region- and barrier-based navigation: London and Paris - Methods and results, along with a validation are documented in *Perception of urban subdivisions in pedestrian movement simulation*, published in [PLoS ONE](https://doi.org/10.1371/journal.pone.0244099).
+- **A census population.** Agents are drawn per census section, with age group, occupation and
+  sex; residents are joined by inbound commuters and overnight tourists.
+- **A day of activities.** Work, study, lunch, shopping and leisure, with destinations chosen by
+  attraction against distance and habit, and departures following each persona's day.
+- **Walking as part of every mode.** A trip that is not walked can still put someone on the street,
+  between home and a transit stop or between a car park and the destination.
+- **The city after dark.** Sunrise and sunset for the date and the city's position. Streets cost
+  more the darker they are, parks and water cost more at night, and agents re-plan when a street
+  is darker than they expected. Women and men can be simulated as paired twins that differ only in
+  that respect.
+- **Learning a city.** Agents remember the streets they walk, forget them over weeks, and plan
+  with what they know.
 
-The ABM allows executing these experiments *Testing Landmarks* and *Testing Urban Subdivisions*.
+Every run is reproducible: the same seed gives the same run, trip for trip, on any machine.
 
-In addition, the ABM, can be run as an empirical-based model where the interaction between the effects of the different urban elements is regulated and calibrated on the basis of empirical data (“Empirical ABM”). 
-The ABM, the qualitative study conducted to calibrate it, and its evaluation are documented in *Empirical characterisation of agents’ spatial behaviour in pedestrian movement simulation*, 
-published in [Journal of Environmental Psychology](https://www.sciencedirect.com/science/article/pii/S0272494422000524).
+## Quick start
 
-![](figures/urbanSub.png)
-*Testing Urban Subdivisions: Pedestrian Volumes after elaboration in Python (London, UK)*
+You need **JDK 21**, **Maven 3.9+** and **[Git LFS](https://git-lfs.com)** (the city data is
+stored there).
 
-PedSimCity is built on:
-* [JTS](https://github.com/locationtech/jts)
-* [Mason](https://cs.gmu.edu/~eclab/projects/mason/extensions/geomason/)
-* [GeoMason-light](https://github.com/g-filomena/GeoMason-light)
+```bash
+git clone https://github.com/g-filomena/PedSimCity.git
+cd PedSimCity
+git lfs pull
 
-Along with:
-* [Apache Commons Lang](https://commons.apache.org/proper/commons-lang/download_lang.cgi)
-* [OpenCsv](http://opencsv.sourceforge.net)
-* [Java Tuples](https://www.javatuples.org)
-* [SLF4J](https://www.slf4j.org)
+# one day of Turin, night module, 0.1% of residents (~850 agents)
+mvn compile exec:java@night -Dexec.args="--cityName=Torino --days=1 --percentage=0.001"
+```
 
-**How to run:**
-1. Install Java (JDK 21) on your machine.
-2. Download the jar file *pedsimcity1.23-jar-with-dependencies.jar* wherever it is convenient.
-3. Open the command prompt in the directory where the .jar file is placed.
-4. Run `java -jar pedsimcity1.23-jar-with-dependencies.jar --cityName=Torino --days=1`.
-5. The run starts immediately and logs to the terminal. Add `--website` for the browser dashboard.
+The run logs to the terminal and writes its results to `outputs/`. For a live view in the browser,
+use `mvn compile exec:java@night-website` instead.
 
-**This is the recommended option for running PedSimCity and it does not require the user to take any other step or to manually install the dependencies.**
+Every parameter of every module can be set as `--name=value`. A city can also carry its own
+defaults in `src/main/resources/<City>/<City>.properties`, which the command line overrides.
 
-> **There is no desktop GUI.** A run is configured by two things, both of which leave a record it
-> can be reproduced from: `src/main/resources/<City>/<City>.properties` for per-city parameters, and
-> `--key=value` on the command line for everything else. Resources are read from the classpath, so
-> no path has to be given. For a live view of a run, use the browser dashboard (`--website`).
+## Modules
 
-To work on the sources in an IDE instead:
+`core` holds the engine, routing, cognitive maps and movement, and every module extends it. Each
+module has its own README.
 
-1. Clone the repository (it uses Git LFS for the GIS data; `git lfs pull` if the .gpkg files look like 133-byte text).
-2. Open the folder as a Maven project; the dependencies in `pom.xml` resolve automatically.
-3. Run `mvn -Pall-modules compile` to build every module — the default profile builds fewer than half.
-4. Run any launcher's `main`: `pedsim.night.launcher.NightLauncher`, `pedsim.activity.launcher.ActivityLauncher`, `pedsim.core.launcher.CoreLauncher`, and so on.
+| Module | What it models |
+|---|---|
+| [`core`](src/main/java/pedsim/core/README.md) | engine, route choice, cognitive maps, the REST API and dashboard |
+| [`activity`](src/main/java/pedsim/activity/README.md) | a 24-hour city: census population, daily programmes, destination and mode choice, commuters and tourists, day and night |
+| [`night`](src/main/java/pedsim/night/README.md) | extends `activity`: lighting-aware routing, vulnerability, paired A/B twins |
+| [`learning`](src/main/java/pedsim/learning/README.md) | extends `activity`: a cognitive map that grows with walking and fades with time |
+| [`cityImage`](src/main/java/pedsim/cityimage/README.md) | extends `core`: route-choice experiments with landmarks, regions and barriers |
+| [`empirical`](src/main/java/pedsim/empirical/README.md) | extends `core`: agents calibrated on a route-choice survey (Münster) |
 
-**How to run in an editor such as Cursor or VS Code:**
+| Module | headless | browser dashboard |
+|---|---|---|
+| night | `mvn compile exec:java@night` | `mvn compile exec:java@night-website` |
+| activity | `mvn compile exec:java@activity` | `mvn compile exec:java@activity-website` |
+| learning | `mvn -Plearning compile exec:java@learning` | `mvn -Plearning compile exec:java@learning-website` |
+| cityImage, empirical | `mvn -Pcityimage-empirical compile exec:java -Dexec.mainClass=...` | - |
 
-1. Ensure **Maven** and **Java** (JDK 21) are installed on your computer.
-2. Open the project folder in your editor (e.g. VS Code or Cursor).
-3. Open the terminal and ensure you are in the project folder with the `pom.xml` file.
-4. The fastest way to run the simulation after making changes is:
-   `mvn compile exec:java` (core) or `mvn compile exec:java@night` (night module). Both run
-   headless; add `@night-website` for the browser dashboard.
-   *Note: Only use `mvn clean compile exec:java` if you are experiencing caching issues or have changed your dependencies in `pom.xml`. Skipping `clean` makes incremental builds much faster.*
-5. Alternatively, use your IDE's run button on `NightLauncher.java` (`pedsim.night.launcher`).
+The default Maven profile builds `core`, `activity` and `night`. `mvn -Pall-modules compile` builds
+everything.
 
-The city-image module runs the simulation with three different configurations:
-1. Testing Landmarks (`London_landmarks`, Muenster).
-2. Testing Urban Subdivisions (`London_subdivisions`, Paris, Muenster).
-3. Testing Specific Route Choice Models (Muenster).
-4. Empirical ABM (Muenster).
+### Route-choice experiments (cityImage)
 
-Each design carries the `jobs`, `numAgents` and `numberTripsPerAgent` used to produce the results in
-the papers above, and `--stringMode` selects between them:
+The cityImage module reruns the experiments of the papers below. `--stringMode` selects the design:
 
 ```bash
 mvn -Pcityimage-empirical compile exec:java \
   -Dexec.mainClass=pedsim.cityimage.launcher.CityImageLauncher \
-  -Dexec.args="--headless --cityName=Muenster --stringMode='Testing Urban Subdivisions'"
+  -Dexec.args="--cityName=Muenster --stringMode='Testing Urban Subdivisions'"
 ```
 
-`--numberTripsPerAgent` and `--jobs` override the design's own defaults. For specific
-origin-destination pairs, pass `--testingSpecificOD=true` with `--originsTmp` and `--destinationsTmp`
-as comma-separated node IDs. Under "Testing Specific Route Choice Models" one agent walks the matrix
-per route-choice model.
+The designs are *Testing Landmarks*, *Testing Urban Subdivisions*, *Testing Specific Route Choice
+Models* and *Empirical ABM*. `--numberTripsPerAgent` and `--jobs` override a design's own settings;
+`--testingSpecificOD=true` with `--originsTmp` and `--destinationsTmp` (comma-separated node IDs)
+routes chosen origin-destination pairs.
 
-**"Testing Landmarks" needs `<City>_distances.csv`, which no bundled city currently ships.**
+## Cities
 
-## Architecture: modules
-
-`core` is shared infrastructure: the engine and day loop, routing and path finding, the
-cognitive-map machinery, the REST server and dashboard state. It models no behaviour — no census, no
-personas, no agendas — so a bare core run releases agents at a flat rate and sends them somewhere
-they know; it exists as the skeleton the domain models extend, and as a smoke test. Each module has
-its own README under `src/main/java/pedsim/<module>/`:
-
-| Module | Role |
-|---|---|
-| [`core`](src/main/java/pedsim/core/README.md) | shared infrastructure: engine, routing, cognition, REST/dashboard |
-| [`activity`](src/main/java/pedsim/activity/README.md) | activity-based **24h foundation**: census population, daily programmes, destination and mode choice (walking to and from public transport and car parks), inbound commuters and tourists, day/night clock |
-| [`night`](src/main/java/pedsim/night/README.md) | extends `activity` — vulnerability + lighting-aware night routing |
-| [`learning`](src/main/java/pedsim/learning/README.md) | extends `activity` — incremental, decaying cognitive map |
-| [`empirical`](src/main/java/pedsim/empirical/README.md) | extends `core` — **empirical ABM**: behaviour calibrated on empirical data |
-| [`cityImage`](src/main/java/pedsim/cityimage/README.md) | extends `core` — **route-choice experiments**: effect of landmarks / regions / barriers |
-
-The dependency layering is `core → activity → {night, learning}`; `empirical` and `cityImage` extend
-`core` directly. The REST API/dashboard live in `core`, but `/api/modules` lists only registered
-runnable modules and `/api/start` routes to them.
-
-### Running a module
-
-Each runnable module has Maven exec profiles (headless run, and REST + browser dashboard); see its README for parameters:
-
-| Module | headless | REST + dashboard |
+| City | Ships with | Typical use |
 |---|---|---|
-| night (default) | `mvn compile exec:java@night` | `mvn compile exec:java@night-website` |
-| activity | `mvn compile exec:java@activity` | `mvn compile exec:java@activity-website` |
-| learning | `mvn -Plearning compile exec:java@learning` | `mvn -Plearning compile exec:java@learning-website` |
-| cityImage / empirical | `mvn -Pcityimage-empirical compile …` | — |
+| Torino | census, employment, POIs, street lighting, transit stops, car parks, tourist accommodation | activity, night, learning |
+| London | buildings with heights, landmarks, sight lines, districts, barriers, GPS tracks | route choice |
+| Melbourne | official building footprints, landmarks, sight lines, barriers | route choice, validation against pedestrian counters |
+| Barcelona | buildings, POIs, sight lines, barriers | learning, route choice |
+| Münster | landmarks, barriers, route-choice survey | empirical, route choice |
+| Paris | network, districts, barriers | urban subdivisions |
 
-`mvn test` runs the unit suite (JUnit 5, under a second). Checks that need a city carry
-`@Tag("slow")` and are excluded by default.
+### Your own city
 
-## Repository layout
-
-| Path | Contents |
-|---|---|
-| `src/main/java/pedsim/<module>/` | Java source, one folder per module (each with a README) |
-| `src/test/java/` | unit tests; anything needing a city is tagged `slow` |
-| `scripts/` | build and dashboard launchers, and the scripts that write the results site's data (`build_city.bat`, `aggregate_season_volumes.py`, …) |
-| `src/main/resources/<City>/` | per-city GIS input layers read by the simulation (`<City>_*.gpkg`) |
-| `inputData/<City>/` | raw preparation material (DTM/DEM rasters, detailed building layers, source notes); `00_city_preparation.py` searches it automatically after the resources folder |
-| `pipeline/` | Python data-prep scripts + `build_lighting*.py` orchestrators — see [`pipeline/README.md`](pipeline/README.md) |
-| `analysis/` | Jupyter notebooks + scripts for post-hoc analysis of results |
-| `outputs/` | all simulation results (gitignored) |
-| `.githooks/` | Git LFS guard + spotless formatting hooks — **copy them in once per clone**, see [`.githooks/README.md`](.githooks/README.md) |
-
-**Code formatting is automatic, once the hooks are installed.** Java is formatted with
-[spotless](https://github.com/diffplug/spotless) + google-java-format; `pre-commit` applies it to
-what you staged and `pre-push` refuses a push that is not clean. `mvn spotless:apply` does it by
-hand. The hooks are not installed by cloning — `cp .githooks/pre-commit .git/hooks/` and likewise for
-`pre-push`.
-
-**Every launcher prompts for the city; no script names one.** A city is a folder under
-`src/main/resources/` and a `<City>_` filename prefix, and that is the only place the name lives.
-
-**Preparing a city's data** — on Windows double-click `scripts/build_city.bat` (base layers +
-POIs), `scripts/build_census.bat` (ISTAT census) or `scripts/build_lighting.bat` (street lighting from
-the lamp inventory) and enter the city; or run e.g.
-`python pipeline/build_lighting.py --city <City>`. Raw material goes in
-`inputData/<City>/`; the pipeline writes what the sim reads to `src/main/resources/<City>/`.
-See [`pipeline/README.md`](pipeline/README.md) for the steps and the `<City>_…` filename
-conventions.
-
-**Results** — every run writes under `outputs/`: structured exports (volumes, routes, cognitive
-maps) under `outputs/<appName>/`, with trip diagnostics and the HTML dashboard at the `outputs/`
-root.
-
-**Publishing results** — the results site, [pedsimcity.inclusivestreets.org](https://pedsimcity.inclusivestreets.org),
-is built and deployed from outside this repository, in `../inclusivestreets/torino-di-notte/`
-(pages, logos, the publisher), with the umbrella `inclusivestreets.org` beside it in
-`../inclusivestreets/apex/`. They are two Cloudflare Pages projects, because a project serves
-the same deployment on every domain attached to it.
-
-What stays here is what reads the model's output and writes the site's data folder,
-`../inclusivestreets/torino-di-notte/data/<City>/`: the street network as WGS84 GeoJSON
-(`scripts/export_network_geojson.py`), one aggregated file per season
-(`scripts/aggregate_season_volumes.py`, run where the run is) and the street-lighting images
-(`scripts/render_city_light.py`). The publisher also picks up the single-run dashboards in
-`outputs/results/`.
-
-**How to use the Web Dashboard:**
-
-PedSimCity features a browser-based dashboard for real-time simulation monitoring via a REST API.
-The REST server runs on `http://localhost:8081`; the dashboard is opened automatically as a local
-HTML file (`dashboard.html`).
-
-To start the night-module REST server and dashboard:
+The layers are built from OpenStreetMap (and from official data where you have it) by a Python
+pipeline on [cityImage](https://github.com/g-filomena/cityImage):
 
 ```bash
-mvn compile exec:java@night-website
+conda env create -f environment-prep.yml
+conda activate pedsimcity-prep
+python pipeline/00_city_preparation.py --city Bologna --place "Bologna, Italy"
 ```
 
-When the startup menu appears, select **Option 2 (Browser/HTML Dashboard)**. The REST API starts
-on port 8081 and `dashboard.html` opens in your browser automatically.
+Raw inputs go in `inputData/<City>/`; what the simulation reads is written to
+`src/main/resources/<City>/`, and `--cityName=<City>` runs it. Census, lighting and transit layers
+have their own steps. See [`pipeline/README.md`](pipeline/README.md).
 
-Endpoints available once the server is running:
+## Outputs
+
+Every run writes under `outputs/`: pedestrian volumes per street and hour, trips and their routes,
+cognitive maps, and a per-trip diagnostic file. Volumes and routes are GeoPackages and CSVs keyed on
+the network's `edgeID`, so they join straight back onto the street layer.
+
+Large runs should pass `--exportHtmlDashboard=false`: the HTML dashboard embeds every trip.
+
+### REST API
+
+The `-website` launchers start a REST server on `http://localhost:8081` and open `dashboard.html`.
 
 | Endpoint | Description |
 |---|---|
-| `GET /api/state` | Live simulation state (agents, stats, module info) |
-| `GET /api/roads` | GeoJSON road network |
-| `GET /api/modules` | Registered runnable modules with parameter schemas |
-| `POST /api/start` | Start a simulation run (body: `{"module":"night","cityName":"Torino",…}`) |
+| `GET /api/state` | live simulation state: agents, statistics, module |
+| `GET /api/roads` | the street network as GeoJSON |
+| `GET /api/modules` | runnable modules and their parameters |
+| `POST /api/start` | start a run, e.g. `{"module":"night","cityName":"Torino","days":1}` |
 
-To start a simulation from the command line once the server is running:
+## Studies built with PedSimCity
 
-```bash
-curl -X POST http://localhost:8081/api/start \
-  -H "Content-Type: application/json" \
-  -d '{"module":"night","cityName":"Torino","days":1}'
-```
+- **Landmarks** (London): *Modelling the effect of landmarks on pedestrian dynamics in urban
+  environments*, [Computers, Environment and Urban Systems](https://doi.org/10.1016/j.compenvurbsys.2020.101573) (2021).
+- **Regions and barriers** (London, Paris): *Perception of urban subdivisions in pedestrian
+  movement simulation*, [PLOS ONE](https://doi.org/10.1371/journal.pone.0244099) (2020).
+- **Empirical ABM** (Münster): *Empirical characterisation of agents' spatial behaviour in
+  pedestrian movement simulation*, [Journal of Environmental Psychology](https://doi.org/10.1016/j.jenvp.2022.101807) (2022).
+- **Turin after dark**: walking at night, street lighting and the gap between women and men -
+  [pedsimcity.inclusivestreets.org](https://pedsimcity.inclusivestreets.org).
+
+The computational approach to *The Image of the City* behind the cognitive maps is in
+[Cities](https://doi.org/10.1016/j.cities.2019.01.006) (2019). The model is described following the
+ODD protocol in [`PedSimCity_ODD.pdf`](PedSimCity_ODD.pdf).
+
+## Citing
+
+If you use PedSimCity, please cite the software (GitHub's *Cite this repository* button reads
+[`CITATION.cff`](CITATION.cff)) and the paper for the part of the model you used.
+
+## Development
+
+| Path | Contents |
+|---|---|
+| `src/main/java/pedsim/<module>/` | Java source, one folder per module |
+| `src/test/java/` | JUnit 5 tests |
+| `src/main/resources/<City>/` | the layers the simulation reads, `<City>_<layer>.gpkg` |
+| `inputData/<City>/` | raw material for the pipeline |
+| `pipeline/` | the Python data pipeline |
+| `analysis/` | notebooks and scripts for analysing runs |
+| `scripts/` | launchers for the pipeline and the dashboard |
+
+`mvn test` runs the unit tests in about a second. Tests that need a city are tagged `slow`:
+`mvn test -Pslow-tests -Pall-modules` runs them (about a minute).
+
+Java is formatted with [Spotless](https://github.com/diffplug/spotless) and google-java-format.
+The git hooks in `.githooks/` apply it on commit and check it on push; install them once per clone
+(see [`.githooks/README.md`](.githooks/README.md)), or run `mvn spotless:apply` by hand.
+
+PedSimCity is built on [MASON](https://cs.gmu.edu/~eclab/projects/mason/),
+[GeoMason-light](https://github.com/g-filomena/GeoMason-light) and
+[JTS](https://github.com/locationtech/jts).
+
+## License
+
+[GPL-3.0](LICENSE). Developed by Gabriele Filomena.
