@@ -1,0 +1,21 @@
+{
+  "written": "2026-11-15T23:08:51+00:00",
+  "source": "VISTA stops tables, waves 2022_2023, 2023_2024, 2024_2025",
+  "licence": "CC BY 4.0, Department of Transport and Planning, Victoria",
+  "files": {
+    "stops_vista_2022_2023.csv": "abf1b2b8ab569f94918ab384f2b6ad955d2bae7d8e267f12fd909b88c724b901",
+    "stops_vista_2023_2024.csv": "8453ac8d1174a9e966e58c462b6dbe99bdc92d2da7ca4e9befb65f18f04c3931",
+    "stops_vista_2024_2025.csv": "be5b44f3b28fbdd3cfda1240a52432751f7c1967b2ee11178a82fde1d38d44a5"
+  },
+  "filter": "fullmode == Walking, origlga == destlga == Melbourne (C), dayType == Weekday, starthour 7-18, vistadist > 0",
+  "stages": 2308,
+  "weighted_quantiles_metres": {
+    "p10": 101.1,
+    "p25": 222.8,
+    "p50": 416.1,
+    "p75": 696.4,
+    "p90": 1051.6,
+    "p95": 1373.0
+  },
+  "median_implied_speed_kmh": 4.0479
+}

@@ -48,6 +48,12 @@ public class CityImagePopulate extends pedsim.core.engine.Populate {
   /** Height of one storey, turning a building's height into a floor count for floor area. */
   private static final double STOREY_HEIGHT_METRES = 3.0;
 
+  /**
+   * Nodes the destination at an observed length is drawn from: enough for the floor-area weighting
+   * to choose between, few enough that the search interval stays a few metres wide.
+   */
+  private static final int LENGTH_CANDIDATES = 30;
+
   private final ArrayList<Pair<NodeGraph, NodeGraph>> odMatrix = new ArrayList<>();
 
   private PedSimCityImage state;
@@ -167,9 +173,21 @@ public class CityImagePopulate extends pedsim.core.engine.Populate {
     Map<NodeGraph, Double> floorArea =
         TestPars.weightODByFloorArea ? floorAreaByNode() : Collections.emptyMap();
 
+    boolean observedLengths = !TestPars.routeLengthMetres.isEmpty();
+    if (observedLengths) {
+      logger.info(
+          String.format(
+              "OD route lengths drawn from %s_%s.csv: %d observed lengths",
+              Pars.cityName, TestPars.routeLengths, TestPars.routeLengthMetres.size()));
+    }
+
     for (int i = 0; i < numberTrips; i++) {
       NodeGraph originNode =
           floorArea.isEmpty() ? randomGenericOrigin() : weightedDraw(floorArea.keySet(), floorArea);
+      if (observedLengths) {
+        odMatrix.add(new Pair<>(originNode, destinationAtObservedLength(originNode, floorArea)));
+        continue;
+      }
       double minimumDistance = NetworkCircuity.straightLineFor(Pars.minRouteLength);
       double maximumDistance = NetworkCircuity.straightLineFor(Pars.maxRouteLength);
       NodeGraph destinationNode =
@@ -179,6 +197,53 @@ public class CityImagePopulate extends pedsim.core.engine.Populate {
 
       odMatrix.add(new Pair<>(originNode, destinationNode));
     }
+  }
+
+  /**
+   * A destination at a walked length drawn from the observed distribution: the length becomes a
+   * straight-line radius through the measured circuity, and the destination is drawn from the
+   * nodes nearest that radius - uniformly, or in proportion to floor area when the matrix is
+   * weighted. The search interval starts at a metre either side and doubles until it holds {@link
+   * #LENGTH_CANDIDATES} nodes, so it stays tight where the network is dense.
+   */
+  private NodeGraph destinationAtObservedLength(
+      NodeGraph originNode, Map<NodeGraph, Double> floorArea) {
+    double radius = NetworkCircuity.straightLineFor(drawObservedLength());
+    List<NodeGraph> candidates = List.of();
+    double tolerance = 1.0;
+    for (int doublings = 0; doublings < 16 && candidates.size() < LENGTH_CANDIDATES; doublings++) {
+      candidates =
+          NodesLookup.getNodesBetweenDistanceInterval(
+                  network, originNode, Math.max(0.0, radius - tolerance), radius + tolerance)
+              .stream()
+              .filter(node -> node != originNode && !node.gateway)
+              .filter(node -> floorArea.isEmpty() || floorArea.containsKey(node))
+              .sorted(Comparator.comparingInt(NodeGraph::getID))
+              .toList();
+      tolerance *= 2.0;
+    }
+    if (candidates.isEmpty()) {
+      return randomDestination(originNode);
+    }
+    return floorArea.isEmpty()
+        ? candidates.get(random.nextInt(candidates.size()))
+        : weightedDraw(candidates, floorArea);
+  }
+
+  /** One walked length from {@link TestPars#routeLengthMetres}, in proportion to its weight. */
+  private double drawObservedLength() {
+    double total = 0.0;
+    for (double weight : TestPars.routeLengthWeights) {
+      total += weight;
+    }
+    double target = random.nextDouble() * total;
+    for (int i = 0; i < TestPars.routeLengthMetres.size(); i++) {
+      target -= TestPars.routeLengthWeights.get(i);
+      if (target < 0.0) {
+        return TestPars.routeLengthMetres.get(i);
+      }
+    }
+    return TestPars.routeLengthMetres.get(TestPars.routeLengthMetres.size() - 1);
   }
 
   /**

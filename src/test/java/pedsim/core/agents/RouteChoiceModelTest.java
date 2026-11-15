@@ -10,6 +10,8 @@ import java.util.EnumSet;
 import org.junit.jupiter.api.Test;
 import pedsim.core.agents.RouteChoiceModel.BarrierPreferences;
 import pedsim.core.agents.RouteChoiceModel.Strategy;
+import pedsim.core.parameters.RouteChoicePars;
+import pedsim.core.utilities.StringEnum.AgentBarrierType;
 import pedsim.core.utilities.StringEnum.LandmarkType;
 import pedsim.core.utilities.StringEnum.LocalHeuristicMode;
 import pedsim.core.utilities.StringEnum.MinimisationMode;
@@ -77,13 +79,47 @@ class RouteChoiceModelTest {
         }) {
       assertTrue(model.hasElement(RouteChoiceElement.BARRIER_BASED_NAVIGATION));
       assertEquals(
-          BarrierPreferences.DEFAULT, model.barriers(), "barrier model with no perception");
+          new BarrierPreferences(AgentBarrierType.ALL, true, true, 0.70, 0.0, 1.30, 0.0),
+          model.barriers(),
+          "barrier model with no perception");
     }
 
     assertSame(
         BarrierPreferences.NONE,
         RouteChoiceModel.regions(LocalHeuristicMode.DISTANCE).barriers(),
         "a region-only model should not perceive barriers");
+  }
+
+  /**
+   * The barrier parameters are read when a model is built, not when the class loads, so a value
+   * from the command line reaches every barrier model.
+   */
+  @Test
+  void barrierPerceptionFollowsTheParameters() {
+    AgentBarrierType type = RouteChoicePars.barrierType;
+    boolean natural = RouteChoicePars.preferenceNaturalBarriers;
+    double naturalFactor = RouteChoicePars.naturalBarrierFactor;
+    double severingFactor = RouteChoicePars.severingBarrierFactor;
+    try {
+      RouteChoicePars.barrierType = AgentBarrierType.NEGATIVE;
+      RouteChoicePars.preferenceNaturalBarriers = false;
+      RouteChoicePars.naturalBarrierFactor = 0.4;
+      RouteChoicePars.severingBarrierFactor = 1.8;
+
+      BarrierPreferences barriers =
+          RouteChoiceModel.barriers(LocalHeuristicMode.DISTANCE).barriers();
+
+      assertSame(AgentBarrierType.NEGATIVE, barriers.type());
+      assertFalse(barriers.preferenceNatural());
+      assertTrue(barriers.aversionSevering());
+      assertEquals(0.4, barriers.naturalMean());
+      assertEquals(1.8, barriers.severingMean());
+    } finally {
+      RouteChoicePars.barrierType = type;
+      RouteChoicePars.preferenceNaturalBarriers = natural;
+      RouteChoicePars.naturalBarrierFactor = naturalFactor;
+      RouteChoicePars.severingBarrierFactor = severingFactor;
+    }
   }
 
   /** The elements are copied in, so a caller cannot reach back into a built model. */

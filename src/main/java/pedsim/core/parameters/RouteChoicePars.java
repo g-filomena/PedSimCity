@@ -1,5 +1,7 @@
 package pedsim.core.parameters;
 
+import pedsim.core.utilities.StringEnum.AgentBarrierType;
+
 /**
  * The Parameters class contains global parameters and settings for the PedSimCity simulation. These
  * parameters are used to configure various aspects of the simulation, including simulation mode,
@@ -43,6 +45,24 @@ public class RouteChoicePars {
 
   // Region-based navigation Threshold - meters
   public static double regionNavActivationThreshold = 500;
+
+  // Barrier perception of a model that navigates by barriers and states none of its own (see
+  // RouteChoiceModel.BarrierPreferences.fromParameters). Survey-driven modules draw their own.
+
+  /** Which barriers can become sub-goals. */
+  public static AgentBarrierType barrierType = AgentBarrierType.ALL;
+
+  /** Whether streets along parks and water cost {@link #naturalBarrierFactor} times their length. */
+  public static boolean preferenceNaturalBarriers = true;
+
+  /** Whether streets along roads and railways cost {@link #severingBarrierFactor} times theirs. */
+  public static boolean aversionSeveringBarriers = true;
+
+  /** Cost multiplier for a street along a park or water. */
+  public static double naturalBarrierFactor = 0.70;
+
+  /** Cost multiplier for a street along a road or railway. */
+  public static double severingBarrierFactor = 1.30;
 
   /**
    * Standard deviation of the multiplier {@code Dijkstra.costPerceptionError} applies to every edge

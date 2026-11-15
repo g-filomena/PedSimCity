@@ -3,6 +3,7 @@ package pedsim.core.agents;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
+import pedsim.core.parameters.RouteChoicePars;
 import pedsim.core.utilities.StringEnum.AgentBarrierType;
 import pedsim.core.utilities.StringEnum.LandmarkType;
 import pedsim.core.utilities.StringEnum.LocalHeuristicMode;
@@ -79,11 +80,20 @@ public record RouteChoiceModel(
 
     /**
      * What a model gets when it asks for barrier navigation without stating its own perception:
-     * every barrier kind is a candidate, parks and water attract, severing barriers repel, at fixed
-     * factors. The empirical module draws its own from its survey clusters instead.
+     * the barrier kinds, switches and cost factors in {@link RouteChoicePars}, read when the model
+     * is built so the command line reaches them. The empirical and learning modules draw their own
+     * from the route-choice survey instead.
      */
-    public static final BarrierPreferences DEFAULT =
-        new BarrierPreferences(AgentBarrierType.ALL, true, true, 0.70, 0.0, 1.30, 0.0);
+    public static BarrierPreferences fromParameters() {
+      return new BarrierPreferences(
+          RouteChoicePars.barrierType,
+          RouteChoicePars.preferenceNaturalBarriers,
+          RouteChoicePars.aversionSeveringBarriers,
+          RouteChoicePars.naturalBarrierFactor,
+          0.0,
+          RouteChoicePars.severingBarrierFactor,
+          0.0);
+    }
   }
 
   public RouteChoiceModel {
@@ -176,7 +186,7 @@ public record RouteChoiceModel(
         localHeuristic,
         EnumSet.of(RouteChoiceElement.BARRIER_BASED_NAVIGATION),
         null,
-        BarrierPreferences.DEFAULT);
+        BarrierPreferences.fromParameters());
   }
 
   /** Region gateways and barrier sub-goals together. */
@@ -187,7 +197,7 @@ public record RouteChoiceModel(
             RouteChoiceElement.REGION_BASED_NAVIGATION,
             RouteChoiceElement.BARRIER_BASED_NAVIGATION),
         null,
-        BarrierPreferences.DEFAULT);
+        BarrierPreferences.fromParameters());
   }
 
   /** Recognising local landmarks is what gives a model a {@link LandmarkType}. */

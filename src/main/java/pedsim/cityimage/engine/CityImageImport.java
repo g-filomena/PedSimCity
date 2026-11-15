@@ -38,8 +38,49 @@ public class CityImageImport extends pedsim.core.engine.Import {
       readSightLines();
       readBarriers();
     }
+    if (!TestPars.routeLengths.isBlank()) {
+      importRouteLengths();
+    }
     // Read the street network and build the graph
     readGraphs();
+  }
+
+  /**
+   * Reads the observed walked route lengths named by {@link TestPars#routeLengths}: a header, then
+   * {@code metres,weight} rows. Rows with a non-positive length or weight are refused.
+   *
+   * @throws Exception If the file is missing or cannot be read.
+   */
+  private void importRouteLengths() throws Exception {
+    String resourceName =
+        Pars.cityName + "/" + Pars.cityName + "_" + TestPars.routeLengths + ".csv";
+    URL fileUrl = CLASSLOADER.getResource(resourceName);
+    if (fileUrl == null) {
+      throw new IllegalStateException("Resource not found: " + resourceName);
+    }
+    TestPars.routeLengthMetres.clear();
+    TestPars.routeLengthWeights.clear();
+    try (CSVReader reader = new CSVReader(new InputStreamReader(fileUrl.openStream()))) {
+      String[] line;
+      boolean header = true;
+      while ((line = reader.readNext()) != null) {
+        if (header) {
+          header = false;
+          continue;
+        }
+        double metres = Double.parseDouble(line[0]);
+        double weight = Double.parseDouble(line[1]);
+        if (!(metres > 0.0) || !(weight > 0.0)) {
+          throw new IllegalStateException(
+              resourceName + ": length and weight must be positive, got " + String.join(",", line));
+        }
+        TestPars.routeLengthMetres.add(metres);
+        TestPars.routeLengthWeights.add(weight);
+      }
+    }
+    if (TestPars.routeLengthMetres.isEmpty()) {
+      throw new IllegalStateException(resourceName + " holds no route lengths");
+    }
   }
 
   /**

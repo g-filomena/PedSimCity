@@ -54,6 +54,20 @@ public final class TestPars extends Pars {
    */
   public static boolean weightODByFloorArea = false;
 
+  /**
+   * Layer name of an observed distribution of walked route lengths, {@code
+   * <City>/<City>_<routeLengths>.csv} with columns {@code metres,weight}. When set, each pair of the
+   * generic OD matrix draws its length from it, in proportion to the weights, instead of using the
+   * {@code [minRouteLength, maxRouteLength]} interval. Empty for the interval.
+   */
+  public static String routeLengths = "";
+
+  /** The lengths read from {@link #routeLengths}, in walked metres; empty when none was named. */
+  public static final ArrayList<Double> routeLengthMetres = new ArrayList<>();
+
+  /** The weight of each entry of {@link #routeLengthMetres}. */
+  public static final ArrayList<Double> routeLengthWeights = new ArrayList<>();
+
   public static Scenario[] landmarkScenarios = {
     Scenario.ROAD_DISTANCE,
     Scenario.LANDMARKS_DISTANCE,
