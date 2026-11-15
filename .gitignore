@@ -78,7 +78,6 @@ desktop.ini
 
 /cache/
 /obsolete/
-/analysis/
 /outputs/
 /src/main/java/pedsim/social/
 
@@ -98,7 +97,30 @@ desktop.ini
 /analysis/__pycache__/
 /analysis/**/cache/
 /validation/
-/analysis/validation/
+# Validation and season runs keep their scripts, shell launchers and Markdown, and nothing they
+# download or produce.
+/analysis/validation/**
+!/analysis/validation/**/
+!/analysis/validation/**/*.py
+!/analysis/validation/**/*.md
+!/analysis/validation/**/*.sh
+/analysis/validation/Torino/RERUN_BRIEF.md
+/analysis/validation/Torino/night_torino_*.md
+# Season runs keep their scripts; the tables they write are results, not documentation.
+/analysis/season_runs/**
+!/analysis/season_runs/**/
+!/analysis/season_runs/**/*.py
+/analysis/cityImage/figures/
+/pipeline/cache/
+
+# Working notes, sources and slides, kept out.
+/references/*
+!/references/README.md
+/presentation/
+/COMMUTE_DISTANCE.md
+/JAVADOC.md
+/OD_DISTANCE_FACTORS.md
+/RELEASE_BUDGET.md
 
 # Runtime / analysis output dirs (generated in the working dir = repo root)
 /figures/
