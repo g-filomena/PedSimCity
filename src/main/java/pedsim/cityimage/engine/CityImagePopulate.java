@@ -4,8 +4,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.TreeMap;
 import org.javatuples.Pair;
 import pedsim.cityimage.agents.CityImageAgent;
@@ -15,6 +17,7 @@ import pedsim.core.engine.NetworkCircuity;
 import pedsim.core.engine.PedSimCity;
 import pedsim.core.parameters.Pars;
 import sim.graph.Building;
+import sim.graph.EdgeGraph;
 import sim.graph.Graph;
 import sim.graph.NodeGraph;
 import sim.graph.NodesLookup;
@@ -200,27 +203,35 @@ public class CityImagePopulate extends pedsim.core.engine.Populate {
   }
 
   /**
-   * A destination at a walked length drawn from the observed distribution: the length becomes a
-   * straight-line radius through the measured circuity, and the destination is drawn from the
-   * nodes nearest that radius - uniformly, or in proportion to floor area when the matrix is
-   * weighted. The search interval starts at a metre either side and doubles until it holds {@link
-   * #LENGTH_CANDIDATES} nodes, so it stays tight where the network is dense.
+   * A destination at a walked length drawn from the observed distribution, measured along the
+   * network: the destination is drawn from the nodes whose shortest-path distance from the origin
+   * is nearest that length - uniformly, or in proportion to floor area when the matrix is weighted.
+   * The interval starts at a metre either side and doubles until it holds {@link
+   * #LENGTH_CANDIDATES} nodes, so it stays tight where the network is dense. Measuring along the
+   * network rather than through a circuity factor matters for short trips, which are more crooked
+   * than the city's average.
    */
   private NodeGraph destinationAtObservedLength(
       NodeGraph originNode, Map<NodeGraph, Double> floorArea) {
-    double radius = NetworkCircuity.straightLineFor(drawObservedLength());
+    double length = drawObservedLength();
+    double reach = 2.0 * length + 200.0;
+    List<Map.Entry<NodeGraph, Double>> reachable =
+        networkDistancesWithin(originNode, reach).entrySet().stream()
+            .filter(entry -> entry.getKey() != originNode && !entry.getKey().gateway)
+            .filter(entry -> floorArea.isEmpty() || floorArea.containsKey(entry.getKey()))
+            .sorted(Comparator.comparingInt(entry -> entry.getKey().getID()))
+            .toList();
     List<NodeGraph> candidates = List.of();
-    double tolerance = 1.0;
-    for (int doublings = 0; doublings < 16 && candidates.size() < LENGTH_CANDIDATES; doublings++) {
+    for (double tolerance = 1.0;
+        candidates.size() < LENGTH_CANDIDATES && length - tolerance > -reach;
+        tolerance *= 2.0) {
+      double low = length - tolerance;
+      double high = length + tolerance;
       candidates =
-          NodesLookup.getNodesBetweenDistanceInterval(
-                  network, originNode, Math.max(0.0, radius - tolerance), radius + tolerance)
-              .stream()
-              .filter(node -> node != originNode && !node.gateway)
-              .filter(node -> floorArea.isEmpty() || floorArea.containsKey(node))
-              .sorted(Comparator.comparingInt(NodeGraph::getID))
+          reachable.stream()
+              .filter(entry -> entry.getValue() >= low && entry.getValue() <= high)
+              .map(Map.Entry::getKey)
               .toList();
-      tolerance *= 2.0;
     }
     if (candidates.isEmpty()) {
       return randomDestination(originNode);
@@ -228,6 +239,35 @@ public class CityImagePopulate extends pedsim.core.engine.Populate {
     return floorArea.isEmpty()
         ? candidates.get(random.nextInt(candidates.size()))
         : weightedDraw(candidates, floorArea);
+  }
+
+  /** Shortest-path distance from {@code origin} to every node within {@code limit} metres. */
+  private static Map<NodeGraph, Double> networkDistancesWithin(NodeGraph origin, double limit) {
+    Map<NodeGraph, Double> settled = new HashMap<>();
+    Map<NodeGraph, Double> best = new HashMap<>();
+    PriorityQueue<Map.Entry<NodeGraph, Double>> queue =
+        new PriorityQueue<>(
+            Comparator.<Map.Entry<NodeGraph, Double>>comparingDouble(Map.Entry::getValue)
+                .thenComparingInt(entry -> entry.getKey().getID()));
+    queue.add(Map.entry(origin, 0.0));
+    best.put(origin, 0.0);
+    while (!queue.isEmpty()) {
+      Map.Entry<NodeGraph, Double> next = queue.poll();
+      NodeGraph node = next.getKey();
+      if (settled.containsKey(node)) {
+        continue;
+      }
+      settled.put(node, next.getValue());
+      for (EdgeGraph edge : node.getEdges()) {
+        NodeGraph other = edge.getOtherNode(node);
+        double distance = next.getValue() + edge.getLength();
+        if (distance <= limit && distance < best.getOrDefault(other, Double.MAX_VALUE)) {
+          best.put(other, distance);
+          queue.add(Map.entry(other, distance));
+        }
+      }
+    }
+    return settled;
   }
 
   /** One walked length from {@link TestPars#routeLengthMetres}, in proportion to its weight. */
