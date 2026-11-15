@@ -10,6 +10,7 @@ abstract: >-
 authors:
   - family-names: Filomena
     given-names: Gabriele
+    affiliation: "Department of Geography and Planning, University of Liverpool"
 repository-code: "https://github.com/g-filomena/PedSimCity"
 license: GPL-3.0-only
 keywords:

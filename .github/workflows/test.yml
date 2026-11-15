@@ -1,0 +1,29 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Only the vendored MASON jar is needed to build; the city data stays out of CI
+      # so a run does not spend the LFS bandwidth quota.
+      - name: Fetch MASON from Git LFS
+        run: git lfs pull --include="lib/mason-21.jar"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Compile every module and run the unit tests
+        run: mvn -B -Pall-modules test

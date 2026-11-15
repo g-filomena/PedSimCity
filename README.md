@@ -3,7 +3,7 @@
 **An agent-based model of how people walk through cities: where they go, which streets they take,
 and what they know of the city they are walking in.**
 
-[![GitHub CI](https://github.com/g-filomena/PedSimCity/actions/workflows/build.yaml/badge.svg)](https://github.com/g-filomena/PedSimCity/actions/workflows/build.yaml)
+[![Tests](https://github.com/g-filomena/PedSimCity/actions/workflows/test.yml/badge.svg)](https://github.com/g-filomena/PedSimCity/actions/workflows/test.yml)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.en.html)
 ![Java 21](https://img.shields.io/badge/Java-21-orange.svg)
 
@@ -112,6 +112,7 @@ pipeline on [cityImage](https://github.com/g-filomena/cityImage):
 ```bash
 conda env create -f environment-prep.yml
 conda activate pedsimcity-prep
+pip install -U cityImage
 python pipeline/00_city_preparation.py --city Bologna --place "Bologna, Italy"
 ```
 
@@ -183,4 +184,5 @@ PedSimCity is built on [MASON](https://cs.gmu.edu/~eclab/projects/mason/),
 
 ## License
 
-[GPL-3.0](LICENSE). Developed by Gabriele Filomena.
+[GPL-3.0](LICENSE). Developed by Gabriele Filomena and colleagues, Department of Geography and
+Planning, University of Liverpool.
