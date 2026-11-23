@@ -3,6 +3,18 @@
 Notable changes to PedSimCity, most recent first, dated by the day they landed. The format
 follows [Keep a Changelog](https://keepachangelog.com); the project is not yet versioned.
 
+## 2026-11-23
+
+### Changed
+- The pre-commit hook formats only the staged Java files (`spotless:apply -DspotlessFiles=...`).
+  It formatted the whole tree, which left whitespace changes in files nobody was committing.
+  pre-push and CI still check the whole tree.
+- `dashboard.html` and `bg.png` moved from the repo root to `src/main/resources/web/`;
+  `SimulationRestApi` serves them from the classpath and accepts only a bare file name
+  (`dashboard.html`, or a `.png` / `.jpg`), so it no longer depends on the working directory.
+- `pedsim.learning.routeMemorability` is `pedsim.learning.memorability`, the last camelCase
+  package.
+
 ## 2026-11-15
 
 ### Added

@@ -41,9 +41,9 @@ fi
 # it has to abort and ask you to commit the fix. Doing it here means the commit
 # is formatted in the first place and nothing downstream has anything to say.
 #
-# Only files already staged are re-staged. Spotless formats the whole tree, and
-# sweeping files you had not staged into the commit would be worse than the
-# problem being solved. A staged file that also has unstaged edits is the one
+# Only the staged Java files are formatted, through spotless's -DspotlessFiles
+# (comma-separated regexes over absolute paths), so files you are not committing
+# are left as they are. A staged file that also has unstaged edits is the one
 # case that still merges them - rare, and git warns you in the commit diff.
 #
 # Skip with `git commit --no-verify`, or SKIP_SPOTLESS=1.
@@ -51,11 +51,16 @@ fi
 
 staged_java=$(git diff --cached --name-only --diff-filter=ACM -- '*.java')
 
-if [ -n "$staged_java" ] && [ -z "$SKIP_SPOTLESS" ] && command -v mvn >/dev/null 2>&1; then
+# One regex per staged file. '/' becomes '.', which matches either path
+# separator; no backslashes, so nothing here depends on how a shell escapes.
+# An empty list would make spotless format the whole tree, so it is never passed.
+spotless_files=$(printf '%s\n' $staged_java | tr '/' '.' | sed 's/^/.*/' | paste -sd, -)
+
+if [ -n "$staged_java" ] && [ -n "$spotless_files" ] && [ -z "$SKIP_SPOTLESS" ] && command -v mvn >/dev/null 2>&1; then
     printf 'pre-commit: formatting staged Java (spotless)... '
     log=$(mktemp 2>/dev/null || echo /tmp/spotless-pre-commit.log)
 
-    if mvn -q spotless:apply < /dev/null > "$log" 2>&1; then
+    if mvn -q spotless:apply "-DspotlessFiles=$spotless_files" < /dev/null > "$log" 2>&1; then
         restaged=""
         for f in $staged_java; do
             # Skip anything deleted between staging and now.

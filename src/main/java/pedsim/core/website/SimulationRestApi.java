@@ -2,6 +2,7 @@ package pedsim.core.website;
 
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -164,8 +165,8 @@ public final class SimulationRestApi {
                 }
 
                 String fileName = "/".equals(path) ? "dashboard.html" : path.substring(1);
-                java.nio.file.Path file = resolveDashboardFile(java.nio.file.Path.of("."), path);
-                if (file == null) {
+                byte[] body = readDashboardAsset(path);
+                if (body == null) {
                   byte[] err = "File not found".getBytes(StandardCharsets.UTF_8);
                   exchange.sendResponseHeaders(404, err.length);
                   try (var out = exchange.getResponseBody()) {
@@ -174,7 +175,6 @@ public final class SimulationRestApi {
                   return;
                 }
 
-                byte[] body = java.nio.file.Files.readAllBytes(file);
                 if (fileName.endsWith(".png")) {
                   exchange.getResponseHeaders().add("Content-Type", "image/png");
                 } else if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) {
@@ -439,22 +439,28 @@ public final class SimulationRestApi {
     }
   }
 
-  /** Resolves only dashboard assets inside the real document root, including symlink checks. */
-  static java.nio.file.Path resolveDashboardFile(java.nio.file.Path root, String requestPath)
-      throws IOException {
+  /** Classpath folder holding the dashboard and its images. */
+  static final String DASHBOARD_RESOURCES = "/web/";
+
+  private static final java.util.regex.Pattern DASHBOARD_ASSET =
+      java.util.regex.Pattern.compile("dashboard\\.html|[A-Za-z0-9_-]+\\.(png|jpg|jpeg)");
+
+  /**
+   * Maps a request path to a dashboard resource on the classpath, or null. Only a bare file name
+   * is accepted, so no request can name anything outside {@link #DASHBOARD_RESOURCES}.
+   */
+  static String dashboardResource(String requestPath) {
     String name = "/".equals(requestPath) ? "dashboard.html" : requestPath.substring(1);
-    if (!name.equals("dashboard.html") && !name.endsWith(".png") && !name.endsWith(".jpg")) {
-      return null;
+    return DASHBOARD_ASSET.matcher(name).matches() ? DASHBOARD_RESOURCES + name : null;
+  }
+
+  /** Reads a dashboard asset from the classpath, or returns null if there is none. */
+  static byte[] readDashboardAsset(String requestPath) throws IOException {
+    String resource = dashboardResource(requestPath);
+    if (resource == null) return null;
+    try (InputStream in = SimulationRestApi.class.getResourceAsStream(resource)) {
+      return in == null ? null : in.readAllBytes();
     }
-    // Backslashes and colons also have path semantics on Windows.
-    if (name.contains("\\") || name.contains(":")) return null;
-    java.nio.file.Path realRoot = root.toRealPath();
-    java.nio.file.Path candidate = realRoot.resolve(name).normalize();
-    if (!candidate.startsWith(realRoot) || !java.nio.file.Files.isRegularFile(candidate)) {
-      return null;
-    }
-    java.nio.file.Path realFile = candidate.toRealPath();
-    return realFile.startsWith(realRoot) ? realFile : null;
   }
 
   static synchronized int boundPort() {

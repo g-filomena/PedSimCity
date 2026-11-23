@@ -35,8 +35,9 @@ chmod +x .git/hooks/pre-push
 **Two jobs.** First it refuses to commit a Git-LFS-tracked file (e.g. `*.gpkg`)
 as a **raw binary** instead of a pointer — the mistake that bloated history when
 large GIS files were committed on a machine where Git LFS was not active. Then
-it runs `spotless:apply` and re-stages the Java files that were already staged,
-so the commit is formatted in the first place.
+it runs `spotless:apply` on the staged Java files only (`-DspotlessFiles`, one
+regex per file) and re-stages them, so the commit is formatted in the first place
+and no file you are not committing is touched.
 
 **This is the hook that actually fixes formatting; pre-push only gates it.**
 Doing it at commit time is deliberate: a pre-push hook can only stop you, since
@@ -45,11 +46,12 @@ time means nothing downstream has anything to say.
 
 Two things to know about how it does that:
 
-- **`spotless:apply` formats the whole tree, not just what you staged.** Only
-  staged files are re-staged, so the commit stays yours — but files you had not
-  touched are reformatted on disk and left dirty in the working tree. That is
-  where an unexplained spread of whitespace-only changes comes from. A
-  `<ratchetFrom>` in the spotless config would confine it to changed files.
+- **An empty `-DspotlessFiles` means the whole tree**, so the hook never passes
+  one. Before 23 Nov 2026 it ran over the whole tree, and that is where any old
+  spread of whitespace-only changes in files nobody opened came from. pre-push
+  and CI still check the whole tree, which is what they are for; a
+  `<ratchetFrom>` in the pom would break CI's shallow checkout, which has no
+  `origin/main`.
 - **A staged file with further unstaged edits is re-staged whole**, merging
   those edits into the commit. Rare, and git shows it in the commit diff.
 

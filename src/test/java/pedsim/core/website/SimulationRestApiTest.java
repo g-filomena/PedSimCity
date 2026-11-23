@@ -6,36 +6,39 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import pedsim.core.engine.*;
 import pedsim.core.parameters.ParameterManager;
 import pedsim.core.parameters.Pars;
 import pedsim.testing.ParameterSnapshot;
 
 class SimulationRestApiTest {
-  @TempDir Path temp;
 
   @Test
-  void dashboardAssetsCannotEscapeTheirRoot() throws Exception {
-    Path root = Files.createDirectory(temp.resolve("public"));
-    Path dashboard = Files.writeString(root.resolve("dashboard.html"), "dashboard");
-    Path image = Files.writeString(root.resolve("map.png"), "image");
-    Files.writeString(temp.resolve("outside.png"), "private");
-    assertEquals(dashboard.toRealPath(), SimulationRestApi.resolveDashboardFile(root, "/"));
-    assertEquals(image.toRealPath(), SimulationRestApi.resolveDashboardFile(root, "/map.png"));
-    assertNull(SimulationRestApi.resolveDashboardFile(root, "/../outside.png"));
-    assertNull(SimulationRestApi.resolveDashboardFile(root, "/..\\outside.png"));
-    assertNull(SimulationRestApi.resolveDashboardFile(root, "//outside.png"));
-    assertNull(SimulationRestApi.resolveDashboardFile(root, "/C:/outside.png"));
-    assertNull(SimulationRestApi.resolveDashboardFile(root, "/missing.png"));
+  void dashboardAssetsComeFromTheClasspathAndCannotEscapeIt() throws Exception {
+    assertEquals("/web/dashboard.html", SimulationRestApi.dashboardResource("/"));
+    assertEquals("/web/dashboard.html", SimulationRestApi.dashboardResource("/dashboard.html"));
+    assertEquals("/web/bg.png", SimulationRestApi.dashboardResource("/bg.png"));
+    assertNotNull(SimulationRestApi.readDashboardAsset("/"));
+    assertNotNull(SimulationRestApi.readDashboardAsset("/bg.png"));
+    assertNull(SimulationRestApi.readDashboardAsset("/missing.png"));
+    for (String escape :
+        new String[] {
+          "/../outside.png",
+          "/..\\outside.png",
+          "//outside.png",
+          "/C:/outside.png",
+          "/pedsim/x.png",
+          "/other.html",
+          "/Torino.properties"
+        }) {
+      assertNull(SimulationRestApi.dashboardResource(escape), escape);
+    }
   }
 
   @Test
