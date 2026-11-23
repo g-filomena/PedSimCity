@@ -40,8 +40,8 @@ public class ParameterManager {
    * The keys the command line carried, for anything later that must not write over it.
    *
    * <p>A {@link LinkedHashSet}, not {@code Set.of}/{@code Set.copyOf}: Java's immutable sets salt
-   * their iteration order per JVM, and nothing in this model may hold enumerable state that way -
-   * see the reproducibility rules in the maintainer guide. Only {@link #wasGivenOnCommandLine} reads
+   * their iteration order per JVM, and nothing in this model may hold enumerable state that way,
+   * since a run must replay identically from its seed. Only {@link #wasGivenOnCommandLine} reads
    * it today, and a lookup is order-blind, which is exactly how this class of defect gets
    * introduced: the loop that enumerates it comes later, from someone who did not know.
    */

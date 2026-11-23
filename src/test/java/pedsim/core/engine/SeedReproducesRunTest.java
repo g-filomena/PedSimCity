@@ -34,7 +34,7 @@ import pedsim.core.parameters.Pars;
  *
  * <p><b>Same JVM, not two machines.</b> A second run in this JVM re-derives every identity hash the
  * same way, so this cannot see the cross-machine class of defect that {@code PoiClassifier}'s
- * attraction maps were (closed 14 September 2026 — see the maintainer guide). It sees the larger
+ * attraction maps were (closed 14 September 2026). It sees the larger
  * family: anything that depends on wall-clock time, on an unseeded generator, on thread interleaving,
  * or on state left behind by the previous run. The cross-machine check is this same trace file
  * compared against one produced elsewhere, which needs two machines and so cannot live here.

@@ -182,7 +182,7 @@ public class RemoteLauncher {
       Defaults come from server.properties.
 
       Note: the remote command does a git pull and compiles there, so it runs committed code.
-      Uncommitted work has to be shipped by hand - see the maintainer guide, Running on gdsl1.\
+      Uncommitted work has to be shipped by hand: copy the build over and run java there.\
       """;
 
   /**
