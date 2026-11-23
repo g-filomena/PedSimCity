@@ -3,6 +3,82 @@
 Notable changes to PedSimCity, most recent first, dated by the day they landed. The format
 follows [Keep a Changelog](https://keepachangelog.com); the project is not yet versioned.
 
+## 2026-11-15
+
+### Added
+- cityImage: `routeLengths`, the layer of an observed distribution of walked route lengths
+  (`<City>_<layer>.csv`, `metres,weight`). Each pair of the generic OD matrix draws its length
+  from it and its destination among the nodes whose shortest-path distance from the origin is
+  nearest that length.
+- `Melbourne_walkLengths.csv`: VISTA 2022-25 weekday walking stages inside the City of
+  Melbourne, 07:00-18:59 (2,308 stages, median 416 m), and `pipeline/vista_walk_lengths.py`,
+  which builds it.
+- `RouteChoicePars.barrierType`, `preferenceNaturalBarriers`, `aversionSeveringBarriers`,
+  `naturalBarrierFactor` and `severingBarrierFactor`: the barrier perception of a model that
+  navigates by barriers and states none of its own.
+
+### Changed
+- `BarrierPreferences.DEFAULT` is `BarrierPreferences.fromParameters()`, read when a model is
+  built. Defaults unchanged (all barriers, 0.70 and 1.30).
+
+## 2026-11-10
+
+### Added
+- Learning: memory profiles (`MemoryProfile`): integrators, non-integrators and imprecise
+  navigators, sorted by spatial ability (`integratorShare`, `impreciseShare`), with
+  `unintegratedKeep`, `unintegratedFade` and `impreciseRouteGain`.
+
+## 2026-11-09
+
+### Added
+- `Agent.edgeCostFactor(EdgeGraph)`: a per-agent multiplier on the cost of a street, 1.0 unless a
+  module overrides it.
+- `CognitiveMap.knowsCityCentre()` and `copyKnowledgeFrom(...)`; `fuseBoneWithCommunityNetwork` is
+  protected. `ActivityAgent.copyPersonFrom`; `ActivityPopulate.samplePersona` is protected.
+- Learning: habit modes (`habitMode`), shadow pairs (`shadowPairs`, `knowledgeLevels`,
+  `fixedPersona`) and `rebuildEveryDays`.
+
+### Changed
+- `CognitiveMap.getWayfindingEasinessThreshold(from, to, regionBased)` takes the two ends of the
+  space it judges.
+- Learning: vividness is a function of the grid and the two places; the grid fades as one scale
+  factor; the known space is the cells above `memoryThreshold` (0.5 walks), which replaces
+  `memoryPercentile`; each walk leaves a floor (`consolidatedShare`, 0.32); route meaningfulness is
+  back in a bounded form (`meaningfulnessGain`).
+- Learning logs one line a day: known networks, recognition thresholds, route efficiency, and with
+  shadow pairs one line per knowledge level.
+
+### Fixed
+- The non-vulnerable A/B twin had no persona, sex, speed or commute mode matching its twin's; it
+  copies them now, and the commute mode of the vulnerable twin is drawn once.
+- The A/B twin mode crashed after the car parks arrived (20 Oct): `NightPopulate` hid the inherited
+  `state`.
+- The A/B twin mode released one pair per dark event; it releases `ceil(abTestPairs / dark events)`
+  per event, so `abTestPairs` is honoured.
+- Learning: a collage threshold of 0 on an empty grid selected every cell, and growing the grid
+  shifted remembered cells.
+
+### Removed
+- `LearningPars.cognitiveMapRebuildFraction`.
+
+## 2026-11-08
+
+### Added
+- `RouteChoiceActivation`, `Heuristics.setActivation` and `Agent.configureHeuristics`: an agent
+  with route-choice probabilities of its own samples its model per trip from them. Learning agents
+  take the survey's population row; core, activity and night agents are unchanged.
+- `RouteTrace.mechanismSummary`: the day's summary line counts legs by route-choice mechanism.
+- `CognitiveMap.getLocalLandmarkThreshold(origin, destination)`, read by `LandmarkNavigation`.
+
+### Changed
+- Spatial ability follows the Santa Barbara Sense-of-Direction scale (normal, mean 3.83, SD 1.06 on
+  1-7, rescaled to [0, 1]); it was uniform on 0.5-1.0. Random streams are unchanged.
+- `CognitiveMap.getAnchors()` keeps the anchors of the activity bone, home first.
+
+### Removed
+- `StringEnum.RouteMeaningfulnessFactor` and the old route-meaningfulness code;
+  `Heuristics.setActivationProbabilities` and `getLocalLandmarksThreshold`.
+
 ## 2026-10-21
 
 ### Added
