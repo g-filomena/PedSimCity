@@ -100,7 +100,8 @@ public abstract class Dijkstra {
     return !ignoreKnownNetwork
         && agent != null
         && agent.getCognitiveMap() != null
-        && agent.getCognitiveMap().individualised;
+        && agent.getCognitiveMap().individualised
+        && !agent.plansBeyondKnownNetwork();
   }
 
   protected static final double MAX_DEFLECTION_ANGLE = 180.00;
@@ -258,7 +259,8 @@ public abstract class Dijkstra {
             properties.getNaturalBarriersMean(), properties.getNaturalBarriersSD(), "left");
       }
     }
-    return drawFromDistribution(1.0, RouteChoicePars.perceptionErrorSD, null);
+    return agent.perceivedCostFactor(
+        commonEdge, drawFromDistribution(1.0, RouteChoicePars.perceptionErrorSD, null));
   }
 
   /**

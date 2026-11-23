@@ -1,17 +1,26 @@
 package pedsim.learning.agents;
 
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import pedsim.activity.agents.ActivityAgent;
+import pedsim.activity.agents.ActivityPurpose;
 import pedsim.core.agents.Heuristics;
 import pedsim.core.agents.RouteChoiceActivation;
 import pedsim.core.agents.RouteChoiceModel;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.core.engine.PedSimCity;
+import pedsim.core.parameters.RouteChoicePars;
 import pedsim.core.routing.RoutePlanner;
 import pedsim.core.utilities.StringEnum.Learner;
 import pedsim.learning.cognitivemap.CognitiveMap;
 import pedsim.learning.cognitivemap.IncrementalLearning;
 import pedsim.learning.cognitivemap.MemoryProfile;
 import pedsim.learning.habit.RouteHabit;
+import pedsim.learning.parameters.LearningPars;
 import sim.engine.SimState;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
@@ -64,12 +73,19 @@ public class LearningAgent extends ActivityAgent {
    */
   private LearningAgent shadow;
 
+  /** Whether this agent is the shadow of a learner. */
+  private boolean isShadow;
+
   /** The route-choice model this shadow plans with, set for each leg by its learner. */
   private RouteChoiceModel pinnedModel;
 
-  /** Totals over the legs the learner and its shadow both planned: {legs, learner m, shadow m,
-   * shortest m, learner straight-line m}. */
-  private final double[] pairTotals = new double[5];
+  /**
+   * Totals over the legs the learner and its shadow both planned: {legs, learner m, shadow m,
+   * shortest m, learner straight-line m, learner main-road m, shadow main-road m, learner
+   * familiarity-weighted m, learner m on unfamiliar streets, shadow familiarity-weighted m, shadow m
+   * on unfamiliar streets, learner legs with an unfamiliar street, shadow legs with one}.
+   */
+  private final double[] pairTotals = new double[13];
 
   public LearningAgent(PedSimCity state, boolean registerSpatial) {
     super(state, registerSpatial);
@@ -98,7 +114,7 @@ public class LearningAgent extends ActivityAgent {
   @Override
   public void step(SimState state) {
     super.step(state);
-    if (isLearner()) {
+    if (isLearner() && LearningPars.learningEnabled) {
       learning.applyDecay();
     }
   }
@@ -117,7 +133,7 @@ public class LearningAgent extends ActivityAgent {
         efficiencySum += efficiency;
         efficiencyTrips++;
       }
-      if (isLearner()) {
+      if (isLearner() && LearningPars.learningEnabled) {
         learning.updateAgentMemory(walked);
         habit.walked(walked, originNode, destinationNode);
       }
@@ -128,6 +144,8 @@ public class LearningAgent extends ActivityAgent {
   /** Gives this agent the shadow that plans beside it. */
   public void setShadow(LearningAgent shadow) {
     this.shadow = shadow;
+    shadow.isShadow = true;
+    shadow.errorOwner = agentID;
   }
 
   public LearningAgent getShadow() {
@@ -159,6 +177,7 @@ public class LearningAgent extends ActivityAgent {
   /** Plans the route as the planner would, and has the shadow plan the same leg. */
   @Override
   protected void planRoute() {
+    planningLeg++;
     super.planRoute();
     Route own = getRoute();
     if (shadow == null
@@ -170,7 +189,8 @@ public class LearningAgent extends ActivityAgent {
         || originNode.getID() == destinationNode.getID()) {
       return;
     }
-    Route other = shadow.planLike(originNode, destinationNode, agentProperties.model());
+    Route other =
+        shadow.planLike(originNode, destinationNode, agentProperties.model(), planningLeg);
     Route shortest =
         new Astar()
             .astarRoute(
@@ -188,13 +208,61 @@ public class LearningAgent extends ActivityAgent {
     pairTotals[2] += other.getLineString().getLength();
     pairTotals[3] += shortest.getLength();
     pairTotals[4] += originNode.getCoordinate().distance(destinationNode.getCoordinate());
+    pairTotals[5] += mainRoadMetres(own);
+    pairTotals[6] += mainRoadMetres(other);
+    double[] ownFamiliarity = familiarityOf(own, this);
+    double[] otherFamiliarity = familiarityOf(other, shadow);
+    pairTotals[7] += ownFamiliarity[0];
+    pairTotals[8] += ownFamiliarity[1];
+    pairTotals[9] += otherFamiliarity[0];
+    pairTotals[10] += otherFamiliarity[1];
+    pairTotals[11] += ownFamiliarity[1] > 0.0 ? 1.0 : 0.0;
+    pairTotals[12] += otherFamiliarity[1] > 0.0 ? 1.0 : 0.0;
+  }
+
+  /** The streets less familiar than this count as unfamiliar. */
+  private static final double UNFAMILIAR_BELOW = 0.5;
+
+  /**
+   * The route's length weighted by the planner's familiarity with each street, and the length of
+   * it on streets below {@link #UNFAMILIAR_BELOW}.
+   */
+  private static double[] familiarityOf(Route route, LearningAgent planner) {
+    double weighted = 0.0;
+    double unfamiliar = 0.0;
+    if (route.edgesSequence != null) {
+      CognitiveMap map = planner.getLearningCognitiveMap();
+      for (EdgeGraph edge : route.edgesSequence) {
+        double metres = edge.getLine().getLength();
+        double familiarity = map.familiarity(edge);
+        weighted += familiarity * metres;
+        if (familiarity < UNFAMILIAR_BELOW) {
+          unfamiliar += metres;
+        }
+      }
+    }
+    return new double[] {weighted, unfamiliar};
+  }
+
+  /** The length of the route that runs along primary and secondary roads. */
+  private static double mainRoadMetres(Route route) {
+    double metres = 0.0;
+    if (route.edgesSequence != null) {
+      for (EdgeGraph edge : route.edgesSequence) {
+        if (MainRoads.contains(edge)) {
+          metres += edge.getLine().getLength();
+        }
+      }
+    }
+    return metres;
   }
 
   /** Plans a leg with the model its learner used, without walking it or recording it. */
-  private Route planLike(NodeGraph from, NodeGraph to, RouteChoiceModel model) {
+  private Route planLike(NodeGraph from, NodeGraph to, RouteChoiceModel model, long leg) {
     originNode = from;
     destinationNode = to;
     pinnedModel = model;
+    planningLeg = leg;
     initialiseHeuristics(false);
     Route route = new RoutePlanner(from, to, this).definePath();
     originNode = null;
@@ -204,7 +272,8 @@ public class LearningAgent extends ActivityAgent {
 
   /**
    * The totals of the legs this learner and its shadow have planned since the last call, as {legs,
-   * learner metres, shadow metres, shortest-path metres, straight-line metres}.
+   * learner metres, shadow metres, shortest-path metres, straight-line metres, learner main-road
+   * metres, shadow main-road metres, and the unknown-street totals listed on {@code pairTotals}}.
    */
   public double[] drainPairTotals() {
     double[] drained = pairTotals.clone();
@@ -215,6 +284,108 @@ public class LearningAgent extends ActivityAgent {
   @Override
   public double edgeCostFactor(EdgeGraph edge) {
     return isLearner() ? habit.factor(edge) : 1.0;
+  }
+
+  /** Whether this learner or shadow plans over the whole network, not only what it knows. */
+  @Override
+  public boolean plansBeyondKnownNetwork() {
+    return LearningPars.familiarityPlanning && (isLearner() || isShadow);
+  }
+
+  /** The planning leg this agent, or the learner whose leg it shadows, is on. */
+  private long planningLeg;
+
+  /** The agent whose number the errors of this agent's estimates are drawn from. */
+  private int errorOwner = -1;
+
+  private long perceivedFor = -1;
+  private final java.util.Map<Integer, Double> perceived = new java.util.HashMap<>();
+
+  /**
+   * With {@code LearningPars.familiarityPlanning}, the cost factor of a street for the whole leg
+   * being planned: {@code (1 + uncertaintyPremium * (1 - familiarity))} times an error with a
+   * standard deviation of {@code perceptionErrorSD * (1 + (unfamiliarErrorMultiple - 1) * (1 -
+   * familiarity))}. The error is drawn from the learner's number, the leg and the street, so the
+   * learner and its shadow, and every search of one leg, see the same error for the same street.
+   */
+  @Override
+  public double perceivedCostFactor(EdgeGraph edge, double drawn) {
+    if (!LearningPars.familiarityPlanning || (!isLearner() && !isShadow)) {
+      return drawn;
+    }
+    if (perceivedFor != planningLeg) {
+      perceived.clear();
+      perceivedFor = planningLeg;
+    }
+    return perceived.computeIfAbsent(edge.getID(), id -> perceivedFactor(edge));
+  }
+
+  private double perceivedFactor(EdgeGraph edge) {
+    int owner = errorOwner >= 0 ? errorOwner : agentID;
+    double unfamiliarity = 1.0 - getLearningCognitiveMap().familiarity(edge);
+    double sd =
+        RouteChoicePars.perceptionErrorSD
+            * (1.0 + (LearningPars.unfamiliarErrorMultiple - 1.0) * unfamiliarity);
+    double error = Math.max(0.05, 1.0 + sd * standardNormal(owner, planningLeg, edge.getID()));
+    return (1.0 + LearningPars.uncertaintyPremium * unfamiliarity) * error;
+  }
+
+  /** A standard normal number determined by the three keys. */
+  private static double standardNormal(long owner, long leg, long street) {
+    long h = mix(mix(mix(0x9E3779B97F4A7C15L ^ owner) ^ leg) ^ street);
+    double u1 = ((h >>> 11) + 0.5) / (double) (1L << 53);
+    double u2 = ((mix(h) >>> 11) + 0.5) / (double) (1L << 53);
+    return Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+  }
+
+  private static long mix(long x) {
+    x = (x ^ (x >>> 30)) * 0xBF58476D1CE4E5B9L;
+    x = (x ^ (x >>> 27)) * 0x94D049BB133111EBL;
+    return x ^ (x >>> 31);
+  }
+
+  /**
+   * With {@code LearningPars.awareDestinations}, the places the learner knows of among those
+   * within reach, and with probability {@code discoveryProbability} one more it has not seen. With
+   * none known, the places within reach.
+   */
+  @Override
+  protected List<NodeGraph> destinationCandidates(
+      List<NodeGraph> candidates, Map<NodeGraph, Double> attraction) {
+    if (!LearningPars.awareDestinations || !isLearner() || !getCognitiveMap().individualised) {
+      return candidates;
+    }
+    CognitiveMap map = getLearningCognitiveMap();
+    List<NodeGraph> aware = new ArrayList<>();
+    List<NodeGraph> unseen = new ArrayList<>();
+    for (NodeGraph node : candidates) {
+      if (map.isAwareOf(node)) {
+        aware.add(node);
+      } else if (attraction == null || attraction.getOrDefault(node, 0.0) > 0.0) {
+        unseen.add(node);
+      }
+    }
+    if (!unseen.isEmpty() && getRandom().nextDouble() < LearningPars.discoveryProbability) {
+      aware.add(unseen.get(getRandom().nextInt(unseen.size())));
+    }
+    return aware.isEmpty() ? candidates : aware;
+  }
+
+  private final Map<ActivityPurpose, Set<NodeGraph>> destinationsChosen =
+      new EnumMap<>(ActivityPurpose.class);
+
+  @Override
+  protected void chooseDestination() {
+    super.chooseDestination();
+    if (isLearner() && destinationNode != null && currentPurpose != null) {
+      destinationsChosen.computeIfAbsent(currentPurpose, p -> new HashSet<>()).add(destinationNode);
+    }
+  }
+
+  /** How many different places the agent has chosen for a purpose so far. */
+  public int destinationsChosen(ActivityPurpose purpose) {
+    Set<NodeGraph> chosen = destinationsChosen.get(purpose);
+    return chosen == null ? 0 : chosen.size();
   }
 
   /**

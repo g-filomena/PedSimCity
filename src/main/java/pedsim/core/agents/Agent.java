@@ -707,6 +707,29 @@ public class Agent implements Steppable {
   }
 
   /**
+   * The factor this agent perceives a street's cost to be off by when it plans, in place of the
+   * error drawn for it. The drawn error is independent at every relaxation of every search; an
+   * agent whose estimate of a street should hold for the whole trip, or depend on how well it knows
+   * the street, overrides this.
+   *
+   * @param edge the street being priced
+   * @param drawn the error drawn for this relaxation
+   * @return a positive multiplier of the street's cost
+   */
+  public double perceivedCostFactor(EdgeGraph edge, double drawn) {
+    return drawn;
+  }
+
+  /**
+   * Whether this agent plans over the whole network instead of confining the search to the streets
+   * it knows. False for every agent; a module whose agents may plan through streets they have never
+   * walked overrides it.
+   */
+  public boolean plansBeyondKnownNetwork() {
+    return false;
+  }
+
+  /**
    * This agent's route choice, when it was decided before the agent started walking.
    *
    * <p>cityImage builds one agent per named scenario and empirical draws one per survey cluster:

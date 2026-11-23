@@ -9,6 +9,7 @@ import org.locationtech.jts.geom.Coordinate;
 import pedsim.core.agents.Agent;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
 import pedsim.learning.agents.LearningAgent;
+import pedsim.learning.parameters.LearningPars;
 import sim.graph.EdgeGraph;
 import sim.graph.NodeGraph;
 
@@ -61,8 +62,17 @@ public class CognitiveMap extends pedsim.core.cognition.cognitivemap.CognitiveMa
   /** The share of the community's known network this agent starts with; 1 is all of it. */
   private double communityShare = 1.0;
 
+  /**
+   * With a radius above 0, the agent starts knowing the community streets within it of an anchor
+   * instead of a share of them.
+   */
+  private double communityRadius = 0.0;
+
   private Set<Integer> keptCommunityNodes;
   private Set<Integer> keptCommunityEdges;
+
+  /** The streets the agent knew from the start and never forgets: its bone and its community share. */
+  private Set<Integer> baseKnownEdges = new HashSet<>();
 
   /**
    * Sets the share of the community's known network this agent knows, the streets nearest its
@@ -74,6 +84,17 @@ public class CognitiveMap extends pedsim.core.cognition.cognitivemap.CognitiveMa
     keptCommunityEdges = null;
   }
 
+  /**
+   * Makes the agent start knowing the community's streets within {@code metres} of an anchor, and
+   * nothing else of the community's network, the city centre included.
+   */
+  public void setCommunityRadius(double metres) {
+    this.communityShare = 0.0;
+    this.communityRadius = Math.max(0.0, metres);
+    keptCommunityNodes = null;
+    keptCommunityEdges = null;
+  }
+
   @Override
   protected boolean knowsCityCentre() {
     return communityShare >= 1.0;
@@ -81,13 +102,17 @@ public class CognitiveMap extends pedsim.core.cognition.cognitivemap.CognitiveMa
 
   @Override
   protected void fuseBoneWithCommunityNetwork() {
+    baseKnownEdges = new HashSet<>(activityBoneEdges);
     if (communityShare >= 1.0) {
       super.fuseBoneWithCommunityNetwork();
+      baseKnownEdges.addAll(
+          sim.graph.GraphUtils.getEdgeIDs(SharedCognitiveMap.getCommunityKnownEdges()));
       return;
     }
     if (keptCommunityEdges == null) {
       keepNearestCommunity();
     }
+    baseKnownEdges.addAll(keptCommunityEdges);
     agentKnownNodes.addAll(activityBoneNodes);
     agentKnownEdges.addAll(activityBoneEdges);
     agentKnownNodes.addAll(keptCommunityNodes);
@@ -116,6 +141,12 @@ public class CognitiveMap extends pedsim.core.cognition.cognitivemap.CognitiveMa
     }
     java.util.Arrays.sort(order, Comparator.comparingDouble(i -> distance[i]));
     int keep = (int) Math.ceil(communityShare * order.length);
+    if (communityRadius > 0.0) {
+      keep = 0;
+      while (keep < order.length && distance[order[keep]] <= communityRadius) {
+        keep++;
+      }
+    }
     keptCommunityEdges = new HashSet<>();
     keptCommunityNodes = new HashSet<>();
     for (int k = 0; k < keep; k++) {
@@ -124,6 +155,60 @@ public class CognitiveMap extends pedsim.core.cognition.cognitivemap.CognitiveMa
       keptCommunityNodes.add(edge.getFromNode().getID());
       keptCommunityNodes.add(edge.getToNode().getID());
     }
+  }
+
+  @Override
+  public void copyKnowledgeFrom(pedsim.core.cognition.cognitivemap.CognitiveMap other) {
+    super.copyKnowledgeFrom(other);
+    if (other instanceof CognitiveMap learning) {
+      baseKnownEdges = new HashSet<>(learning.baseKnownEdges);
+    }
+  }
+
+  /**
+   * How familiar a street is to the agent, from 0 to 1. 1 for a street it knew from the start;
+   * otherwise the mean over points along it of {@code w / (w + memoryThreshold)}, {@code w} being
+   * the strength in walks of the vividness-grid cell the point is in.
+   */
+  public double familiarity(EdgeGraph edge) {
+    if (baseKnownEdges.contains(edge.getID())) {
+      return 1.0;
+    }
+    VividnessGrid grid = grid();
+    if (grid == null) {
+      return 0.0;
+    }
+    var line = edge.getLine();
+    double length = line.getLength();
+    int steps = (int) Math.max(1, Math.min(6, Math.ceil(length / 25.0)));
+    var indexed = new org.locationtech.jts.linearref.LengthIndexedLine(line);
+    double sum = 0.0;
+    for (int i = 0; i <= steps; i++) {
+      Coordinate point = indexed.extractPoint(length * i / steps);
+      double w = grid.getValueAt(point.x, point.y);
+      sum += w / (w + LearningPars.memoryThreshold);
+    }
+    return sum / (steps + 1);
+  }
+
+  /**
+   * Whether the agent knows of the place at a node: it is in the space the agent knows, or a cell
+   * of the vividness grid around it holds at least {@code LearningPars.awarenessThreshold} walks.
+   */
+  public boolean isAwareOf(NodeGraph node) {
+    if (getAgentKnownNodes().contains(node.getID())) {
+      return true;
+    }
+    VividnessGrid grid = grid();
+    return grid != null
+        && grid.getValueAt(node.getCoordinate().x, node.getCoordinate().y)
+            >= LearningPars.awarenessThreshold;
+  }
+
+  private VividnessGrid grid() {
+    return agent instanceof LearningAgent learning && learning.learning != null
+        ? learning.learning.getVividnessGrid()
+        : null;
   }
 
   /**

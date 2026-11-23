@@ -1089,12 +1089,29 @@ public class ActivityAgent extends Agent {
     } else {
       destinationNode =
           DestinationChoice.choose(
-              candidates, originNode, attraction, favouritePlaces.get(currentPurpose), random);
+              destinationCandidates(candidates, attraction),
+              originNode,
+              attraction,
+              favouritePlaces.get(currentPurpose),
+              random);
     }
     if (destinationNode == null) {
       state.trace().recordDestinationFallback();
       destinationNode = NodesLookup.randomNode(network, random);
     }
+  }
+
+  /**
+   * The places this agent may choose among for the purpose, out of those within reach. All of them
+   * for an agent whose choice does not depend on what it knows; a module whose agents only consider
+   * places they know of overrides it.
+   *
+   * @param candidates the nodes within reach
+   * @param attraction the purpose's weight by node, null when there is no purpose
+   */
+  protected List<NodeGraph> destinationCandidates(
+      List<NodeGraph> candidates, Map<NodeGraph, Double> attraction) {
+    return candidates;
   }
 
   /**

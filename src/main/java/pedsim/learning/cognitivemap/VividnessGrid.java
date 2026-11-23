@@ -3,7 +3,9 @@ package pedsim.learning.cognitivemap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.DoubleUnaryOperator;
 import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
 import org.locationtech.jts.geom.Coordinate;
@@ -372,8 +374,12 @@ public class VividnessGrid {
     weakestRatio = Double.POSITIVE_INFINITY;
     List<Polygon> runs = new ArrayList<>();
 
+    // A horizontal run of cells that repeats, with the same ends, on the rows above is one taller
+    // rectangle: the same area with far fewer polygons to union.
+    Map<Long, Integer> open = new HashMap<>();
     for (int y = 0; y < height; y++) {
       int rowStart = y * width;
+      Map<Long, Integer> next = new HashMap<>();
       int x = 0;
       while (x < width) {
         if (!qualifies(rowStart + x, minThreshold)) {
@@ -388,8 +394,19 @@ public class VividnessGrid {
           }
           x++;
         }
-        runs.add(rectangle(first, y, x, y + 1));
+        long key = ((long) first << 32) | x;
+        Integer startRow = open.remove(key);
+        next.put(key, startRow == null ? y : startRow);
       }
+      for (Map.Entry<Long, Integer> ended : open.entrySet()) {
+        long key = ended.getKey();
+        runs.add(rectangle((int) (key >>> 32), ended.getValue(), (int) key, y));
+      }
+      open = next;
+    }
+    for (Map.Entry<Long, Integer> ended : open.entrySet()) {
+      long key = ended.getKey();
+      runs.add(rectangle((int) (key >>> 32), ended.getValue(), (int) key, height));
     }
     if (runs.isEmpty()) return Collections.emptyList();
 

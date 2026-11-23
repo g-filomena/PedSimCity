@@ -29,7 +29,7 @@ The learning-specific classes are:
 | `cognitiveMap/VividnessGrid` | decaying raster of how strongly each area is remembered, fading as one scale factor; produces the collage polygons and the vividness between two places |
 | `cognitiveMap/ElementsSensitivity` | maps vividness → local-landmark recognition and wayfinding-easiness thresholds, per space |
 | `agents/RouteChoiceSurvey` | each learner's route-choice probabilities, drawn from the survey's population row |
-| `routeMemorability/RouteProperties` | the visibility space of a walked route: what the walker could see from it |
+| `memorability/RouteProperties` | the visibility space of a walked route: what the walker could see from it |
 | `engine/Learning*`, `agents/LearningAgent`, `launcher/LearningLauncher` | module scaffolding |
 
 Learning parameters live in `learning.parameters.LearningPars`. They used to sit in
@@ -64,6 +64,25 @@ module.
    pure minimisation, or sub-goals from regions, local landmarks, barriers and distant landmarks,
    each only where the city carries the data. A learner's landmarks are those beside its known
    nodes above its vividness-driven recognition threshold.
+7. **Familiarity planning** (`familiarityPlanning`): instead of confining the search to the known
+   network, a learner plans over the whole network. Each street has a familiarity from 0 to 1 (1
+   for what it knew from the start, otherwise `w / (w + memoryThreshold)` over the grid cells it
+   crosses); its perceived cost is its length times `1 + uncertaintyPremium * (1 - familiarity)`,
+   off by an error whose spread grows to `unfamiliarErrorMultiple` times the familiar one. The
+   error is fixed for the leg.
+8. **Aware destinations** (`awareDestinations`): a learner chooses among the places it knows of,
+   at a known node or in a cell holding `awarenessThreshold` walks, and on a trip with probability
+   `discoveryProbability` one place it has not seen.
+
+## Shadow pairs
+
+With `shadowPairs`, every learner gets a shadow: an agent with its home, workplace and persona
+that starts from a copy of the learner's knowledge, never learns and never walks, and plans every
+leg the learner plans, with the model the learner sampled. The `learning pairs` day log compares
+the two routes on the same origin-destination pairs, and both against the shortest path.
+`knowledgeLevels` sets the knowledge learners start with, assigned in turn by agent ID: a share of
+the community's network nearest the anchors (`0` is a newcomer, `1.0` all of it) or, above 1, a
+radius in metres around the anchors. `fixedPersona` gives every learner one persona.
 
 ## Running
 
@@ -102,6 +121,23 @@ Module-specific (`LearningSimulationModule`):
 | `impreciseRouteGain` | double | what an imprecise navigator adds of a walk |
 | `unintegratedKeep`, `unintegratedFade` | double | share kept and speed of loss of the consolidated part, for non-integrators and imprecise navigators |
 | `meaningfulnessGain` | double | what a meaningful route adds to its one walk; 0 is off |
+| `consolidatedHalfLife` | double | half-life, in days, of the consolidated part for integrators |
+| `learningEnabled` | boolean | false leaves every learner with the map it started with |
+| `familiarityPlanning` | boolean | plan over the whole network, pricing streets by familiarity |
+| `uncertaintyPremium` | double | extra perceived cost of a wholly unfamiliar street, as a share of its length |
+| `unfamiliarErrorMultiple` | double | perception-error spread on a wholly unfamiliar street, in multiples of the familiar one |
+| `awareDestinations` | boolean | choose destinations among the places known of |
+| `awarenessThreshold` | double | walks a cell needs for a place in it to be known of |
+| `discoveryProbability` | double | chance per trip of hearing of one unseen place |
+| `habitMode`, `habitGain`, `rewardGain`, `rewardRate` | enum, double | habitual reinforcement of walked streets; `NONE` is off |
+| `shadowPairs` | boolean | give every learner a non-learning shadow |
+| `knowledgeLevels` | string | starting knowledge per learner, see *Shadow pairs* |
+| `fixedPersona` | string | one persona for every learner; empty draws them |
+| `rebuildEveryDays` | double | how often fading alone rebuilds the known network |
+| `snapshotDays` | string | days on which each learner's activity space is written to `snapshots/` |
+| `cellSize` | double | side of a vividness-grid cell, in metres |
+
+Every field of `LearningPars` is settable as `--<field>=<value>`.
 
 ## Notes
 

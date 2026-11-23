@@ -8,8 +8,8 @@ import pedsim.core.engine.PedSimCity;
 import pedsim.core.engine.ScenarioConfig;
 import pedsim.core.engine.SimulationModule;
 import pedsim.core.utilities.StringEnum;
+import pedsim.learning.memorability.RouteProperties;
 import pedsim.learning.parameters.LearningPars;
-import pedsim.learning.routeMemorability.RouteProperties;
 
 /**
  * {@link SimulationModule} for the incremental-learning pedestrian model, where agents navigate

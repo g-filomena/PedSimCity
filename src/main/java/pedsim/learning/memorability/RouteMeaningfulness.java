@@ -1,4 +1,4 @@
-package pedsim.learning.routeMemorability;
+package pedsim.learning.memorability;
 
 import pedsim.learning.parameters.LearningPars;
 

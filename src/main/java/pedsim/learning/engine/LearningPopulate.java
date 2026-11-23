@@ -32,7 +32,12 @@ public class LearningPopulate extends ActivityPopulate {
     agent.setLearner(
         LearningPars.shadowPairs || agentID % 2 == 0 ? Learner.LEARNER : Learner.NOT_LEARNER);
     defineHomeWorkLocations(agent); // core: census-zone → DMA → uniform random
-    agent.getLearningCognitiveMap().setCommunityShare(LearningPars.knowledgeShare(agentID));
+    double level = LearningPars.knowledgeLevel(agentID);
+    if (level > 1.0) {
+      agent.getLearningCognitiveMap().setCommunityRadius(level);
+    } else {
+      agent.getLearningCognitiveMap().setCommunityShare(level);
+    }
     if (LearningPars.shadowPairs) {
       LearningAgent shadow = new LearningAgent(this.state, false);
       shadow.agentID = SHADOW_ID_OFFSET + agentID;

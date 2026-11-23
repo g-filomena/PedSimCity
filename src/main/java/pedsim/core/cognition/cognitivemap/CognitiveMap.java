@@ -618,17 +618,23 @@ public class CognitiveMap extends SharedCognitiveMap {
   // }
 
   public boolean isInKnownNetwork(NodeGraph nodeGraph) {
-    if (getNodesInKnownNetwork().contains(nodeGraph)) {
-      return true;
+    if (networkBuilder != null) {
+      return networkBuilder.getNecessaryNodes().contains(nodeGraph);
     }
-    return false;
+    if (agentKnownNodes.isEmpty() && !individualised) {
+      return SharedCognitiveMap.getCommunityKnownNodes().contains(nodeGraph);
+    }
+    return getNodesInKnownNetwork().contains(nodeGraph);
   }
 
   public boolean isInKnownNetwork(EdgeGraph edgeGraph) {
-    if (getEdgesInKnownNetwork().contains(edgeGraph)) {
-      return true;
+    if (networkBuilder != null) {
+      return networkBuilder.getNecessaryEdges().contains(edgeGraph);
     }
-    return false;
+    if (agentKnownEdges.isEmpty() && !individualised) {
+      return SharedCognitiveMap.getCommunityKnownEdges().contains(edgeGraph);
+    }
+    return getEdgesInKnownNetwork().contains(edgeGraph);
   }
 
   /**

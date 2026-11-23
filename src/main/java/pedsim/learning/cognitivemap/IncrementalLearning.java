@@ -6,9 +6,9 @@ import pedsim.core.engine.Engine;
 import pedsim.core.parameters.TimePars;
 import pedsim.core.routing.RoutePlanner;
 import pedsim.learning.agents.LearningAgent;
+import pedsim.learning.memorability.RouteMeaningfulness;
+import pedsim.learning.memorability.RouteProperties;
 import pedsim.learning.parameters.LearningPars;
-import pedsim.learning.routeMemorability.RouteMeaningfulness;
-import pedsim.learning.routeMemorability.RouteProperties;
 import sim.graph.NodeGraph;
 import sim.routing.Route;
 

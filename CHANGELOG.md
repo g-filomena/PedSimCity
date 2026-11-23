@@ -21,6 +21,33 @@ follows [Keep a Changelog](https://keepachangelog.com); the project is not yet v
 - `BarrierPreferences.DEFAULT` is `BarrierPreferences.fromParameters()`, read when a model is
   built. Defaults unchanged (all barriers, 0.70 and 1.30).
 
+## 2026-11-11
+
+### Added
+- `Agent.perceivedCostFactor(EdgeGraph, double)`: the factor an agent perceives a street's cost to
+  be off by, the drawn perception error unless a module overrides it.
+- `Agent.plansBeyondKnownNetwork()`: false; a module whose agents plan over the whole network while
+  holding an individualised map overrides it.
+- `ActivityAgent.destinationCandidates(...)`: the places an agent chooses among, all of those in
+  reach unless a module overrides it.
+- Learning: familiarity planning (`familiarityPlanning`, `uncertaintyPremium`,
+  `unfamiliarErrorMultiple`). Learners and their shadows plan over the whole network; a street's
+  cost grows with how unfamiliar it is (`CognitiveMap.familiarity`, 0 to 1), and its perception
+  error is fixed for the leg and shared by learner and shadow.
+- Learning: destinations among the places a learner knows of (`awareDestinations`,
+  `awarenessThreshold`, `discoveryProbability`).
+- Learning: `learningEnabled`, which leaves every learner with the map it started with.
+- Learning: `snapshotDays` and `LearningSnapshots`, which write each learner's known streets, the
+  opportunities it is aware of and the places it has chosen to `snapshots/`.
+- Learning: a `knowledgeLevels` value above 1 is a radius in metres around the anchors.
+- Learning day log: memory profiles, every learner every 15 days, where new knowledge lies relative
+  to the anchors, and per pair the share of the route on main roads and its familiarity.
+
+### Performance
+- `CognitiveMap.isInKnownNetwork` no longer copies the known network on every call.
+- Learning: the visibility cones of a route are computed in parallel, and the collage merges runs
+  of cells repeated on consecutive rows into one rectangle.
+
 ## 2026-11-10
 
 ### Added

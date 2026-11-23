@@ -1,4 +1,4 @@
-package pedsim.learning.routeMemorability;
+package pedsim.learning.memorability;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -70,19 +70,25 @@ public class RouteProperties {
   private void computeVisibilitySpace() {
     List<Geometry> visibleSpaces = new ArrayList<>();
     List<NodeGraph> nodes = route.nodesSequence;
+    // The cones do not depend on each other, so they are computed in parallel; the list keeps the
+    // route's order.
+    Polygon[] cones = new Polygon[Math.max(0, nodes.size() - 1)];
+    IntStream.range(0, cones.length)
+        .parallel()
+        .forEach(
+            i ->
+                cones[i] =
+                    createVisibilityCone(
+                        nodes.get(i),
+                        nodes.get(i + 1),
+                        VISIBILITY_ANGLE,
+                        PedSimCity.buildings,
+                        RouteChoicePars.threshold3dVisibility));
     for (int i = 0; i < nodes.size(); i++) {
-      NodeGraph node = nodes.get(i);
-      if (i < nodes.size() - 1) {
-        Polygon cone =
-            createVisibilityCone(
-                node,
-                nodes.get(i + 1),
-                VISIBILITY_ANGLE,
-                PedSimCity.buildings,
-                RouteChoicePars.threshold3dVisibility);
-        if (cone != null) visibleSpaces.add(cone);
+      if (i < cones.length && cones[i] != null) {
+        visibleSpaces.add(cones[i]);
       }
-      visibleSpaces.add(node.getMasonGeometry().geometry.buffer(BUFFER_RADIUS));
+      visibleSpaces.add(nodes.get(i).getMasonGeometry().geometry.buffer(BUFFER_RADIUS));
     }
 
     visibleSpaces.add(routeBuffer);
