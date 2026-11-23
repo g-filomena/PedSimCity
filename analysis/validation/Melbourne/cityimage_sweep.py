@@ -8,7 +8,8 @@ weekday total. Shares and ranks, never magnitudes: the model walks a chosen numb
 counter sees every pedestrian.
 
     python cityimage_sweep.py blocks  --sensors sensor_locations.csv --out sensor_blocks.csv
-    python cityimage_sweep.py design  convergence|elements|morris --out design.csv
+    python cityimage_sweep.py design  convergence|elements|barriers|morris|lhs|validate \
+                                      [--route-lengths walkLengths] --out design.csv
     python cityimage_sweep.py run     design.csv --repo <PedSimCity checkout> --parallel 20
     python cityimage_sweep.py score   design.csv --repo ... --targets sensor_targets_2025.csv \\
                                       --link sensor_edge_link.csv --blocks sensor_blocks.csv \\
@@ -22,6 +23,12 @@ counters the model reaches at all), over all counters and with each spatial bloc
 reaches tie at zero; tau-b handles those ties, and coverage reports how many there are. Calibration
 fits on the training blocks and reports the held-out one, so a parameter cannot be tuned to the
 counters it is judged on.
+
+**Route lengths.** Without `--route-lengths` the OD matrix draws each destination between
+`minRouteLength` and `maxRouteLength` (900-2,700 m walked). With `--route-lengths walkLengths` every
+run of the design draws its walked length from `Melbourne_walkLengths.csv` (VISTA weekday walking
+stages in the City of Melbourne, `pipeline/vista_walk_lengths.py`), and its run ID gains `_L` so
+both arms can sit in one output folder.
 
 **Controls built in.** `ROAD_DISTANCE` is the null model: least distance over the same trips, i.e.
 shortest-path betweenness of the trip sample. An element earns its place only by beating it.
@@ -82,15 +89,38 @@ MORRIS_PARAMETERS = [
     ("regionNavActivationThreshold", 200.0, 1500.0),
     ("wayfindingEasinessThresholdRegionsCommunity", 0.60, 0.99),
     ("perceptionErrorSD", 0.00, 0.30),
-    ("minRouteLength", 400.0, 1200.0),
+    # Cost multipliers on streets along positive (parks, water) and negative (roads, railways)
+    # barriers. The ends are the route-choice survey's mapping: no preference to full preference
+    # is 1.0 to 0.0 for natural barriers and 1.0 to 2.0 for severing ones; 0.3 keeps a park street
+    # from costing next to nothing.
+    ("naturalBarrierFactor", 0.30, 1.00),
+    ("severingBarrierFactor", 1.00, 2.00),
+]
+
+# What the Morris screen walks: the null, the angular minimisation, and every mechanism under both
+# local heuristics, combined, so that each screened parameter acts on at least one scenario under
+# each heuristic. The single-mechanism scenarios share the mechanisms and their parameters.
+MORRIS_SCENARIOS = [
+    "ROAD_DISTANCE",
+    "ANGULAR_CHANGE",
+    "LANDMARKS_DISTANCE",
+    "LANDMARKS_ANGULAR",
+    "REGION_BARRIER_DISTANCE",
+    "REGION_BARRIER_ANGULAR",
+]
+
+# The scenarios that navigate by barriers, walked by the `barriers` design (A2b).
+BARRIER_SCENARIOS = [
+    "BARRIER_DISTANCE",
+    "BARRIER_ANGULAR",
+    "REGION_BARRIER_DISTANCE",
+    "REGION_BARRIER_ANGULAR",
 ]
 
 # Counters left out of scoring, with the reason. `reliable == False` in the link (a snap over 25 m)
 # is excluded as well.
 EXCLUDED = {
     103: "Kensington Town Hall: outside the study area, 19 m inside the network's clipped edge",
-    71: "Westwood Place: a service lane the cityImage pedestrian filter drops",
-    93: "East Melbourne Library: on Eastcourt Lane, an alley the cityImage pedestrian filter drops",
 }
 
 
@@ -100,7 +130,7 @@ EXCLUDED = {
 def design_convergence(seeds: int) -> pd.DataFrame:
     """Trips per scenario against seed-to-seed spread: how many trips before the shares settle."""
     rows = []
-    for trips in (250, 500, 1000, 2000, 4000):
+    for trips in (1000, 2000, 4000, 8000):
         for seed in range(1, seeds + 1):
             rows.append(run_row(f"conv_t{trips}_s{seed}", seed, trips, CORE_SCENARIOS, {}))
     return pd.DataFrame(rows)
@@ -117,8 +147,27 @@ def design_elements(seeds: int, trips: int) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def design_morris(trajectories: int, trips: int, levels: int = 4, seed: int = 1) -> pd.DataFrame:
-    """Morris one-at-a-time trajectories over MORRIS_PARAMETERS, all at one seed."""
+def design_barriers(seeds: int, trips: int) -> pd.DataFrame:
+    """A2b. The barrier scenarios at default parameters except for barrier perception: which
+    barriers become sub-goals (positive, negative, separating; ALL is A2's), and, with ALL, which
+    cost terms are on (neither, only the park-and-water discount, only the road-and-rail premium;
+    both is A2's). Floor-area-weighted trips, seeds as in A2, so every arm is paired with A2's."""
+    arms = {f"type-{t.lower()}": {"barrierType": t}
+            for t in ("POSITIVE", "NEGATIVE", "SEPARATING")}
+    arms["cost-none"] = {"preferenceNaturalBarriers": "false", "aversionSeveringBarriers": "false"}
+    arms["cost-natural"] = {"aversionSeveringBarriers": "false"}
+    arms["cost-severing"] = {"preferenceNaturalBarriers": "false"}
+    rows = []
+    for arm, params in arms.items():
+        for seed in range(1, seeds + 1):
+            rows.append(run_row(f"barr_{arm}_s{seed}", seed, trips, BARRIER_SCENARIOS, params,
+                                arm=arm))
+    return pd.DataFrame(rows)
+
+
+def design_morris(trajectories: int, trips: int, levels: int = 4) -> pd.DataFrame:
+    """Morris one-at-a-time trajectories over MORRIS_PARAMETERS. The points of a trajectory share a
+    seed, so their trips are identical; trajectory t uses seed t + 1."""
     rng = np.random.default_rng(20260926)
     k = len(MORRIS_PARAMETERS)
     delta = levels / (2.0 * (levels - 1))
@@ -140,9 +189,57 @@ def design_morris(trajectories: int, trips: int, levels: int = 4, seed: int = 1)
         for i, (x, j) in enumerate(zip(points, changed)):
             params = {name: round(low + xi * (high - low), 4)
                       for (name, low, high), xi in zip(MORRIS_PARAMETERS, x)}
-            rows.append(run_row(f"morris_t{t}_p{i}", seed, trips, CORE_SCENARIOS, params,
+            rows.append(run_row(f"morris_t{t}_p{i}", t + 1, trips, MORRIS_SCENARIOS, params,
                                 trajectory=t, point=i,
                                 changed="" if j is None else MORRIS_PARAMETERS[j][0]))
+    return pd.DataFrame(rows)
+
+
+def parameter_bounds(names: list[str]) -> dict[str, tuple[float, float]]:
+    bounds = {n: (lo, hi) for n, lo, hi in MORRIS_PARAMETERS}
+    unknown = [n for n in names if n not in bounds]
+    if unknown:
+        raise SystemExit(f"not a screened parameter: {', '.join(unknown)}")
+    return {n: bounds[n] for n in names}
+
+
+def design_lhs(scenario: str, names: list[str], points: int, seeds: int,
+               trips: int) -> pd.DataFrame:
+    """Latin hypercube over `names` (ranges as in MORRIS_PARAMETERS) for one scenario. Replicate r
+    uses seed 100 + r at every point, so the trips are common across points and the surface an
+    emulator fits is the parameters', not the trips'."""
+    bounds = parameter_bounds(names)
+    rng = np.random.default_rng(20261118)
+    unit = (rng.permuted(np.tile(np.arange(points), (len(names), 1)), axis=1).T
+            + rng.random((points, len(names)))) / points
+    rows = []
+    for i, x in enumerate(unit):
+        params = {n: round(lo + xi * (hi - lo), 4) for (n, (lo, hi)), xi in zip(bounds.items(), x)}
+        for r in range(1, seeds + 1):
+            rows.append(run_row(f"lhs_{scenario}_p{i}_s{r}", 100 + r, trips, [scenario], params,
+                                point=i))
+    return pd.DataFrame(rows)
+
+
+def design_validate(calibrated: dict, seeds: int, fold_seeds: int, trips: int) -> pd.DataFrame:
+    """A5. Defaults for the calibrated models and the null in one run per seed; each model at the
+    point calibrated on all blocks; and each model at each fold's point, for the held-out block
+    that fold never saw. Seeds 201 onwards, used by no earlier stage."""
+    models = list(calibrated)
+    rows = []
+    for s in range(seeds):
+        rows.append(run_row(f"val_default_s{s}", 201 + s, trips, models + ["ROAD_DISTANCE"], {},
+                            arm="default"))
+        for m in models:
+            rows.append(run_row(f"val_{m}_all_s{s}", 201 + s, trips, [m], calibrated[m]["all"],
+                                arm="calibrated", fold="all"))
+    for m in models:
+        for fold, params in calibrated[m].items():
+            if fold == "all":
+                continue
+            for s in range(fold_seeds):
+                rows.append(run_row(f"val_{m}_f{fold}_s{s}", 201 + s, trips, [m], params,
+                                    arm="fold", fold=fold))
     return pd.DataFrame(rows)
 
 
@@ -162,6 +259,9 @@ def command(row, repo: Path, heap: str) -> list[str]:
             f"--numberTripsPerAgent={int(row.trips)}", "--jobs=1", f"--seed={int(row.seed)}",
             f"--weightODByFloorArea={str(bool(row.weighted)).lower()}",
             f"--outputTag={row.run_id}", "--stepDelayMs=0", "--exportHtmlDashboard=false"]
+    lengths = getattr(row, "route_lengths", "")
+    if isinstance(lengths, str) and lengths:
+        args.append(f"--routeLengths={lengths}")
     for key, value in json.loads(row.params).items():
         args.append(f"--{key}={value}")
     return args
@@ -324,10 +424,18 @@ def main(argv=None) -> None:
     b.add_argument("--splits", type=int, default=2)
     b.add_argument("--out", type=Path, required=True)
     d = sub.add_parser("design")
-    d.add_argument("kind", choices=["convergence", "elements", "morris"])
+    d.add_argument("kind",
+                   choices=["convergence", "elements", "barriers", "morris", "lhs", "validate"])
+    d.add_argument("--route-lengths", default="",
+                   help="layer of observed walked route lengths, e.g. walkLengths")
     d.add_argument("--seeds", type=int, default=4)
     d.add_argument("--trips", type=int, default=1000)
     d.add_argument("--trajectories", type=int, default=10)
+    d.add_argument("--scenario", help="lhs: the one scenario the hypercube is for")
+    d.add_argument("--parameters", help="lhs: comma-separated screened parameters")
+    d.add_argument("--points", type=int, default=100)
+    d.add_argument("--calibrated", type=Path, help="validate: calibrated.json")
+    d.add_argument("--fold-seeds", type=int, default=5)
     d.add_argument("--out", type=Path, required=True)
     r = sub.add_parser("run")
     r.add_argument("design", type=Path)
@@ -346,7 +454,7 @@ def main(argv=None) -> None:
     m = sub.add_parser("morris")
     m.add_argument("design", type=Path)
     m.add_argument("scores", type=Path)
-    m.add_argument("--metric", default="all_spearman")
+    m.add_argument("--metric", default="all_kendall")
     m.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
 
@@ -357,7 +465,16 @@ def main(argv=None) -> None:
     elif args.cmd == "design":
         design = {"convergence": lambda: design_convergence(args.seeds),
                   "elements": lambda: design_elements(args.seeds, args.trips),
-                  "morris": lambda: design_morris(args.trajectories, args.trips)}[args.kind]()
+                  "barriers": lambda: design_barriers(args.seeds, args.trips),
+                  "morris": lambda: design_morris(args.trajectories, args.trips),
+                  "lhs": lambda: design_lhs(args.scenario, args.parameters.split(","),
+                                            args.points, args.seeds, args.trips),
+                  "validate": lambda: design_validate(json.loads(args.calibrated.read_text()),
+                                                      args.seeds, args.fold_seeds, args.trips),
+                  }[args.kind]()
+        design["route_lengths"] = args.route_lengths
+        if args.route_lengths:
+            design["run_id"] = design.run_id + "_L"
         design.to_csv(args.out, index=False)
         print(f"{len(design)} runs -> {args.out}")
     elif args.cmd == "run":
