@@ -15,6 +15,9 @@ import sim.routing.NodeWrapper;
 /**
  * The class allows computing the route that maximises global landmarkness between an origin and a
  * destination on a primal graph representation of the street network.
+ *
+ * <p>Each segment costs {@code 1 - globalLandmarkness} of the node it leads to, independent of the
+ * segment's length; distance enters only through the number of segments walked.
  */
 public class DijkstraGlobalLandmarks extends Dijkstra {
 
@@ -105,11 +108,9 @@ public class DijkstraGlobalLandmarks extends Dijkstra {
       double globalLandmarkness =
           Landmarkness.globalLandmarknessNode(targetNode, finalDestinationNode);
 
-      // the global landmarkness from the node is divided by the segment's length so
-      // to avoid that the route is not affected
-      // by network (topological) distance
-      double nodeLandmarkness = (1.0 - globalLandmarkness) / commonEdge.getLength();
-      tentativeCost = getBest(currentNode) + nodeLandmarkness;
+      // Length-neutral: a segment costs the landmarkness it lacks at its far end, whatever its
+      // length, so neither long nor short segments are favoured for being so.
+      tentativeCost = getBest(currentNode) + (1.0 - globalLandmarkness);
       isBest(currentNode, targetNode, outEdge);
     }
   }

@@ -65,6 +65,13 @@ they are routed; that is why OD weighting is varied and reported, not fitted.
 
 ## Changes after scoring began
 
+**23 Nov 2026, after A2L and A2b were scored, during A3: the cost of bare `DISTANT_LANDMARKS`.**
+Its search charged a segment `(1 - landmarkness) / length`, so long segments were cheap and
+routes ran 2.1x the shortest path at the median (90th percentile 5x, maximum 90x); it scored
+tau-b 0.010 in A2L. The cost is now `1 - landmarkness` per segment, independent of length. Only
+that scenario changes, and it is not in the A3 Morris set. Its A1 and A2L scores are on the old
+cost and are reported as such; A2L is re-run for it before A4.
+
 **15 Nov 2026, during A1 (no A2-A5 score seen): how A4 and A5 are carried out.**
 
 - A4: one hypercube per model (`design lhs`), seeds 101-103 at every point, so the trips are

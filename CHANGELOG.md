@@ -14,6 +14,14 @@ follows [Keep a Changelog](https://keepachangelog.com); the project is not yet v
   (`dashboard.html`, or a `.png` / `.jpg`), so it no longer depends on the working directory.
 - `pedsim.learning.routeMemorability` is `pedsim.learning.memorability`, the last camelCase
   package.
+- The distant-landmarks search (`DijkstraGlobalLandmarks`) is length-neutral: a segment costs
+  `1 - globalLandmarkness` of the node it leads to. It cost that divided by the segment's length,
+  which made long segments cheap: on Melbourne (VISTA lengths) bare `DISTANT_LANDMARKS` routes
+  were 2.1x the shortest path at the median, 5x at the 90th percentile and up to 90x. Changes
+  bare `DISTANT_LANDMARKS` only; the `_DISTANCE` and `_ANGULAR` variants use another search.
+  Measured before and after on 1,000 trips (seed 1, floor-area OD, `perceptionErrorSD=0`): median
+  1.67x to 1.09x the shortest path, 90th percentile 4.1x to 2.0x, maximum 65x to 5.9x, and the
+  other three scenarios of the run identical route for route.
 
 ## 2026-11-15
 
