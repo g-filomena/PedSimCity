@@ -165,11 +165,17 @@ def design_barriers(seeds: int, trips: int) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def design_morris(trajectories: int, trips: int, levels: int = 4) -> pd.DataFrame:
-    """Morris one-at-a-time trajectories over MORRIS_PARAMETERS. The points of a trajectory share a
-    seed, so their trips are identical; trajectory t uses seed t + 1."""
+def design_morris(trajectories: int, trips: int, levels: int = 4,
+                  names: list[str] | None = None, scenarios: list[str] | None = None,
+                  prefix: str = "morris") -> pd.DataFrame:
+    """Morris one-at-a-time trajectories over `names` (all of MORRIS_PARAMETERS by default; the
+    rest stay at their defaults), walking `scenarios` (MORRIS_SCENARIOS by default). The points of
+    a trajectory share a seed, so their trips are identical; trajectory t uses seed t + 1."""
+    screened = MORRIS_PARAMETERS if names is None else [
+        (n, lo, hi) for n, (lo, hi) in parameter_bounds(names).items()]
+    scenarios = MORRIS_SCENARIOS if scenarios is None else scenarios
     rng = np.random.default_rng(20260926)
-    k = len(MORRIS_PARAMETERS)
+    k = len(screened)
     delta = levels / (2.0 * (levels - 1))
     grid = np.arange(levels) / (levels - 1)
     rows = []
@@ -188,10 +194,10 @@ def design_morris(trajectories: int, trips: int, levels: int = 4) -> pd.DataFram
             changed.append(j)
         for i, (x, j) in enumerate(zip(points, changed)):
             params = {name: round(low + xi * (high - low), 4)
-                      for (name, low, high), xi in zip(MORRIS_PARAMETERS, x)}
-            rows.append(run_row(f"morris_t{t}_p{i}", t + 1, trips, MORRIS_SCENARIOS, params,
+                      for (name, low, high), xi in zip(screened, x)}
+            rows.append(run_row(f"{prefix}_t{t}_p{i}", t + 1, trips, scenarios, params,
                                 trajectory=t, point=i,
-                                changed="" if j is None else MORRIS_PARAMETERS[j][0]))
+                                changed="" if j is None else screened[j][0]))
     return pd.DataFrame(rows)
 
 
@@ -366,7 +372,8 @@ def score_run(row, repo: Path, counters: pd.DataFrame) -> list[dict]:
 def morris_effects(design: pd.DataFrame, scores: pd.DataFrame, metric: str) -> pd.DataFrame:
     """Elementary effects of each parameter on `metric`, per scenario: mu* and sigma."""
     merged = scores.merge(design, on="run_id")
-    names = [p[0] for p in MORRIS_PARAMETERS]
+    changed = set(design["changed"].dropna())
+    names = [p[0] for p in MORRIS_PARAMETERS if p[0] in changed]
     rows = []
     for scenario, g in merged.groupby("scenario"):
         effects = {n: [] for n in names}
@@ -432,7 +439,10 @@ def main(argv=None) -> None:
     d.add_argument("--trips", type=int, default=1000)
     d.add_argument("--trajectories", type=int, default=10)
     d.add_argument("--scenario", help="lhs: the one scenario the hypercube is for")
-    d.add_argument("--parameters", help="lhs: comma-separated screened parameters")
+    d.add_argument("--parameters",
+                   help="lhs, morris: comma-separated parameters (morris: all by default)")
+    d.add_argument("--scenarios", help="morris: comma-separated scenarios (MORRIS_SCENARIOS)")
+    d.add_argument("--prefix", default="morris", help="morris: run ID prefix")
     d.add_argument("--points", type=int, default=100)
     d.add_argument("--calibrated", type=Path, help="validate: calibrated.json")
     d.add_argument("--fold-seeds", type=int, default=5)
@@ -466,7 +476,11 @@ def main(argv=None) -> None:
         design = {"convergence": lambda: design_convergence(args.seeds),
                   "elements": lambda: design_elements(args.seeds, args.trips),
                   "barriers": lambda: design_barriers(args.seeds, args.trips),
-                  "morris": lambda: design_morris(args.trajectories, args.trips),
+                  "morris": lambda: design_morris(
+                      args.trajectories, args.trips,
+                      names=args.parameters.split(",") if args.parameters else None,
+                      scenarios=args.scenarios.split(",") if args.scenarios else None,
+                      prefix=args.prefix),
                   "lhs": lambda: design_lhs(args.scenario, args.parameters.split(","),
                                             args.points, args.seeds, args.trips),
                   "validate": lambda: design_validate(json.loads(args.calibrated.read_text()),

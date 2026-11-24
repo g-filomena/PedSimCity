@@ -114,3 +114,33 @@ about 2 points of the observed change is not ruled out). Measured, not assumed.
 **The cell rho rises with the share** (night 0.58, 0.63, 0.68 at 5, 10, 20%; 0.72 at 50%): with
 fewer agents a cell's simulated share is noisier and the rank correlation is attenuated. Rho is
 therefore compared only between runs at one share, and B4 reports it at 20% beside the 50% runs.
+
+**24 Nov 2026, B2 scored (17 Nov); B3 wave 1 launched.** Effects as mu* x 2/3 over B1's seed SD at
+20% (five seeds); a factor counts when it exceeds 2 on a calibration target (M1 rho day and night,
+M3 women's change, M4 centre ratio):
+
+| factor | centre ratio, day | rho total, day | rho total, night | women's change |
+|---|---|---|---|---|
+| `distanceWeight` | **3.9** | **5.2** | 1.0 | 1.7 |
+| `walkShareHalfDistance` | **2.7** | 1.9 | 0.9 | 1.9 |
+| `emptyStreetWeight` | 0.6 | 0.6 | **2.0** | **7.5** |
+| `emptyStreetRatio` | 0.1 | 0.4 | 0.6 | **8.1** |
+
+The other eight stay between 0 and 1.4 on every target. Off the targets, `darknessRatio` moves the
+twins' dim-10 lx gap (3.7) and `minReassuranceLux` reaches 2.0 there. No factor moves the diurnal
+rho or Cuebiq. Signs are stable (|mu| = mu*) except `emptyStreetWeight` on the women's change
+(mu -0.027 against mu* 0.056), an interaction with its ratio; on night rho it is stable.
+
+So the lighting, park-and-water and enclosure terms are not identified by Vodafone: they change
+where the twins walk relative to each other, not the pattern a cell count sees, as anticipated
+under *Threats to validity*. The women's change Vodafone does see is carried by the empty-street
+term, which has no source.
+
+B3 therefore runs on these four (`stage_b3.sh`): Latin hypercube, 80 points x {February, July} x
+{Wednesday, Sunday} = 320 runs at 20%, one seed per point (20261300 + point), the other eight at
+their defaults; `~/pub` at `e4187e6`, B2's tree, checked unchanged (no class file newer than
+`PROVENANCE`). History matching by `night_calibrate.py` with B1's five 20% seeds as the seed
+variance. `darknessRatio` is not added: no target constrains it, and B4 reports the twins' gap at
+the calibrated point with the night weights at their defaults. Started 24 Nov 11:16 UTC, alongside
+Melbourne A3-LL, as B2 ran alongside A2; at B2's pace about five days. The second wave is decided
+on wave 1's non-implausible region.

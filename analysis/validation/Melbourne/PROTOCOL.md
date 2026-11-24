@@ -65,6 +65,52 @@ they are routed; that is why OD weighting is varied and reported, not fitted.
 
 ## Changes after scoring began
 
+**24 Nov 2026, A3 scored (240 of 240 runs); A3-LL extended to both local-landmark models.**
+Effects as mu* x 2/3 over the seed SD of tau-b in A2L (10 seeds, floor-area OD, VISTA lengths,
+default parameters); `sign` is |mu| / mu*, near 1 when the effect keeps its sign. Every factor over
+2, and the largest below it where none is:
+
+| scenario | seed SD | factor | ratio | sign |
+|---|---|---|---|---|
+| `ROAD_DISTANCE` | 0.017 | `perceptionErrorSD` | **2.8** | 0.97 (+) |
+| `ANGULAR_CHANGE` | 0.011 | `perceptionErrorSD` | 1.2 | 0.75 |
+| `LANDMARKS_DISTANCE` | 0.026 | `globalLandmarknessWeightDistanceCommunity` | 1.2 | 1.00 (-) |
+| | | `salientNodesPercentile` | 1.2 | 0.57 |
+| `LANDMARKS_ANGULAR` | 0.006 | `localLandmarkThresholdCommunity` | **6.1** | 0.91 (+) |
+| | | `wayfindingEasinessThresholdCommunity` | **5.6** | 0.95 (+) |
+| | | `distanceNodeLandmark` | **4.2** | 0.70 (-) |
+| | | `salientNodesPercentile` | **2.5** | 0.32 |
+| `REGION_BARRIER_DISTANCE` | 0.018 | `salientNodesPercentile` | **2.1** | 0.67 |
+| `REGION_BARRIER_ANGULAR` | 0.007 | `salientNodesPercentile` | **3.0** | 0.02 |
+| | | `regionNavActivationThreshold` | **2.5** | 0.20 |
+| | | `perceptionErrorSD` | **2.3** | 0.82 (+) |
+| | | `severingBarrierFactor` | **2.3** | 0.73 (+) |
+
+`morris_A3.csv` on gdsl1 holds every factor; a factor that a scenario's model does not read has
+mu* = 0 exactly there, which is the check that the screen moved only what it should. Two readings:
+the perception error *raises* the shortest path's tau-b (noise spreads flow over parallel streets,
+which the counters seem to prefer), and `LANDMARKS_DISTANCE` has no factor over 2 because its seed
+SD (0.026) is the largest of the six, not because nothing acts on it.
+
+*A3-LL widened.* The A2L ranking (floor-area OD) puts both local-landmark models first,
+`LOCAL_LANDMARKS_DISTANCE` 0.347 and `LOCAL_LANDMARKS_ANGULAR` 0.333, then `LANDMARKS_DISTANCE`
+0.307 and `ROAD_DISTANCE` 0.279; A4 calibrates the two best, and A3-LL as first launched screened
+only the first. It was stopped after 18 minutes (no run finished) and restarted with both
+scenarios, same design points and seeds. This was decided after A3's effects were computed, on the
+A2L ranking, which was known before; the factors and ranges are unchanged from the entry below.
+
+**24 Nov 2026, during A3 (235 of 240 runs done, no A3 effect computed): a second screen, A3-LL.**
+The best model in A2L, `LOCAL_LANDMARKS_DISTANCE` (tau-b 0.316), is not among A3's scenarios; A3
+screens the local-landmark parameters only inside `LANDMARKS_*`, where distant landmarks also act,
+so an effect there may not be the effect in the local-landmark model. A3-LL is a Morris screen of
+that scenario alone (`design morris --scenarios LOCAL_LANDMARKS_DISTANCE --prefix morrisLL`), over
+the five parameters that act on it: `salientNodesPercentile`, `localLandmarkThresholdCommunity`,
+`distanceNodeLandmark`, `wayfindingEasinessThresholdCommunity`, `perceptionErrorSD`, ranges as in
+A3, the other six at their defaults (the model has no distant landmarks, no regions and no barrier
+terms). 20 trajectories, 4 levels, 120 runs, seed t + 1 for trajectory t as in A3, VISTA lengths,
+floor-area OD, N = 8,000; same effect rule. A4 takes that model's parameters from A3-LL.
+Launched by `stage_a3LL.sh` once A3 ends.
+
 **23 Nov 2026, after A2L and A2b were scored, during A3: the cost of bare `DISTANT_LANDMARKS`.**
 Its search charged a segment `(1 - landmarkness) / length`, so long segments were cheap and
 routes ran 2.1x the shortest path at the median (90th percentile 5x, maximum 90x); it scored

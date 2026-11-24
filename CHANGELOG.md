@@ -3,6 +3,14 @@
 Notable changes to PedSimCity, most recent first, dated by the day they landed. The format
 follows [Keep a Changelog](https://keepachangelog.com); the project is not yet versioned.
 
+## 2026-11-24
+
+### Added
+- `cityimage_sweep.py design morris` takes `--parameters`, `--scenarios` and `--prefix`, so a
+  Morris screen can cover a subset of the factors on a subset of the scenarios (Melbourne A3-LL);
+  the factors left out stay at their defaults. Without them it builds the same design as before,
+  checked against `design_A3.csv`. `morris` reports only the factors the design varies.
+
 ## 2026-11-23
 
 ### Changed
