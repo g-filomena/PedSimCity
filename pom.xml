@@ -43,6 +43,22 @@
 	   </repository>
 	</distributionManagement>
 	
+    <!-- lib/ as a Maven repository, holding MASON. Declared here rather than in a profile activated
+         by the directory's presence (as GeoMason-light does): that would switch off 'night', which is
+         activeByDefault. -->
+    <repositories>
+        <repository>
+            <id>vendored-mason</id>
+            <url>file://${project.basedir}/lib</url>
+            <releases>
+                <checksumPolicy>fail</checksumPolicy>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
     <dependencies>
         <!-- JavaTuples -->
         <dependency>
@@ -149,15 +165,12 @@
 			<version>2.3.0</version>
         </dependency>
 
-       <!-- Mason: not on Maven Central; resolved from the vendored jar so `mvn compile` works
-            out of the box. system scope means it is NOT bundled in the assembly/fat-jar, so it is
-            supplied at run time via the exec plugin's additionalClasspathElements below. -->
+        <!-- MASON is not on Maven Central: it comes from lib/, a Maven repository declared above. The
+             coordinates are the ones GeoMason-light builds against. -->
         <dependency>
-            <groupId>edu.gmu.eclab</groupId>
+            <groupId>sim</groupId>
             <artifactId>mason</artifactId>
             <version>21</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/mason-21.jar</systemPath>
         </dependency>
 
         <!-- Javelit – browser dashboard framework -->
@@ -316,7 +329,6 @@
                         <configuration>
                             <mainClass>pedsim.core.launcher.CoreLauncher</mainClass>
                             <additionalClasspathElements>
-                                <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
                                 <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
                             </additionalClasspathElements>
                         </configuration>
@@ -329,7 +341,6 @@
                         <configuration>
                             <mainClass>pedsim.night.launcher.NightLauncher</mainClass>
                             <additionalClasspathElements>
-                                <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
                                 <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
                             </additionalClasspathElements>
                         </configuration>
@@ -346,7 +357,6 @@
 							<includeProjectDependencies>true</includeProjectDependencies>
 							<includePluginDependencies>false</includePluginDependencies>
 							<additionalClasspathElements>
-								<additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
 								<additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
 							</additionalClasspathElements>
                             <arguments>
@@ -367,7 +377,6 @@
 							<includeProjectDependencies>true</includeProjectDependencies>
 							<includePluginDependencies>false</includePluginDependencies>
 							<additionalClasspathElements>
-								<additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
 								<additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
 							</additionalClasspathElements>
                             <arguments>
@@ -384,7 +393,6 @@
                         <configuration>
                             <mainClass>pedsim.learning.launcher.LearningLauncher</mainClass>
                             <additionalClasspathElements>
-                                <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
                                 <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
                             </additionalClasspathElements>
                         </configuration>
@@ -402,7 +410,6 @@
                             <includeProjectDependencies>true</includeProjectDependencies>
                             <includePluginDependencies>false</includePluginDependencies>
                             <additionalClasspathElements>
-                                <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
                                 <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
                             </additionalClasspathElements>
                             <arguments>
@@ -419,7 +426,6 @@
                         <configuration>
                             <mainClass>pedsim.activity.launcher.ActivityLauncher</mainClass>
                             <additionalClasspathElements>
-                                <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
                                 <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
                             </additionalClasspathElements>
                         </configuration>
@@ -437,7 +443,6 @@
                             <includeProjectDependencies>true</includeProjectDependencies>
                             <includePluginDependencies>false</includePluginDependencies>
                             <additionalClasspathElements>
-                                <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
                                 <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
                             </additionalClasspathElements>
                             <arguments>
@@ -454,7 +459,6 @@
                         <configuration>
                             <mainClass>pedsim.social.launcher.SocialLauncher</mainClass>
                             <additionalClasspathElements>
-                                <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
                                 <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
                             </additionalClasspathElements>
                         </configuration>
@@ -472,7 +476,6 @@
                             <includeProjectDependencies>true</includeProjectDependencies>
                             <includePluginDependencies>false</includePluginDependencies>
                             <additionalClasspathElements>
-                                <additionalClasspathElement>${project.basedir}/lib/mason-21.jar</additionalClasspathElement>
                                 <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
                             </additionalClasspathElements>
                             <arguments>

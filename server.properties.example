@@ -23,7 +23,7 @@ server.javaBinDir=
 server.projectBaseDir=
 
 # Classpath used for the remote run. Rarely needs changing.
-server.classpath=bin:lib/*:src/main/resources
+server.classpath=bin:lib/*:lib/sim/mason/21/*:src/main/resources
 
 # ---------------------------------------------------------------------------
 # Example of a filled-in configuration:

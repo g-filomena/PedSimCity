@@ -321,7 +321,7 @@ public class RemoteLauncher {
         + "echo '>> compiling sources' && mkdir -p bin && "
         + "find src/main/java -name '*.java' > sources.txt && "
         + javac
-        + " -d bin -cp 'bin:lib/*' @sources.txt && "
+        + " -d bin -cp 'bin:lib/*:lib/sim/mason/21/*' @sources.txt && "
         + "echo '>> running simulation' && "
         + java
         + " -XX:+UseNUMA -XX:+UseParallelGC -Xmx256G "

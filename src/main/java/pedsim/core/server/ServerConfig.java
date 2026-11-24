@@ -75,7 +75,7 @@ public final class ServerConfig {
 
   /** Classpath used for the remote run. */
   public static String classpath() {
-    return get("server.classpath", "bin:lib/*:src/main/resources");
+    return get("server.classpath", "bin:lib/*:lib/sim/mason/21/*:src/main/resources");
   }
 
   /** Remote base directory under which each module's checkout lives; blank for an SSH-relative path. */

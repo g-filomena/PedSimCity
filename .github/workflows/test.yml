@@ -16,7 +16,7 @@ jobs:
       # Only the vendored MASON jar is needed to build; the city data stays out of CI
       # so a run does not spend the LFS bandwidth quota.
       - name: Fetch MASON from Git LFS
-        run: git lfs pull --include="lib/mason-21.jar"
+        run: git lfs pull --include="lib/sim/mason/21/mason-21.jar"
 
       - name: Set up Java
         uses: actions/setup-java@v4

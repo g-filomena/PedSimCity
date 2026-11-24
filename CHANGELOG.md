@@ -11,6 +11,13 @@ follows [Keep a Changelog](https://keepachangelog.com); the project is not yet v
   the factors left out stay at their defaults. Without them it builds the same design as before,
   checked against `design_A3.csv`. `morris` reports only the factors the design varies.
 
+### Changed
+- MASON resolves from `lib/`, a Maven repository (`sim:mason:21`, the coordinates GeoMason-light
+  builds against), instead of a `system` dependency on `lib/mason-21.jar`. It is an ordinary compile
+  dependency, so it is on every run's classpath without being listed per launcher, and it is in the
+  jar-with-dependencies. The jar is now `lib/sim/mason/21/mason-21.jar`; the remote launcher's
+  classpath follows (a `server.properties` that sets `server.classpath` needs `lib/sim/mason/21/*`).
+
 ## 2026-11-23
 
 ### Changed
