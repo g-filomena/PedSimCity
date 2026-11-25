@@ -23,8 +23,10 @@ follows [Keep a Changelog](https://keepachangelog.com); the project is not yet v
   it with the definition, and the same calibration run is byte-identical again. It took 14 min,
   against 35-54 for B3's runs without it at the same hours on the same server.
 - `night_calibrate.py`: the emulator's variance excludes its white noise, so the seed variance
-  enters the implausibility once; the discrepancy of the centre ratio is 10% of the ratio rather
-  than of its logarithm; `emulator_checks.csv` gains the standard deviations that entered.
+  enters the implausibility once, as the variance between replicates within a season; the
+  discrepancy of the centre ratio is 10% of the ratio rather than of its logarithm;
+  `emulator_checks.csv` gains the standard deviations that entered.
+- `night_sweep.py`: the autumn days are 29 October and 2 November 2025.
 - `ActivityAgent.destinationCandidates` takes the radius and returns the choice set, already
   narrowed to the purpose's opportunities.
 

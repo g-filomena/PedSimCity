@@ -26,7 +26,7 @@ import pandas as pd
 CITY = "Torino_sidewalks"
 LAUNCHER = "pedsim.night.launcher.NightLauncher"
 DATES = {"winter": ("2025-02-12", "2025-02-16"), "spring": ("2025-04-09", "2025-04-13"),
-         "summer": ("2025-07-09", "2025-07-13"), "autumn": ("2025-10-15", "2025-10-19")}
+         "summer": ("2025-07-09", "2025-07-13"), "autumn": ("2025-10-29", "2025-11-02")}
 
 # (name, low, high, default)
 FACTORS = [

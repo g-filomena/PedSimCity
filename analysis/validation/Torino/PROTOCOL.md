@@ -181,3 +181,21 @@ scores and calibrates with the corrected `night_calibrate.py` and ends with `DON
 **25 Nov 2026, B4's default arm started** (16:08 UTC, `stage_b4_default.sh`, `~/perf/b3w`, 40 runs: 4
 months x Wed+Sun x seeds 20261400-20261404 at 20%). It does not depend on B3. It is run and not
 scored until the calibrated point is fixed, so the held-out months stay unseen.
+
+**25 Nov 2026, B3's seed variance: B4's default sets instead of B1.** Decided before any B3 or B4 run
+was scored. B1's is the variance of one winter Wednesday; a B3 score combines a Wednesday and a
+Sunday, in winter and in summer. The implausibility takes the variance between the five seeds of
+B4's default arm in winter and in summer, scored as B3's sets are, averaged over the two seasons
+(8 degrees of freedom). Those are calibration months; B4's spring and autumn stay unscored. Driver:
+`stage_b3_finish.sh` (the runs go on unchanged), seed scores in `scores_seed.csv`. This replaces
+what point 1 above says about B1.
+
+**25 Nov 2026, autumn is 29 October and 2 November 2025 instead of 15 and 19 October.** Two thirds
+of the observed window (15 October - 15 November 2025) follow the end of summer time, with sunset
+around 17:10; on the days first planned it is 18:35. The new Wednesday and Sunday are at the middle
+of the window, with sunset around 17:15. No autumn run of B3 or B4 had started, and Cuebiq has no
+autumn. The other seasons keep their days: in spring and summer the sunset is inside the window's
+range; in winter (12 and 16 February, window 15 January - 15 February) it is about 20 minutes later
+than at the window's middle. The year does not matter otherwise: the model uses a date for
+daylight, the weekday, the month's tourist nights and the draw of rain. B4's default arm was
+relaunched with the new design.

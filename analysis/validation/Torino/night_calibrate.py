@@ -9,14 +9,15 @@ leave-one-out, and computes the implausibility
     I(x) = |E[f(x)] - z| / sqrt(Var_emulator(x) + Var_seed + Var_discrepancy)
 
 over a large uniform sample of the factor space. Var_emulator is the variance of the emulated mean,
-without the white noise; Var_seed is that of the --seed-sd scores, or the white noise when none are
-given. Matched outputs, each with its observed value z: the women's change after dark (M3), and the
-centre-ring ratio by day and by night (M4, as logs). The discrepancy's standard deviation is 10% of
-the observed change or ratio, which on a log is 0.10. Points whose largest implausibility is under 3
-are not ruled out; among them the calibrated point maximises the emulated mean of the fit measures
-(M1, cell rho by day and by night; M2, diurnal rho), which have no observed value to match. Writes
-the not-ruled-out sample, per-factor ranges, the emulators' leave-one-out checks with the variances
-that entered, and the calibrated point.
+without the white noise; Var_seed is that of the --seed-sd scores, replicates at one point per
+season, averaged over the seasons, or the white noise when none are given. Matched outputs, each
+with its observed value z: the women's change after dark (M3), and the centre-ring ratio by day and
+by night (M4, as logs). The discrepancy's standard deviation is 10% of the observed change or ratio,
+which on a log is 0.10. Points whose largest implausibility is under 3 are not ruled out; among them
+the calibrated point maximises the emulated mean of the fit measures (M1, cell rho by day and by
+night; M2, diurnal rho), which have no observed value to match. Writes the not-ruled-out sample,
+per-factor ranges, the emulators' leave-one-out checks with the variances that entered, and the
+calibrated point.
 """
 
 from __future__ import annotations
@@ -87,7 +88,7 @@ def main(argv=None) -> None:
     parser.add_argument("scores", type=Path)
     parser.add_argument("--factors", required=True)
     parser.add_argument("--seed-sd", type=Path, default=None,
-                        help="B1 scores at the chosen share, for the seed variance of each output")
+                        help="scores of replicates by season, for the seed variance of each output")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     args.out.mkdir(parents=True, exist_ok=True)
@@ -104,9 +105,8 @@ def main(argv=None) -> None:
     if args.seed_sd is not None:
         noise = pd.read_csv(args.seed_sd)
         for key, (sim, _, kind) in MATCHED.items():
-            seed_var[key] = float(np.var(transform(noise[sim], kind), ddof=1))
-        for key in FIT:
-            seed_var[key] = float(np.var(noise[key], ddof=1))
+            values = transform(noise[sim], kind)
+            seed_var[key] = float(values.groupby(noise.season).var(ddof=1).mean())
 
     rng = np.random.default_rng(20261117)
     sample = rng.random((SAMPLE, len(names)))
