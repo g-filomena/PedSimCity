@@ -144,3 +144,40 @@ variance. `darknessRatio` is not added: no target constrains it, and B4 reports 
 the calibrated point with the night weights at their defaults. Started 24 Nov 11:16 UTC, alongside
 Melbourne A3-LL, as B2 ran alongside A2; at B2's pace about five days. The second wave is decided
 on wave 1's non-implausible region.
+
+**25 Nov 2026, B3 wave 1 continued on faster code.** At 13:55 UTC, with 75 of the 320 runs done and
+8 in progress (which finish on `~/pub`), the 237 left moved to `~/perf/b3`: `e4187e6` plus
+`DestinationIndex` (destination choice from per-purpose arrays) and `--exportRoutes=false`, with
+B3's own dependencies and GeoMason jar (`~/pub/cp.txt`) and resources compared equal. Reason: run
+time only. Before the change `lhs_016_summer_wed` was repeated on the new tree, and its
+`edge_volume.csv`, `trips.csv` and street volumes are byte-identical to the original's. Design,
+seeds, factors and scoring are unchanged; scoring reads only `edge_volume.csv`. Driver:
+`stage_b3_fast.sh`; ends with `DONE_B3` in `SUMMARY` as before.
+
+**25 Nov 2026, B3's calibration code corrected before any B3 run was scored.** Three points in
+`night_calibrate.py`, found while writing it up; no B3 score existed when they were changed, and the
+runs are not affected.
+
+1. *Seed variance.* The emulator's predictive variance included its white-noise term, which is the
+   seed variance as the emulator estimates it, and B1's was added to it. The emulator's variance is
+   now that of its mean, so the seed enters once, as B1's variance, which is what *Stages* states.
+   B1's is the variance of one Wednesday, while B3 scores a Wednesday and a Sunday weighted 5:2;
+   the white noise is written beside it in `emulator_checks.csv`, so the two can be compared.
+2. *Discrepancy of the centre ratio.* It was 10% of the logarithm of the observed ratio, 17-19% of
+   the ratio. It is now 0.10 on the log, 10% of the observed ratio.
+3. *Targets.* M3 and M4 are matched. M1 and M2 were listed among the targets, but a rank correlation
+   has no observed value to match, and its ceiling depends on the share simulated (B1). They rank
+   the points that are not ruled out, as the code already did; they rule none out.
+
+With the first two the non-implausible region can only be smaller.
+
+**25 Nov 2026, B3 wave 1 moved to faster code a second time.** At 15:54 UTC, with 91 of the 320 runs
+done and 5 in progress (which finish on the trees they started on), the 224 left moved to
+`~/perf/b3w`: `~/perf/b3` plus `WorkplaceChoice` reading its weights from arrays; same dependencies
+and resources, compared equal. Run time only: `lhs_016_summer_wed` repeated on it is byte-identical
+to the original in `edge_volume.csv`, `trips.csv` and street volumes. Driver: `stage_b3_w.sh`, which
+scores and calibrates with the corrected `night_calibrate.py` and ends with `DONE_B3` in `SUMMARY`.
+
+**25 Nov 2026, B4's default arm started** (16:08 UTC, `stage_b4_default.sh`, `~/perf/b3w`, 40 runs: 4
+months x Wed+Sun x seeds 20261400-20261404 at 20%). It does not depend on B3. It is run and not
+scored until the calibrated point is fixed, so the held-out months stay unseen.

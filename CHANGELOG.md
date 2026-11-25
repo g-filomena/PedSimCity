@@ -22,6 +22,9 @@ follows [Keep a Changelog](https://keepachangelog.com); the project is not yet v
   divides by the distance when the decay is 1. The draw is unchanged: WorkplaceChoiceTest compares
   it with the definition, and the same calibration run is byte-identical again. It took 14 min,
   against 35-54 for B3's runs without it at the same hours on the same server.
+- `night_calibrate.py`: the emulator's variance excludes its white noise, so the seed variance
+  enters the implausibility once; the discrepancy of the centre ratio is 10% of the ratio rather
+  than of its logarithm; `emulator_checks.csv` gains the standard deviations that entered.
 - `ActivityAgent.destinationCandidates` takes the radius and returns the choice set, already
   narrowed to the purpose's opportunities.
 

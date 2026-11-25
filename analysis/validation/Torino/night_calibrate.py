@@ -8,12 +8,15 @@ leave-one-out, and computes the implausibility
 
     I(x) = |E[f(x)] - z| / sqrt(Var_emulator(x) + Var_seed + Var_discrepancy)
 
-over a large uniform sample of the factor space. Matched outputs, each with its observed value z:
-the women's change after dark, and the centre-ring ratio by day and by night (as logs). The
-discrepancy is 10% of the observed value. Points whose largest implausibility is under 3 are not
-ruled out; among them the calibrated point maximises the emulated mean of the fit measures (cell
-rho by day and by night, diurnal rho). Writes the not-ruled-out sample, per-factor ranges, the
-emulators' leave-one-out checks and the calibrated point.
+over a large uniform sample of the factor space. Var_emulator is the variance of the emulated mean,
+without the white noise; Var_seed is that of the --seed-sd scores, or the white noise when none are
+given. Matched outputs, each with its observed value z: the women's change after dark (M3), and the
+centre-ring ratio by day and by night (M4, as logs). The discrepancy's standard deviation is 10% of
+the observed change or ratio, which on a log is 0.10. Points whose largest implausibility is under 3
+are not ruled out; among them the calibrated point maximises the emulated mean of the fit measures
+(M1, cell rho by day and by night; M2, diurnal rho), which have no observed value to match. Writes
+the not-ruled-out sample, per-factor ranges, the emulators' leave-one-out checks with the variances
+that entered, and the calibrated point.
 """
 
 from __future__ import annotations
@@ -54,6 +57,18 @@ def emulator(x: np.ndarray, y: np.ndarray) -> GaussianProcessRegressor:
               + WhiteKernel(1e-3, (1e-8, 1e1)))
     gp = GaussianProcessRegressor(kernel, normalize_y=True, n_restarts_optimizer=5, random_state=0)
     return gp.fit(x, y)
+
+
+def emulate(gp: GaussianProcessRegressor, x: np.ndarray) -> tuple[np.ndarray, np.ndarray, float]:
+    """The emulated mean, its variance without the white noise, and the white noise's variance."""
+    mean, sd = gp.predict(x, return_std=True)
+    noise = float(gp.kernel_.k2.noise_level * gp._y_train_std ** 2)
+    return mean, np.maximum(sd ** 2 - noise, 0.0), noise
+
+
+def discrepancy_sd(z: float, kind: str) -> float:
+    """10% of the observed value; `z` is already transformed, and 10% of a value is 0.10 on its log."""
+    return DISCREPANCY if kind == "log" else DISCREPANCY * abs(z)
 
 
 def loo_check(x: np.ndarray, y: np.ndarray) -> dict:
@@ -104,12 +119,16 @@ def main(argv=None) -> None:
             y = transform(g[sim].to_numpy(), kind)
             z = float(transform(g[obs].iloc[0], kind))
             gp = emulator(x, y)
-            mean, sd = gp.predict(sample, return_std=True)
-            variance = sd ** 2 + seed_var.get(key, 0.0) + (DISCREPANCY * abs(z)) ** 2
-            implausibility = np.abs(mean - z) / np.sqrt(variance)
+            mean, variance, noise = emulate(gp, sample)
+            seed, discrepancy = seed_var.get(key, noise), discrepancy_sd(z, kind)
+            implausibility = np.abs(mean - z) / np.sqrt(variance + seed + discrepancy ** 2)
             worst = np.maximum(worst, implausibility)
-            checks.append({"season": season, "output": key, "observed": z, **loo_check(x, y),
-                           "kernel": str(gp.kernel_)})
+            checks.append({"season": season, "output": key, "observed": z,
+                           "emulator_sd": float(np.sqrt(variance.mean())), "seed_sd": float(np.sqrt(seed)),
+                           "white_noise_sd": float(np.sqrt(noise)), "discrepancy_sd": discrepancy,
+                           "min_implausibility": float(implausibility.min()),
+                           "not_ruled_out": float((implausibility < CUTOFF).mean()),
+                           **loo_check(x, y), "kernel": str(gp.kernel_)})
         for key in FIT:
             gp = emulator(x, g[key].to_numpy())
             fit_mean += gp.predict(sample) / (len(FIT) * scores.season.nunique())
