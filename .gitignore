@@ -116,6 +116,7 @@ desktop.ini
 # Working notes, sources and slides, kept out.
 /references/*
 !/references/README.md
+/paper/
 /presentation/
 /COMMUTE_DISTANCE.md
 /JAVADOC.md
