@@ -5,6 +5,8 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import pedsim.activity.agents.ActivityPurpose;
+import pedsim.activity.agents.DestinationIndex;
+import pedsim.activity.agents.WorkplaceChoice;
 import pedsim.core.engine.Exporter;
 import pedsim.core.engine.FlowHandler;
 import pedsim.core.engine.PedSimCity;
@@ -270,5 +272,7 @@ public class PedSimCityActivity extends PedSimCity {
     employmentLayer.clear();
     censusZones.clear();
     nodesPurposeWeight.clear();
+    DestinationIndex.clear();
+    WorkplaceChoice.clear();
   }
 }

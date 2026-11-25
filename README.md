@@ -126,7 +126,8 @@ Every run writes under `outputs/`: pedestrian volumes per street and hour, trips
 cognitive maps, and a per-trip diagnostic file. Volumes and routes are GeoPackages and CSVs keyed on
 the network's `edgeID`, so they join straight back onto the street layer.
 
-Large runs should pass `--exportHtmlDashboard=false`: the HTML dashboard embeds every trip.
+Large runs should pass `--exportHtmlDashboard=false`, since the HTML dashboard embeds every trip, and
+`--exportRoutes=false` when the trips' route geometries are not needed.
 
 ### REST API
 

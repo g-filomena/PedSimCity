@@ -21,7 +21,6 @@ import pedsim.core.parameters.Pars;
 import pedsim.core.parameters.TimePars;
 import pedsim.core.utilities.StringEnum;
 import pedsim.core.utilities.StringEnum.AgentStatus;
-import sim.graph.Graph;
 import sim.graph.NodeGraph;
 import sim.graph.NodesLookup;
 import sim.routing.Route;
@@ -1067,29 +1066,22 @@ public class ActivityAgent extends Agent {
    * negligible.
    */
   protected void chooseDestination() {
-    Graph network = SharedCognitiveMap.getCommunityPrimalNetwork();
-    boolean sightseeing = currentPurpose == ActivityPurpose.SIGHTSEEING;
-    List<NodeGraph> candidates =
-        NodesLookup.getNodesBetweenDistanceInterval(
-            network,
-            originNode,
-            0.0,
-            sightseeing
-                ? ActivityPars.touristChoiceSetRadiusMetres
-                : ActivityPars.choiceSetRadiusMetres);
     Map<NodeGraph, Double> attraction =
         currentPurpose == null ? null : PedSimCityActivity.nodesPurposeWeight.get(currentPurpose);
-    if (sightseeing) {
+    if (currentPurpose == ActivityPurpose.SIGHTSEEING) {
+      List<NodeGraph> sights =
+          DestinationIndex.placesWithin(
+              currentPurpose, originNode, ActivityPars.touristChoiceSetRadiusMetres);
       destinationNode =
-          DestinationChoice.choose(
-              unseenSights(candidates, attraction), originNode, attraction, null, random);
+          DestinationChoice.chooseAmong(
+              unseenSights(sights, attraction), originNode, attraction, null, random);
       if (destinationNode != null) {
         sightsSeen.add(destinationNode);
       }
     } else {
       destinationNode =
-          DestinationChoice.choose(
-              destinationCandidates(candidates, attraction),
+          DestinationChoice.chooseAmong(
+              destinationCandidates(ActivityPars.choiceSetRadiusMetres, attraction),
               originNode,
               attraction,
               favouritePlaces.get(currentPurpose),
@@ -1097,21 +1089,22 @@ public class ActivityAgent extends Agent {
     }
     if (destinationNode == null) {
       state.trace().recordDestinationFallback();
-      destinationNode = NodesLookup.randomNode(network, random);
+      destinationNode =
+          NodesLookup.randomNode(SharedCognitiveMap.getCommunityPrimalNetwork(), random);
     }
   }
 
   /**
-   * The places this agent may choose among for the purpose, out of those within reach. All of them
-   * for an agent whose choice does not depend on what it knows; a module whose agents only consider
+   * The places this agent may choose among for the purpose, out of those within reach: those
+   * holding something for it, or every node when none does. A module whose agents only consider
    * places they know of overrides it.
    *
-   * @param candidates the nodes within reach
+   * @param radius how far the places may be, in straight-line metres
    * @param attraction the purpose's weight by node, null when there is no purpose
    */
   protected List<NodeGraph> destinationCandidates(
-      List<NodeGraph> candidates, Map<NodeGraph, Double> attraction) {
-    return candidates;
+      double radius, Map<NodeGraph, Double> attraction) {
+    return DestinationIndex.placesWithin(currentPurpose, originNode, radius);
   }
 
   /**
@@ -1133,13 +1126,6 @@ public class ActivityAgent extends Agent {
     if (persona == null || workNode != null || homeNode == null) {
       return anchors;
     }
-    Graph network = SharedCognitiveMap.getCommunityPrimalNetwork();
-    List<NodeGraph> nearby =
-        NodesLookup.getNodesBetweenDistanceInterval(
-            network, homeNode, 0.0, ActivityPars.choiceSetRadiusMetres);
-    if (nearby.isEmpty()) {
-      return anchors;
-    }
     List<ActivityPurpose> purposes =
         tourist
             ? List.of(ActivityPurpose.SIGHTSEEING, ActivityPurpose.DINING)
@@ -1149,7 +1135,9 @@ public class ActivityAgent extends Agent {
       if (attraction == null || attraction.isEmpty()) {
         continue;
       }
-      NodeGraph anchor = DestinationChoice.choose(nearby, homeNode, attraction, null, random);
+      List<NodeGraph> nearby =
+          DestinationIndex.placesWithin(purpose, homeNode, ActivityPars.choiceSetRadiusMetres);
+      NodeGraph anchor = DestinationChoice.chooseAmong(nearby, homeNode, attraction, null, random);
       if (anchor != null && !anchors.contains(anchor)) {
         anchors.add(anchor);
       }

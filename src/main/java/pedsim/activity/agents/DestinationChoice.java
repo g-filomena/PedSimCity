@@ -65,17 +65,43 @@ public final class DestinationChoice {
     if (candidates == null || candidates.isEmpty()) {
       return null;
     }
+    return chooseAmong(opportunities(candidates, attraction), origin, attraction, familiar, random);
+  }
 
-    if (attraction != null && !attraction.isEmpty()) {
-      List<NodeGraph> opportunities = new ArrayList<>();
-      for (NodeGraph candidate : candidates) {
-        if (attraction.getOrDefault(candidate, 0.0) > 0.0) {
-          opportunities.add(candidate);
-        }
+  /**
+   * The candidates holding something for the purpose, or all of them when none does.
+   *
+   * @param candidates nodes to choose from
+   * @param attraction per-node attraction for the purpose, or null when the city carries no tags
+   */
+  public static List<NodeGraph> opportunities(
+      List<NodeGraph> candidates, Map<NodeGraph, Double> attraction) {
+    if (attraction == null || attraction.isEmpty()) {
+      return candidates;
+    }
+    List<NodeGraph> opportunities = new ArrayList<>();
+    for (NodeGraph candidate : candidates) {
+      if (attraction.getOrDefault(candidate, 0.0) > 0.0) {
+        opportunities.add(candidate);
       }
-      if (!opportunities.isEmpty()) {
-        candidates = opportunities;
-      }
+    }
+    return opportunities.isEmpty() ? candidates : opportunities;
+  }
+
+  /**
+   * As {@link #choose}, with the alternatives already narrowed to the purpose's opportunities.
+   *
+   * @return the chosen node, or null when there is no alternative
+   */
+  public static NodeGraph chooseAmong(
+      List<NodeGraph> candidates,
+      NodeGraph origin,
+      Map<NodeGraph, Double> attraction,
+      Map<NodeGraph, Integer> familiar,
+      MersenneTwisterFast random) {
+
+    if (candidates.isEmpty()) {
+      return null;
     }
 
     // Sampling of alternatives. Enumerating every opportunity within reach costs about five times

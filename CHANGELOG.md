@@ -3,6 +3,28 @@
 Notable changes to PedSimCity, most recent first, dated by the day they landed. The format
 follows [Keep a Changelog](https://keepachangelog.com); the project is not yet versioned.
 
+## 2026-11-25
+
+### Added
+- `exportRoutes` (default true): `--exportRoutes=false` skips the daily routes GeoPackage, which is
+  ~440 MB a day on `Torino_sidewalks` at 20% of residents.
+- `DestinationIndex`: the nodes an agent can choose among, laid out per purpose as flat arrays and
+  scanned by distance, in the order of the distance lookup it replaces.
+
+### Changed
+- Destination choice and the anchors of agents without a workplace read `DestinationIndex` instead
+  of searching every node in reach and filtering it by attraction. Destinations are unchanged: a
+  calibration run (`lhs_016_summer_wed`, `Torino_sidewalks`, 20%, one day, commit `e4187e6`) gives
+  byte-identical `edge_volume.csv`, `trips.csv` and street volumes. It took 35 min with the
+  GeoPackage export in one transaction (GeoMason-light 2.3.1-SNAPSHOT), 32 min without routes, and
+  63 min before; the three ran at different loads of the same server.
+- `WorkplaceChoice.draw` reads each attraction map once into arrays instead of walking the map, and
+  divides by the distance when the decay is 1. The draw is unchanged: WorkplaceChoiceTest compares
+  it with the definition, and the same calibration run is byte-identical again. It took 14 min,
+  against 35-54 for B3's runs without it at the same hours on the same server.
+- `ActivityAgent.destinationCandidates` takes the radius and returns the choice set, already
+  narrowed to the purpose's opportunities.
+
 ## 2026-11-24
 
 ### Added

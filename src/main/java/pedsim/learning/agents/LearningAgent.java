@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.Set;
 import pedsim.activity.agents.ActivityAgent;
 import pedsim.activity.agents.ActivityPurpose;
+import pedsim.activity.agents.DestinationChoice;
+import pedsim.activity.agents.DestinationIndex;
 import pedsim.core.agents.Heuristics;
 import pedsim.core.agents.RouteChoiceActivation;
 import pedsim.core.agents.RouteChoiceModel;
@@ -351,10 +353,11 @@ public class LearningAgent extends ActivityAgent {
    */
   @Override
   protected List<NodeGraph> destinationCandidates(
-      List<NodeGraph> candidates, Map<NodeGraph, Double> attraction) {
+      double radius, Map<NodeGraph, Double> attraction) {
     if (!LearningPars.awareDestinations || !isLearner() || !getCognitiveMap().individualised) {
-      return candidates;
+      return super.destinationCandidates(radius, attraction);
     }
+    List<NodeGraph> candidates = DestinationIndex.nodesWithin(originNode, radius);
     CognitiveMap map = getLearningCognitiveMap();
     List<NodeGraph> aware = new ArrayList<>();
     List<NodeGraph> unseen = new ArrayList<>();
@@ -368,7 +371,7 @@ public class LearningAgent extends ActivityAgent {
     if (!unseen.isEmpty() && getRandom().nextDouble() < LearningPars.discoveryProbability) {
       aware.add(unseen.get(getRandom().nextInt(unseen.size())));
     }
-    return aware.isEmpty() ? candidates : aware;
+    return DestinationChoice.opportunities(aware.isEmpty() ? candidates : aware, attraction);
   }
 
   private final Map<ActivityPurpose, Set<NodeGraph>> destinationsChosen =

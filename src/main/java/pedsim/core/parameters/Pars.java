@@ -109,6 +109,13 @@ public class Pars {
   // unaffected.
   public static boolean exportHtmlDashboard = true;
 
+  /**
+   * Whether each day's routes are written to {@code routes/}, one GeoPackage row per trip. At a
+   * large share of the population they are most of a run's output; volumes, trips and diagnostics
+   * do not depend on them.
+   */
+  public static boolean exportRoutes = true;
+
   static String[] primary = {"primary", "primary_link"};
   static String[] secondary = {"secondary", "secondary_link"};
   static String[] tertiary = {"tertiary", "tertiary_link", "unclassified"};

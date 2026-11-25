@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import pedsim.core.agents.Agent;
 import pedsim.core.cognition.cognitivemap.CognitiveMap;
 import pedsim.core.cognition.cognitivemap.SharedCognitiveMap;
+import pedsim.core.parameters.Pars;
 import pedsim.core.utilities.RouteData;
 import sim.graph.EdgeGraph;
 import sim.graph.GraphUtils;
@@ -132,16 +133,18 @@ public class FlowHandler {
     }
     Enum<?> lastScenario =
         edgeScenarioValues.isEmpty() ? null : edgeScenarioValues.get(edgeScenarioValues.size() - 1);
-    RouteData routeData =
-        createRouteData(agent, route, attribute(agentScenarioValue, lastScenario));
     for (int i = 0; i < route.edgesSequence.size(); i++) {
       String attribute = attribute(agentScenarioValue, edgeScenarioValues.get(i));
       Map<String, Integer> edgeVolume =
           volumesMap.computeIfAbsent(route.edgesSequence.get(i).getID(), k -> new HashMap<>());
       edgeVolume.put(attribute, edgeVolume.getOrDefault(attribute, 0) + 1);
     }
-    routeData.edgeIDsSequence = GraphUtils.getEdgeIDs(route.edgesSequence);
-    routesData.add(routeData);
+    if (Pars.exportRoutes) {
+      RouteData routeData =
+          createRouteData(agent, route, attribute(agentScenarioValue, lastScenario));
+      routeData.edgeIDsSequence = GraphUtils.getEdgeIDs(route.edgesSequence);
+      routesData.add(routeData);
+    }
   }
 
   /** The volume key for an agent scenario and a simulation scenario, either of which may be null. */
@@ -219,7 +222,9 @@ public class FlowHandler {
    */
   public void exportFlowsData(int day) throws Exception {
     exporter.savePedestrianVolumes(day, scenarios);
-    exporter.saveRoutes(day);
+    if (Pars.exportRoutes) {
+      exporter.saveRoutes(day);
+    }
     initializeEdgeVolumes();
     clearRoutesData();
   }

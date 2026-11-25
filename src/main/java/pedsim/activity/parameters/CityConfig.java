@@ -94,6 +94,7 @@ public final class CityConfig {
           "durationDays",
           "headless",
           "exportHtmlDashboard",
+          "exportRoutes",
           "stepDelayMs");
 
   private CityConfig() {}
