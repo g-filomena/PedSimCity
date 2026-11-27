@@ -285,7 +285,7 @@ public abstract class Dijkstra {
    * both serialises parallel jobs on a single atomic seed and escapes per-job seeding.
    */
   protected double drawFromDistribution(double mean, double sd, String direction) {
-    double value = agent.getRandom().nextGaussian() * sd + mean;
+    double value = agent.getRouteRandom().nextGaussian() * sd + mean;
     if (("left".equals(direction) && value > mean) || ("right".equals(direction) && value < mean)) {
       value = mean;
     }

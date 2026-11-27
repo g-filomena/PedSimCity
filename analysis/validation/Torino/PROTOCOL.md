@@ -309,3 +309,69 @@ mostly choose apart: 41% of legs are matched at zero weights.
 **27 Nov 2026, which parameters the paper reports.** B4's rule is not met, so the model the paper
 describes is the default; the calibrated point is reported as a sensitivity case, with its B4
 result and its twins, beside it. Decided after B4 was scored, on that result.
+
+**27 Nov 2026, the zero arm's leg gap was chance.** On the 10 new winter seeds the twin built first
+and the other walk alone in 7,137 and 7,051 pairs (z = 0.7) and make legs within 0.03% +/- 0.37%;
+with the labels swapped the leg counts are identical, leg for leg. At zero weights vulnerability
+changes nothing, as the code says, and the B4 zero arm's -1.7% in winter was the draw of five seeds.
+
+**27 Nov 2026, the twins are one person for the whole day, and their runs are repeated.** Until
+now each twin drew its own agenda, stays and walk decisions from its own generator, and the
+destination of a leg was copied from the other only while the other's was set and not home; at
+zero weights 41% of legs were matched. Now both twins of a pair take one seed for the generator
+their day is drawn from and one for a separate generator their route searches draw from
+(`NightAgent.shareRandomStreams`, `Agent.getRouteRandom`, `NightPopulate`), the destination is no
+longer copied, and the non-vulnerable twin takes the vulnerable one's commute as car parks left
+it (`ActivityAgent.copyCommuteFrom`). Every other agent draws as before (its route generator is its
+own). So at equal weights the twins live the same day, and with the weights on they part only where
+the weights make them: a leg one of them does not walk, or a different route. The validation is now
+strict: at zero weights every leg must be matched, on the same streets. Tree `~/perf/twins`
+(`~/perf/b3w`, B4's code, with only these changes; `PROVENANCE_twins`); driver
+`~/runs/pub_night/twins_v2.sh`: `mvn test`, one zero-arm smoke run that must pass, then
+`night_twins.py`'s 30 runs (same arms, dates and seeds as B4's twins), log `SUMMARY_twins2`, gaps
+in `twins2.csv` / `twins2.txt`. They replace B4's twins (`twins.csv`), which compared partly
+different days. The 16 arms on the centreline network in the paper's twin table have the same
+defect and are not repeated yet.
+
+**27 Nov 2026, a statement in the paper to correct.** `paper/main-night.tex` (the history-matching
+paragraph, around line 971) says the seed variance in the implausibility is B1's. Since the
+25 Nov entry it is the variance between the five seeds of B4's default arm in winter and summer,
+averaged over the two seasons, which is what B3 used.
+
+**27 Nov 2026, B4's twins with shared streams.** `twins_v2.sh` ended at 11:41 UTC (`mvn test` 140
+green; smoke 6,793 legs each, all matched, same streets). Vulnerable twin against the other, mean
++/- SE over seeds 20261501-20261505, `twins2.csv` / `twins2.txt`:
+
+| arm | day | matched % | same route % | length % | legs % | < 5 lx % | < 10 lx % | parks, water % |
+|---|---|---|---|---|---|---|---|---|
+| zero | 21 Dec | 100 | 100 | 0 | 0 | 0 | 0 | 0 |
+| zero | 21 Jun | 100 | 100 | 0 | 0 | 0 | 0 | 0 |
+| default | 21 Dec | 87.8 +/- 0.3 | 80.5 +/- 0.3 | +1.4 | -5.1 +/- 0.2 | -4.3 +/- 0.2 | -4.5 +/- 0.3 | -10.4 +/- 0.8 |
+| default | 21 Jun | 89.0 +/- 0.4 | 83.2 +/- 0.3 | +1.1 | -5.4 +/- 0.3 | -4.3 +/- 0.3 | -3.7 +/- 0.2 | -8.4 +/- 0.4 |
+| calibrated | 21 Dec | 88.6 +/- 0.4 | 74.2 +/- 0.4 | +1.5 | -4.6 +/- 0.2 | -6.1 +/- 0.9 | -5.7 +/- 0.5 | -14.1 +/- 0.8 |
+| calibrated | 21 Jun | 89.4 +/- 0.3 | 78.2 +/- 0.3 | +1.2 | -5.1 +/- 0.4 | -5.4 +/- 0.4 | -4.9 +/- 0.3 | -12.0 +/- 0.8 |
+
+At zero weights the twins make the same legs (7,047 in winter, 6,587 in summer) on the same
+streets: the validation holds exactly. With the weights on, 88-89% of legs stay matched, against
+26-35% before, and the standard errors shrink by 2 to 5 times. Two readings change against the
+26 Nov table. At the default weights the lighting gap is smaller than the old twins showed (under
+10 lx -4.5% / -3.7% against -5.9% / -5.3%, under 5 lx -4.3% against -7.0% / -6.7%), and the leg
+gap is the same (-5.1% / -5.4%). And the calibrated point separates the twins more than the
+default weights on exposure (under 10 lx 2.3 and 3.3 standard errors, parks and water 3.3 and 4.2),
+not equally as the old noise suggested; legs are unchanged. It lowers both empty-street weights and
+lengthens legs (matched legs 885 m against 657 m in winter); which of the two widens the gap is not
+separated by these runs. The 16 arms on the centreline network follow, on the same tree
+(`twins16.sh` after `twins_v2.sh`, `twins16.py`, same arms, dates 21 December / 21 June 2026, seeds
+20261007-20261011 and 4,000 pairs as `~/runs/twins3`), log `SUMMARY_twins16`, table `twins16.txt`.
+
+**27 Nov 2026, the 16 twin arms on the centreline network, with shared streams.** 80 runs on
+`~/perf/twins` with Torino's resources smudged from `e4187e6` (a first attempt found LFS pointers
+there and failed at populate), 11:45-13:03 UTC, all exit 0, no enclosure warning; `twins16.txt`,
+`twins16.csv`, full table in `src/main/java/pedsim/night/TODO.md`. Both zero arms match every leg on
+the same streets. The findings stated in the paper hold: darkness alone separates the twins on
+lighting as much as all four terms (under 10 lx -5.1 +/- 0.2% against -4.7 +/- 0.2%) and saturates
+(-6.8% at 4 / 2); empty streets remove legs (-3.3%, -5.2%; -4.8% with all terms); park and water
+saturate (-15.8%, -5.5%, -57.9% at 1 / 0). Three numbers change beyond their old errors: every
+lighting gap is smaller (all terms -4.7% against -6.1%), darkness at 4 / 2 removes legs too (-1.9 +/-
+0.1%), and enclosure pulls the vulnerable twin towards parks twice as strongly (+3.0% and +7.0%) and
+at 4 / 2 no longer lowers its dim metres (+0.5% against -2.0%).

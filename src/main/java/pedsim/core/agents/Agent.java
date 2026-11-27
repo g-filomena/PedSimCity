@@ -81,6 +81,12 @@ public class Agent implements Steppable {
    */
   protected MersenneTwisterFast random;
 
+  /**
+   * The generator route searches draw their perception error from; null when they draw from {@link
+   * #random}, as they do for every agent but an A/B twin.
+   */
+  protected MersenneTwisterFast routeRandom;
+
   /** Seed for an agent built without a simulation; fixed, so even that path is repeatable. */
   private static final long DETACHED_AGENT_SEED = 0L;
 
@@ -940,6 +946,11 @@ public class Agent implements Steppable {
   /** This agent's seeded RNG. Collaborators must draw from it rather than from a global one. */
   public MersenneTwisterFast getRandom() {
     return random;
+  }
+
+  /** The generator this agent's route searches draw from: its own unless one is set apart. */
+  public MersenneTwisterFast getRouteRandom() {
+    return routeRandom != null ? routeRandom : random;
   }
 
   public void setHomeAndWorkplace(NodeGraph homeNode, NodeGraph workNode) {

@@ -96,12 +96,9 @@ public class NightTravelDemand extends ActivityTravelDemand {
       return 0;
     }
 
-    // The pair must differ in vulnerability and in nothing else. What makes that true is the
-    // shared destination: NightAgent.defineRandomDestination copies its twin's, whichever of the
-    // two chooses first. A shared trip *length* was handed to both here as well, drawn from a band
-    // of metres, and it was the last trip-distance parameter left in the activity tier - which is
-    // the tier that is not supposed to have one, night included. It bought nothing the shared
-    // destination does not already buy.
+    // The pair differs in vulnerability and in nothing else: the twins share their random streams
+    // (NightPopulate), so they draw the same agenda, destinations and decisions as long as they
+    // make the same legs.
     vulnAgent.startWalkingAlone();
     normalAgent.startWalkingAlone();
     pairsReleased++;

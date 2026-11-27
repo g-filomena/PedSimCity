@@ -31,14 +31,17 @@ public class NightPopulate extends ActivityPopulate {
   }
 
   /**
-   * Spawns identical vulnerable/non-vulnerable twin pairs sharing the same home/work locations, for a
-   * controlled A/B comparison. The number of pairs is the user-set {@link NightPars#abTestPairs}
-   * (2 agents per pair), independent of the census-derived population. Vulnerability here is assigned
-   * by construction and does not read the agent's sex.
+   * Spawns vulnerable/non-vulnerable twin pairs that are one person, for a controlled A/B
+   * comparison: the same home, workplace, persona, sex, speed, commute and reassurance level, and the
+   * same random streams ({@link NightAgent#shareRandomStreams}), so that at equal weights the two
+   * live the same day. The number of pairs is the user-set {@link NightPars#abTestPairs} (2 agents
+   * per pair), independent of the census-derived population. Vulnerability here is assigned by
+   * construction and does not read the agent's sex.
    */
   private void populateABTest() {
     int pairs = Math.max(1, NightPars.abTestPairs);
     int currentAgentID = 0;
+    java.util.List<NightAgent[]> twins = new java.util.ArrayList<>();
     for (int i = 0; i < pairs; i++) {
       NightAgent vulnerableTwin = new NightAgent(this.state, false);
       vulnerableTwin.agentID = currentAgentID++;
@@ -50,18 +53,28 @@ public class NightPopulate extends ActivityPopulate {
       normalTwin.agentID = currentAgentID++;
       normalTwin.setHomeAndWorkplace(vulnerableTwin.homeNode, vulnerableTwin.workNode);
       // Persona, sex, speed and commute mode come with the home and workplace: the twins differ in
-      // vulnerability and light need only.
+      // vulnerability only.
       normalTwin.copyPersonFrom(vulnerableTwin);
       normalTwin.setVulnerable(false);
       normalTwin.reassuranceLux = vulnerableTwin.reassuranceLux;
+
+      long daySeed = state.seed() * 104_729L + 2L * i;
+      vulnerableTwin.shareRandomStreams(daySeed, daySeed + 1);
+      normalTwin.shareRandomStreams(daySeed, daySeed + 1);
 
       vulnerableTwin.abTestTwin = normalTwin;
       normalTwin.abTestTwin = vulnerableTwin;
 
       registerAgent(vulnerableTwin);
       registerAgent(normalTwin);
+      twins.add(new NightAgent[] {vulnerableTwin, normalTwin});
     }
     allocateCarParks(new java.util.ArrayList<>());
+    // Each twin claims a space of its own; the pair keeps the vulnerable twin's outcome, so both
+    // commute the same way.
+    for (NightAgent[] pair : twins) {
+      pair[1].copyCommuteFrom(pair[0]);
+    }
     LoggerUtil.getLogger()
         .info("Spawned " + pairs + " A/B twin pairs (vulnerable vs non-vulnerable).");
   }

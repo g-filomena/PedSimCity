@@ -3,6 +3,24 @@
 Notable changes to PedSimCity, most recent first, dated by the day they landed. The format
 follows [Keep a Changelog](https://keepachangelog.com); the project is not yet versioned.
 
+## 2026-11-27
+
+### Changed
+- A/B twins share their random streams. `NightPopulate.populateABTest` gives both twins of a pair
+  one seed for the generator their day is drawn from and one for a separate generator their route
+  searches draw from (`NightAgent.shareRandomStreams`, `Agent.getRouteRandom`), so at equal weights
+  they live the same day and with the weights on they part only where the weights make them. The
+  non-vulnerable twin takes the vulnerable one's commute as car parks left it
+  (`ActivityAgent.copyCommuteFrom`). Every other agent draws as before: its route generator is its
+  own.
+
+### Fixed
+- A/B twins drew their agendas, stays and walk decisions apart, and a leg's destination was copied
+  from the other twin only while the other's was set and not home, so at zero weights 41% of legs
+  were matched on `Torino_sidewalks` (about a third on `Torino`). Now every leg matches at zero
+  weights, and 88-99% with the weights on. Twin results before this date compare partly different
+  days; B4's twins and the 16 arms of 9-10 Nov were re-run (Turin protocol, 27 Nov).
+
 ## 2026-11-25
 
 ### Added

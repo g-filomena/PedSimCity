@@ -238,6 +238,12 @@ public class ActivityAgent extends Agent {
     this.commuteMode = other.commuteMode;
   }
 
+  /** Takes {@code other}'s commute as car parks left it: its mode and its space, if any. */
+  public void copyCommuteFrom(ActivityAgent other) {
+    this.commuteMode = other.commuteMode;
+    this.commuteCarPark = other.commuteCarPark;
+  }
+
   /**
    * Settles whether this agent's commute is walked, from the distance between home and workplace.
    * Call once both are assigned; agents with no workplace never commute anyway.

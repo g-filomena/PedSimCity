@@ -1,5 +1,6 @@
 package pedsim.night.agents;
 
+import ec.util.MersenneTwisterFast;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -102,6 +103,21 @@ public class NightAgent extends ActivityAgent {
     this.reassuranceLux = min + random.nextDouble() * (max - min);
   }
 
+  /**
+   * Makes this agent draw the numbers its A/B twin draws: one seed for the generator its day is
+   * drawn from (agenda, destinations, stays, whether and how each leg is made) and one for a
+   * separate generator its route searches draw from. Twins that make the same legs draw the same
+   * numbers, so at equal weights they live the same day; a search that differs between them cannot
+   * shift the rest of it.
+   *
+   * @param daySeed the seed both twins' own generators take
+   * @param routeSeed the seed both twins' route generators take
+   */
+  public void shareRandomStreams(long daySeed, long routeSeed) {
+    random.setSeed(daySeed);
+    routeRandom = new MersenneTwisterFast(routeSeed);
+  }
+
   /** Called every tick: plans a trip when idle, otherwise advances along the night-aware path. */
   @Override
   public void step(SimState simState) {
@@ -190,13 +206,6 @@ public class NightAgent extends ActivityAgent {
   @Override
   protected void defineRandomDestination() {
     ensureCurrentPurpose();
-    if (abTestTwin != null
-        && abTestTwin.destinationNode != null
-        && abTestTwin.destinationNode != abTestTwin.homeNode) {
-      this.destinationNode = abTestTwin.destinationNode;
-      return;
-    }
-
     // An A/B twin chooses by utility whichever way useDestinationChoice is set. The experiment's
     // manipulated variable is vulnerability, so the destination mechanism has to be held fixed for
     // the pair to be controlled - and pinning it to the model's real one is what let the twins'
