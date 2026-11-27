@@ -65,6 +65,45 @@ they are routed; that is why OD weighting is varied and reported, not fitted.
 
 ## Changes after scoring began
 
+**26 Nov 2026, before any A4 run: what A4 calibrates, and the re-run before it.** A3-LL ended on
+25 Nov. Its effects as mu* x 2/3 over the A2L seed SD of tau-b (floor-area OD, 10 seeds):
+
+| scenario | seed SD | factor | ratio | sign |
+|---|---|---|---|---|
+| `LOCAL_LANDMARKS_ANGULAR` | 0.0079 | `localLandmarkThresholdCommunity` | **4.0** | 0.75 (+) |
+| | | `distanceNodeLandmark` | **3.7** | 0.15 |
+| | | `salientNodesPercentile` | **3.0** | 0.20 |
+| | | `wayfindingEasinessThresholdCommunity` | **2.6** | 0.86 (+) |
+| | | `perceptionErrorSD` | 1.7 | 0.83 |
+| `LOCAL_LANDMARKS_DISTANCE` | 0.0172 | `perceptionErrorSD` | **3.3** | 0.94 (+) |
+| | | `salientNodesPercentile` | 1.7 | 0.77 |
+| | | `distanceNodeLandmark` | 1.2 | 0.27 |
+| | | `localLandmarkThresholdCommunity` | 1.0 | 0.26 |
+| | | `wayfindingEasinessThresholdCommunity` | 0.8 | 0.45 |
+
+So A4's hypercubes are four-dimensional for `LOCAL_LANDMARKS_ANGULAR` (the four over 2) and
+one-dimensional for `LOCAL_LANDMARKS_DISTANCE` (`perceptionErrorSD` alone). Both keep the design
+as specified, 100 points x seeds 101-103, ranges as in A3, VISTA lengths, floor-area OD,
+N = 8,000. A one-dimensional hypercube is denser than it needs to be; it is kept, not cut, so
+that the two models are calibrated on the same number of runs.
+
+The pair is the A2L floor-area ranking (`LOCAL_LANDMARKS_DISTANCE` 0.347, SD 0.017;
+`LOCAL_LANDMARKS_ANGULAR` 0.333, SD 0.008; paired difference against `ROAD_DISTANCE` +0.068 and
++0.054, SD over seeds 0.023 and 0.015). As the 23 Nov entry requires, bare `DISTANT_LANDMARKS` is
+re-run first on the length-neutral cost: A2L's 20 runs (both weightings, seeds 1-10), that scenario
+alone, from `~/pub3`, which is `~/pub2` with only `DijkstraGlobalLandmarks` replaced by its
+`6dba442` version (one class differs; `~/runs/pub/PROVENANCE_pub3`). A4 starts only if the two
+best floor-area models are still the pair above; otherwise the stage stops with `HELD`. A4 itself
+runs from `~/pub2`, the code of A2L and A3-LL, which the local-landmark models share with `~/pub3`.
+Launcher `stage_a4.sh`, log `SUMMARY_A4`, calibration in `calib_A4/`; it ends with `DONE_A4`.
+
+The re-run ended the same evening: bare `DISTANT_LANDMARKS` scores tau-b 0.026 (SD 0.014) with
+floor-area OD and 0.012 with uniform OD on the length-neutral cost, against 0.0004 and 0.019 on
+the old one, still last of the fifteen; A4 started at 21:07 UTC on the pair above. A5 is chained
+to it (`stage_a5.sh`, from `~/pub2`, `design validate` with 20 seeds and 5 per fold, log
+`SUMMARY_A5`, ends `DONE_A5`), scored on the 2025 targets (weekday 07-19, which carries the held-out
+blocks, weekday all day, Saturday, Sunday) and on the same four from 2026.
+
 **24 Nov 2026, A3 scored (240 of 240 runs); A3-LL extended to both local-landmark models.**
 Effects as mu* x 2/3 over the seed SD of tau-b in A2L (10 seeds, floor-area OD, VISTA lengths,
 default parameters); `sign` is |mu| / mu*, near 1 when the effect keeps its sign. Every factor over
