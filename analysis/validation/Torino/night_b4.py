@@ -4,7 +4,7 @@
 
 `scores_B4.csv` is the output of `night_score.py score` on the sets of both arms (columns season, arm
 and seed). Writes, per season and arm, the mean and the seed standard deviation of each measure
-(`summary.csv`, and `table.tex` for the paper), and the comparisons of PROTOCOL.md's rule
+(`summary.csv`, and `table.tex` for the paper), and the comparisons of the validation rule in src/main/java/pedsim/night/CALIBRATION_VALIDATION.md
 (`rule.csv`): on the held-out seasons and on Cuebiq, the calibrated mean is not worse than the
 default's by more than the default's seed standard deviation, and the implausibility of M3 and M4 is
 under the cutoff at the calibrated mean.

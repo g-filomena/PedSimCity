@@ -1,7 +1,7 @@
 """Scores night runs against Vodafone passing presence and Cuebiq walking pings, one row per run set.
 
 A run set is the month's mean day: a Wednesday and a Sunday weighted five to two (or a Wednesday
-alone). The measures are those of PROTOCOL.md:
+alone). The measures are those of src/main/java/pedsim/night/CALIBRATION_VALIDATION.md:
 
     M1  Spearman's rho of cell shares per Vodafone band, total, women and men; misallocated share
     M2  Spearman's rho of the nine band shares (per hour), citywide

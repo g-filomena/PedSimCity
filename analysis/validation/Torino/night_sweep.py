@@ -5,7 +5,7 @@
     python night_sweep.py sets design.csv --out sets.csv          # pair Wednesdays with Sundays
     python night_sweep.py morris scores.csv --out effects.csv
 
-One row of a design is one simulated day. Factors are stated on the scale of PROTOCOL.md: each
+One row of a design is one simulated day. Factors are stated on the scale of src/main/java/pedsim/night/CALIBRATION_VALIDATION.md: each
 vulnerable weight, and the non-vulnerable weight as a ratio of it. Runs are resumable: a run whose
 edge_volume.csv exists is skipped. Standard library, numpy and pandas only.
 """

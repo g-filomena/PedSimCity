@@ -117,3 +117,8 @@ Module-specific REST parameters handled by `NightSimulationModule`:
 
 ## Open items
 
+## Calibration and validation
+
+The protocol against Turin's mobile-network and GPS data - stages, measures, rules fixed before
+scoring and every change after - is `CALIBRATION_VALIDATION.md` in this folder; its scripts are in
+`analysis/validation/Torino/`.

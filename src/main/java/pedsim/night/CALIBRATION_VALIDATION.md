@@ -3,6 +3,15 @@
 Fixed before any run of this series is scored. A change after scoring starts is recorded at the end
 with its date and reason.
 
+## Stages and their names
+
+Two phases: **calibration** - Variability (seed noise and scale), Sensitivity (Morris screening), Calibration - and **validation**, against data the
+calibration never saw. Until 27 Nov 2026 the stages were called B1-B4, and the files of their runs
+on `gdsl1` (`~/runs/pub_night/`) keep those prefixes: Variability = `B1` (`B1_noise.txt`), Sensitivity =
+`B2`, Calibration = `B3` (`design_B3.csv`, `calib_B3/`, `stage_b3*.sh`), Validation = `B4`
+(`design_B4_*.csv`, `b4/`, `night_b4.py`). `paper/main-night.tex` still uses the codes. The scripts
+are in `analysis/validation/Torino/`.
+
 ## Questions
 
 1. How well does the model reproduce where and when people are on foot in Turin, by day and after
@@ -65,12 +74,12 @@ screening can tell the level of a term from the difference between the groups.
 
 | | design | size | decides |
 |---|---|---|---|
-| B1 noise | defaults, winter Wednesday, 5 seeds at 5%, 10% and 20% of residents (and the 10 Nov runs: 3 seeds at 50%) | 15 runs | the scale for B2-B3: the smallest share at which the seed SD is under 0.002 for the women's change (M3) and under 0.01 for the night rho (M1) |
-| B2 screening | Morris, 12 factors, 10 trajectories, 4 levels, winter Wednesday, common seed per trajectory | 130 runs | influential parameters per measure, read as mu* x 2/3 over seed SD (> 2 counts) |
-| B3 calibration | Latin hypercube over the influential parameters (<= 6), 80 points, February and July, Wednesday and Sunday; Gaussian-process emulator per target; history matching (implausibility < 3; variance = seed variance + emulator variance + a model discrepancy of 10% of the observed value) | 320 runs, + 1 wave | the non-implausible region and the calibrated point |
-| B4 validation | calibrated and default, 4 months x Wed+Sun x 5 seeds at 20% | 80 runs | M1-M4 on April and October (held out) and against Cuebiq; the twins' A/B gap at the calibrated weights |
+| Variability | defaults, winter Wednesday, 5 seeds at 5%, 10% and 20% of residents (and the 10 Nov runs: 3 seeds at 50%) | 15 runs | the scale for Sensitivity and Calibration: the smallest share at which the seed SD is under 0.002 for the women's change (M3) and under 0.01 for the night rho (M1) |
+| Sensitivity | Morris, 12 factors, 10 trajectories, 4 levels, winter Wednesday, common seed per trajectory | 130 runs | influential parameters per measure, read as mu* x 2/3 over seed SD (> 2 counts) |
+| Calibration | Latin hypercube over the influential parameters (<= 6), 80 points, February and July, Wednesday and Sunday; Gaussian-process emulator per target; history matching (implausibility < 3; variance = seed variance + emulator variance + a model discrepancy of 10% of the observed value) | 320 runs, + 1 wave | the non-implausible region and the calibrated point |
+| Validation | calibrated and default, 4 months x Wed+Sun x 5 seeds at 20% | 80 runs | M1-M4 on April and October (held out) and against Cuebiq; the twins' A/B gap at the calibrated weights |
 
-**Calibration targets (B3), fixed now:** M1 rho, day and night, total; M2 rho; M3 women's change;
+**Calibration targets, fixed now:** M1 rho, day and night, total; M2 rho; M3 women's change;
 M4 centre ratio (as log ratio simulated over observed); each for February and July.
 
 ## What is reported
@@ -94,7 +103,7 @@ leave them wide, and that is a result.
 Before this series, `night_score.py` was tested on the 10 Nov runs at the defaults, which is how the
 cell-level women's share was found to be noise; no parameter was chosen from them.
 
-**15 Nov 2026, B1: no share met the noise rule; B2 and B3 run at 20%.** Seed SD over 5 seeds
+**15 Nov 2026, Variability: no share met the noise rule; Sensitivity and Calibration run at 20%.** Seed SD over 5 seeds
 (winter Wednesday, defaults):
 
 | share | women's change | night rho | day rho | centre ratio, day | dim-10 lx gap |
@@ -105,17 +114,17 @@ cell-level women's share was found to be noise; no parameter was chosen from the
 
 The women's change rule (< 0.002) is not met at 20%; the 5% figure is a five-seed estimate and
 not credible against the two larger shares. The 10 Nov runs at 50% gave ~0.0015 over three seeds,
-but at 50% B2 and B3 (450 runs) would take over a week of the shared server. 20% is the largest
+but at 50% Sensitivity and Calibration (450 runs) would take over a week of the shared server. 20% is the largest
 share affordable, as the rule's fallback stated. What follows: the Morris reading is already
-relative to seed SD, so the screening stays valid with a wider noise line; in B3 the seed variance
+relative to seed SD, so the screening stays valid with a wider noise line; in Calibration the seed variance
 measured here enters the implausibility, so the women's change will constrain less (a set within
 about 2 points of the observed change is not ruled out). Measured, not assumed.
 
 **The cell rho rises with the share** (night 0.58, 0.63, 0.68 at 5, 10, 20%; 0.72 at 50%): with
 fewer agents a cell's simulated share is noisier and the rank correlation is attenuated. Rho is
-therefore compared only between runs at one share, and B4 reports it at 20% beside the 50% runs.
+therefore compared only between runs at one share, and Validation reports it at 20% beside the 50% runs.
 
-**24 Nov 2026, B2 scored (17 Nov); B3 wave 1 launched.** Effects as mu* x 2/3 over B1's seed SD at
+**24 Nov 2026, Sensitivity scored (17 Nov); Calibration wave 1 launched.** Effects as mu* x 2/3 over Variability's seed SD at
 20% (five seeds); a factor counts when it exceeds 2 on a calibration target (M1 rho day and night,
 M3 women's change, M4 centre ratio):
 
@@ -136,86 +145,86 @@ where the twins walk relative to each other, not the pattern a cell count sees, 
 under *Threats to validity*. The women's change Vodafone does see is carried by the empty-street
 term, which has no source.
 
-B3 therefore runs on these four (`stage_b3.sh`): Latin hypercube, 80 points x {February, July} x
+Calibration therefore runs on these four (`stage_b3.sh`): Latin hypercube, 80 points x {February, July} x
 {Wednesday, Sunday} = 320 runs at 20%, one seed per point (20261300 + point), the other eight at
-their defaults; `~/pub` at `e4187e6`, B2's tree, checked unchanged (no class file newer than
-`PROVENANCE`). History matching by `night_calibrate.py` with B1's five 20% seeds as the seed
-variance. `darknessRatio` is not added: no target constrains it, and B4 reports the twins' gap at
+their defaults; `~/pub` at `e4187e6`, Sensitivity's tree, checked unchanged (no class file newer than
+`PROVENANCE`). History matching by `night_calibrate.py` with Variability's five 20% seeds as the seed
+variance. `darknessRatio` is not added: no target constrains it, and Validation reports the twins' gap at
 the calibrated point with the night weights at their defaults. Started 24 Nov 11:16 UTC, alongside
-Melbourne A3-LL, as B2 ran alongside A2; at B2's pace about five days. The second wave is decided
+Melbourne's Local-Landmark Sensitivity, as Sensitivity ran alongside Melbourne's Comparison; at Sensitivity's pace about five days. The second wave is decided
 on wave 1's non-implausible region.
 
-**25 Nov 2026, B3 wave 1 continued on faster code.** At 13:55 UTC, with 75 of the 320 runs done and
+**25 Nov 2026, Calibration wave 1 continued on faster code.** At 13:55 UTC, with 75 of the 320 runs done and
 8 in progress (which finish on `~/pub`), the 237 left moved to `~/perf/b3`: `e4187e6` plus
 `DestinationIndex` (destination choice from per-purpose arrays) and `--exportRoutes=false`, with
-B3's own dependencies and GeoMason jar (`~/pub/cp.txt`) and resources compared equal. Reason: run
+Calibration's own dependencies and GeoMason jar (`~/pub/cp.txt`) and resources compared equal. Reason: run
 time only. Before the change `lhs_016_summer_wed` was repeated on the new tree, and its
 `edge_volume.csv`, `trips.csv` and street volumes are byte-identical to the original's. Design,
 seeds, factors and scoring are unchanged; scoring reads only `edge_volume.csv`. Driver:
 `stage_b3_fast.sh`; ends with `DONE_B3` in `SUMMARY` as before.
 
-**25 Nov 2026, B3's calibration code corrected before any B3 run was scored.** Three points in
-`night_calibrate.py`, found while writing it up; no B3 score existed when they were changed, and the
+**25 Nov 2026, Calibration's code corrected before any Calibration run was scored.** Three points in
+`night_calibrate.py`, found while writing it up; no Calibration score existed when they were changed, and the
 runs are not affected.
 
 1. *Seed variance.* The emulator's predictive variance included its white-noise term, which is the
-   seed variance as the emulator estimates it, and B1's was added to it. The emulator's variance is
-   now that of its mean, so the seed enters once, as B1's variance, which is what *Stages* states.
-   B1's is the variance of one Wednesday, while B3 scores a Wednesday and a Sunday weighted 5:2;
+   seed variance as the emulator estimates it, and Variability's was added to it. The emulator's variance is
+   now that of its mean, so the seed enters once, as Variability's variance, which is what *Stages* states.
+   Variability's is the variance of one Wednesday, while Calibration scores a Wednesday and a Sunday weighted 5:2;
    the white noise is written beside it in `emulator_checks.csv`, so the two can be compared.
 2. *Discrepancy of the centre ratio.* It was 10% of the logarithm of the observed ratio, 17-19% of
    the ratio. It is now 0.10 on the log, 10% of the observed ratio.
 3. *Targets.* M3 and M4 are matched. M1 and M2 were listed among the targets, but a rank correlation
-   has no observed value to match, and its ceiling depends on the share simulated (B1). They rank
+   has no observed value to match, and its ceiling depends on the share simulated (Variability). They rank
    the points that are not ruled out, as the code already did; they rule none out.
 
 With the first two the non-implausible region can only be smaller.
 
-**25 Nov 2026, B3 wave 1 moved to faster code a second time.** At 15:54 UTC, with 91 of the 320 runs
+**25 Nov 2026, Calibration wave 1 moved to faster code a second time.** At 15:54 UTC, with 91 of the 320 runs
 done and 5 in progress (which finish on the trees they started on), the 224 left moved to
 `~/perf/b3w`: `~/perf/b3` plus `WorkplaceChoice` reading its weights from arrays; same dependencies
 and resources, compared equal. Run time only: `lhs_016_summer_wed` repeated on it is byte-identical
 to the original in `edge_volume.csv`, `trips.csv` and street volumes. Driver: `stage_b3_w.sh`, which
 scores and calibrates with the corrected `night_calibrate.py` and ends with `DONE_B3` in `SUMMARY`.
 
-**25 Nov 2026, B4's default arm started** (16:08 UTC, `stage_b4_default.sh`, `~/perf/b3w`, 40 runs: 4
-months x Wed+Sun x seeds 20261400-20261404 at 20%). It does not depend on B3. It is run and not
+**25 Nov 2026, Validation's default arm started** (16:08 UTC, `stage_b4_default.sh`, `~/perf/b3w`, 40 runs: 4
+months x Wed+Sun x seeds 20261400-20261404 at 20%). It does not depend on Calibration. It is run and not
 scored until the calibrated point is fixed, so the held-out months stay unseen.
 
-**25 Nov 2026, B3's seed variance: B4's default sets instead of B1.** Decided before any B3 or B4 run
-was scored. B1's is the variance of one winter Wednesday; a B3 score combines a Wednesday and a
+**25 Nov 2026, Calibration's seed variance: Validation's default sets instead of Variability.** Decided before any Calibration or Validation run
+was scored. Variability's is the variance of one winter Wednesday; a Calibration score combines a Wednesday and a
 Sunday, in winter and in summer. The implausibility takes the variance between the five seeds of
-B4's default arm in winter and in summer, scored as B3's sets are, averaged over the two seasons
-(8 degrees of freedom). Those are calibration months; B4's spring and autumn stay unscored. Driver:
+Validation's default arm in winter and in summer, scored as Calibration's sets are, averaged over the two seasons
+(8 degrees of freedom). Those are calibration months; Validation's spring and autumn stay unscored. Driver:
 `stage_b3_finish.sh` (the runs go on unchanged), seed scores in `scores_seed.csv`. This replaces
-what point 1 above says about B1.
+what point 1 above says about Variability.
 
 **25 Nov 2026, autumn is 29 October and 2 November 2025 instead of 15 and 19 October.** Two thirds
 of the observed window (15 October - 15 November 2025) follow the end of summer time, with sunset
 around 17:10; on the days first planned it is 18:35. The new Wednesday and Sunday are at the middle
-of the window, with sunset around 17:15. No autumn run of B3 or B4 had started, and Cuebiq has no
+of the window, with sunset around 17:15. No autumn run of Calibration or Validation had started, and Cuebiq has no
 autumn. The other seasons keep their days: in spring and summer the sunset is inside the window's
 range; in winter (12 and 16 February, window 15 January - 15 February) it is about 20 minutes later
 than at the window's middle. The year does not matter otherwise: the model uses a date for
-daylight, the weekday, the month's tourist nights and the draw of rain. B4's default arm was
+daylight, the weekday, the month's tourist nights and the draw of rain. Validation's default arm was
 relaunched with the new design.
 
-**25 Nov 2026, two rules fixed before any B3 or B4 run was scored.**
+**25 Nov 2026, two rules fixed before any Calibration or Validation run was scored.**
 
-- *Second wave of B3.* It is run when the points not ruled out are more than none and under 25% of
+- *Second wave of Calibration.* It is run when the points not ruled out are more than none and under 25% of
   the space, and each of the six matched emulators has at least 90% of its leave-one-out errors
   within two standard deviations. At 25% or more the data constrain too little for a second wave to
   help, and the region is reported as it is. With none left, the point of lowest implausibility is
   reported and the model is said not to match the observations. The 25% is a choice of ours.
-- *Outcome of B4.* The calibrated model holds outside the data it was fitted to if, for every
+- *Outcome of Validation.* The calibrated model holds outside the data it was fitted to if, for every
   measure on the held-out seasons (M1 by day and night, M2, the error of M3, the absolute log error
   of M4 by day and night) and on Cuebiq (rho by day and by night), its mean over five seeds is not
   worse than the default's by more than the default's seed standard deviation, and if the
-  implausibility of M3 and M4 at the calibrated runs' mean, with B3's seed and discrepancy variances
+  implausibility of M3 and M4 at the calibrated runs' mean, with Calibration's seed and discrepancy variances
   and no emulator variance, stays under 3. Each comparison is reported, not the verdict alone.
   `night_b4.py` computes it.
 
-**26 Nov 2026, B3 wave 1 scored; no second wave.** All 320 runs and the 20 seed runs ended by 01:45
+**26 Nov 2026, Calibration wave 1 scored; no second wave.** All 320 runs and the 20 seed runs ended by 01:45
 UTC; scored and calibrated at 09:32 (`calib_B3.txt`, `calib_B3/`). Not ruled out: 13,692 of 200,000
 points, **6.8%** of the space. Leave-one-out, share of errors within two standard deviations, for
 the six matched emulators: summer M3 0.925, M4 day 0.95, M4 night 0.95; winter M3 **0.8875** (71 of
@@ -227,11 +236,11 @@ for M3, 88-100% for M4; M3 is what constrains. Region (5-95%): `distanceWeight` 
 `walkShareHalfDistance` 1,038-2,125 m, `emptyStreetWeight` 0.25-3.85, `emptyStreetRatio` 0.04-0.47.
 Calibrated point, the best M1/M2 fit among the points not ruled out (fit 0.753): `distanceWeight`
 0.000968, `walkShareHalfDistance` 2,142 m, `emptyStreetWeight` 0.510, `emptyStreetRatio` 0.362;
-its largest implausibility is 2.97, at the edge of the region. B4's calibrated arm (40 runs) and
+its largest implausibility is 2.97, at the edge of the region. Validation's calibrated arm (40 runs) and
 the twins (30 runs) started at 10:32 UTC on `~/perf/b3w` (`stage_b4_calibrated.sh`), which scores
-both arms, applies the B4 rule and writes `DONE_B4` in `SUMMARY`.
+both arms, applies the Validation rule and writes `DONE_B4` in `SUMMARY`.
 
-**26 Nov 2026, B4 scored: the rule is not met (18 of 24 checks).** The calibrated arm and the twins
+**26 Nov 2026, Validation scored: the rule is not met (18 of 24 checks).** The calibrated arm and the twins
 ended by 13:07 UTC (`b4.txt`, `b4/rule.csv`, `b4/summary.csv`, `b4/table.tex`, `twins.txt`,
 `twins.csv`). Mean over five seeds at 20%, default against calibrated, and the checks that fail:
 
@@ -248,7 +257,7 @@ The other 18 hold. What the calibrated point does, read off `b4/table.tex`:
 
 - *Better everywhere.* M2 diurnal rho (winter 0.86 to 0.91, summer 0.58 to 0.66, spring 0.80 to
   0.82, autumn 0.80 to 0.85) and the daytime centre ratio (default 6.7-7.1, calibrated 6.4-6.9,
-  observed 5.2-5.7), which stays above the observed in every season, as B3 found (never below 5.9).
+  observed 5.2-5.7), which stays above the observed in every season, as Calibration found (never below 5.9).
 - *Worse everywhere.* The night centre ratio: default 4.6-4.8, calibrated 4.1-4.6, observed 4.8-5.4.
   The point that spreads the day out of the centre spreads the night too, and the night was already
   too little concentrated. It fails on both held-out seasons; winter, a calibration month, moves
@@ -306,14 +315,14 @@ in `~/runs/pub_night/twin_check/`. Separately, the shared destination is copied 
 while the twin's current destination is set and is not home, so after the first leg the twins
 mostly choose apart: 41% of legs are matched at zero weights.
 
-**27 Nov 2026, which parameters the paper reports.** B4's rule is not met, so the model the paper
-describes is the default; the calibrated point is reported as a sensitivity case, with its B4
-result and its twins, beside it. Decided after B4 was scored, on that result.
+**27 Nov 2026, which parameters the paper reports.** Validation's rule is not met, so the model the paper
+describes is the default; the calibrated point is reported as a sensitivity case, with its Validation
+result and its twins, beside it. Decided after Validation was scored, on that result.
 
 **27 Nov 2026, the zero arm's leg gap was chance.** On the 10 new winter seeds the twin built first
 and the other walk alone in 7,137 and 7,051 pairs (z = 0.7) and make legs within 0.03% +/- 0.37%;
 with the labels swapped the leg counts are identical, leg for leg. At zero weights vulnerability
-changes nothing, as the code says, and the B4 zero arm's -1.7% in winter was the draw of five seeds.
+changes nothing, as the code says, and the Validation zero arm's -1.7% in winter was the draw of five seeds.
 
 **27 Nov 2026, the twins are one person for the whole day, and their runs are repeated.** Until
 now each twin drew its own agenda, stays and walk decisions from its own generator, and the
@@ -326,19 +335,19 @@ it (`ActivityAgent.copyCommuteFrom`). Every other agent draws as before (its rou
 own). So at equal weights the twins live the same day, and with the weights on they part only where
 the weights make them: a leg one of them does not walk, or a different route. The validation is now
 strict: at zero weights every leg must be matched, on the same streets. Tree `~/perf/twins`
-(`~/perf/b3w`, B4's code, with only these changes; `PROVENANCE_twins`); driver
+(`~/perf/b3w`, Validation's code, with only these changes; `PROVENANCE_twins`); driver
 `~/runs/pub_night/twins_v2.sh`: `mvn test`, one zero-arm smoke run that must pass, then
-`night_twins.py`'s 30 runs (same arms, dates and seeds as B4's twins), log `SUMMARY_twins2`, gaps
-in `twins2.csv` / `twins2.txt`. They replace B4's twins (`twins.csv`), which compared partly
+`night_twins.py`'s 30 runs (same arms, dates and seeds as Validation's twins), log `SUMMARY_twins2`, gaps
+in `twins2.csv` / `twins2.txt`. They replace Validation's twins (`twins.csv`), which compared partly
 different days. The 16 arms on the centreline network in the paper's twin table have the same
 defect and are not repeated yet.
 
-**27 Nov 2026, a statement in the paper to correct.** `paper/main-night.tex` (the history-matching
-paragraph, around line 971) says the seed variance in the implausibility is B1's. Since the
-25 Nov entry it is the variance between the five seeds of B4's default arm in winter and summer,
-averaged over the two seasons, which is what B3 used.
+**27 Nov 2026, a statement in the paper to correct.** `paper/main-night.tex`, which still names the stages B1-B4 (the history-matching
+paragraph, around line 971) says the seed variance in the implausibility is B1's (Variability's). Since the
+25 Nov entry it is the variance between the five seeds of Validation's default arm in winter and summer,
+averaged over the two seasons, which is what Calibration used.
 
-**27 Nov 2026, B4's twins with shared streams.** `twins_v2.sh` ended at 11:41 UTC (`mvn test` 140
+**27 Nov 2026, Validation's twins with shared streams.** `twins_v2.sh` ended at 11:41 UTC (`mvn test` 140
 green; smoke 6,793 legs each, all matched, same streets). Vulnerable twin against the other, mean
 +/- SE over seeds 20261501-20261505, `twins2.csv` / `twins2.txt`:
 

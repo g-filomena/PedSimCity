@@ -57,3 +57,9 @@ bundled city ships.**
   current core engine and agent lifecycle but keeps its own OD/test plumbing.
 - Has its own `utilities/StringEnum` (`Scenario`); each scenario's route-choice model is stated in
   `CityImageAgent.modelFor`, an exhaustive switch.
+
+## Calibration and validation
+
+The protocol against Melbourne's pedestrian counters - stages, measures, rules fixed before scoring
+and every change after - is `CALIBRATION_VALIDATION.md` in this folder; its scripts are in
+`analysis/validation/Melbourne/`.
