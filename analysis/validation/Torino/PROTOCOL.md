@@ -199,3 +199,113 @@ range; in winter (12 and 16 February, window 15 January - 15 February) it is abo
 than at the window's middle. The year does not matter otherwise: the model uses a date for
 daylight, the weekday, the month's tourist nights and the draw of rain. B4's default arm was
 relaunched with the new design.
+
+**25 Nov 2026, two rules fixed before any B3 or B4 run was scored.**
+
+- *Second wave of B3.* It is run when the points not ruled out are more than none and under 25% of
+  the space, and each of the six matched emulators has at least 90% of its leave-one-out errors
+  within two standard deviations. At 25% or more the data constrain too little for a second wave to
+  help, and the region is reported as it is. With none left, the point of lowest implausibility is
+  reported and the model is said not to match the observations. The 25% is a choice of ours.
+- *Outcome of B4.* The calibrated model holds outside the data it was fitted to if, for every
+  measure on the held-out seasons (M1 by day and night, M2, the error of M3, the absolute log error
+  of M4 by day and night) and on Cuebiq (rho by day and by night), its mean over five seeds is not
+  worse than the default's by more than the default's seed standard deviation, and if the
+  implausibility of M3 and M4 at the calibrated runs' mean, with B3's seed and discrepancy variances
+  and no emulator variance, stays under 3. Each comparison is reported, not the verdict alone.
+  `night_b4.py` computes it.
+
+**26 Nov 2026, B3 wave 1 scored; no second wave.** All 320 runs and the 20 seed runs ended by 01:45
+UTC; scored and calibrated at 09:32 (`calib_B3.txt`, `calib_B3/`). Not ruled out: 13,692 of 200,000
+points, **6.8%** of the space. Leave-one-out, share of errors within two standard deviations, for
+the six matched emulators: summer M3 0.925, M4 day 0.95, M4 night 0.95; winter M3 **0.8875** (71 of
+80), M4 day 0.925, M4 night 0.9125. The winter M3 emulator misses the 90% by one point, so the rule
+above is not met and no second wave is run; the region is reported as it is. Its LOO z-scores have
+an SD of 1.13, so that emulator is slightly overconfident and the region it constrains is, if
+anything, slightly too small. Per output, the share not ruled out is 42% (summer) and 50% (winter)
+for M3, 88-100% for M4; M3 is what constrains. Region (5-95%): `distanceWeight` 0.00082-0.00229,
+`walkShareHalfDistance` 1,038-2,125 m, `emptyStreetWeight` 0.25-3.85, `emptyStreetRatio` 0.04-0.47.
+Calibrated point, the best M1/M2 fit among the points not ruled out (fit 0.753): `distanceWeight`
+0.000968, `walkShareHalfDistance` 2,142 m, `emptyStreetWeight` 0.510, `emptyStreetRatio` 0.362;
+its largest implausibility is 2.97, at the edge of the region. B4's calibrated arm (40 runs) and
+the twins (30 runs) started at 10:32 UTC on `~/perf/b3w` (`stage_b4_calibrated.sh`), which scores
+both arms, applies the B4 rule and writes `DONE_B4` in `SUMMARY`.
+
+**26 Nov 2026, B4 scored: the rule is not met (18 of 24 checks).** The calibrated arm and the twins
+ended by 13:07 UTC (`b4.txt`, `b4/rule.csv`, `b4/summary.csv`, `b4/table.tex`, `twins.txt`,
+`twins.csv`). Mean over five seeds at 20%, default against calibrated, and the checks that fail:
+
+| season | check | default | calibrated | worse by | limit |
+|---|---|---|---|---|---|
+| winter | C rho, day | 0.9419 | 0.9407 | 0.0012 | 0.0010 |
+| spring | C rho, day | 0.9377 | 0.9365 | 0.0012 | 0.0009 |
+| spring | M4 abs. log error, night | 0.052 | 0.103 | 0.051 | 0.021 |
+| autumn | M4 abs. log error, night | 0.089 | 0.204 | 0.115 | 0.028 |
+| autumn | M3 abs. error | 0.0150 | 0.0192 | 0.0041 | 0.0009 |
+| autumn | M3 implausibility | | 3.90 | | 3.0 |
+
+The other 18 hold. What the calibrated point does, read off `b4/table.tex`:
+
+- *Better everywhere.* M2 diurnal rho (winter 0.86 to 0.91, summer 0.58 to 0.66, spring 0.80 to
+  0.82, autumn 0.80 to 0.85) and the daytime centre ratio (default 6.7-7.1, calibrated 6.4-6.9,
+  observed 5.2-5.7), which stays above the observed in every season, as B3 found (never below 5.9).
+- *Worse everywhere.* The night centre ratio: default 4.6-4.8, calibrated 4.1-4.6, observed 4.8-5.4.
+  The point that spreads the day out of the centre spreads the night too, and the night was already
+  too little concentrated. It fails on both held-out seasons; winter, a calibration month, moves
+  from 0.04 to 0.14 in log error as well.
+- *The women's change moves the same way in every season*, 0.3-0.5 points more negative (winter
+  -3.8 to -4.3, summer -1.2 to -1.4, spring -2.1 to -2.5, autumn -4.1 to -4.5; observed -3.2,
+  -2.7, -3.3, -2.6). The default already amplifies the seasons, too strong in winter and autumn and
+  too weak in spring and summer, and a shift common to all seasons cannot correct that: it helps
+  spring and summer and harms autumn, where the implausibility crosses 3.
+- *M1 and Cuebiq unchanged.* M1 rho moves by +0.001 to +0.004, Cuebiq by -0.001 by day and +0.004
+  to +0.008 by night. The two Cuebiq failures are a difference of 0.001 against a seed SD of 0.001.
+
+Two checks are degenerate: the default's five autumn seeds give the same diurnal rho (0.800), and
+the calibrated's five spring seeds do too (0.817), because a rank correlation over nine bands takes
+few values. The autumn M2 limit is therefore 0, and any worsening would have failed; the calibrated
+is better there, so it holds.
+
+*Twins* (`night_twins.py`, `~/perf/b3w`, Torino_sidewalks, 21 December and 21 June, 4,000 pairs,
+seeds 20261501-20261505, perception error 0). The vulnerable twin relative to the other, mean and
+standard error over seeds:
+
+| arm | season | same route % | length % | legs % | < 5 lx % | < 10 lx % | parks, water % |
+|---|---|---|---|---|---|---|---|
+| zero | winter | 100.0 | 0 | -1.7 +/- 0.4 | 0 | 0 | 0 |
+| zero | summer | 100.0 | 0 | -0.7 +/- 0.8 | 0 | 0 | 0 |
+| default | winter | 81.4 +/- 0.3 | +1.3 | -5.8 +/- 1.4 | -7.0 +/- 1.6 | -5.9 +/- 0.2 | -8.1 +/- 1.1 |
+| default | summer | 82.7 +/- 0.3 | +1.2 | -4.2 +/- 0.8 | -6.7 +/- 1.0 | -5.3 +/- 0.4 | -11.1 +/- 1.2 |
+| calibrated | winter | 74.4 +/- 0.5 | +1.4 | -4.4 +/- 0.6 | -5.6 +/- 0.7 | -6.1 +/- 0.4 | -10.4 +/- 1.4 |
+| calibrated | summer | 77.4 +/- 0.5 | +1.4 | -5.1 +/- 0.8 | -7.3 +/- 1.1 | -5.7 +/- 0.5 | -11.6 +/- 1.3 |
+
+The zero arm keeps the calibrated activity parameters with the four night weights at 0; the
+calibrated arm sets `emptyStreetWeight` 0.510 and `emptyStreetRatio` 0.362 and leaves the other night
+weights at their defaults. At the calibrated point the twins' gap on lighting and on parks and water
+is the default's within about one standard error; fewer matched routes coincide because matched legs
+are longer (846 m against 600 m in winter: the lower `distanceWeight`), while the relative extra
+length is the same. The gaps are measured on matched legs, which are 41% of the vulnerable twin's
+legs at zero weights, 26% at the defaults and 35% at the calibrated point, so each arm is measured
+on a different subset of legs. The zero arm's routes are identical, as the check requires, but in
+winter the vulnerable twin makes 1.7% fewer legs (summer -0.7 +/- 0.8; the centreline network gave
++1.3 +/- 0.7). To be checked before the twins enter the paper as a controlled experiment.
+
+**27 Nov 2026, what the zero arm's leg gap is made of.** In pairs where both twins walk, they make
+the same number of legs (winter 2.370 and 2.373 a pair). The gap is in the pairs where only one
+twin walks at all, 38% of pairs: in winter it is the non-vulnerable twin 3,617 times and the
+vulnerable one 3,402 (z = 2.6 against an even split), in summer 3,451 and 3,328 (z = 1.5), together
+z = 2.9. So the 4.6 standard errors of the leg counts over five seeds overstated it; it is weaker
+than that, and it may be chance. It does not follow the step order: whichever twin steps first in a
+tick (`scheduleKey`), the non-vulnerable twin walks alone more often. At zero weights the code reads
+vulnerability only in `NightRouteCost` (multiplied by zero), in the volume labels and in the trip
+record, so what is left to separate the twins is how they are built: the vulnerable twin through
+`defineHomeWorkLocations`, the other by copying. Test (diagnostic, not a stage): 10 more winter
+seeds (20261506-20261515) at zero weights, as built and with the labels swapped (`~/perf/swap`,
+`~/perf/b3w` with the twin built first made non-vulnerable; only `NightPopulate.class` differs),
+in `~/runs/pub_night/twin_check/`. Separately, the shared destination is copied from the twin only
+while the twin's current destination is set and is not home, so after the first leg the twins
+mostly choose apart: 41% of legs are matched at zero weights.
+
+**27 Nov 2026, which parameters the paper reports.** B4's rule is not met, so the model the paper
+describes is the default; the calibrated point is reported as a sensitivity case, with its B4
+result and its twins, beside it. Decided after B4 was scored, on that result.
